@@ -1,13 +1,7 @@
 package com.ledgora;
 
-import org.springframework.boot.builder.SpringApplicationBuilder;
-import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
+/* moved to api-gateway module */
 
-public class ServletInitializer extends SpringBootServletInitializer {
-
-	@Override
-	protected SpringApplicationBuilder configure(SpringApplicationBuilder application) {
-		return application.sources(LedgoraApplication.class);
-	}
+public class ServletInitializer {
 
 }

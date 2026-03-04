@@ -1,13 +1,9 @@
 package com.ledgora;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+/* Original application moved to api-gateway module. Placeholder to avoid duplicate class during multi-module builds.
+   If you intend to keep an executable in the root, restore the original implementation here. */
 
-@SpringBootApplication
 public class LedgoraApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(LedgoraApplication.class, args);
-	}
-
+    // placeholder main removed - actual application lives in api-gateway module
 }
