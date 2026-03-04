@@ -5,4 +5,3 @@ public final class VersionInfo {
         return "common-lib-0.0.1-SNAPSHOT";
     }
 }
-

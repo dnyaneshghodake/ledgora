@@ -11,4 +11,3 @@ public class AccountController {
         return "account-service OK";
     }
 }
-

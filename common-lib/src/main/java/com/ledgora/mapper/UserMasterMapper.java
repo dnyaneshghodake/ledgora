@@ -2,15 +2,14 @@ package com.ledgora.mapper;
 
 import com.ledgora.dto.UserMasterDTO;
 import com.ledgora.model.UserMaster;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.stream.Collectors;
+import org.springframework.stereotype.Component;
 
 /**
  * Mapper Class for UserMaster Entity and DTO
  *
- * Converts between UserMaster entity and UserMasterDTO for API operations.
+ * <p>Converts between UserMaster entity and UserMasterDTO for API operations.
  */
 @Component
 public class UserMasterMapper {
@@ -138,9 +137,7 @@ public class UserMasterMapper {
         if (userMasters == null) {
             return null;
         }
-        return userMasters.stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
+        return userMasters.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
     /**
@@ -153,9 +150,7 @@ public class UserMasterMapper {
         if (dtos == null) {
             return null;
         }
-        return dtos.stream()
-                .map(this::toEntity)
-                .collect(Collectors.toList());
+        return dtos.stream().map(this::toEntity).collect(Collectors.toList());
     }
 
     /**
@@ -294,4 +289,3 @@ public class UserMasterMapper {
         return entity;
     }
 }
-

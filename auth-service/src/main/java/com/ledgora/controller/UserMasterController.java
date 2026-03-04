@@ -4,20 +4,19 @@ import com.ledgora.dto.UserMasterDTO;
 import com.ledgora.mapper.UserMasterMapper;
 import com.ledgora.model.UserMaster;
 import com.ledgora.service.UserMasterService;
+import java.util.List;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Optional;
-
 /**
  * REST Controller for UserMaster Entity
  *
- * Provides REST API endpoints for User Master management operations.
- * Handles CRUD operations and various search/filter operations.
+ * <p>Provides REST API endpoints for User Master management operations. Handles CRUD operations and
+ * various search/filter operations.
  */
 @RestController
 @RequestMapping("/api/users")
@@ -31,8 +30,7 @@ public class UserMasterController {
     // ========== CREATE Operations ==========
 
     /**
-     * Create a new user
-     * POST /api/users
+     * Create a new user POST /api/users
      *
      * @param userDTO User data to create
      * @return Created user with HTTP 201
@@ -42,15 +40,13 @@ public class UserMasterController {
         log.info("Creating new user with code: {}", userDTO.getUsrCode1());
         UserMaster userMaster = userMasterMapper.toEntity(userDTO);
         UserMaster createdUser = userMasterService.createUser(userMaster);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(userMasterMapper.toDTO(createdUser));
+        return ResponseEntity.status(HttpStatus.CREATED).body(userMasterMapper.toDTO(createdUser));
     }
 
     // ========== READ Operations ==========
 
     /**
-     * Get user by primary key (usrCode1)
-     * GET /api/users/{usrCode1}
+     * Get user by primary key (usrCode1) GET /api/users/{usrCode1}
      *
      * @param usrCode1 User code
      * @return User if found, 404 if not found
@@ -64,8 +60,7 @@ public class UserMasterController {
     }
 
     /**
-     * Get user by alternative key (usrCode2)
-     * GET /api/users/code2/{usrCode2}
+     * Get user by alternative key (usrCode2) GET /api/users/code2/{usrCode2}
      *
      * @param usrCode2 Alternative user code
      * @return User if found
@@ -79,8 +74,7 @@ public class UserMasterController {
     }
 
     /**
-     * Get user by alternative key (usrCode3)
-     * GET /api/users/code3/{usrCode3}
+     * Get user by alternative key (usrCode3) GET /api/users/code3/{usrCode3}
      *
      * @param usrCode3 Alternative user code
      * @return User if found
@@ -94,8 +88,7 @@ public class UserMasterController {
     }
 
     /**
-     * Get user by email ID
-     * GET /api/users/email/{emailId}
+     * Get user by email ID GET /api/users/email/{emailId}
      *
      * @param emailId Email ID
      * @return User if found
@@ -109,8 +102,7 @@ public class UserMasterController {
     }
 
     /**
-     * Get all users
-     * GET /api/users
+     * Get all users GET /api/users
      *
      * @return List of all users
      */
@@ -122,8 +114,7 @@ public class UserMasterController {
     }
 
     /**
-     * Get all active users
-     * GET /api/users/active
+     * Get all active users GET /api/users/active
      *
      * @return List of active users
      */
@@ -137,8 +128,7 @@ public class UserMasterController {
     // ========== FIND by Branch & Group ==========
 
     /**
-     * Get users by branch
-     * GET /api/users/branch/{brCode}
+     * Get users by branch GET /api/users/branch/{brCode}
      *
      * @param brCode Branch code
      * @return List of users in branch
@@ -151,22 +141,21 @@ public class UserMasterController {
     }
 
     /**
-     * Get active users by branch
-     * GET /api/users/branch/{brCode}/active
+     * Get active users by branch GET /api/users/branch/{brCode}/active
      *
      * @param brCode Branch code
      * @return List of active users in branch
      */
     @GetMapping("/branch/{brCode}/active")
-    public ResponseEntity<List<UserMasterDTO>> getActiveUsersByBranch(@PathVariable Integer brCode) {
+    public ResponseEntity<List<UserMasterDTO>> getActiveUsersByBranch(
+            @PathVariable Integer brCode) {
         log.debug("Fetching active users for branch: {}", brCode);
         List<UserMaster> users = userMasterService.getActiveUsersByBranch(brCode);
         return ResponseEntity.ok(userMasterMapper.toDTOList(users));
     }
 
     /**
-     * Get users by group
-     * GET /api/users/group/{grpCd}
+     * Get users by group GET /api/users/group/{grpCd}
      *
      * @param grpCd Group code
      * @return List of users in group
@@ -179,8 +168,7 @@ public class UserMasterController {
     }
 
     /**
-     * Get users by branch and group
-     * GET /api/users/branch/{brCode}/group/{grpCd}
+     * Get users by branch and group GET /api/users/branch/{brCode}/group/{grpCd}
      *
      * @param brCode Branch code
      * @param grpCd Group code
@@ -188,8 +176,7 @@ public class UserMasterController {
      */
     @GetMapping("/branch/{brCode}/group/{grpCd}")
     public ResponseEntity<List<UserMasterDTO>> getUsersByBranchAndGroup(
-            @PathVariable Integer brCode,
-            @PathVariable Integer grpCd) {
+            @PathVariable Integer brCode, @PathVariable Integer grpCd) {
         log.debug("Fetching users for branch: {} and group: {}", brCode, grpCd);
         List<UserMaster> users = userMasterService.getUsersByBranchAndGroup(brCode, grpCd);
         return ResponseEntity.ok(userMasterMapper.toDTOList(users));
@@ -198,8 +185,7 @@ public class UserMasterController {
     // ========== SEARCH Operations ==========
 
     /**
-     * Search users by name
-     * GET /api/users/search/name?name={usrName}
+     * Search users by name GET /api/users/search/name?name={usrName}
      *
      * @param name User name (partial match)
      * @return List of matching users
@@ -212,8 +198,8 @@ public class UserMasterController {
     }
 
     /**
-     * Search users by multiple criteria
-     * GET /api/users/search?name={name}&brCode={brCode}&grpCd={grpCd}&isActive={isActive}
+     * Search users by multiple criteria GET
+     * /api/users/search?name={name}&brCode={brCode}&grpCd={grpCd}&isActive={isActive}
      *
      * @param name User name (optional)
      * @param brCode Branch code (optional)
@@ -227,15 +213,18 @@ public class UserMasterController {
             @RequestParam(required = false) Integer brCode,
             @RequestParam(required = false) Integer grpCd,
             @RequestParam(required = false) Integer isActive) {
-        log.debug("Searching users with filters - name: {}, branch: {}, group: {}, active: {}",
-                 name, brCode, grpCd, isActive);
+        log.debug(
+                "Searching users with filters - name: {}, branch: {}, group: {}, active: {}",
+                name,
+                brCode,
+                grpCd,
+                isActive);
         List<UserMaster> users = userMasterService.searchUsers(name, brCode, grpCd, isActive);
         return ResponseEntity.ok(userMasterMapper.toDTOList(users));
     }
 
     /**
-     * Get users with multi-branch access
-     * GET /api/users/access/multi-branch
+     * Get users with multi-branch access GET /api/users/access/multi-branch
      *
      * @return List of users with multi-branch access
      */
@@ -247,8 +236,7 @@ public class UserMasterController {
     }
 
     /**
-     * Get users with bad login attempts
-     * GET /api/users/security/bad-logins
+     * Get users with bad login attempts GET /api/users/security/bad-logins
      *
      * @return List of users with bad login attempts
      */
@@ -262,8 +250,7 @@ public class UserMasterController {
     // ========== UPDATE Operations ==========
 
     /**
-     * Update an existing user
-     * PUT /api/users/{usrCode1}
+     * Update an existing user PUT /api/users/{usrCode1}
      *
      * @param usrCode1 User code
      * @param userDTO Updated user data
@@ -271,8 +258,7 @@ public class UserMasterController {
      */
     @PutMapping("/{usrCode1}")
     public ResponseEntity<UserMasterDTO> updateUser(
-            @PathVariable String usrCode1,
-            @RequestBody UserMasterDTO userDTO) {
+            @PathVariable String usrCode1, @RequestBody UserMasterDTO userDTO) {
         log.info("Updating user with code: {}", usrCode1);
         userDTO.setUsrCode1(usrCode1);
         UserMaster userMaster = userMasterMapper.toEntity(userDTO);
@@ -281,8 +267,7 @@ public class UserMasterController {
     }
 
     /**
-     * Update user status
-     * PATCH /api/users/{usrCode1}/status/{status}
+     * Update user status PATCH /api/users/{usrCode1}/status/{status}
      *
      * @param usrCode1 User code
      * @param status New status
@@ -290,16 +275,14 @@ public class UserMasterController {
      */
     @PatchMapping("/{usrCode1}/status/{status}")
     public ResponseEntity<UserMasterDTO> updateUserStatus(
-            @PathVariable String usrCode1,
-            @PathVariable Integer status) {
+            @PathVariable String usrCode1, @PathVariable Integer status) {
         log.info("Updating status for user: {} to {}", usrCode1, status);
         UserMaster updatedUser = userMasterService.updateUserStatus(usrCode1, status);
         return ResponseEntity.ok(userMasterMapper.toDTO(updatedUser));
     }
 
     /**
-     * Activate/Deactivate user
-     * PATCH /api/users/{usrCode1}/active/{isActive}
+     * Activate/Deactivate user PATCH /api/users/{usrCode1}/active/{isActive}
      *
      * @param usrCode1 User code
      * @param isActive Active status
@@ -307,8 +290,7 @@ public class UserMasterController {
      */
     @PatchMapping("/{usrCode1}/active/{isActive}")
     public ResponseEntity<UserMasterDTO> updateUserActiveStatus(
-            @PathVariable String usrCode1,
-            @PathVariable Integer isActive) {
+            @PathVariable String usrCode1, @PathVariable Integer isActive) {
         log.info("Updating active status for user: {} to {}", usrCode1, isActive);
         UserMaster updatedUser = userMasterService.updateUserActiveStatus(usrCode1, isActive);
         return ResponseEntity.ok(userMasterMapper.toDTO(updatedUser));
@@ -317,8 +299,7 @@ public class UserMasterController {
     // ========== DELETE Operations ==========
 
     /**
-     * Delete a user
-     * DELETE /api/users/{usrCode1}
+     * Delete a user DELETE /api/users/{usrCode1}
      *
      * @param usrCode1 User code to delete
      * @return No content response
@@ -333,8 +314,7 @@ public class UserMasterController {
     // ========== COUNT Operations ==========
 
     /**
-     * Get total user count
-     * GET /api/users/count/total
+     * Get total user count GET /api/users/count/total
      *
      * @return Total count
      */
@@ -346,8 +326,7 @@ public class UserMasterController {
     }
 
     /**
-     * Get active user count
-     * GET /api/users/count/active
+     * Get active user count GET /api/users/count/active
      *
      * @return Active user count
      */
@@ -359,8 +338,7 @@ public class UserMasterController {
     }
 
     /**
-     * Get active user count by branch
-     * GET /api/users/count/branch/{brCode}/active
+     * Get active user count by branch GET /api/users/count/branch/{brCode}/active
      *
      * @param brCode Branch code
      * @return Active user count in branch
@@ -372,11 +350,75 @@ public class UserMasterController {
         return ResponseEntity.ok(count);
     }
 
+    // ========== PASSWORD Management ==========
+
+    /**
+     * Change password for a user POST /api/users/{usrCode1}/change-password
+     *
+     * @param usrCode1 User code
+     * @param passwordChangeRequest Request containing new password
+     * @return Success message
+     */
+    @PostMapping("/{usrCode1}/change-password")
+    public ResponseEntity<String> changePassword(
+            @PathVariable String usrCode1,
+            @RequestBody PasswordChangeRequest passwordChangeRequest) {
+        log.info("Changing password for user: {}", usrCode1);
+
+        boolean success =
+                userMasterService.changePassword(usrCode1, passwordChangeRequest.getNewPassword());
+
+        if (success) {
+            return ResponseEntity.ok("Password changed successfully for user: " + usrCode1);
+        }
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body("User not found or password change failed: " + usrCode1);
+    }
+
+    /**
+     * Verify user password POST /api/users/{usrCode1}/verify-password
+     *
+     * @param usrCode1 User code
+     * @param passwordVerifyRequest Request containing password to verify
+     * @return true if password matches, false otherwise
+     */
+    @PostMapping("/{usrCode1}/verify-password")
+    public ResponseEntity<Boolean> verifyPassword(
+            @PathVariable String usrCode1,
+            @RequestBody PasswordVerifyRequest passwordVerifyRequest) {
+        log.debug("Verifying password for user: {}", usrCode1);
+
+        boolean isValid =
+                userMasterService.verifyPassword(usrCode1, passwordVerifyRequest.getPassword());
+        return ResponseEntity.ok(isValid);
+    }
+
+    /**
+     * Reset user password to default POST /api/users/{usrCode1}/reset-password
+     *
+     * @param usrCode1 User code
+     * @return Success message
+     */
+    @PostMapping("/{usrCode1}/reset-password")
+    public ResponseEntity<String> resetPasswordToDefault(@PathVariable String usrCode1) {
+        log.info("Resetting password to default for user: {}", usrCode1);
+
+        boolean success = userMasterService.resetPasswordToDefault(usrCode1);
+
+        if (success) {
+            return ResponseEntity.ok(
+                    "Password reset to default (changeme@123) for user: " + usrCode1);
+        }
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body("User not found or password reset failed: " + usrCode1);
+    }
+
     // ========== Health Check ==========
 
     /**
-     * Health check endpoint
-     * GET /api/users/health
+     * Health check endpoint GET /api/users/health
      *
      * @return Health status
      */
@@ -384,5 +426,32 @@ public class UserMasterController {
     public ResponseEntity<String> health() {
         return ResponseEntity.ok("User Master API is up and running");
     }
-}
 
+    // ========== Request/Response DTOs ==========
+
+    /** Request DTO for password change */
+    public static class PasswordChangeRequest {
+        private String newPassword;
+
+        public String getNewPassword() {
+            return newPassword;
+        }
+
+        public void setNewPassword(String newPassword) {
+            this.newPassword = newPassword;
+        }
+    }
+
+    /** Request DTO for password verification */
+    public static class PasswordVerifyRequest {
+        private String password;
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+    }
+}

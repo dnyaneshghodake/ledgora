@@ -11,4 +11,3 @@ public class AuthController {
         return "auth-service OK";
     }
 }
-

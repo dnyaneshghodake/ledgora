@@ -1,20 +1,21 @@
 package com.ledgora.service;
 
+import com.ledgora.common.PasswordEncoderUtil;
+import com.ledgora.dto.PasswordDTO;
 import com.ledgora.model.UserMaster;
 import com.ledgora.repository.UserMasterRepository;
+import java.util.List;
+import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
-
 /**
  * Service Class for UserMaster Entity
  *
- * Provides business logic and operations for User Master management.
- * Handles CRUD operations, validation, and business rules.
+ * <p>Provides business logic and operations for User Master management. Handles CRUD operations,
+ * validation, and business rules. Automatically creates default encrypted password for new users.
  */
 @Service
 @AllArgsConstructor
@@ -22,6 +23,8 @@ import java.util.Optional;
 public class UserMasterService {
 
     private final UserMasterRepository userMasterRepository;
+    private final PasswordService passwordService;
+    private final PasswordEncoderUtil passwordEncoderUtil;
 
     // ========== CREATE Operations ==========
 
@@ -40,7 +43,27 @@ public class UserMasterService {
             throw new IllegalArgumentException("User Code 1 cannot be null or empty");
         }
 
-        return userMasterRepository.save(userMaster);
+        // Save user first
+        UserMaster savedUser = userMasterRepository.save(userMaster);
+        log.info("User created successfully with code: {}", savedUser.getUsrCode1());
+
+        // Create default password for the new user
+        try {
+            String encryptedPassword = passwordEncoderUtil.generateDefaultPassword();
+            PasswordDTO passwordDTO =
+                    PasswordDTO.builder()
+                            .userCode(savedUser.getUsrCode1())
+                            .password(encryptedPassword)
+                            .build();
+
+            passwordService.createPassword(passwordDTO);
+            log.info("Default password created for user: {}", savedUser.getUsrCode1());
+        } catch (Exception e) {
+            log.error("Error creating default password for user: {}", savedUser.getUsrCode1(), e);
+            // Continue even if password creation fails, user is already created
+        }
+
+        return savedUser;
     }
 
     // ========== READ Operations ==========
@@ -253,9 +276,14 @@ public class UserMasterService {
      * @param isActive Active status (optional)
      * @return List of matching users
      */
-    public List<UserMaster> searchUsers(String usrName, Integer brCode, Integer grpCd, Integer isActive) {
-        log.debug("Searching users with filters - name: {}, branch: {}, group: {}, active: {}",
-                 usrName, brCode, grpCd, isActive);
+    public List<UserMaster> searchUsers(
+            String usrName, Integer brCode, Integer grpCd, Integer isActive) {
+        log.debug(
+                "Searching users with filters - name: {}, branch: {}, group: {}, active: {}",
+                usrName,
+                brCode,
+                grpCd,
+                isActive);
         return userMasterRepository.searchUsers(usrName, brCode, grpCd, isActive);
     }
 
@@ -272,7 +300,8 @@ public class UserMasterService {
         log.info("Updating user with code: {}", userMaster.getUsrCode1());
 
         if (!userMasterRepository.existsById(userMaster.getUsrCode1())) {
-            throw new IllegalArgumentException("User not found with code: " + userMaster.getUsrCode1());
+            throw new IllegalArgumentException(
+                    "User not found with code: " + userMaster.getUsrCode1());
         }
 
         return userMasterRepository.save(userMaster);
@@ -330,7 +359,95 @@ public class UserMasterService {
     @Transactional
     public void deleteUser(String usrCode1) {
         log.info("Deleting user with code: {}", usrCode1);
+
+        // Delete associated password record first
+        try {
+            passwordService.deletePassword(usrCode1);
+            log.info("Password record deleted for user: {}", usrCode1);
+        } catch (Exception e) {
+            log.warn("Error deleting password record for user: {}", usrCode1, e);
+        }
+
         userMasterRepository.deleteById(usrCode1);
+    }
+
+    // ========== PASSWORD Management ==========
+
+    /**
+     * Change password for a user
+     *
+     * @param usrCode1 User code
+     * @param newPassword New plain text password
+     * @return true if password changed successfully
+     */
+    @Transactional
+    public boolean changePassword(String usrCode1, String newPassword) {
+        log.info("Changing password for user: {}", usrCode1);
+
+        if (newPassword == null || newPassword.isEmpty()) {
+            throw new IllegalArgumentException("New password cannot be null or empty");
+        }
+
+        // Encrypt the new password
+        String encryptedPassword = passwordEncoderUtil.encryptPassword(newPassword);
+        PasswordDTO passwordDTO =
+                PasswordDTO.builder().userCode(usrCode1).password(encryptedPassword).build();
+
+        Optional<PasswordDTO> updated = passwordService.updatePassword(usrCode1, passwordDTO);
+
+        if (updated.isPresent()) {
+            log.info("Password changed successfully for user: {}", usrCode1);
+            return true;
+        }
+
+        log.warn("Password change failed - User not found: {}", usrCode1);
+        return false;
+    }
+
+    /**
+     * Verify user password
+     *
+     * @param usrCode1 User code
+     * @param plainPassword Plain text password to verify
+     * @return true if password matches, false otherwise
+     */
+    public boolean verifyPassword(String usrCode1, String plainPassword) {
+        log.debug("Verifying password for user: {}", usrCode1);
+
+        Optional<PasswordDTO> passwordDTO = passwordService.getPasswordByUserCode(usrCode1);
+
+        if (passwordDTO.isPresent()) {
+            return passwordEncoderUtil.verifyPassword(
+                    plainPassword, passwordDTO.get().getPassword());
+        }
+
+        log.warn("Password record not found for user: {}", usrCode1);
+        return false;
+    }
+
+    /**
+     * Reset user password to default
+     *
+     * @param usrCode1 User code
+     * @return true if password reset successfully
+     */
+    @Transactional
+    public boolean resetPasswordToDefault(String usrCode1) {
+        log.info("Resetting password to default for user: {}", usrCode1);
+
+        String encryptedPassword = passwordEncoderUtil.generateDefaultPassword();
+        PasswordDTO passwordDTO =
+                PasswordDTO.builder().userCode(usrCode1).password(encryptedPassword).build();
+
+        Optional<PasswordDTO> updated = passwordService.updatePassword(usrCode1, passwordDTO);
+
+        if (updated.isPresent()) {
+            log.info("Password reset to default successfully for user: {}", usrCode1);
+            return true;
+        }
+
+        log.warn("Password reset failed - User not found: {}", usrCode1);
+        return false;
     }
 
     // ========== COUNT Operations ==========
@@ -390,4 +507,3 @@ public class UserMasterService {
         return userMasterRepository.findByEmailIdIgnoreCase(emailId).isPresent();
     }
 }
-

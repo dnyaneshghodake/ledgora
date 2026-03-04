@@ -11,4 +11,3 @@ public class LedgerController {
         return "ledger-service OK";
     }
 }
-

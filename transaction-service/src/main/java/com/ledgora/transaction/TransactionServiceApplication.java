@@ -9,4 +9,3 @@ public class TransactionServiceApplication {
         SpringApplication.run(TransactionServiceApplication.class, args);
     }
 }
-

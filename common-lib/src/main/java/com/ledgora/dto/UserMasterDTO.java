@@ -1,14 +1,13 @@
 package com.ledgora.dto;
 
+import java.time.LocalDate;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.LocalDate;
 
 /**
- * User Master DTO - For API Request/Response
- * Used for transferring user data between layers.
+ * User Master DTO - For API Request/Response Used for transferring user data between layers.
  * Contains all essential user information.
  */
 @Data
@@ -86,14 +85,21 @@ public class UserMasterDTO {
 
     @Override
     public String toString() {
-        return "UserMasterDTO{" +
-                "usrCode1='" + usrCode1 + '\'' +
-                ", usrCode2=" + usrCode2 +
-                ", usrName='" + usrName + '\'' +
-                ", usrBrCode=" + usrBrCode +
-                ", grpCd=" + grpCd +
-                ", isActive=" + isActive +
-                '}';
+        return "UserMasterDTO{"
+                + "usrCode1='"
+                + usrCode1
+                + '\''
+                + ", usrCode2="
+                + usrCode2
+                + ", usrName='"
+                + usrName
+                + '\''
+                + ", usrBrCode="
+                + usrBrCode
+                + ", grpCd="
+                + grpCd
+                + ", isActive="
+                + isActive
+                + '}';
     }
 }
-
