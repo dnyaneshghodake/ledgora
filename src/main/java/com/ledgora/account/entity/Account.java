@@ -6,6 +6,7 @@ import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
 import com.ledgora.common.enums.LedgerAccountType;
 import com.ledgora.customer.entity.Customer;
+import com.ledgora.customer.entity.CustomerMaster;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
 import lombok.*;
@@ -74,6 +75,20 @@ public class Account {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id")
     private Customer customer;
+
+    // CBS: Link to CustomerMaster for CBS-grade customer management
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_master_id")
+    private CustomerMaster customerMaster;
+
+    // CBS: Customer number for quick reference
+    @Column(name = "customer_number", length = 30)
+    private String customerNumber;
+
+    // CBS: Home branch for branch-level isolation
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "home_branch_id")
+    private Branch homeBranch;
 
     @Column(name = "gl_account_code", length = 20)
     private String glAccountCode;
