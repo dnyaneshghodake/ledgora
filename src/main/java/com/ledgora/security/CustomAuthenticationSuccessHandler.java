@@ -5,11 +5,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthenticationSuccessHandler {
@@ -30,6 +33,18 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
 
         // Store username in session so the navbar renders (header.jsp checks sessionScope.username)
         session.setAttribute("username", userDetails.getUsername());
+
+        // Store user roles in session for role-based JSP rendering (header.jsp / dashboard.jsp)
+        List<String> roles = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+        session.setAttribute("userRoles", roles);
+
+        // Convenience booleans for simpler JSP checks (e.g. sessionScope.isAdmin)
+        session.setAttribute("isAdmin",    roles.contains("ROLE_ADMIN"));
+        session.setAttribute("isManager",  roles.contains("ROLE_MANAGER"));
+        session.setAttribute("isTeller",   roles.contains("ROLE_TELLER"));
+        session.setAttribute("isCustomer", roles.contains("ROLE_CUSTOMER"));
 
         // Generate and store JWT token in session for API calls
         String token = jwtTokenProvider.generateToken(authentication);
