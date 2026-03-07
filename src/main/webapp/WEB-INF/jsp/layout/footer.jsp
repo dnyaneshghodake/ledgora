@@ -8,6 +8,8 @@
 
 <footer class="cbs-footer" id="cbsFooter">
     <div class="cbs-footer-content">
+        <span class="cbs-footer-disclaimer">All ledger entries are immutable. System of Record: LedgerEntries.</span>
+        <span class="cbs-footer-separator">|</span>
         <span>Ledgora Core Banking Platform &copy; 2026</span>
         <span class="cbs-footer-separator">|</span>
         <span>Powered by Spring Boot</span>

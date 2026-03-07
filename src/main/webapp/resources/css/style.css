@@ -112,6 +112,37 @@ body {
 .cbs-header-center {
     display: flex;
     align-items: center;
+    gap: 0.5rem;
+}
+
+/* Environment Badge */
+.cbs-env-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.6rem;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.cbs-env-dev {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #93c5fd;
+}
+
+.cbs-env-uat {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fcd34d;
+}
+
+.cbs-env-prod {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #86efac;
 }
 
 .cbs-business-date {
@@ -121,7 +152,7 @@ body {
     background: #f1f5f9;
     padding: 0.35rem 0.85rem;
     border-radius: 0.5rem;
-    font-size: 0.82rem;
+    font-size: 0.78rem;
     color: #475569;
     white-space: nowrap;
 }
@@ -132,6 +163,80 @@ body {
 
 .cbs-business-date strong {
     color: var(--cbs-primary);
+}
+
+/* Business Date Status Indicator */
+.cbs-date-status {
+    display: flex;
+    align-items: center;
+}
+
+.cbs-status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+.cbs-status-indicator i {
+    font-size: 0.5rem;
+}
+
+.cbs-status-open {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.cbs-status-open i { color: #16a34a; }
+
+.cbs-status-closing {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.cbs-status-closing i { color: #d97706; }
+
+.cbs-status-closed {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.cbs-status-closed i { color: #dc2626; }
+
+/* Ledger Health Indicator */
+.cbs-ledger-health {
+    display: flex;
+    align-items: center;
+}
+
+.cbs-health-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 0.25rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+.cbs-health-healthy {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.cbs-health-warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.cbs-health-corrupted {
+    background: #fee2e2;
+    color: #991b1b;
 }
 
 .cbs-header-right {
@@ -449,6 +554,18 @@ body.cbs-sidebar-collapsed .cbs-footer {
     .cbs-user-details {
         display: none;
     }
+
+    .cbs-env-badge {
+        display: none;
+    }
+
+    .cbs-date-status {
+        display: none;
+    }
+
+    .cbs-ledger-health {
+        display: none;
+    }
 }
 
 @media (max-width: 767.98px) {
@@ -555,4 +672,177 @@ h3 small {
 
 .shadow:hover {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* =========================================================================
+   Footer Disclaimer
+   ========================================================================= */
+.cbs-footer-disclaimer {
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* =========================================================================
+   Ledger Explorer Styles
+   ========================================================================= */
+.ledger-amount-debit {
+    color: #dc2626;
+    font-weight: 600;
+    text-align: right;
+}
+
+.ledger-amount-credit {
+    color: #16a34a;
+    font-weight: 600;
+    text-align: right;
+}
+
+.ledger-amount-zero {
+    color: #94a3b8;
+    text-align: right;
+}
+
+.ledger-totals-row td {
+    font-weight: 700;
+    font-size: 0.95rem;
+    border-top: 2px solid #1a2332;
+}
+
+.ledger-balanced {
+    background: #dcfce7;
+    color: #166534;
+    font-weight: 600;
+}
+
+.ledger-unbalanced {
+    background: #fee2e2;
+    color: #991b1b;
+    font-weight: 600;
+}
+
+.journal-link {
+    cursor: pointer;
+    text-decoration: underline;
+    color: var(--cbs-accent);
+}
+
+.journal-link:hover {
+    color: var(--cbs-accent-hover);
+}
+
+/* =========================================================================
+   Settlement Dashboard Styles
+   ========================================================================= */
+.settlement-step {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 0.5rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.settlement-step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-right: 0.75rem;
+    flex-shrink: 0;
+}
+
+.settlement-step-pending .settlement-step-number {
+    background: #e2e8f0;
+    color: #64748b;
+}
+
+.settlement-step-active .settlement-step-number {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.settlement-step-completed .settlement-step-number {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.settlement-step-failed .settlement-step-number {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.settlement-step-pending {
+    border-color: #e2e8f0;
+    background: #f8fafc;
+}
+
+.settlement-step-active {
+    border-color: #93c5fd;
+    background: #eff6ff;
+}
+
+.settlement-step-completed {
+    border-color: #86efac;
+    background: #f0fdf4;
+}
+
+.settlement-step-failed {
+    border-color: #fca5a5;
+    background: #fef2f2;
+}
+
+.settlement-step-label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--cbs-primary);
+}
+
+.settlement-step-desc {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin-top: 0.15rem;
+}
+
+/* =========================================================================
+   RBI Audit Panel Styles
+   ========================================================================= */
+.audit-panel {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+.audit-panel .audit-label {
+    font-size: 0.78rem;
+    color: #64748b;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.audit-panel .audit-value {
+    font-size: 0.88rem;
+    color: var(--cbs-primary);
+    font-weight: 600;
+}
+
+.audit-disclaimer {
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.82rem;
+    color: #92400e;
+    font-weight: 500;
+    margin-top: 1.5rem;
+}
+
+.audit-disclaimer i {
+    color: #d97706;
 }
