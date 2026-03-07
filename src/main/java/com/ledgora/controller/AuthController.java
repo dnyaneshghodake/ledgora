@@ -2,9 +2,7 @@ package com.ledgora.controller;
 
 import com.ledgora.dto.LoginRequest;
 import com.ledgora.dto.RegisterRequest;
-import com.ledgora.model.User;
 import com.ledgora.service.AuthService;
-import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -43,23 +41,6 @@ public class AuthController {
         return "auth/login";
     }
 
-    @PostMapping("/perform_login")
-    public String login(@Valid @ModelAttribute("loginRequest") LoginRequest loginRequest,
-                        BindingResult result, HttpSession session, Model model) {
-        if (result.hasErrors()) {
-            return "auth/login";
-        }
-        try {
-            String token = authService.authenticate(loginRequest);
-            session.setAttribute("jwt_token", token);
-            session.setAttribute("username", loginRequest.getUsername());
-            return "redirect:/dashboard";
-        } catch (Exception e) {
-            model.addAttribute("error", "Invalid username or password");
-            return "auth/login";
-        }
-    }
-
     @GetMapping("/register")
     public String registerPage(Model model) {
         model.addAttribute("registerRequest", new RegisterRequest());
@@ -80,12 +61,6 @@ public class AuthController {
             model.addAttribute("error", e.getMessage());
             return "auth/register";
         }
-    }
-
-    @GetMapping("/logout")
-    public String logout(HttpSession session) {
-        session.invalidate();
-        return "redirect:/login?logout=true";
     }
 
     @GetMapping("/admin/users")
