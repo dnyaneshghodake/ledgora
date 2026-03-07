@@ -1,13 +1,18 @@
 package com.ledgora.config;
 
-import com.ledgora.model.GeneralLedger;
-import com.ledgora.model.Role;
-import com.ledgora.model.User;
-import com.ledgora.model.enums.GLAccountType;
-import com.ledgora.model.enums.RoleName;
-import com.ledgora.repository.GeneralLedgerRepository;
-import com.ledgora.repository.RoleRepository;
-import com.ledgora.repository.UserRepository;
+import com.ledgora.gl.entity.GeneralLedger;
+import com.ledgora.auth.entity.Role;
+import com.ledgora.auth.entity.User;
+import com.ledgora.common.enums.GLAccountType;
+import com.ledgora.common.enums.RoleName;
+import com.ledgora.common.entity.SystemDate;
+import com.ledgora.common.enums.BusinessDateStatus;
+import com.ledgora.branch.entity.Branch;
+import com.ledgora.gl.repository.GeneralLedgerRepository;
+import com.ledgora.auth.repository.RoleRepository;
+import com.ledgora.auth.repository.UserRepository;
+import com.ledgora.common.repository.SystemDateRepository;
+import com.ledgora.branch.repository.BranchRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -15,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.Set;
 
 @Component
@@ -25,13 +31,18 @@ public class DataInitializer implements CommandLineRunner {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final GeneralLedgerRepository glRepository;
+    private final SystemDateRepository systemDateRepository;
+    private final BranchRepository branchRepository;
     private final PasswordEncoder passwordEncoder;
 
     public DataInitializer(RoleRepository roleRepository, UserRepository userRepository,
-                           GeneralLedgerRepository glRepository, PasswordEncoder passwordEncoder) {
+                           GeneralLedgerRepository glRepository, SystemDateRepository systemDateRepository,
+                           BranchRepository branchRepository, PasswordEncoder passwordEncoder) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
         this.glRepository = glRepository;
+        this.systemDateRepository = systemDateRepository;
+        this.branchRepository = branchRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -39,8 +50,10 @@ public class DataInitializer implements CommandLineRunner {
     @Transactional
     public void run(String... args) {
         initRoles();
+        initBranches();
         initAdminUser();
         initGLHierarchy();
+        initBusinessDate();
     }
 
     private void initRoles() {
@@ -53,6 +66,18 @@ public class DataInitializer implements CommandLineRunner {
                 roleRepository.save(role);
                 log.info("Created role: {}", roleName);
             }
+        }
+    }
+
+    private void initBranches() {
+        if (branchRepository.count() == 0) {
+            branchRepository.save(Branch.builder()
+                    .branchCode("HQ001").name("Head Office").address("Main Street, City Center").isActive(true).build());
+            branchRepository.save(Branch.builder()
+                    .branchCode("BR001").name("Branch 1").address("1st Avenue, Downtown").isActive(true).build());
+            branchRepository.save(Branch.builder()
+                    .branchCode("BR002").name("Branch 2").address("2nd Avenue, Uptown").isActive(true).build());
+            log.info("Initialized default branches");
         }
     }
 
@@ -108,6 +133,17 @@ public class DataInitializer implements CommandLineRunner {
             createGL("5300", "Staff Expenses", "Salaries and benefits", GLAccountType.EXPENSE, expenses, 1, "DEBIT");
 
             log.info("Initialized GL hierarchy with Chart of Accounts");
+        }
+    }
+
+    private void initBusinessDate() {
+        if (systemDateRepository.count() == 0) {
+            SystemDate sd = SystemDate.builder()
+                    .businessDate(LocalDate.now())
+                    .status(BusinessDateStatus.OPEN)
+                    .build();
+            systemDateRepository.save(sd);
+            log.info("Initialized business date: {}", sd.getBusinessDate());
         }
     }
 

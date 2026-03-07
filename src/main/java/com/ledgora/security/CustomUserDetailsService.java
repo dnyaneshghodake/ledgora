@@ -1,7 +1,7 @@
 package com.ledgora.security;
 
-import com.ledgora.model.User;
-import com.ledgora.repository.UserRepository;
+import com.ledgora.auth.entity.User;
+import com.ledgora.auth.repository.UserRepository;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
