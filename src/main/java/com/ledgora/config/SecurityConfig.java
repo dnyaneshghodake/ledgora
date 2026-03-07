@@ -2,6 +2,7 @@ package com.ledgora.config;
 
 import com.ledgora.security.CustomUserDetailsService;
 import com.ledgora.security.JwtAuthenticationFilter;
+import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -52,6 +53,7 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
+                .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
                 .requestMatchers("/", "/login", "/register", "/api/auth/**").permitAll()
                 .requestMatchers("/resources/**", "/css/**", "/js/**", "/images/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
