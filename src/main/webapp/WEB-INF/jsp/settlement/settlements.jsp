@@ -45,11 +45,11 @@
                 <c:forEach var="settlement" items="${settlements}">
                     <tr>
                         <td><code>${settlement.settlementRef}</code></td>
-                        <td>${settlement.settlementDate}</td>
+                        <td>${settlement.businessDate}</td>
                         <td><span class="badge bg-success">${settlement.status}</span></td>
-                        <td class="text-danger">${settlement.totalDebit}</td>
-                        <td class="text-success">${settlement.totalCredit}</td>
-                        <td class="fw-bold">${settlement.netAmount}</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
                         <td>${settlement.transactionCount}</td>
                         <td>
                             <a href="${pageContext.request.contextPath}/settlements/${settlement.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>

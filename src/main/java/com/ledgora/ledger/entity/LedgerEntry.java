@@ -10,12 +10,24 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * PART 1: Immutable ledger entry - the ultimate source of financial truth.
+ * Ledger entries must never be updated or deleted.
+ * Each entry references a LedgerJournal for grouped double-entry posting.
+ */
 @Entity
-@Table(name = "ledger_entries")
+@Table(name = "ledger_entries", indexes = {
+    @Index(name = "idx_ledger_entry_account_created", columnList = "account_id, created_at"),
+    @Index(name = "idx_ledger_entry_journal", columnList = "journal_id")
+})
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class LedgerEntry {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "journal_id")
+    private LedgerJournal journal;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "transaction_id", nullable = false)
