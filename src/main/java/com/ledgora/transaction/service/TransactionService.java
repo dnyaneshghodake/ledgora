@@ -9,10 +9,12 @@ import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.EntryType;
+import com.ledgora.common.enums.TransactionChannel;
 import com.ledgora.common.enums.TransactionStatus;
 import com.ledgora.common.enums.TransactionType;
 import com.ledgora.common.service.BusinessDateService;
 import com.ledgora.events.TransactionCreatedEvent;
+import com.ledgora.idempotency.service.IdempotencyService;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
 import com.ledgora.ledger.entity.LedgerEntry;
@@ -59,6 +61,7 @@ public class TransactionService {
     private final AuditService auditService;
     private final LedgerService ledgerService;
     private final ApplicationEventPublisher eventPublisher;
+    private final IdempotencyService idempotencyService;
 
     public TransactionService(TransactionRepository transactionRepository,
                               TransactionLineRepository transactionLineRepository,
@@ -70,7 +73,8 @@ public class TransactionService {
                               BusinessDateService businessDateService,
                               AuditService auditService,
                               LedgerService ledgerService,
-                              ApplicationEventPublisher eventPublisher) {
+                              ApplicationEventPublisher eventPublisher,
+                              IdempotencyService idempotencyService) {
         this.transactionRepository = transactionRepository;
         this.transactionLineRepository = transactionLineRepository;
         this.accountRepository = accountRepository;
@@ -82,6 +86,7 @@ public class TransactionService {
         this.auditService = auditService;
         this.ledgerService = ledgerService;
         this.eventPublisher = eventPublisher;
+        this.idempotencyService = idempotencyService;
     }
 
     /**
@@ -90,6 +95,9 @@ public class TransactionService {
      */
     @Transactional
     public Transaction deposit(TransactionDTO dto) {
+        // PART 2: Idempotency check
+        checkIdempotency(dto);
+
         // PART 8: Pessimistic lock on account
         Account account = accountRepository.findByAccountNumberWithLock(dto.getDestinationAccountNumber())
                 .orElseThrow(() -> new RuntimeException("Account not found: " + dto.getDestinationAccountNumber()));
@@ -106,6 +114,8 @@ public class TransactionService {
                 .status(TransactionStatus.COMPLETED)
                 .amount(dto.getAmount())
                 .currency(dto.getCurrency() != null ? dto.getCurrency() : "INR")
+                .channel(parseChannel(dto.getChannel()))
+                .clientReferenceId(dto.getClientReferenceId())
                 .destinationAccount(account)
                 .description(dto.getDescription() != null ? dto.getDescription() : "Cash Deposit")
                 .narration(dto.getNarration())
@@ -152,6 +162,9 @@ public class TransactionService {
      */
     @Transactional
     public Transaction withdraw(TransactionDTO dto) {
+        // PART 2: Idempotency check
+        checkIdempotency(dto);
+
         // PART 8: Pessimistic lock on account
         Account account = accountRepository.findByAccountNumberWithLock(dto.getSourceAccountNumber())
                 .orElseThrow(() -> new RuntimeException("Account not found: " + dto.getSourceAccountNumber()));
@@ -171,6 +184,8 @@ public class TransactionService {
                 .status(TransactionStatus.COMPLETED)
                 .amount(dto.getAmount())
                 .currency(dto.getCurrency() != null ? dto.getCurrency() : "INR")
+                .channel(parseChannel(dto.getChannel()))
+                .clientReferenceId(dto.getClientReferenceId())
                 .sourceAccount(account)
                 .description(dto.getDescription() != null ? dto.getDescription() : "Cash Withdrawal")
                 .narration(dto.getNarration())
@@ -217,6 +232,9 @@ public class TransactionService {
      */
     @Transactional
     public Transaction transfer(TransactionDTO dto) {
+        // PART 2: Idempotency check
+        checkIdempotency(dto);
+
         // PART 8: Pessimistic lock on both accounts
         Account sourceAccount = accountRepository.findByAccountNumberWithLock(dto.getSourceAccountNumber())
                 .orElseThrow(() -> new RuntimeException("Source account not found: " + dto.getSourceAccountNumber()));
@@ -242,6 +260,8 @@ public class TransactionService {
                 .status(TransactionStatus.COMPLETED)
                 .amount(dto.getAmount())
                 .currency(dto.getCurrency() != null ? dto.getCurrency() : "INR")
+                .channel(parseChannel(dto.getChannel()))
+                .clientReferenceId(dto.getClientReferenceId())
                 .sourceAccount(sourceAccount)
                 .destinationAccount(destAccount)
                 .description(dto.getDescription() != null ? dto.getDescription() : "Internal Transfer")
@@ -374,5 +394,38 @@ public class TransactionService {
 
     private String generateTransactionRef(String prefix) {
         return prefix + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    }
+
+    /**
+     * PART 2: Idempotency check using client_reference_id + channel.
+     * Prevents duplicate transaction processing.
+     */
+    private void checkIdempotency(TransactionDTO dto) {
+        if (dto.getClientReferenceId() != null && dto.getChannel() != null) {
+            TransactionChannel channel = parseChannel(dto.getChannel());
+            if (channel != null) {
+                transactionRepository.findByClientReferenceIdAndChannel(dto.getClientReferenceId(), channel)
+                        .ifPresent(existing -> {
+                            throw new RuntimeException("Duplicate transaction detected. Existing ref: "
+                                    + existing.getTransactionRef() + " for client_reference_id: "
+                                    + dto.getClientReferenceId() + " channel: " + dto.getChannel());
+                        });
+            }
+            // Also register with IdempotencyService for broader deduplication
+            String idempotencyKey = dto.getClientReferenceId() + ":" + dto.getChannel();
+            idempotencyService.checkExisting(idempotencyKey).ifPresent(existing -> {
+                throw new RuntimeException("Duplicate transaction: idempotency key already completed");
+            });
+            idempotencyService.registerKey(idempotencyKey, dto.toString());
+        }
+    }
+
+    private TransactionChannel parseChannel(String channel) {
+        if (channel == null || channel.isEmpty()) return null;
+        try {
+            return TransactionChannel.valueOf(channel);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 }

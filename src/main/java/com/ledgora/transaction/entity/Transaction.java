@@ -2,6 +2,7 @@ package com.ledgora.transaction.entity;
 
 import com.ledgora.account.entity.Account;
 import com.ledgora.auth.entity.User;
+import com.ledgora.common.enums.TransactionChannel;
 import com.ledgora.common.enums.TransactionStatus;
 import com.ledgora.common.enums.TransactionType;
 import jakarta.persistence.*;
@@ -15,7 +16,8 @@ import java.time.LocalDateTime;
  */
 @Entity
 @Table(name = "transactions", indexes = {
-    @Index(name = "idx_transaction_ref", columnList = "transaction_ref")
+    @Index(name = "idx_transaction_ref", columnList = "transaction_ref"),
+    @Index(name = "idx_txn_client_ref_channel", columnList = "client_reference_id, channel")
 })
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Transaction {
@@ -40,6 +42,15 @@ public class Transaction {
     @Column(name = "currency", length = 3, nullable = false)
     @Builder.Default
     private String currency = "INR";
+
+    // PART 2: Transaction channel for channel-aware processing
+    @Enumerated(EnumType.STRING)
+    @Column(name = "channel", length = 20)
+    private TransactionChannel channel;
+
+    // PART 2: Client reference ID for idempotency
+    @Column(name = "client_reference_id", length = 100)
+    private String clientReferenceId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "source_account_id")

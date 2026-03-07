@@ -34,4 +34,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     List<Transaction> findByStatusAndBusinessDate(@Param("status") TransactionStatus status, @Param("businessDate") LocalDate businessDate);
 
     List<Transaction> findByBusinessDate(LocalDate businessDate);
+
+    // PART 2: Idempotency - find by client reference and channel
+    @Query("SELECT t FROM Transaction t WHERE t.clientReferenceId = :clientRefId AND t.channel = :channel")
+    Optional<Transaction> findByClientReferenceIdAndChannel(@Param("clientRefId") String clientReferenceId, @Param("channel") com.ledgora.common.enums.TransactionChannel channel);
+
+    // PART 6: Validator - get all transaction IDs for validation
+    @Query("SELECT t.id FROM Transaction t")
+    List<Long> findAllTransactionIds();
 }
