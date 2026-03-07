@@ -40,4 +40,25 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
 
     @Query("SELECT COALESCE(SUM(CASE WHEN le.entryType = 'CREDIT' THEN le.amount ELSE 0 END), 0) FROM LedgerEntry le WHERE le.account.id = :accountId")
     BigDecimal sumCreditsByAccountId(@Param("accountId") Long accountId);
+
+    // PART 5: Snapshot-based balance queries - entries after a given entry ID
+    @Query("SELECT COALESCE(SUM(CASE WHEN le.entryType = 'CREDIT' THEN le.amount ELSE 0 END), 0) FROM LedgerEntry le WHERE le.account.id = :accountId AND le.id > :afterEntryId")
+    BigDecimal sumCreditsAfterEntryId(@Param("accountId") Long accountId, @Param("afterEntryId") Long afterEntryId);
+
+    @Query("SELECT COALESCE(SUM(CASE WHEN le.entryType = 'DEBIT' THEN le.amount ELSE 0 END), 0) FROM LedgerEntry le WHERE le.account.id = :accountId AND le.id > :afterEntryId")
+    BigDecimal sumDebitsAfterEntryId(@Param("accountId") Long accountId, @Param("afterEntryId") Long afterEntryId);
+
+    // PART 1: Journal-based queries
+    List<LedgerEntry> findByJournalId(Long journalId);
+
+    // PART 6: Validator queries - sum debits/credits per transaction
+    @Query("SELECT COALESCE(SUM(CASE WHEN le.entryType = 'DEBIT' THEN le.amount ELSE 0 END), 0) FROM LedgerEntry le WHERE le.transaction.id = :transactionId")
+    BigDecimal sumDebitsByTransactionId(@Param("transactionId") Long transactionId);
+
+    @Query("SELECT COALESCE(SUM(CASE WHEN le.entryType = 'CREDIT' THEN le.amount ELSE 0 END), 0) FROM LedgerEntry le WHERE le.transaction.id = :transactionId")
+    BigDecimal sumCreditsByTransactionId(@Param("transactionId") Long transactionId);
+
+    // PART 6: Count orphan entries (entries without valid transaction)
+    @Query("SELECT COUNT(le) FROM LedgerEntry le WHERE le.transaction IS NULL")
+    long countOrphanEntries();
 }

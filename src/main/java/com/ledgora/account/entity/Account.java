@@ -4,13 +4,21 @@ import com.ledgora.auth.entity.User;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
+import com.ledgora.common.enums.LedgerAccountType;
+import com.ledgora.customer.entity.Customer;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * PART 2: Account entity with fintech-style ledger account support.
+ * Supports hierarchical relationships for Chart of Accounts structure.
+ */
 @Entity
-@Table(name = "accounts")
+@Table(name = "accounts", indexes = {
+    @Index(name = "idx_account_number", columnList = "account_number")
+})
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Account {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -55,8 +63,21 @@ public class Account {
     @Column(name = "customer_phone", length = 20)
     private String customerPhone;
 
+    // PART 1: Link to Customer entity
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
+
     @Column(name = "gl_account_code", length = 20)
     private String glAccountCode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ledger_account_type", length = 30)
+    private LedgerAccountType ledgerAccountType;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_account_id")
+    private Account parentAccount;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
