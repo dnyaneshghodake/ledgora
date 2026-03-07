@@ -1,8 +1,13 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%--
-  CBS Sidebar Navigation - Role-Based Menu
+  CBS Sidebar Navigation - Domain-Aligned Enterprise Structure
   Role flags set by CustomAuthenticationSuccessHandler:
-    sessionScope.isAdmin, sessionScope.isManager, sessionScope.isTeller, sessionScope.isCustomer
+    sessionScope.isAdmin, sessionScope.isManager, sessionScope.isTeller, sessionScope.isCustomer, sessionScope.isFinance
+  
+  Teller     -> Dashboard, Accounts, Transactions, Payments (limited)
+  Manager    -> + Customer Management, Approvals, Settlement, Reports
+  Finance    -> + Ledger, Reports, Validation
+  Admin      -> Full access to all sections
 --%>
 <aside class="cbs-sidebar" id="cbsSidebar">
     <div class="cbs-sidebar-header">
@@ -23,7 +28,7 @@
                 </a>
             </li>
 
-            <%-- Customers - ADMIN, MANAGER --%>
+            <%-- Customer Management - ADMIN, MANAGER --%>
             <c:if test="${sessionScope.isAdmin || sessionScope.isManager}">
             <li class="cbs-nav-section">CUSTOMER MANAGEMENT</li>
             <li class="cbs-nav-item">
@@ -32,15 +37,21 @@
                     <span>Customers</span>
                 </a>
             </li>
+            <li class="cbs-nav-item">
+                <a href="${pageContext.request.contextPath}/customers/create" class="cbs-nav-link" data-page="customers/create">
+                    <i class="bi bi-person-plus"></i>
+                    <span>New Customer</span>
+                </a>
+            </li>
             </c:if>
 
-            <%-- Accounts - ADMIN, MANAGER, TELLER see full; CUSTOMER sees own --%>
+            <%-- Accounts - ADMIN, MANAGER, TELLER (full); CUSTOMER (own) --%>
             <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTeller}">
-            <li class="cbs-nav-section">ACCOUNT OPERATIONS</li>
+            <li class="cbs-nav-section">ACCOUNTS</li>
             <li class="cbs-nav-item">
                 <a href="${pageContext.request.contextPath}/accounts" class="cbs-nav-link" data-page="accounts">
                     <i class="bi bi-wallet2"></i>
-                    <span>Accounts</span>
+                    <span>All Accounts</span>
                 </a>
             </li>
             <c:if test="${sessionScope.isAdmin || sessionScope.isManager}">
@@ -62,7 +73,7 @@
             </li>
             </c:if>
 
-            <%-- Transactions - ADMIN, MANAGER, TELLER get full; CUSTOMER sees history --%>
+            <%-- Transactions - ADMIN, MANAGER, TELLER (full); CUSTOMER (history) --%>
             <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTeller}">
             <li class="cbs-nav-section">TRANSACTIONS</li>
             <li class="cbs-nav-item">
@@ -83,12 +94,6 @@
                     <span>Withdraw</span>
                 </a>
             </li>
-            <li class="cbs-nav-item">
-                <a href="${pageContext.request.contextPath}/transactions/transfer" class="cbs-nav-link" data-page="transactions/transfer">
-                    <i class="bi bi-arrow-left-right"></i>
-                    <span>Transfer</span>
-                </a>
-            </li>
             </c:if>
             <c:if test="${sessionScope.isCustomer && !sessionScope.isAdmin && !sessionScope.isManager && !sessionScope.isTeller}">
             <li class="cbs-nav-section">TRANSACTIONS</li>
@@ -100,7 +105,7 @@
             </li>
             </c:if>
 
-            <%-- Payments placeholder - visible to ADMIN, MANAGER, TELLER --%>
+            <%-- Payments - ADMIN, MANAGER, TELLER --%>
             <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTeller}">
             <li class="cbs-nav-section">PAYMENTS</li>
             <li class="cbs-nav-item">
@@ -111,24 +116,36 @@
             </li>
             </c:if>
 
-            <%-- General Ledger - ADMIN, MANAGER --%>
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager}">
+            <%-- Ledger (System of Record) - ADMIN, MANAGER, FINANCE --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isFinance}">
             <li class="cbs-nav-section">LEDGER</li>
             <li class="cbs-nav-item">
                 <a href="${pageContext.request.contextPath}/gl" class="cbs-nav-link" data-page="gl">
                     <i class="bi bi-diagram-3"></i>
-                    <span>General Ledger</span>
+                    <span>Chart of Accounts</span>
+                </a>
+            </li>
+            <li class="cbs-nav-item">
+                <a href="${pageContext.request.contextPath}/ledger/explorer" class="cbs-nav-link" data-page="ledger/explorer">
+                    <i class="bi bi-journal-text"></i>
+                    <span>Ledger Explorer</span>
                 </a>
             </li>
             </c:if>
 
-            <%-- Settlement - ADMIN, MANAGER --%>
+            <%-- Settlement & Business Date - ADMIN, MANAGER --%>
             <c:if test="${sessionScope.isAdmin || sessionScope.isManager}">
-            <li class="cbs-nav-section">EOD PROCESSING</li>
+            <li class="cbs-nav-section">SETTLEMENT & BUSINESS DATE</li>
+            <li class="cbs-nav-item">
+                <a href="${pageContext.request.contextPath}/settlement/dashboard" class="cbs-nav-link" data-page="settlement/dashboard">
+                    <i class="bi bi-gear-wide-connected"></i>
+                    <span>Settlement Control</span>
+                </a>
+            </li>
             <li class="cbs-nav-item">
                 <a href="${pageContext.request.contextPath}/settlements" class="cbs-nav-link" data-page="settlements">
                     <i class="bi bi-check2-square"></i>
-                    <span>Settlement</span>
+                    <span>Settlement History</span>
                 </a>
             </li>
             <li class="cbs-nav-item">
@@ -139,13 +156,13 @@
             </li>
             </c:if>
 
-            <%-- Approvals - ADMIN, MANAGER --%>
+            <%-- Approvals (Maker-Checker) - ADMIN, MANAGER --%>
             <c:if test="${sessionScope.isAdmin || sessionScope.isManager}">
-            <li class="cbs-nav-section">COMPLIANCE</li>
+            <li class="cbs-nav-section">APPROVALS (MAKER-CHECKER)</li>
             <li class="cbs-nav-item">
                 <a href="${pageContext.request.contextPath}/approvals" class="cbs-nav-link" data-page="approvals">
                     <i class="bi bi-clipboard-check"></i>
-                    <span>Approvals</span>
+                    <span>Pending Approvals</span>
                     <c:if test="${sessionScope.pendingApprovals != null && sessionScope.pendingApprovals > 0}">
                         <span class="cbs-badge">${sessionScope.pendingApprovals}</span>
                     </c:if>
@@ -153,7 +170,46 @@
             </li>
             </c:if>
 
-            <%-- Admin Section - ADMIN only --%>
+            <%-- Reports - ADMIN, MANAGER, FINANCE --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isFinance}">
+            <li class="cbs-nav-section">REPORTS</li>
+            <li class="cbs-nav-item">
+                <a href="${pageContext.request.contextPath}/reports" class="cbs-nav-link" data-page="reports">
+                    <i class="bi bi-file-earmark-bar-graph"></i>
+                    <span>Financial Reports</span>
+                </a>
+            </li>
+            <li class="cbs-nav-item">
+                <a href="${pageContext.request.contextPath}/reports/trial-balance" class="cbs-nav-link" data-page="reports/trial-balance">
+                    <i class="bi bi-calculator"></i>
+                    <span>Trial Balance</span>
+                </a>
+            </li>
+            </c:if>
+
+            <%-- Validation & Integrity - ADMIN, FINANCE --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isFinance}">
+            <li class="cbs-nav-section">VALIDATION & INTEGRITY</li>
+            <li class="cbs-nav-item">
+                <a href="${pageContext.request.contextPath}/admin/ledger/view/validate" class="cbs-nav-link" data-page="admin/ledger">
+                    <i class="bi bi-shield-check"></i>
+                    <span>Ledger Validation</span>
+                </a>
+            </li>
+            </c:if>
+
+            <%-- Observability - ADMIN --%>
+            <c:if test="${sessionScope.isAdmin}">
+            <li class="cbs-nav-section">OBSERVABILITY</li>
+            <li class="cbs-nav-item">
+                <a href="${pageContext.request.contextPath}/actuator/health" class="cbs-nav-link" data-page="observability">
+                    <i class="bi bi-activity"></i>
+                    <span>Health & Metrics</span>
+                </a>
+            </li>
+            </c:if>
+
+            <%-- Administration - ADMIN only --%>
             <c:if test="${sessionScope.isAdmin}">
             <li class="cbs-nav-section">ADMINISTRATION</li>
             <li class="cbs-nav-item">
@@ -169,24 +225,9 @@
                 </a>
             </li>
             <li class="cbs-nav-item">
-                <a href="${pageContext.request.contextPath}/reports" class="cbs-nav-link" data-page="reports">
-                    <i class="bi bi-file-earmark-bar-graph"></i>
-                    <span>Reports</span>
-                </a>
-            </li>
-            <li class="cbs-nav-item">
-                <a href="${pageContext.request.contextPath}/admin/ledger/view/validate" class="cbs-nav-link" data-page="admin/ledger">
-                    <i class="bi bi-shield-check"></i>
-                    <span>Ledger Validation</span>
-                </a>
-            </li>
-            </c:if>
-            <c:if test="${sessionScope.isManager && !sessionScope.isAdmin}">
-            <li class="cbs-nav-section">REPORTS</li>
-            <li class="cbs-nav-item">
-                <a href="${pageContext.request.contextPath}/reports" class="cbs-nav-link" data-page="reports">
-                    <i class="bi bi-file-earmark-bar-graph"></i>
-                    <span>Reports</span>
+                <a href="${pageContext.request.contextPath}/gl/create" class="cbs-nav-link" data-page="gl/create">
+                    <i class="bi bi-plus-square"></i>
+                    <span>New GL Account</span>
                 </a>
             </li>
             </c:if>

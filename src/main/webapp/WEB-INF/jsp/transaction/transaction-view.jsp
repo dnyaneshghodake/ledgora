@@ -32,7 +32,101 @@
                 </table>
             </div>
         </div>
+
+        <%-- RBI Audit Trail Panel (TASK 5) --%>
+        <div class="card shadow mt-4">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-shield-lock"></i> RBI Audit Trail</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <td class="text-muted" width="200">Transaction ID</td>
+                        <td><code>${transaction.id}</code></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Transaction Reference</td>
+                        <td><code>${transaction.transactionRef}</code></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Idempotency Key</td>
+                        <td>
+                            <c:choose>
+                                <c:when test="${transaction.clientReferenceId != null && !transaction.clientReferenceId.isEmpty()}">
+                                    <code>${transaction.clientReferenceId}</code>
+                                </c:when>
+                                <c:otherwise><span class="text-muted">N/A</span></c:otherwise>
+                            </c:choose>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Channel</td>
+                        <td>
+                            <c:choose>
+                                <c:when test="${transaction.channel != null}">
+                                    <span class="badge bg-secondary">${transaction.channel}</span>
+                                </c:when>
+                                <c:otherwise><span class="text-muted">N/A</span></c:otherwise>
+                            </c:choose>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Maker (Performed By)</td>
+                        <td>
+                            <c:choose>
+                                <c:when test="${transaction.performedBy != null}">
+                                    <i class="bi bi-person"></i> ${transaction.performedBy.username}
+                                </c:when>
+                                <c:otherwise><span class="text-muted">System</span></c:otherwise>
+                            </c:choose>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Checker (Approver)</td>
+                        <td><span class="text-muted">See Approval History</span></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Business Date</td>
+                        <td>${transaction.businessDate}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Created At</td>
+                        <td>${transaction.createdAt}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Updated At</td>
+                        <td>${transaction.updatedAt}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Value Date</td>
+                        <td>${transaction.valueDate}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Journal Entries</td>
+                        <td>
+                            <c:forEach var="entry" items="${ledgerEntries}">
+                                <c:if test="${entry.journal != null}">
+                                    <a href="${pageContext.request.contextPath}/ledger/explorer?businessDate=${entry.businessDate}">
+                                        <code>J-${entry.journal.id}</code>
+                                    </a>
+                                </c:if>
+                            </c:forEach>
+                            <c:if test="${empty ledgerEntries}"><span class="text-muted">None</span></c:if>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Audit Trail</td>
+                        <td>
+                            <a href="${pageContext.request.contextPath}/admin/audit-logs" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-clock-history"></i> View Audit Trail
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
     </div>
+
     <div class="col-md-4">
         <div class="card shadow">
             <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-journal-text"></i> Ledger Entries</h5></div>
@@ -54,6 +148,12 @@
             </div>
         </div>
     </div>
+</div>
+
+<%-- Audit Disclaimer --%>
+<div class="audit-disclaimer mt-3">
+    <i class="bi bi-shield-lock"></i>
+    All ledger entries are immutable. System of Record: LedgerEntries.
 </div>
 
 <%@ include file="../layout/footer.jsp" %>
