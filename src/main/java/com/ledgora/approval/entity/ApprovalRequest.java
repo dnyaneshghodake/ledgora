@@ -29,11 +29,11 @@ public class ApprovalRequest {
     @Column(name = "request_data", length = 4000)
     private String requestData;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "requested_by")
     private User requestedBy;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "approved_by")
     private User approvedBy;
 

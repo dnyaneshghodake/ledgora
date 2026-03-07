@@ -3,7 +3,7 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3><i class="bi bi-shield-check"></i> Ledger Validation Status</h3>
-    <a href="${pageContext.request.contextPath}/admin/ledger/validate" class="btn btn-warning" id="runValidation">
+    <a href="${pageContext.request.contextPath}/admin/ledger/view/validate" class="btn btn-warning" id="runValidation">
         <i class="bi bi-play-circle"></i> Run Full Validation
     </a>
 </div>
