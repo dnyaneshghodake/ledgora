@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.body.classList.toggle('cbs-sidebar-open');
             } else {
                 document.body.classList.toggle('cbs-sidebar-collapsed');
-                // Persist sidebar state
                 if (document.body.classList.contains('cbs-sidebar-collapsed')) {
                     localStorage.setItem('cbs-sidebar', 'collapsed');
                 } else {
@@ -29,12 +28,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Restore sidebar state from localStorage
     if (!isMobile && localStorage.getItem('cbs-sidebar') === 'collapsed') {
         document.body.classList.add('cbs-sidebar-collapsed');
     }
 
-    // Update mobile flag on resize
     window.addEventListener('resize', function() {
         isMobile = window.innerWidth < 992;
         if (!isMobile) {
@@ -44,15 +41,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // ── CBS Sidebar Active Link ──
     var currentPath = window.location.pathname;
+    var currentParams = new URLSearchParams(window.location.search);
     var sidebarLinks = document.querySelectorAll('.cbs-nav-link');
     var bestMatch = null;
-    var bestMatchLen = 0;
+    var bestMatchScore = -1;
 
     sidebarLinks.forEach(function(link) {
         var href = link.getAttribute('href');
-        if (href && currentPath.indexOf(href) === 0 && href.length > bestMatchLen && href !== '/') {
+        if (!href || href === '/') {
+            return;
+        }
+
+        var linkUrl;
+        try {
+            linkUrl = new URL(href, window.location.origin);
+        } catch (e) {
+            return;
+        }
+
+        if (currentPath.indexOf(linkUrl.pathname) !== 0) {
+            return;
+        }
+
+        var score = linkUrl.pathname.length * 10;
+        var linkParams = new URLSearchParams(linkUrl.search);
+        var matchedParams = 0;
+        linkParams.forEach(function(value, key) {
+            if (currentParams.get(key) === value) {
+                matchedParams += 1;
+            }
+        });
+        score += matchedParams;
+
+        if (score > bestMatchScore) {
             bestMatch = link;
-            bestMatchLen = href.length;
+            bestMatchScore = score;
         }
     });
 
@@ -103,19 +126,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-});
 
     // ── CBS Business Day Lock ──
-    // If EOD banner exists, add class to body and lock transaction elements
     var eodBanner = document.getElementById('eodBanner');
     if (eodBanner) {
         document.body.classList.add('cbs-eod-active');
-        // Lock all elements marked as cbs-lockable
         var lockableElements = document.querySelectorAll('.cbs-lockable');
         lockableElements.forEach(function(el) {
             el.classList.add('cbs-locked');
             el.setAttribute('title', 'Business Day Closed - Transactions are locked');
-            // Disable form elements within lockable containers
             var inputs = el.querySelectorAll('input, select, textarea, button');
             inputs.forEach(function(input) {
                 input.disabled = true;
@@ -128,15 +147,16 @@ document.addEventListener('DOMContentLoaded', function() {
     tabLinks.forEach(function(tab) {
         tab.addEventListener('click', function(e) {
             e.preventDefault();
-            // Remove active from all tabs
             tabLinks.forEach(function(t) { t.classList.remove('active'); });
             this.classList.add('active');
-            // Show corresponding tab pane
+
             var targetId = this.getAttribute('data-tab');
             var tabPanes = document.querySelectorAll('.cbs-tab-pane');
             tabPanes.forEach(function(pane) { pane.style.display = 'none'; });
             var targetPane = document.getElementById(targetId);
-            if (targetPane) { targetPane.style.display = 'block'; }
+            if (targetPane) {
+                targetPane.style.display = 'block';
+            }
         });
     });
 
