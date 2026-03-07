@@ -1,10 +1,10 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
-<%@ include file="layout/header.jsp" %>
+<%@ include file="../layout/header.jsp" %>
 
 <div class="row mb-4">
     <div class="col-12">
-        <h3><i class="bi bi-arrow-up-circle text-danger"></i> Cash Withdrawal</h3>
+        <h3><i class="bi bi-arrow-down-circle text-success"></i> Cash Deposit</h3>
         <hr>
     </div>
 </div>
@@ -13,11 +13,11 @@
     <div class="col-md-6">
         <div class="card shadow">
             <div class="card-body p-4">
-                <form:form action="${pageContext.request.contextPath}/transactions/withdraw" method="post" modelAttribute="transactionDTO" id="withdrawForm">
-                    <form:hidden path="transactionType" value="WITHDRAWAL"/>
+                <form:form action="${pageContext.request.contextPath}/transactions/deposit" method="post" modelAttribute="transactionDTO" id="depositForm">
+                    <form:hidden path="transactionType" value="DEPOSIT"/>
                     <div class="mb-3">
-                        <label for="sourceAccountNumber" class="form-label">Account *</label>
-                        <form:select path="sourceAccountNumber" cssClass="form-select" id="sourceAccountNumber" required="true">
+                        <label for="destinationAccountNumber" class="form-label">Account *</label>
+                        <form:select path="destinationAccountNumber" cssClass="form-select" id="destinationAccountNumber" required="true">
                             <option value="">Select Account</option>
                             <c:forEach var="acc" items="${accounts}">
                                 <option value="${acc.accountNumber}" ${param.account == acc.accountNumber ? 'selected' : ''}>${acc.accountNumber} - ${acc.customerName} (${acc.balance} ${acc.currency})</option>
@@ -33,14 +33,14 @@
                     </div>
                     <div class="mb-3">
                         <label for="description" class="form-label">Description</label>
-                        <form:input path="description" cssClass="form-control" id="description" placeholder="Cash Withdrawal"/>
+                        <form:input path="description" cssClass="form-control" id="description" placeholder="Cash Deposit"/>
                     </div>
                     <div class="mb-3">
                         <label for="narration" class="form-label">Narration</label>
                         <form:textarea path="narration" cssClass="form-control" id="narration" rows="2"/>
                     </div>
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-danger"><i class="bi bi-check-circle"></i> Withdraw</button>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-check-circle"></i> Deposit</button>
                         <a href="${pageContext.request.contextPath}/transactions" class="btn btn-secondary">Cancel</a>
                     </div>
                 </form:form>
@@ -49,4 +49,4 @@
     </div>
 </div>
 
-<%@ include file="layout/footer.jsp" %>
+<%@ include file="../layout/footer.jsp" %>

@@ -19,6 +19,6 @@ public class DashboardController {
     public String dashboard(Model model) {
         DashboardDTO dashboard = dashboardService.getDashboardData();
         model.addAttribute("dashboard", dashboard);
-        return "dashboard";
+        return "dashboard/dashboard";
     }
 }

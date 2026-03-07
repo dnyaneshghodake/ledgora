@@ -31,7 +31,7 @@ public class SettlementController {
             model.addAttribute("settlements", settlementService.getAllSettlements());
         }
         model.addAttribute("statuses", SettlementStatus.values());
-        return "settlements";
+        return "settlement/settlements";
     }
 
     @GetMapping("/{id}")
@@ -39,13 +39,13 @@ public class SettlementController {
         Settlement settlement = settlementService.getSettlementById(id)
                 .orElseThrow(() -> new RuntimeException("Settlement not found"));
         model.addAttribute("settlement", settlement);
-        return "settlement-view";
+        return "settlement/settlement-view";
     }
 
     @GetMapping("/process")
     public String processForm(Model model) {
         model.addAttribute("settlementDate", LocalDate.now());
-        return "settlement-process";
+        return "settlement/settlement-process";
     }
 
     @PostMapping("/process")
