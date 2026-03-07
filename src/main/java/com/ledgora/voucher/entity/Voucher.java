@@ -1,0 +1,153 @@
+package com.ledgora.voucher.entity;
+
+import com.ledgora.account.entity.Account;
+import com.ledgora.auth.entity.User;
+import com.ledgora.branch.entity.Branch;
+import com.ledgora.common.enums.VoucherDrCr;
+import com.ledgora.gl.entity.GeneralLedger;
+import com.ledgora.ledger.entity.LedgerEntry;
+import com.ledgora.tenant.entity.Tenant;
+import jakarta.persistence.*;
+import lombok.*;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+/**
+ * CBS Voucher Entity - controls the full lifecycle of a financial posting.
+ * Vouchers flow: Create -> Authorize -> Post -> (optional Cancel via reversal).
+ * NO DELETE allowed. Immutability enforced via cancel/reversal pattern.
+ *
+ * Composite index: (tenant_id, branch_id, posting_date, batch_code, scroll_no)
+ */
+@Entity
+@Table(name = "vouchers", indexes = {
+    @Index(name = "idx_voucher_composite", columnList = "tenant_id, branch_id, posting_date, batch_code, scroll_no"),
+    @Index(name = "idx_voucher_tenant", columnList = "tenant_id"),
+    @Index(name = "idx_voucher_branch", columnList = "branch_id"),
+    @Index(name = "idx_voucher_posting_date", columnList = "posting_date"),
+    @Index(name = "idx_voucher_account", columnList = "account_id"),
+    @Index(name = "idx_voucher_batch", columnList = "batch_id")
+})
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
+public class Voucher {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id", nullable = false)
+    private Tenant tenant;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branch_id", nullable = false)
+    private Branch branch;
+
+    // Batch references
+    @Column(name = "batch_id")
+    private Long batchId;
+
+    @Column(name = "batch_code", length = 30, nullable = false)
+    private String batchCode;
+
+    @Column(name = "set_no", nullable = false)
+    @Builder.Default
+    private Integer setNo = 1;
+
+    @Column(name = "scroll_no", nullable = false)
+    private Long scrollNo;
+
+    // Date fields
+    @Column(name = "entry_date", nullable = false)
+    private LocalDate entryDate;
+
+    @Column(name = "posting_date", nullable = false)
+    private LocalDate postingDate;
+
+    @Column(name = "value_date", nullable = false)
+    private LocalDate valueDate;
+
+    @Column(name = "effective_date")
+    private LocalDate effectiveDate;
+
+    // Debit/Credit indicator
+    @Enumerated(EnumType.STRING)
+    @Column(name = "dr_cr", length = 5, nullable = false)
+    private VoucherDrCr drCr;
+
+    // Account references
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "account_id", nullable = false)
+    private Account account;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "gl_account_id")
+    private GeneralLedger glAccount;
+
+    // Amount fields
+    @Column(name = "transaction_amount", precision = 19, scale = 4, nullable = false)
+    private BigDecimal transactionAmount;
+
+    @Column(name = "local_currency_amount", precision = 19, scale = 4, nullable = false)
+    private BigDecimal localCurrencyAmount;
+
+    @Column(name = "currency", length = 3, nullable = false)
+    @Builder.Default
+    private String currency = "INR";
+
+    // Maker-Checker
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "maker_id", nullable = false)
+    private User maker;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "checker_id")
+    private User checker;
+
+    // Flags
+    @Column(name = "auth_flag", length = 1, nullable = false)
+    @Builder.Default
+    private String authFlag = "N";
+
+    @Column(name = "post_flag", length = 1, nullable = false)
+    @Builder.Default
+    private String postFlag = "N";
+
+    @Column(name = "cancel_flag", length = 1, nullable = false)
+    @Builder.Default
+    private String cancelFlag = "N";
+
+    @Column(name = "financial_effect_flag", length = 1, nullable = false)
+    @Builder.Default
+    private String financialEffectFlag = "Y";
+
+    // Link to posted ledger entry
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ledger_entry_id")
+    private LedgerEntry ledgerEntry;
+
+    // Narration
+    @Column(name = "narration", length = 500)
+    private String narration;
+
+    // Reversal reference
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reversal_of_voucher_id")
+    private Voucher reversalOfVoucher;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+}
