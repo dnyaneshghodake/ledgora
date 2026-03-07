@@ -12,16 +12,14 @@
             <div class="card-body">
                 <table class="table table-borderless">
                     <tr><td class="text-muted" width="200">Reference</td><td><code class="fs-5">${settlement.settlementRef}</code></td></tr>
-                    <tr><td class="text-muted">Settlement Date</td><td>${settlement.settlementDate}</td></tr>
+                    <tr><td class="text-muted">Settlement Date</td><td>${settlement.businessDate}</td></tr>
                     <tr><td class="text-muted">Status</td><td><span class="badge bg-success fs-6">${settlement.status}</span></td></tr>
-                    <tr><td class="text-muted">Total Debit</td><td class="text-danger fs-5">${settlement.totalDebit}</td></tr>
-                    <tr><td class="text-muted">Total Credit</td><td class="text-success fs-5">${settlement.totalCredit}</td></tr>
-                    <tr><td class="text-muted">Net Amount</td><td class="fw-bold fs-4 text-primary">${settlement.netAmount}</td></tr>
                     <tr><td class="text-muted">Transaction Count</td><td>${settlement.transactionCount}</td></tr>
                     <tr><td class="text-muted">Remarks</td><td>${settlement.remarks}</td></tr>
                     <tr><td class="text-muted">Processed By</td><td><c:if test="${settlement.processedBy != null}">${settlement.processedBy.username}</c:if></td></tr>
+                    <tr><td class="text-muted">Started</td><td>${settlement.startTime}</td></tr>
+                    <tr><td class="text-muted">Completed</td><td>${settlement.endTime}</td></tr>
                     <tr><td class="text-muted">Created</td><td>${settlement.createdAt}</td></tr>
-                    <tr><td class="text-muted">Completed</td><td>${settlement.completedAt}</td></tr>
                 </table>
             </div>
         </div>
