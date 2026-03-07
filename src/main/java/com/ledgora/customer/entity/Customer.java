@@ -1,5 +1,6 @@
 package com.ledgora.customer.entity;
 
+import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDate;
@@ -8,17 +9,23 @@ import java.time.LocalDateTime;
 /**
  * PART 1: Customer entity for KYC and account ownership.
  * A customer can own multiple accounts.
+ * Multi-tenant aware.
  */
 @Entity
 @Table(name = "customers", indexes = {
     @Index(name = "idx_customer_national_id", columnList = "national_id", unique = true),
-    @Index(name = "idx_customer_email", columnList = "email")
+    @Index(name = "idx_customer_email", columnList = "email"),
+    @Index(name = "idx_customer_tenant", columnList = "tenant_id")
 })
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Customer {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "customer_id")
     private Long customerId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id")
+    private Tenant tenant;
 
     @Column(name = "first_name", length = 50, nullable = false)
     private String firstName;

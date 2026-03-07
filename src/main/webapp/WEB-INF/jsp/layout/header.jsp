@@ -92,6 +92,32 @@
         </div>
     </div>
     <div class="cbs-header-right">
+        <%-- Tenant Context Display --%>
+        <div class="cbs-tenant-info" style="display: flex; align-items: center; gap: 8px; margin-right: 12px; padding: 4px 10px; background: rgba(255,255,255,0.1); border-radius: 6px;">
+            <i class="bi bi-building" style="color: #ffc107;"></i>
+            <c:choose>
+                <c:when test="${not empty sessionScope.tenantName}">
+                    <span style="font-size: 0.85rem; color: #e0e0e0;">${sessionScope.tenantName}</span>
+                </c:when>
+                <c:otherwise>
+                    <span style="font-size: 0.85rem; color: #e0e0e0;">Default Tenant</span>
+                </c:otherwise>
+            </c:choose>
+            <span class="cbs-header-separator"></span>
+            <%-- Tenant Switch Dropdown (for MULTI tenant users) --%>
+            <c:if test="${sessionScope.tenantScope == 'MULTI'}">
+                <div class="dropdown" style="display: inline-block;">
+                    <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.8rem; padding: 2px 8px;">
+                        Switch Tenant
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <c:forEach var="t" items="${sessionScope.availableTenants}">
+                            <li><a class="dropdown-item" href="${pageContext.request.contextPath}/tenant/switch/${t.id}">${t.tenantName} (${t.tenantCode})</a></li>
+                        </c:forEach>
+                    </ul>
+                </div>
+            </c:if>
+        </div>
         <div class="cbs-user-info">
             <div class="cbs-user-avatar">
                 <i class="bi bi-person-circle"></i>

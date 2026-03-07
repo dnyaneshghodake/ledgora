@@ -6,6 +6,7 @@ import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
 import com.ledgora.common.enums.LedgerAccountType;
 import com.ledgora.customer.entity.Customer;
+import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -14,15 +15,21 @@ import java.time.LocalDateTime;
 /**
  * PART 2: Account entity with fintech-style ledger account support.
  * Supports hierarchical relationships for Chart of Accounts structure.
+ * Multi-tenant aware.
  */
 @Entity
 @Table(name = "accounts", indexes = {
-    @Index(name = "idx_account_number", columnList = "account_number")
+    @Index(name = "idx_account_number", columnList = "account_number"),
+    @Index(name = "idx_account_tenant", columnList = "tenant_id")
 })
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Account {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id")
+    private Tenant tenant;
 
     @Column(name = "account_number", length = 20, nullable = false, unique = true)
     private String accountNumber;
