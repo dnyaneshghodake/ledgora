@@ -2,13 +2,33 @@
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ include file="../layout/header.jsp" %>
 
+<%--
+  Role-Aware Dashboard
+  Panels and quick actions are shown/hidden based on the user's role.
+  Role flags are set by DashboardController (model attrs) and CustomAuthenticationSuccessHandler (session attrs).
+  - ADMIN:    Full metrics — accounts, users, transactions, settlements, daily flows, system info
+  - MANAGER:  Account overview, transaction approvals, settlements, reports
+  - TELLER:   Branch stats, today's transactions, customer account view
+  - CUSTOMER: Own account summary, transaction history
+--%>
+
 <div class="row mb-4">
     <div class="col-12">
-        <h3><i class="bi bi-speedometer2"></i> Dashboard</h3>
+        <h3>
+            <i class="bi bi-speedometer2"></i> Dashboard
+            <c:if test="${isAdmin}"><small class="text-muted fs-6">— Administrator View</small></c:if>
+            <c:if test="${isManager}"><small class="text-muted fs-6">— Manager View</small></c:if>
+            <c:if test="${isTeller}"><small class="text-muted fs-6">— Teller View</small></c:if>
+            <c:if test="${isCustomer && !isAdmin && !isManager && !isTeller}"><small class="text-muted fs-6">— My Banking</small></c:if>
+        </h3>
         <hr>
     </div>
 </div>
 
+<%-- ═══════════════════════════════════════════════════════════════════════ --%>
+<%-- ADMIN & MANAGER: Full summary metric cards                            --%>
+<%-- ═══════════════════════════════════════════════════════════════════════ --%>
+<c:if test="${isAdmin || isManager}">
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="card bg-primary text-white shadow">
@@ -38,6 +58,7 @@
             </div>
         </div>
     </div>
+    <c:if test="${isAdmin}">
     <div class="col-md-3">
         <div class="card bg-info text-white shadow">
             <div class="card-body">
@@ -51,6 +72,7 @@
             </div>
         </div>
     </div>
+    </c:if>
     <div class="col-md-3">
         <div class="card bg-warning text-dark shadow">
             <div class="card-body">
@@ -66,7 +88,92 @@
         </div>
     </div>
 </div>
+</c:if>
 
+<%-- ═══════════════════════════════════════════════════════════════════════ --%>
+<%-- TELLER: Branch-focused summary cards                                  --%>
+<%-- ═══════════════════════════════════════════════════════════════════════ --%>
+<c:if test="${isTeller && !isAdmin && !isManager}">
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card bg-success text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Today's Transactions</h6>
+                        <h2>${dashboard.todayTransactions}</h2>
+                    </div>
+                    <div class="fs-1 opacity-50"><i class="bi bi-arrow-left-right"></i></div>
+                </div>
+                <small>Total: ${dashboard.totalTransactions}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-primary text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Accounts</h6>
+                        <h2>${dashboard.totalAccounts}</h2>
+                    </div>
+                    <div class="fs-1 opacity-50"><i class="bi bi-wallet2"></i></div>
+                </div>
+                <small>Active: ${dashboard.activeAccounts}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-info text-white shadow">
+            <div class="card-body text-center">
+                <h6 class="card-title">Branch Operations</h6>
+                <h4 class="mt-2"><i class="bi bi-building"></i> Teller Counter</h4>
+            </div>
+        </div>
+    </div>
+</div>
+</c:if>
+
+<%-- ═══════════════════════════════════════════════════════════════════════ --%>
+<%-- CUSTOMER: Own account summary                                         --%>
+<%-- ═══════════════════════════════════════════════════════════════════════ --%>
+<c:if test="${isCustomer && !isAdmin && !isManager && !isTeller}">
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card bg-primary text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">My Accounts</h6>
+                        <h2>${dashboard.totalAccounts}</h2>
+                    </div>
+                    <div class="fs-1 opacity-50"><i class="bi bi-wallet2"></i></div>
+                </div>
+                <small>Active: ${dashboard.activeAccounts}</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card bg-success text-white shadow">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h6 class="card-title">Recent Transactions</h6>
+                        <h2>${dashboard.todayTransactions}</h2>
+                    </div>
+                    <div class="fs-1 opacity-50"><i class="bi bi-clock-history"></i></div>
+                </div>
+                <small>Today</small>
+            </div>
+        </div>
+    </div>
+</div>
+</c:if>
+
+<%-- ═══════════════════════════════════════════════════════════════════════ --%>
+<%-- ADMIN & MANAGER & TELLER: Daily flow summary                          --%>
+<%-- ═══════════════════════════════════════════════════════════════════════ --%>
+<c:if test="${isAdmin || isManager || isTeller}">
 <div class="row mb-4">
     <div class="col-md-4">
         <div class="card shadow">
@@ -93,7 +200,11 @@
         </div>
     </div>
 </div>
+</c:if>
 
+<%-- ═══════════════════════════════════════════════════════════════════════ --%>
+<%-- Quick Actions + System Info (role-aware)                              --%>
+<%-- ═══════════════════════════════════════════════════════════════════════ --%>
 <div class="row">
     <div class="col-md-6">
         <div class="card shadow">
@@ -102,9 +213,16 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
+
+                    <%-- ADMIN & MANAGER: Create Account --%>
+                    <c:if test="${isAdmin || isManager}">
                     <a href="${pageContext.request.contextPath}/accounts/create" class="btn btn-outline-primary">
                         <i class="bi bi-plus-circle"></i> Create Account
                     </a>
+                    </c:if>
+
+                    <%-- ADMIN, MANAGER, TELLER: Deposit / Withdraw / Transfer --%>
+                    <c:if test="${isAdmin || isManager || isTeller}">
                     <a href="${pageContext.request.contextPath}/transactions/deposit" class="btn btn-outline-success">
                         <i class="bi bi-arrow-down-circle"></i> Deposit
                     </a>
@@ -114,13 +232,32 @@
                     <a href="${pageContext.request.contextPath}/transactions/transfer" class="btn btn-outline-info">
                         <i class="bi bi-arrow-left-right"></i> Transfer
                     </a>
+                    </c:if>
+
+                    <%-- ADMIN & MANAGER: Process Settlement --%>
+                    <c:if test="${isAdmin || isManager}">
                     <a href="${pageContext.request.contextPath}/settlements/process" class="btn btn-outline-warning">
                         <i class="bi bi-check2-square"></i> Process Settlement
                     </a>
+                    </c:if>
+
+                    <%-- CUSTOMER: View Accounts & Transaction History --%>
+                    <c:if test="${isCustomer && !isAdmin && !isManager && !isTeller}">
+                    <a href="${pageContext.request.contextPath}/accounts" class="btn btn-outline-primary">
+                        <i class="bi bi-wallet2"></i> View My Accounts
+                    </a>
+                    <a href="${pageContext.request.contextPath}/transactions" class="btn btn-outline-success">
+                        <i class="bi bi-clock-history"></i> Transaction History
+                    </a>
+                    </c:if>
+
                 </div>
             </div>
         </div>
     </div>
+
+    <%-- System Info — ADMIN and MANAGER only --%>
+    <c:if test="${isAdmin || isManager}">
     <div class="col-md-6">
         <div class="card shadow">
             <div class="card-header bg-white">
@@ -138,6 +275,45 @@
             </div>
         </div>
     </div>
+    </c:if>
+
+    <%-- CUSTOMER: Account help panel instead of System Info --%>
+    <c:if test="${isCustomer && !isAdmin && !isManager && !isTeller}">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-question-circle"></i> Help & Support</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0">
+                    <tr><td class="text-muted">Need Help?</td><td>Contact your branch manager</td></tr>
+                    <tr><td class="text-muted">Account Issues</td><td>Visit your nearest branch</td></tr>
+                    <tr><td class="text-muted">Phone Banking</td><td>1800-LEDGORA (toll-free)</td></tr>
+                    <tr><td class="text-muted">Email</td><td>support@ledgora.com</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    </c:if>
+
+    <%-- TELLER: Branch operations panel --%>
+    <c:if test="${isTeller && !isAdmin && !isManager}">
+    <div class="col-md-6">
+        <div class="card shadow">
+            <div class="card-header bg-white">
+                <h5 class="mb-0"><i class="bi bi-building"></i> Teller Operations</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-borderless mb-0">
+                    <tr><td class="text-muted">Role</td><td>Branch Teller</td></tr>
+                    <tr><td class="text-muted">Capabilities</td><td>Deposits, Withdrawals, Transfers</td></tr>
+                    <tr><td class="text-muted">Customer Lookup</td><td>Account search by name or number</td></tr>
+                    <tr><td class="text-muted">Transaction Limit</td><td>Per-transaction limits apply</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    </c:if>
 </div>
 
 <%@ include file="../layout/footer.jsp" %>
