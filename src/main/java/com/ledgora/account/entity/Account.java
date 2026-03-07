@@ -5,6 +5,7 @@ import com.ledgora.branch.entity.Branch;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
 import com.ledgora.common.enums.LedgerAccountType;
+import com.ledgora.customer.entity.Customer;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -61,6 +62,11 @@ public class Account {
 
     @Column(name = "customer_phone", length = 20)
     private String customerPhone;
+
+    // PART 1: Link to Customer entity
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id")
+    private Customer customer;
 
     @Column(name = "gl_account_code", length = 20)
     private String glAccountCode;

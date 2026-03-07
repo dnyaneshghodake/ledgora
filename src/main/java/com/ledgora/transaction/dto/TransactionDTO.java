@@ -25,4 +25,8 @@ public class TransactionDTO {
     private String description;
     private String narration;
     private String createdAt;
+
+    // PART 2: Transaction channel and client reference for idempotency
+    private String channel;
+    private String clientReferenceId;
 }

@@ -358,6 +358,85 @@ Instead of scanning all ledger entries for balance calculation:
 
 ---
 
+## 13. Customer Module
+
+### Entity: Customer
+- `customer_id`, `first_name`, `last_name`, `dob`, `national_id`, `kyc_status`, `phone`, `email`, `address`, `created_at`
+- Links multiple accounts to one customer via `customer_id` foreign key on `Account`
+- KYC status tracking: `PENDING`, `VERIFIED`, `REJECTED`
+
+### Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/customers` | GET | List all customers (with search/KYC filter) |
+| `/customers/create` | GET/POST | Create new customer |
+| `/customers/{id}` | GET | View customer details |
+| `/customers/{id}/edit` | GET/POST | Edit customer |
+| `/customers/{id}/kyc` | POST | Update KYC status |
+
+---
+
+## 14. Transaction Channels & Idempotency
+
+### Channels
+Enum: `TELLER`, `ATM`, `ONLINE`, `MOBILE`, `BATCH`
+
+### Idempotency
+- `client_reference_id` + `channel` uniqueness prevents duplicate transactions
+- Checked before transaction creation via `TransactionRepository` and `IdempotencyService`
+- Composite index: `idx_txn_client_ref_channel` on `(client_reference_id, channel)`
+
+---
+
+## 15. Maker-Checker / Approval Workflow
+
+### Entity: ApprovalRequest
+- `entity_type`, `entity_id`, `request_data`, `requested_by`, `approved_by`, `status`, `remarks`, `created_at`, `approved_at`
+- Status: `PENDING`, `APPROVED`, `REJECTED`
+
+### Rules
+- High-value transactions require manager approval before execution
+- Maker-checker violation prevention: user cannot approve their own request
+- Audit logging on all approval actions
+
+### Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/approvals` | GET | List approvals (with status filter) |
+| `/approvals/pending` | GET | List pending approvals |
+| `/approvals/{id}` | GET | View approval details |
+| `/approvals/{id}/approve` | POST | Approve request |
+| `/approvals/{id}/reject` | POST | Reject request |
+
+---
+
+## 16. Continuous Ledger Validator
+
+### Scheduled Validation
+- Partial validation every 5 minutes (debit/credit balance check)
+- Full validation during EOD settlement
+
+### Checks
+1. `SUM(debits) = SUM(credits)` per transaction
+2. Account balances match ledger-derived balances
+3. No orphan ledger entries
+4. Ledger immutability preserved
+
+### Admin Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/admin/ledger/validate` | GET | Run full validation (REST) |
+| `/admin/ledger/status` | GET | Get last validation status (REST) |
+| `/admin/ledger/view` | GET | View validation status (JSP) |
+| `/admin/ledger/view/validate` | GET | Run and view validation (JSP) |
+
+### Status Values
+- `HEALTHY` - All checks passed
+- `WARNING` - Minor discrepancies detected
+- `CORRUPTED` - Critical integrity violations found
+
+---
+
 ## Technology Stack
 
 | Component | Technology |
