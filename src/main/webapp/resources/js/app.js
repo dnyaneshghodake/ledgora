@@ -73,12 +73,3 @@ function showAlert(message, type) {
         bsAlert.close();
     }, 5000);
 }
-
-// Format currency values
-function formatCurrency(amount, currency) {
-    currency = currency || 'INR';
-    return new Intl.NumberFormat('en-IN', {
-        style: 'currency',
-        currency: currency
-    }).format(amount);
-}
