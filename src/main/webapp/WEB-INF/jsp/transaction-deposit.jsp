@@ -14,6 +14,7 @@
         <div class="card shadow">
             <div class="card-body p-4">
                 <form:form action="${pageContext.request.contextPath}/transactions/deposit" method="post" modelAttribute="transactionDTO" id="depositForm">
+                    <form:hidden path="transactionType" value="DEPOSIT"/>
                     <div class="mb-3">
                         <label for="destinationAccountNumber" class="form-label">Account *</label>
                         <form:select path="destinationAccountNumber" cssClass="form-select" id="destinationAccountNumber" required="true">

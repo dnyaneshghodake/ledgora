@@ -14,6 +14,7 @@
         <div class="card shadow">
             <div class="card-body p-4">
                 <form:form action="${pageContext.request.contextPath}/transactions/transfer" method="post" modelAttribute="transactionDTO" id="transferForm">
+                    <form:hidden path="transactionType" value="TRANSFER"/>
                     <div class="mb-3">
                         <label for="sourceAccountNumber" class="form-label">From Account *</label>
                         <form:select path="sourceAccountNumber" cssClass="form-select" id="sourceAccountNumber" required="true">
