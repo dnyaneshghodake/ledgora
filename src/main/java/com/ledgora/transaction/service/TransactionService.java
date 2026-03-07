@@ -12,10 +12,12 @@ import com.ledgora.common.enums.EntryType;
 import com.ledgora.common.enums.TransactionStatus;
 import com.ledgora.common.enums.TransactionType;
 import com.ledgora.common.service.BusinessDateService;
+import com.ledgora.events.TransactionCreatedEvent;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
 import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
+import com.ledgora.ledger.service.LedgerService;
 import com.ledgora.transaction.dto.TransactionDTO;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.entity.TransactionLine;
@@ -23,6 +25,7 @@ import com.ledgora.transaction.repository.TransactionLineRepository;
 import com.ledgora.transaction.repository.TransactionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +37,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * PART 1 + 3 + 4 + 8: Transaction service with:
+ * - Ledger journal/entry creation (system of record)
+ * - Event-driven architecture (publishes TransactionCreatedEvent)
+ * - Pessimistic locking for account balance protection
+ */
 @Service
 public class TransactionService {
 
@@ -48,6 +57,8 @@ public class TransactionService {
     private final UserRepository userRepository;
     private final BusinessDateService businessDateService;
     private final AuditService auditService;
+    private final LedgerService ledgerService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public TransactionService(TransactionRepository transactionRepository,
                               TransactionLineRepository transactionLineRepository,
@@ -57,7 +68,9 @@ public class TransactionService {
                               GeneralLedgerRepository glRepository,
                               UserRepository userRepository,
                               BusinessDateService businessDateService,
-                              AuditService auditService) {
+                              AuditService auditService,
+                              LedgerService ledgerService,
+                              ApplicationEventPublisher eventPublisher) {
         this.transactionRepository = transactionRepository;
         this.transactionLineRepository = transactionLineRepository;
         this.accountRepository = accountRepository;
@@ -67,16 +80,18 @@ public class TransactionService {
         this.userRepository = userRepository;
         this.businessDateService = businessDateService;
         this.auditService = auditService;
+        this.ledgerService = ledgerService;
+        this.eventPublisher = eventPublisher;
     }
 
     /**
-     * PART 1 + 9: Deposit with full transaction safety
-     * Flow: validate -> create transaction -> create transaction lines -> create ledger entries -> update balances
+     * PART 1 + 3 + 8: Deposit with full transaction safety.
+     * Flow: lock account -> create transaction -> create journal+entries -> update balances -> publish event
      */
     @Transactional
     public Transaction deposit(TransactionDTO dto) {
-        // Step 1: Validate account
-        Account account = accountRepository.findByAccountNumber(dto.getDestinationAccountNumber())
+        // PART 8: Pessimistic lock on account
+        Account account = accountRepository.findByAccountNumberWithLock(dto.getDestinationAccountNumber())
                 .orElseThrow(() -> new RuntimeException("Account not found: " + dto.getDestinationAccountNumber()));
         validateAccountActive(account);
 
@@ -105,17 +120,24 @@ public class TransactionService {
         createTransactionLine(transaction, account, EntryType.CREDIT, dto.getAmount(),
                 "Cash deposit - credit customer account");
 
-        // Step 4: Create ledger entries from transaction lines
+        // PART 1: Create ledger journal with entries (system of record)
         BigDecimal newBalance = account.getBalance().add(dto.getAmount());
-        createLedgerEntry(transaction, account, EntryType.DEBIT, dto.getAmount(), newBalance,
-                "1100", businessDate, "Cash deposit to " + account.getAccountNumber());
-        createLedgerEntry(transaction, account, EntryType.CREDIT, dto.getAmount(), newBalance,
-                "2100", businessDate, "Customer deposit - " + account.getCustomerName());
+        String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
+        List<LedgerService.JournalEntryRequest> journalEntries = List.of(
+                LedgerService.JournalEntryRequest.of(account, EntryType.DEBIT, dto.getAmount(), newBalance,
+                        currency, "1100", "Cash deposit to " + account.getAccountNumber()),
+                LedgerService.JournalEntryRequest.of(account, EntryType.CREDIT, dto.getAmount(), newBalance,
+                        currency, "2100", "Customer deposit - " + account.getCustomerName())
+        );
+        ledgerService.postJournal(transaction, "Cash Deposit - " + txnRef, businessDate, journalEntries);
 
         // Step 5: Update account balance
         account.setBalance(newBalance);
         accountRepository.save(account);
         updateAccountBalanceCache(account, newBalance);
+
+        // PART 3: Publish event
+        eventPublisher.publishEvent(new TransactionCreatedEvent(this, transaction));
 
         // Audit
         Long userId = currentUser != null ? currentUser.getId() : null;
@@ -126,12 +148,12 @@ public class TransactionService {
     }
 
     /**
-     * PART 1 + 9: Withdrawal with full transaction safety
+     * PART 1 + 3 + 8: Withdrawal with full transaction safety.
      */
     @Transactional
     public Transaction withdraw(TransactionDTO dto) {
-        // Step 1: Validate account
-        Account account = accountRepository.findByAccountNumber(dto.getSourceAccountNumber())
+        // PART 8: Pessimistic lock on account
+        Account account = accountRepository.findByAccountNumberWithLock(dto.getSourceAccountNumber())
                 .orElseThrow(() -> new RuntimeException("Account not found: " + dto.getSourceAccountNumber()));
         validateAccountActive(account);
         if (account.getBalance().compareTo(dto.getAmount()) < 0) {
@@ -163,17 +185,24 @@ public class TransactionService {
         createTransactionLine(transaction, account, EntryType.CREDIT, dto.getAmount(),
                 "Cash withdrawal - credit cash account");
 
-        // Step 4: Create ledger entries
+        // PART 1: Create ledger journal with entries
         BigDecimal newBalance = account.getBalance().subtract(dto.getAmount());
-        createLedgerEntry(transaction, account, EntryType.DEBIT, dto.getAmount(), newBalance,
-                "2100", businessDate, "Withdrawal from " + account.getAccountNumber());
-        createLedgerEntry(transaction, account, EntryType.CREDIT, dto.getAmount(), newBalance,
-                "1100", businessDate, "Cash withdrawal - " + account.getCustomerName());
+        String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
+        List<LedgerService.JournalEntryRequest> journalEntries = List.of(
+                LedgerService.JournalEntryRequest.of(account, EntryType.DEBIT, dto.getAmount(), newBalance,
+                        currency, "2100", "Withdrawal from " + account.getAccountNumber()),
+                LedgerService.JournalEntryRequest.of(account, EntryType.CREDIT, dto.getAmount(), newBalance,
+                        currency, "1100", "Cash withdrawal - " + account.getCustomerName())
+        );
+        ledgerService.postJournal(transaction, "Cash Withdrawal - " + txnRef, businessDate, journalEntries);
 
         // Step 5: Update account balance
         account.setBalance(newBalance);
         accountRepository.save(account);
         updateAccountBalanceCache(account, newBalance);
+
+        // PART 3: Publish event
+        eventPublisher.publishEvent(new TransactionCreatedEvent(this, transaction));
 
         // Audit
         Long userId = currentUser != null ? currentUser.getId() : null;
@@ -184,14 +213,14 @@ public class TransactionService {
     }
 
     /**
-     * PART 1 + 9: Transfer with full transaction safety
+     * PART 1 + 3 + 8: Transfer with full transaction safety.
      */
     @Transactional
     public Transaction transfer(TransactionDTO dto) {
-        // Step 1: Validate accounts
-        Account sourceAccount = accountRepository.findByAccountNumber(dto.getSourceAccountNumber())
+        // PART 8: Pessimistic lock on both accounts
+        Account sourceAccount = accountRepository.findByAccountNumberWithLock(dto.getSourceAccountNumber())
                 .orElseThrow(() -> new RuntimeException("Source account not found: " + dto.getSourceAccountNumber()));
-        Account destAccount = accountRepository.findByAccountNumber(dto.getDestinationAccountNumber())
+        Account destAccount = accountRepository.findByAccountNumberWithLock(dto.getDestinationAccountNumber())
                 .orElseThrow(() -> new RuntimeException("Destination account not found: " + dto.getDestinationAccountNumber()));
         validateAccountActive(sourceAccount);
         validateAccountActive(destAccount);
@@ -228,14 +257,18 @@ public class TransactionService {
         createTransactionLine(transaction, destAccount, EntryType.CREDIT, dto.getAmount(),
                 "Transfer from " + sourceAccount.getAccountNumber());
 
-        // Step 4: Create ledger entries
+        // PART 1: Create ledger journal with entries
         BigDecimal sourceNewBalance = sourceAccount.getBalance().subtract(dto.getAmount());
         BigDecimal destNewBalance = destAccount.getBalance().add(dto.getAmount());
+        String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
 
-        createLedgerEntry(transaction, sourceAccount, EntryType.DEBIT, dto.getAmount(), sourceNewBalance,
-                "2100", businessDate, "Transfer to " + destAccount.getAccountNumber());
-        createLedgerEntry(transaction, destAccount, EntryType.CREDIT, dto.getAmount(), destNewBalance,
-                "2100", businessDate, "Transfer from " + sourceAccount.getAccountNumber());
+        List<LedgerService.JournalEntryRequest> journalEntries = List.of(
+                LedgerService.JournalEntryRequest.of(sourceAccount, EntryType.DEBIT, dto.getAmount(), sourceNewBalance,
+                        currency, "2100", "Transfer to " + destAccount.getAccountNumber()),
+                LedgerService.JournalEntryRequest.of(destAccount, EntryType.CREDIT, dto.getAmount(), destNewBalance,
+                        currency, "2100", "Transfer from " + sourceAccount.getAccountNumber())
+        );
+        ledgerService.postJournal(transaction, "Transfer - " + txnRef, businessDate, journalEntries);
 
         // Step 5: Update account balances
         sourceAccount.setBalance(sourceNewBalance);
@@ -245,6 +278,9 @@ public class TransactionService {
         destAccount.setBalance(destNewBalance);
         accountRepository.save(destAccount);
         updateAccountBalanceCache(destAccount, destNewBalance);
+
+        // PART 3: Publish event
+        eventPublisher.publishEvent(new TransactionCreatedEvent(this, transaction));
 
         // Audit
         Long userId = currentUser != null ? currentUser.getId() : null;
@@ -312,27 +348,6 @@ public class TransactionService {
                 .description(description)
                 .build();
         transactionLineRepository.save(line);
-    }
-
-    private void createLedgerEntry(Transaction transaction, Account account, EntryType entryType,
-                                   BigDecimal amount, BigDecimal balanceAfter, String glCode,
-                                   LocalDate businessDate, String narration) {
-        GeneralLedger glAccount = glRepository.findByGlCode(glCode).orElse(null);
-
-        LedgerEntry entry = LedgerEntry.builder()
-                .transaction(transaction)
-                .account(account)
-                .glAccount(glAccount)
-                .glAccountCode(glCode)
-                .entryType(entryType)
-                .amount(amount)
-                .balanceAfter(balanceAfter)
-                .currency(transaction.getCurrency())
-                .businessDate(businessDate)
-                .postingTime(LocalDateTime.now())
-                .narration(narration)
-                .build();
-        ledgerEntryRepository.save(entry);
     }
 
     private void updateAccountBalanceCache(Account account, BigDecimal newLedgerBalance) {

@@ -10,8 +10,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+/**
+ * PART 13: Performance optimization - index on transaction_ref for fast lookups.
+ */
 @Entity
-@Table(name = "transactions")
+@Table(name = "transactions", indexes = {
+    @Index(name = "idx_transaction_ref", columnList = "transaction_ref")
+})
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Transaction {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

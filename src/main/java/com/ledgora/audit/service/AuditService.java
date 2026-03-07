@@ -11,6 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * PART 11: Enhanced audit service with full financial traceability.
+ * All audit logs use REQUIRES_NEW transactions to ensure they persist
+ * even if the parent transaction rolls back.
+ */
 @Service
 public class AuditService {
 
@@ -34,6 +39,33 @@ public class AuditService {
                 .build();
         auditLogRepository.save(auditLog);
         log.debug("Audit log: {} {} {} {}", action, entity, entityId, details);
+    }
+
+    /**
+     * PART 11: Extended audit logging with request/response payloads.
+     * Uses REQUIRES_NEW to ensure audit trail survives transaction rollbacks.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void logFinancialEvent(Long userId, String action, String entity, Long entityId,
+                                  String details, String ipAddress, String requestPayload,
+                                  String responsePayload, String username, String httpMethod,
+                                  String requestUri) {
+        AuditLog auditLog = AuditLog.builder()
+                .userId(userId)
+                .action(action)
+                .entity(entity)
+                .entityId(entityId)
+                .details(details)
+                .timestamp(LocalDateTime.now())
+                .ipAddress(ipAddress)
+                .requestPayload(requestPayload)
+                .responsePayload(responsePayload)
+                .username(username)
+                .httpMethod(httpMethod)
+                .requestUri(requestUri)
+                .build();
+        auditLogRepository.save(auditLog);
+        log.debug("Financial audit log: {} {} {} {} user={}", action, entity, entityId, details, username);
     }
 
     public void logLogin(Long userId, String username, String ipAddress) {
