@@ -52,24 +52,35 @@
                         <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th>Batch Code</th>
                                     <th>Batch Type</th>
+                                    <th>Branch</th>
                                     <th>Business Date</th>
                                     <th>Transactions</th>
                                     <th>Total Debit</th>
                                     <th>Total Credit</th>
+                                    <th>Balanced?</th>
+                                    <th>Status</th>
                                     <th>Created</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <c:forEach var="batch" items="${openBatches}">
                                     <tr>
-                                        <td>${batch.id}</td>
+                                        <td><code>${not empty batch.batchCode ? batch.batchCode : batch.id}</code></td>
                                         <td><span class="badge bg-info">${batch.batchType}</span></td>
+                                        <td>${not empty batch.branchCode ? batch.branchCode : '-'}</td>
                                         <td>${batch.businessDate}</td>
                                         <td>${batch.transactionCount}</td>
                                         <td class="text-end">${batch.totalDebit}</td>
                                         <td class="text-end">${batch.totalCredit}</td>
+                                        <td>
+                                            <c:choose>
+                                                <c:when test="${batch.totalDebit == batch.totalCredit}"><span class="badge bg-success">Y</span></c:when>
+                                                <c:otherwise><span class="badge bg-danger">N</span></c:otherwise>
+                                            </c:choose>
+                                        </td>
+                                        <td><span class="badge bg-primary">OPEN</span></td>
                                         <td>${batch.createdAt}</td>
                                     </tr>
                                 </c:forEach>
@@ -96,24 +107,35 @@
                         <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th>Batch Code</th>
                                     <th>Batch Type</th>
+                                    <th>Branch</th>
                                     <th>Business Date</th>
                                     <th>Transactions</th>
                                     <th>Total Debit</th>
                                     <th>Total Credit</th>
+                                    <th>Balanced?</th>
+                                    <th>Status</th>
                                     <th>Closed At</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <c:forEach var="batch" items="${closedBatches}">
                                     <tr>
-                                        <td>${batch.id}</td>
+                                        <td><code>${not empty batch.batchCode ? batch.batchCode : batch.id}</code></td>
                                         <td><span class="badge bg-warning text-dark">${batch.batchType}</span></td>
+                                        <td>${not empty batch.branchCode ? batch.branchCode : '-'}</td>
                                         <td>${batch.businessDate}</td>
                                         <td>${batch.transactionCount}</td>
                                         <td class="text-end">${batch.totalDebit}</td>
                                         <td class="text-end">${batch.totalCredit}</td>
+                                        <td>
+                                            <c:choose>
+                                                <c:when test="${batch.totalDebit == batch.totalCredit}"><span class="badge bg-success">Y</span></c:when>
+                                                <c:otherwise><span class="badge bg-danger">N</span></c:otherwise>
+                                            </c:choose>
+                                        </td>
+                                        <td><span class="badge bg-warning text-dark">CLOSED</span></td>
                                         <td>${batch.closedAt}</td>
                                     </tr>
                                 </c:forEach>
@@ -140,20 +162,23 @@
                         <table class="table table-striped table-hover">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
+                                    <th>Batch Code</th>
                                     <th>Batch Type</th>
+                                    <th>Branch</th>
                                     <th>Business Date</th>
                                     <th>Transactions</th>
                                     <th>Total Debit</th>
                                     <th>Total Credit</th>
-                                    <th>Balanced</th>
+                                    <th>Balanced?</th>
+                                    <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <c:forEach var="batch" items="${settledBatches}">
                                     <tr>
-                                        <td>${batch.id}</td>
+                                        <td><code>${not empty batch.batchCode ? batch.batchCode : batch.id}</code></td>
                                         <td><span class="badge bg-success">${batch.batchType}</span></td>
+                                        <td>${not empty batch.branchCode ? batch.branchCode : '-'}</td>
                                         <td>${batch.businessDate}</td>
                                         <td>${batch.transactionCount}</td>
                                         <td class="text-end">${batch.totalDebit}</td>
@@ -161,13 +186,14 @@
                                         <td>
                                             <c:choose>
                                                 <c:when test="${batch.totalDebit == batch.totalCredit}">
-                                                    <span class="badge bg-success">Balanced</span>
+                                                    <span class="badge bg-success">Y</span>
                                                 </c:when>
                                                 <c:otherwise>
-                                                    <span class="badge bg-danger">Unbalanced</span>
+                                                    <span class="badge bg-danger">N</span>
                                                 </c:otherwise>
                                             </c:choose>
                                         </td>
+                                        <td><span class="badge bg-success">SETTLED</span></td>
                                     </tr>
                                 </c:forEach>
                             </tbody>

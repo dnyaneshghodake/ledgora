@@ -105,6 +105,52 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
+    // ── CBS Business Day Lock ──
+    // If EOD banner exists, add class to body and lock transaction elements
+    var eodBanner = document.getElementById('eodBanner');
+    if (eodBanner) {
+        document.body.classList.add('cbs-eod-active');
+        // Lock all elements marked as cbs-lockable
+        var lockableElements = document.querySelectorAll('.cbs-lockable');
+        lockableElements.forEach(function(el) {
+            el.classList.add('cbs-locked');
+            el.setAttribute('title', 'Business Day Closed - Transactions are locked');
+            // Disable form elements within lockable containers
+            var inputs = el.querySelectorAll('input, select, textarea, button');
+            inputs.forEach(function(input) {
+                input.disabled = true;
+            });
+        });
+    }
+
+    // ── CBS Tab Navigation ──
+    var tabLinks = document.querySelectorAll('.cbs-tabs .nav-link');
+    tabLinks.forEach(function(tab) {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            // Remove active from all tabs
+            tabLinks.forEach(function(t) { t.classList.remove('active'); });
+            this.classList.add('active');
+            // Show corresponding tab pane
+            var targetId = this.getAttribute('data-tab');
+            var tabPanes = document.querySelectorAll('.cbs-tab-pane');
+            tabPanes.forEach(function(pane) { pane.style.display = 'none'; });
+            var targetPane = document.getElementById(targetId);
+            if (targetPane) { targetPane.style.display = 'block'; }
+        });
+    });
+
+    // ── URL Tab Parameter Support ──
+    var urlParams = new URLSearchParams(window.location.search);
+    var activeTab = urlParams.get('tab');
+    if (activeTab) {
+        var tabTrigger = document.querySelector('.cbs-tabs .nav-link[data-tab="tab-' + activeTab + '"]');
+        if (tabTrigger) {
+            tabTrigger.click();
+        }
+    }
+});
+
 // Helper function to show alerts
 function showAlert(message, type) {
     var container = document.querySelector('.cbs-content') || document.querySelector('.container-fluid') || document.querySelector('.container');

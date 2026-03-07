@@ -14,8 +14,9 @@
 <%--
   CBS Layout: Fixed Header + Fixed Sidebar + Scrollable Main Content
   Role flags set by CustomAuthenticationSuccessHandler on login:
-    sessionScope.isAdmin, sessionScope.isManager, sessionScope.isTeller, sessionScope.isCustomer
-    sessionScope.isFinance (if present)
+    sessionScope.isAdmin, sessionScope.isManager, sessionScope.isTeller, sessionScope.isCustomer,
+    sessionScope.isFinance, sessionScope.isMaker, sessionScope.isChecker,
+    sessionScope.isBranchManager, sessionScope.isTenantAdmin, sessionScope.isSuperAdmin
 --%>
 
 <%-- CBS Top Header Bar --%>
@@ -125,9 +126,14 @@
             <div class="cbs-user-details">
                 <span class="cbs-user-name">${sessionScope.username}</span>
                 <span class="cbs-user-role">
+                    <c:if test="${sessionScope.isSuperAdmin}"><span class="badge bg-dark">Super Admin</span></c:if>
+                    <c:if test="${sessionScope.isTenantAdmin}"><span class="badge bg-purple" style="background:#7c3aed!important;">Tenant Admin</span></c:if>
                     <c:if test="${sessionScope.isAdmin}"><span class="badge bg-danger">Admin</span></c:if>
+                    <c:if test="${sessionScope.isBranchManager}"><span class="badge bg-indigo" style="background:#4f46e5!important;">Branch Mgr</span></c:if>
                     <c:if test="${sessionScope.isManager}"><span class="badge bg-warning text-dark">Manager</span></c:if>
                     <c:if test="${sessionScope.isFinance}"><span class="badge bg-info">Finance</span></c:if>
+                    <c:if test="${sessionScope.isMaker}"><span class="badge bg-success">Maker</span></c:if>
+                    <c:if test="${sessionScope.isChecker}"><span class="badge bg-primary">Checker</span></c:if>
                     <c:if test="${sessionScope.isTeller}"><span class="badge bg-info">Teller</span></c:if>
                     <c:if test="${sessionScope.isCustomer && !sessionScope.isAdmin && !sessionScope.isManager && !sessionScope.isTeller}"><span class="badge bg-secondary">Customer</span></c:if>
                 </span>
@@ -143,8 +149,36 @@
 <%-- CBS Sidebar --%>
 <%@ include file="sidebar.jsp" %>
 
+<%-- Business Day Closed Banner --%>
+<c:if test="${sessionScope.businessDateStatus == 'CLOSED'}">
+<div class="cbs-eod-banner" id="eodBanner">
+    <div class="cbs-eod-banner-content">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span>Business Day Closed &mdash; No transactions allowed until next business day is opened.</span>
+    </div>
+</div>
+</c:if>
+
 <%-- CBS Main Content Area --%>
 <main class="cbs-main" id="cbsMain">
+    <%-- Breadcrumb Navigation --%>
+    <c:if test="${not empty breadcrumb}">
+    <nav aria-label="breadcrumb" class="cbs-breadcrumb-nav">
+        <ol class="breadcrumb cbs-breadcrumb">
+            <li class="breadcrumb-item"><a href="${pageContext.request.contextPath}/dashboard">Dashboard</a></li>
+            <c:forEach var="crumb" items="${breadcrumb}">
+                <c:choose>
+                    <c:when test="${crumb.active}">
+                        <li class="breadcrumb-item active" aria-current="page">${crumb.label}</li>
+                    </c:when>
+                    <c:otherwise>
+                        <li class="breadcrumb-item"><a href="${pageContext.request.contextPath}${crumb.url}">${crumb.label}</a></li>
+                    </c:otherwise>
+                </c:choose>
+            </c:forEach>
+        </ol>
+    </nav>
+    </c:if>
     <div class="cbs-content">
         <c:if test="${not empty message}">
             <div class="alert alert-success alert-dismissible fade show" role="alert">
