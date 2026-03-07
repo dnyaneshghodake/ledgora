@@ -3,6 +3,7 @@ package com.ledgora.ledger.entity;
 import com.ledgora.account.entity.Account;
 import com.ledgora.common.enums.EntryType;
 import com.ledgora.gl.entity.GeneralLedger;
+import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.transaction.entity.Transaction;
 import jakarta.persistence.*;
 import lombok.*;
@@ -14,16 +15,22 @@ import java.time.LocalDateTime;
  * PART 1: Immutable ledger entry - the ultimate source of financial truth.
  * Ledger entries must never be updated or deleted.
  * Each entry references a LedgerJournal for grouped double-entry posting.
+ * Multi-tenant aware.
  */
 @Entity
 @Table(name = "ledger_entries", indexes = {
     @Index(name = "idx_ledger_entry_account_created", columnList = "account_id, created_at"),
-    @Index(name = "idx_ledger_entry_journal", columnList = "journal_id")
+    @Index(name = "idx_ledger_entry_journal", columnList = "journal_id"),
+    @Index(name = "idx_ledger_entry_tenant", columnList = "tenant_id")
 })
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class LedgerEntry {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id")
+    private Tenant tenant;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "journal_id")

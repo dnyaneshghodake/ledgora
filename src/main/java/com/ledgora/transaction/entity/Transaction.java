@@ -2,9 +2,11 @@ package com.ledgora.transaction.entity;
 
 import com.ledgora.account.entity.Account;
 import com.ledgora.auth.entity.User;
+import com.ledgora.batch.entity.TransactionBatch;
 import com.ledgora.common.enums.TransactionChannel;
 import com.ledgora.common.enums.TransactionStatus;
 import com.ledgora.common.enums.TransactionType;
+import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -12,17 +14,27 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * PART 13: Performance optimization - index on transaction_ref for fast lookups.
+ * Transaction entity - multi-tenant aware with batch support.
+ * Composite index on (client_reference_id, channel, tenant_id) for tenant-aware idempotency.
  */
 @Entity
 @Table(name = "transactions", indexes = {
     @Index(name = "idx_transaction_ref", columnList = "transaction_ref"),
-    @Index(name = "idx_txn_client_ref_channel", columnList = "client_reference_id, channel")
+    @Index(name = "idx_txn_client_ref_channel_tenant", columnList = "client_reference_id, channel, tenant_id"),
+    @Index(name = "idx_txn_tenant", columnList = "tenant_id")
 })
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Transaction {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id")
+    private Tenant tenant;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "batch_id")
+    private TransactionBatch batch;
 
     @Column(name = "transaction_ref", length = 30, nullable = false, unique = true)
     private String transactionRef;

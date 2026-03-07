@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.Map;
 
 @Component
 public class JwtTokenProvider {
@@ -37,13 +38,57 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+    /**
+     * Generate token with tenant_id and tenant_scope claims for multi-tenant support.
+     */
+    public String generateTokenWithTenant(Authentication authentication, Long tenantId, String tenantScope) {
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        Date now = new Date();
+        Date expiryDate = new Date(now.getTime() + jwtExpiration);
+
+        return Jwts.builder()
+                .setSubject(userDetails.getUsername())
+                .addClaims(Map.of(
+                        "tenant_id", tenantId,
+                        "tenant_scope", tenantScope
+                ))
+                .setIssuedAt(now)
+                .setExpiration(expiryDate)
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
+    }
+
     public String getUsernameFromToken(String token) {
-        Claims claims = Jwts.parserBuilder()
+        Claims claims = getClaims(token);
+        return claims.getSubject();
+    }
+
+    /**
+     * Extract tenant_id from JWT token.
+     */
+    public Long getTenantIdFromToken(String token) {
+        Claims claims = getClaims(token);
+        Object tenantId = claims.get("tenant_id");
+        if (tenantId instanceof Number) {
+            return ((Number) tenantId).longValue();
+        }
+        return null;
+    }
+
+    /**
+     * Extract tenant_scope from JWT token.
+     */
+    public String getTenantScopeFromToken(String token) {
+        Claims claims = getClaims(token);
+        return (String) claims.get("tenant_scope");
+    }
+
+    private Claims getClaims(String token) {
+        return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-        return claims.getSubject();
     }
 
     public boolean validateToken(String token) {

@@ -133,6 +133,17 @@
             </li>
             </c:if>
 
+            <%-- Batch Management - ADMIN, MANAGER, FINANCE --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isFinance}">
+            <li class="cbs-nav-section">BATCH MANAGEMENT</li>
+            <li class="cbs-nav-item">
+                <a href="${pageContext.request.contextPath}/batches" class="cbs-nav-link" data-page="batches">
+                    <i class="bi bi-collection"></i>
+                    <span>Batch Dashboard</span>
+                </a>
+            </li>
+            </c:if>
+
             <%-- Settlement & Business Date - ADMIN, MANAGER --%>
             <c:if test="${sessionScope.isAdmin || sessionScope.isManager}">
             <li class="cbs-nav-section">SETTLEMENT & BUSINESS DATE</li>

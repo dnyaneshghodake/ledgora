@@ -7,6 +7,7 @@ import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.audit.service.AuditService;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
+import com.ledgora.batch.service.BatchService;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.BusinessDateStatus;
 import com.ledgora.common.enums.SettlementStatus;
@@ -20,6 +21,8 @@ import com.ledgora.settlement.entity.Settlement;
 import com.ledgora.settlement.entity.SettlementEntry;
 import com.ledgora.settlement.repository.SettlementEntryRepository;
 import com.ledgora.settlement.repository.SettlementRepository;
+import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.tenant.service.TenantService;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.repository.TransactionRepository;
 import org.slf4j.Logger;
@@ -51,6 +54,8 @@ public class SettlementService {
     private final AuditService auditService;
     private final ReportingService reportingService;
     private final ApplicationEventPublisher eventPublisher;
+    private final TenantService tenantService;
+    private final BatchService batchService;
 
     public SettlementService(SettlementRepository settlementRepository,
                              SettlementEntryRepository settlementEntryRepository,
@@ -62,7 +67,9 @@ public class SettlementService {
                              BusinessDateService businessDateService,
                              AuditService auditService,
                              ReportingService reportingService,
-                             ApplicationEventPublisher eventPublisher) {
+                             ApplicationEventPublisher eventPublisher,
+                             TenantService tenantService,
+                             BatchService batchService) {
         this.settlementRepository = settlementRepository;
         this.settlementEntryRepository = settlementEntryRepository;
         this.transactionRepository = transactionRepository;
@@ -74,20 +81,27 @@ public class SettlementService {
         this.auditService = auditService;
         this.reportingService = reportingService;
         this.eventPublisher = eventPublisher;
+        this.tenantService = tenantService;
+        this.batchService = batchService;
     }
 
     /**
-     * PART 12: Enhanced EOD Settlement - 7-step process with invariant validation.
-     * 1. Stop transaction intake (set business date to DAY_CLOSING)
+     * Per-tenant EOD Settlement - enhanced with batch validation.
+     * 1. Set tenant day_status = DAY_CLOSING (stop intake)
      * 2. Flush pending events (complete pending transactions)
      * 3. Validate ledger integrity (SUM debit = SUM credit)
      * 4. Generate trial balance report
-     * 5. Post accruals and fees (placeholder for interest/fee posting)
-     * 6. Generate settlement reports (entries per account)
-     * 7. Advance business date
+     * 5. Close and validate all batches
+     * 6. Settle all batches (validate debit == credit)
+     * 7. Generate settlement reports
+     * 8. Advance business date per tenant
      */
     @Transactional
     public Settlement processSettlement(LocalDate date) {
+        // Get tenant context
+        Long tenantId = TenantContextHolder.getTenantId();
+        if (tenantId == null) tenantId = 1L;
+
         User currentUser = getCurrentUser();
         String ref = "SET-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
@@ -101,8 +115,10 @@ public class SettlementService {
         settlement = settlementRepository.save(settlement);
 
         try {
-            // Step 1: Stop transaction intake
-            log.info("Settlement [{}] Step 1: Stopping transaction intake - setting DAY_CLOSING", ref);
+            // Step 1: Set tenant day_status = DAY_CLOSING (stop transaction intake)
+            log.info("Settlement [{}] Step 1: Setting tenant {} to DAY_CLOSING", ref, tenantId);
+            tenantService.startDayClosing(tenantId);
+            // Also update system-level business date status
             businessDateService.startDayClosing();
 
             // Step 2: Flush pending events (complete pending transactions)
@@ -136,10 +152,14 @@ public class SettlementService {
                         ref, trialBalance.getLines().size());
             }
 
-            // Step 5: Post accruals and fees
-            log.info("Settlement [{}] Step 5: Posting accruals and fees (placeholder)", ref);
-            // Placeholder: In production, this would calculate and post interest accruals,
-            // account maintenance fees, and other periodic charges.
+            // Step 5: Close and validate all batches for this tenant
+            log.info("Settlement [{}] Step 5: Closing and validating batches for tenant {}", ref, tenantId);
+            batchService.closeAllBatches(tenantId, date);
+
+            // Step 6: Settle all batches (validates debit == credit)
+            log.info("Settlement [{}] Step 6: Settling batches for tenant {}", ref, tenantId);
+            batchService.settleAllBatches(tenantId, date);
+            log.info("Settlement [{}] Step 6: All batches settled for tenant {}", ref, tenantId);
 
             // Recalculate balances for all active accounts
             List<Account> activeAccounts = accountRepository.findByStatus(AccountStatus.ACTIVE);
@@ -158,8 +178,8 @@ public class SettlementService {
                 accountBalanceRepository.save(bal);
             }
 
-            // Step 6: Generate settlement reports (entries per account)
-            log.info("Settlement [{}] Step 6: Generating settlement reports", ref);
+            // Step 7: Generate settlement reports (entries per account)
+            log.info("Settlement [{}] Step 7: Generating settlement reports", ref);
             List<Transaction> completedTxns = transactionRepository.findByStatusAndBusinessDate(
                     TransactionStatus.COMPLETED, date);
             int txnCount = completedTxns.size();
@@ -187,8 +207,10 @@ public class SettlementService {
                     + "Ledger integrity: VERIFIED. Trial balance: " + (trialBalance.isBalanced() ? "BALANCED" : "UNBALANCED"));
             settlement = settlementRepository.save(settlement);
 
-            // Step 7: Advance business date
-            log.info("Settlement [{}] Step 7: Advancing business date", ref);
+            // Step 8: Advance business date per tenant
+            log.info("Settlement [{}] Step 8: Advancing business date for tenant {}", ref, tenantId);
+            tenantService.closeDayAndAdvance(tenantId);
+            // Also advance system-level business date
             businessDateService.closeDayAndAdvance();
 
             // Publish settlement completed event (PART 3)
