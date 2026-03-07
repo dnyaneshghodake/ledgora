@@ -25,7 +25,7 @@ public class GeneralLedgerController {
     public String glHierarchy(Model model) {
         model.addAttribute("rootAccounts", glService.getRootAccounts());
         model.addAttribute("allAccounts", glService.getAllGLAccounts());
-        return "gl-hierarchy";
+        return "gl/gl-hierarchy";
     }
 
     @GetMapping("/create")
@@ -33,7 +33,7 @@ public class GeneralLedgerController {
         model.addAttribute("glDTO", new GeneralLedgerDTO());
         model.addAttribute("accountTypes", GLAccountType.values());
         model.addAttribute("parentAccounts", glService.getAllGLAccounts());
-        return "gl-create";
+        return "gl/gl-create";
     }
 
     @PostMapping("/create")
@@ -42,7 +42,7 @@ public class GeneralLedgerController {
         if (result.hasErrors()) {
             model.addAttribute("accountTypes", GLAccountType.values());
             model.addAttribute("parentAccounts", glService.getAllGLAccounts());
-            return "gl-create";
+            return "gl/gl-create";
         }
         try {
             GeneralLedger gl = glService.createGLAccount(dto);
@@ -53,7 +53,7 @@ public class GeneralLedgerController {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("accountTypes", GLAccountType.values());
             model.addAttribute("parentAccounts", glService.getAllGLAccounts());
-            return "gl-create";
+            return "gl/gl-create";
         }
     }
 
@@ -63,7 +63,7 @@ public class GeneralLedgerController {
                 .orElseThrow(() -> new RuntimeException("GL Account not found"));
         model.addAttribute("gl", gl);
         model.addAttribute("children", glService.getChildren(id));
-        return "gl-view";
+        return "gl/gl-view";
     }
 
     @GetMapping("/{id}/edit")
@@ -86,7 +86,7 @@ public class GeneralLedgerController {
         }
         model.addAttribute("glDTO", dto);
         model.addAttribute("accountTypes", GLAccountType.values());
-        return "gl-edit";
+        return "gl/gl-edit";
     }
 
     @PostMapping("/{id}/edit")
@@ -95,7 +95,7 @@ public class GeneralLedgerController {
                            BindingResult result, Model model, RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
             model.addAttribute("accountTypes", GLAccountType.values());
-            return "gl-edit";
+            return "gl/gl-edit";
         }
         try {
             glService.updateGLAccount(id, dto);
@@ -104,7 +104,7 @@ public class GeneralLedgerController {
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("accountTypes", GLAccountType.values());
-            return "gl-edit";
+            return "gl/gl-edit";
         }
     }
 

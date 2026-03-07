@@ -32,7 +32,7 @@ public class TransactionController {
         } else {
             model.addAttribute("transactions", transactionService.getAllTransactions());
         }
-        return "transactions";
+        return "transaction/transactions";
     }
 
     @GetMapping("/{id}")
@@ -41,14 +41,14 @@ public class TransactionController {
                 .orElseThrow(() -> new RuntimeException("Transaction not found"));
         model.addAttribute("transaction", transaction);
         model.addAttribute("ledgerEntries", transactionService.getLedgerEntriesByTransaction(id));
-        return "transaction-view";
+        return "transaction/transaction-view";
     }
 
     @GetMapping("/deposit")
     public String depositForm(Model model) {
         model.addAttribute("transactionDTO", new TransactionDTO());
         model.addAttribute("accounts", accountService.getAllAccounts());
-        return "transaction-deposit";
+        return "transaction/transaction-deposit";
     }
 
     @PostMapping("/deposit")
@@ -56,7 +56,7 @@ public class TransactionController {
                           BindingResult result, Model model, RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
             model.addAttribute("accounts", accountService.getAllAccounts());
-            return "transaction-deposit";
+            return "transaction/transaction-deposit";
         }
         try {
             Transaction txn = transactionService.deposit(dto);
@@ -66,7 +66,7 @@ public class TransactionController {
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("accounts", accountService.getAllAccounts());
-            return "transaction-deposit";
+            return "transaction/transaction-deposit";
         }
     }
 
@@ -74,7 +74,7 @@ public class TransactionController {
     public String withdrawForm(Model model) {
         model.addAttribute("transactionDTO", new TransactionDTO());
         model.addAttribute("accounts", accountService.getAllAccounts());
-        return "transaction-withdraw";
+        return "transaction/transaction-withdraw";
     }
 
     @PostMapping("/withdraw")
@@ -82,7 +82,7 @@ public class TransactionController {
                            BindingResult result, Model model, RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
             model.addAttribute("accounts", accountService.getAllAccounts());
-            return "transaction-withdraw";
+            return "transaction/transaction-withdraw";
         }
         try {
             Transaction txn = transactionService.withdraw(dto);
@@ -92,7 +92,7 @@ public class TransactionController {
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("accounts", accountService.getAllAccounts());
-            return "transaction-withdraw";
+            return "transaction/transaction-withdraw";
         }
     }
 
@@ -100,7 +100,7 @@ public class TransactionController {
     public String transferForm(Model model) {
         model.addAttribute("transactionDTO", new TransactionDTO());
         model.addAttribute("accounts", accountService.getAllAccounts());
-        return "transaction-transfer";
+        return "transaction/transaction-transfer";
     }
 
     @PostMapping("/transfer")
@@ -108,7 +108,7 @@ public class TransactionController {
                            BindingResult result, Model model, RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
             model.addAttribute("accounts", accountService.getAllAccounts());
-            return "transaction-transfer";
+            return "transaction/transaction-transfer";
         }
         try {
             Transaction txn = transactionService.transfer(dto);
@@ -118,7 +118,7 @@ public class TransactionController {
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("accounts", accountService.getAllAccounts());
-            return "transaction-transfer";
+            return "transaction/transaction-transfer";
         }
     }
 
@@ -127,6 +127,6 @@ public class TransactionController {
         model.addAttribute("transactions", transactionService.getTransactionsByAccountNumber(accountNumber));
         model.addAttribute("ledgerEntries", transactionService.getLedgerEntriesByAccount(accountNumber));
         model.addAttribute("accountNumber", accountNumber);
-        return "transaction-history";
+        return "transaction/transaction-history";
     }
 }

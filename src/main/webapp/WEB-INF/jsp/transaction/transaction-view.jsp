@@ -1,5 +1,5 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
-<%@ include file="layout/header.jsp" %>
+<%@ include file="../layout/header.jsp" %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3><i class="bi bi-receipt"></i> Transaction Details</h3>
@@ -56,4 +56,4 @@
     </div>
 </div>
 
-<%@ include file="layout/footer.jsp" %>
+<%@ include file="../layout/footer.jsp" %>

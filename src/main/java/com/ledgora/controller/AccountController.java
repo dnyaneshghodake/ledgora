@@ -41,14 +41,14 @@ public class AccountController {
         }
         model.addAttribute("accountTypes", AccountType.values());
         model.addAttribute("accountStatuses", AccountStatus.values());
-        return "accounts";
+        return "account/accounts";
     }
 
     @GetMapping("/create")
     public String createAccountForm(Model model) {
         model.addAttribute("accountDTO", new AccountDTO());
         model.addAttribute("accountTypes", AccountType.values());
-        return "account-create";
+        return "account/account-create";
     }
 
     @PostMapping("/create")
@@ -56,7 +56,7 @@ public class AccountController {
                                 BindingResult result, Model model, RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
             model.addAttribute("accountTypes", AccountType.values());
-            return "account-create";
+            return "account/account-create";
         }
         try {
             Account account = accountService.createAccount(accountDTO);
@@ -66,7 +66,7 @@ public class AccountController {
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("accountTypes", AccountType.values());
-            return "account-create";
+            return "account/account-create";
         }
     }
 
@@ -75,7 +75,7 @@ public class AccountController {
         Account account = accountService.getAccountById(id)
                 .orElseThrow(() -> new RuntimeException("Account not found"));
         model.addAttribute("account", account);
-        return "account-view";
+        return "account/account-view";
     }
 
     @GetMapping("/{id}/edit")
@@ -96,7 +96,7 @@ public class AccountController {
         dto.setGlAccountCode(account.getGlAccountCode());
         model.addAttribute("accountDTO", dto);
         model.addAttribute("accountTypes", AccountType.values());
-        return "account-edit";
+        return "account/account-edit";
     }
 
     @PostMapping("/{id}/edit")
@@ -105,7 +105,7 @@ public class AccountController {
                                 BindingResult result, Model model, RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
             model.addAttribute("accountTypes", AccountType.values());
-            return "account-edit";
+            return "account/account-edit";
         }
         try {
             accountService.updateAccount(id, accountDTO);
@@ -114,7 +114,7 @@ public class AccountController {
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("accountTypes", AccountType.values());
-            return "account-edit";
+            return "account/account-edit";
         }
     }
 

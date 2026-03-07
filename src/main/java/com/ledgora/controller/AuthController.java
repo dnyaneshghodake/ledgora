@@ -40,14 +40,14 @@ public class AuthController {
             model.addAttribute("message", "You have been logged out successfully");
         }
         model.addAttribute("loginRequest", new LoginRequest());
-        return "login";
+        return "auth/login";
     }
 
     @PostMapping("/perform_login")
     public String login(@Valid @ModelAttribute("loginRequest") LoginRequest loginRequest,
                         BindingResult result, HttpSession session, Model model) {
         if (result.hasErrors()) {
-            return "login";
+            return "auth/login";
         }
         try {
             String token = authService.authenticate(loginRequest);
@@ -56,21 +56,21 @@ public class AuthController {
             return "redirect:/dashboard";
         } catch (Exception e) {
             model.addAttribute("error", "Invalid username or password");
-            return "login";
+            return "auth/login";
         }
     }
 
     @GetMapping("/register")
     public String registerPage(Model model) {
         model.addAttribute("registerRequest", new RegisterRequest());
-        return "register";
+        return "auth/register";
     }
 
     @PostMapping("/register")
     public String register(@Valid @ModelAttribute("registerRequest") RegisterRequest registerRequest,
                            BindingResult result, Model model, RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
-            return "register";
+            return "auth/register";
         }
         try {
             authService.register(registerRequest);
@@ -78,7 +78,7 @@ public class AuthController {
             return "redirect:/login";
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
-            return "register";
+            return "auth/register";
         }
     }
 
@@ -91,6 +91,6 @@ public class AuthController {
     @GetMapping("/admin/users")
     public String usersPage(Model model) {
         model.addAttribute("users", authService.getAllUsers());
-        return "users";
+        return "admin/users";
     }
 }
