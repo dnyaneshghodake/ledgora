@@ -7,8 +7,14 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Controller for tenant switching (for MULTI tenant users).
@@ -24,9 +30,41 @@ public class TenantController {
     }
 
     @GetMapping("/switch/{tenantId}")
-    public String switchTenant(@PathVariable Long tenantId, HttpSession session,
+    public String switchTenantLegacy(@PathVariable Long tenantId,
+                                     RedirectAttributes redirectAttributes) {
+        redirectAttributes.addFlashAttribute("error",
+                "Direct tenant switch URL is disabled. Please use the tenant switch menu.");
+        return "redirect:/dashboard";
+    }
+
+    @PostMapping("/switch")
+    public String switchTenant(@RequestParam Long tenantId, HttpSession session,
                                RedirectAttributes redirectAttributes) {
         try {
+            Object tenantScope = session.getAttribute("tenantScope");
+            if (!"MULTI".equals(tenantScope)) {
+                redirectAttributes.addFlashAttribute("error", "Tenant switch is not allowed for this user.");
+                return "redirect:/dashboard";
+            }
+
+            Object availableTenantsObj = session.getAttribute("availableTenants");
+            if (availableTenantsObj instanceof List<?> availableTenants) {
+                boolean allowed = availableTenants.stream().anyMatch(t -> {
+                    if (t instanceof Tenant tenant) {
+                        return Objects.equals(tenant.getId(), tenantId);
+                    }
+                    if (t instanceof Map<?, ?> tenantMap) {
+                        Object id = tenantMap.get("id");
+                        return id != null && Objects.equals(String.valueOf(id), String.valueOf(tenantId));
+                    }
+                    return false;
+                });
+                if (!allowed) {
+                    redirectAttributes.addFlashAttribute("error", "You are not authorized to switch to this tenant.");
+                    return "redirect:/dashboard";
+                }
+            }
+
             Tenant tenant = tenantService.getTenantById(tenantId);
             // Update session
             session.setAttribute("tenantId", tenant.getId());
