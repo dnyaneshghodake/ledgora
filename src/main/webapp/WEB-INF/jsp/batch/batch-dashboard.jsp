@@ -2,12 +2,16 @@
 <%@ include file="../layout/header.jsp" %>
 
 <div class="container-fluid">
-    <div class="row mb-4">
-        <div class="col-12">
+    <%-- Page Title --%>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
             <h2><i class="bi bi-collection"></i> Batch Dashboard</h2>
-            <p class="text-muted">Transaction batch management - view open, closed, and settled batches by channel.</p>
+            <p class="text-muted mb-0">Transaction batch management - view open, closed, and settled batches by channel.</p>
         </div>
     </div>
+
+    <%-- Operational Status Banner --%>
+    <%@ include file="../layout/status-banner.jsp" %>
 
     <%-- Summary Cards --%>
     <div class="row mb-4">
@@ -15,7 +19,7 @@
             <div class="card border-primary">
                 <div class="card-body text-center">
                     <h5 class="card-title text-primary"><i class="bi bi-unlock"></i> Open Batches</h5>
-                    <h2 class="display-6">${openCount}</h2>
+                    <h2 class="display-6"><c:out value="${openCount}"/></h2>
                     <p class="text-muted">Currently accepting transactions</p>
                 </div>
             </div>
@@ -24,7 +28,7 @@
             <div class="card border-warning">
                 <div class="card-body text-center">
                     <h5 class="card-title text-warning"><i class="bi bi-lock"></i> Closed Batches</h5>
-                    <h2 class="display-6">${closedCount}</h2>
+                    <h2 class="display-6"><c:out value="${closedCount}"/></h2>
                     <p class="text-muted">No longer accepting transactions</p>
                 </div>
             </div>
@@ -33,7 +37,7 @@
             <div class="card border-success">
                 <div class="card-body text-center">
                     <h5 class="card-title text-success"><i class="bi bi-check-circle"></i> Settled Batches</h5>
-                    <h2 class="display-6">${settledCount}</h2>
+                    <h2 class="display-6"><c:out value="${settledCount}"/></h2>
                     <p class="text-muted">Fully reconciled and finalized</p>
                 </div>
             </div>
@@ -67,13 +71,13 @@
                             <tbody>
                                 <c:forEach var="batch" items="${openBatches}">
                                     <tr>
-                                        <td><code>${not empty batch.batchCode ? batch.batchCode : batch.id}</code></td>
-                                        <td><span class="badge bg-info">${batch.batchType}</span></td>
-                                        <td>${not empty batch.branchCode ? batch.branchCode : '-'}</td>
-                                        <td>${batch.businessDate}</td>
-                                        <td>${batch.transactionCount}</td>
-                                        <td class="text-end">${batch.totalDebit}</td>
-                                        <td class="text-end">${batch.totalCredit}</td>
+                                        <td><code><c:out value="${not empty batch.batchCode ? batch.batchCode : batch.id}"/></code></td>
+                                        <td><span class="badge bg-info"><c:out value="${batch.batchType}"/></span></td>
+                                        <td><c:out value="${not empty batch.branchCode ? batch.branchCode : '-'}"/></td>
+                                        <td><c:out value="${batch.businessDate}"/></td>
+                                        <td><c:out value="${batch.transactionCount}"/></td>
+                                        <td class="text-end"><c:out value="${batch.totalDebit}"/></td>
+                                        <td class="text-end"><c:out value="${batch.totalCredit}"/></td>
                                         <td>
                                             <c:choose>
                                                 <c:when test="${batch.totalDebit == batch.totalCredit}"><span class="badge bg-success">Y</span></c:when>
@@ -81,7 +85,7 @@
                                             </c:choose>
                                         </td>
                                         <td><span class="badge bg-primary">OPEN</span></td>
-                                        <td>${batch.createdAt}</td>
+                                        <td><c:out value="${batch.createdAt}"/></td>
                                     </tr>
                                 </c:forEach>
                             </tbody>
@@ -122,13 +126,13 @@
                             <tbody>
                                 <c:forEach var="batch" items="${closedBatches}">
                                     <tr>
-                                        <td><code>${not empty batch.batchCode ? batch.batchCode : batch.id}</code></td>
-                                        <td><span class="badge bg-warning text-dark">${batch.batchType}</span></td>
-                                        <td>${not empty batch.branchCode ? batch.branchCode : '-'}</td>
-                                        <td>${batch.businessDate}</td>
-                                        <td>${batch.transactionCount}</td>
-                                        <td class="text-end">${batch.totalDebit}</td>
-                                        <td class="text-end">${batch.totalCredit}</td>
+                                        <td><code><c:out value="${not empty batch.batchCode ? batch.batchCode : batch.id}"/></code></td>
+                                        <td><span class="badge bg-warning text-dark"><c:out value="${batch.batchType}"/></span></td>
+                                        <td><c:out value="${not empty batch.branchCode ? batch.branchCode : '-'}"/></td>
+                                        <td><c:out value="${batch.businessDate}"/></td>
+                                        <td><c:out value="${batch.transactionCount}"/></td>
+                                        <td class="text-end"><c:out value="${batch.totalDebit}"/></td>
+                                        <td class="text-end"><c:out value="${batch.totalCredit}"/></td>
                                         <td>
                                             <c:choose>
                                                 <c:when test="${batch.totalDebit == batch.totalCredit}"><span class="badge bg-success">Y</span></c:when>
@@ -136,7 +140,7 @@
                                             </c:choose>
                                         </td>
                                         <td><span class="badge bg-warning text-dark">CLOSED</span></td>
-                                        <td>${batch.closedAt}</td>
+                                        <td><c:out value="${batch.closedAt}"/></td>
                                     </tr>
                                 </c:forEach>
                             </tbody>
@@ -176,13 +180,13 @@
                             <tbody>
                                 <c:forEach var="batch" items="${settledBatches}">
                                     <tr>
-                                        <td><code>${not empty batch.batchCode ? batch.batchCode : batch.id}</code></td>
-                                        <td><span class="badge bg-success">${batch.batchType}</span></td>
-                                        <td>${not empty batch.branchCode ? batch.branchCode : '-'}</td>
-                                        <td>${batch.businessDate}</td>
-                                        <td>${batch.transactionCount}</td>
-                                        <td class="text-end">${batch.totalDebit}</td>
-                                        <td class="text-end">${batch.totalCredit}</td>
+                                        <td><code><c:out value="${not empty batch.batchCode ? batch.batchCode : batch.id}"/></code></td>
+                                        <td><span class="badge bg-success"><c:out value="${batch.batchType}"/></span></td>
+                                        <td><c:out value="${not empty batch.branchCode ? batch.branchCode : '-'}"/></td>
+                                        <td><c:out value="${batch.businessDate}"/></td>
+                                        <td><c:out value="${batch.transactionCount}"/></td>
+                                        <td class="text-end"><c:out value="${batch.totalDebit}"/></td>
+                                        <td class="text-end"><c:out value="${batch.totalCredit}"/></td>
                                         <td>
                                             <c:choose>
                                                 <c:when test="${batch.totalDebit == batch.totalCredit}">

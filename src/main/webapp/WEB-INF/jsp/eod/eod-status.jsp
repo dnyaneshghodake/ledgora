@@ -1,7 +1,8 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-calendar-check"></i> Business Date Status</h3>
     <div>
         <a href="${pageContext.request.contextPath}/eod/validate" class="btn btn-outline-primary">
@@ -10,6 +11,10 @@
     </div>
 </div>
 
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
+
+<%-- Main Content Section --%>
 <div class="row g-4">
     <div class="col-md-4">
         <div class="card shadow text-center">
@@ -18,7 +23,7 @@
                 <h6 class="text-muted mt-2">Current Business Date</h6>
                 <h3 class="fw-bold">
                     <c:choose>
-                        <c:when test="${not empty businessDate}">${businessDate}</c:when>
+                        <c:when test="${not empty businessDate}"><c:out value="${businessDate}"/></c:when>
                         <c:otherwise><%= new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date()) %></c:otherwise>
                     </c:choose>
                 </h3>
@@ -58,8 +63,8 @@
             <div class="card-body">
                 <i class="bi bi-building" style="font-size: 2.5rem; color: #7c3aed;"></i>
                 <h6 class="text-muted mt-2">Branch / Tenant</h6>
-                <h3 class="fw-bold">${not empty branchCode ? branchCode : 'HQ'}</h3>
-                <small class="text-muted">${not empty tenantName ? tenantName : 'Default Tenant'}</small>
+                <h3 class="fw-bold"><c:out value="${not empty branchCode ? branchCode : 'HQ'}"/></h3>
+                <small class="text-muted"><c:out value="${not empty tenantName ? tenantName : 'Default Tenant'}"/></small>
             </div>
         </div>
     </div>

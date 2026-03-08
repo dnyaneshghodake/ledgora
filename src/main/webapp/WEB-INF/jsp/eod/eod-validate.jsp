@@ -1,13 +1,18 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-check-circle"></i> EOD Validation</h3>
     <a href="${pageContext.request.contextPath}/eod/status" class="btn btn-outline-secondary">
         <i class="bi bi-calendar-check"></i> Business Date Status
     </a>
 </div>
 
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
+
+<%-- Main Content Section --%>
 <div class="card shadow mb-4">
     <div class="card-header bg-white">
         <h5 class="mb-0">Pre-EOD Validation Checklist</h5>

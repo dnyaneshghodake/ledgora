@@ -1,23 +1,29 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3><i class="bi bi-person"></i> Customer Details</h3>
+    <div>
+        <c:if test="${sessionScope.isMaker || sessionScope.isAdmin || sessionScope.isManager}">
+        <a href="${pageContext.request.contextPath}/customers/${customer.customerId}/edit" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
+        </c:if>
+        <a href="${pageContext.request.contextPath}/customers" class="btn btn-outline-primary"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<%-- Operational Status Banner --%>
+<c:if test="${customer.kycStatus == 'PENDING'}">
+    <c:set var="approvalPending" value="${true}" scope="request"/>
+    <c:set var="approvalPendingMessage" value="This customer requires approval before accounts can be opened." scope="request"/>
+</c:if>
+<%@ include file="../layout/status-banner.jsp" %>
+
 <c:if test="${not empty message}">
     <div class="alert alert-success alert-dismissible fade show"><c:out value="${message}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 </c:if>
 <c:if test="${not empty error}">
     <div class="alert alert-danger alert-dismissible fade show"><c:out value="${error}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-</c:if>
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3><i class="bi bi-person"></i> Customer Details</h3>
-    <div>
-        <a href="${pageContext.request.contextPath}/customers/${customer.customerId}/edit" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
-        <a href="${pageContext.request.contextPath}/customers" class="btn btn-outline-primary"><i class="bi bi-arrow-left"></i> Back</a>
-    </div>
-</div>
-
-<c:if test="${customer.kycStatus == 'PENDING'}">
-<div class="alert alert-warning mb-3"><i class="bi bi-hourglass-split"></i> <strong>PENDING APPROVAL</strong> - This customer requires approval before accounts can be opened.</div>
 </c:if>
 
 <ul class="nav nav-tabs mb-4" id="customerTabs">
@@ -52,6 +58,7 @@
                 <div class="col-md-4"><strong>Created:</strong> <c:out value="${customer.createdAt}"/></div>
                 <div class="col-12"><strong>Address:</strong> <c:out value="${customer.address}"/></div>
             </div>
+            <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager}">
             <hr>
             <h6>Update KYC Status</h6>
             <form method="post" action="${pageContext.request.contextPath}/customers/${customer.customerId}/kyc" class="row g-2">
@@ -65,6 +72,7 @@
                 </div>
                 <div class="col-md-2"><button type="submit" class="btn btn-primary">Update KYC</button></div>
             </form>
+            </c:if>
         </div>
     </div>
 </div>
@@ -157,6 +165,7 @@
                 </div>
             </div>
             <c:if test="${customer.kycStatus == 'PENDING'}">
+                <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager}">
                 <div class="d-flex gap-2">
                     <form method="post" action="${pageContext.request.contextPath}/customers/${customer.customerId}/approve">
                         <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
@@ -167,10 +176,21 @@
                         <button type="submit" class="btn btn-danger" onclick="return confirm('Reject this customer?')"><i class="bi bi-x-circle"></i> Reject</button>
                     </form>
                 </div>
+                </c:if>
             </c:if>
         </div>
     </div>
 </div>
 </div>
+
+<%-- Audit Info Section --%>
+<c:set var="auditCreatedBy" value="${customer.createdBy}" scope="request"/>
+<c:set var="auditCreatedAt" value="${customer.createdAt}" scope="request"/>
+<c:set var="auditUpdatedAt" value="${customer.updatedAt}" scope="request"/>
+<c:set var="auditApprovedBy" value="${customer.approvedBy}" scope="request"/>
+<c:set var="auditApprovalStatus" value="${customer.kycStatus}" scope="request"/>
+<c:set var="auditEntityType" value="Customer" scope="request"/>
+<c:set var="auditEntityId" value="${customer.customerId}" scope="request"/>
+<%@ include file="../layout/audit-info.jsp" %>
 
 <%@ include file="../layout/footer.jsp" %>

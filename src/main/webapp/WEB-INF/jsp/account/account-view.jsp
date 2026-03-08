@@ -1,26 +1,34 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3><i class="bi bi-wallet2"></i> Account Details</h3>
+    <div>
+        <c:if test="${sessionScope.isMaker || sessionScope.isAdmin || sessionScope.isManager}">
+        <a href="${pageContext.request.contextPath}/accounts/${account.id}/edit" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
+        </c:if>
+        <a href="${pageContext.request.contextPath}/accounts" class="btn btn-outline-primary"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<%-- Operational Status Banner --%>
+<c:if test="${account.freezeLevel != null && account.freezeLevel != 'NONE'}">
+    <c:set var="freezeActive" value="${true}" scope="request"/>
+    <c:set var="freezeLevel" value="${account.freezeLevel}" scope="request"/>
+    <c:set var="freezeReason" value="${account.freezeReason}" scope="request"/>
+</c:if>
+<c:if test="${account.approvalStatus == 'PENDING'}">
+    <c:set var="approvalPending" value="${true}" scope="request"/>
+    <c:set var="approvalPendingMessage" value="This account is pending maker-checker approval." scope="request"/>
+</c:if>
+<%@ include file="../layout/status-banner.jsp" %>
+
 <c:if test="${not empty message}">
     <div class="alert alert-success alert-dismissible fade show"><c:out value="${message}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 </c:if>
 <c:if test="${not empty error}">
     <div class="alert alert-danger"><c:out value="${error}"/></div>
-</c:if>
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3><i class="bi bi-wallet2"></i> Account Details</h3>
-    <div>
-        <a href="${pageContext.request.contextPath}/accounts/${account.id}/edit" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
-        <a href="${pageContext.request.contextPath}/accounts" class="btn btn-outline-primary"><i class="bi bi-arrow-left"></i> Back</a>
-    </div>
-</div>
-
-<%-- Freeze Warning Banner --%>
-<c:if test="${account.freezeLevel != null && account.freezeLevel != 'NONE'}">
-<div class="alert alert-danger"><i class="bi bi-slash-circle-fill"></i> <strong>ACCOUNT FROZEN</strong> - Freeze Level: <c:out value="${account.freezeLevel}"/>
-    <c:if test="${not empty account.freezeReason}"> | Reason: <c:out value="${account.freezeReason}"/></c:if>
-</div>
 </c:if>
 
 <ul class="nav nav-tabs mb-4" id="accountTabs">
@@ -210,5 +218,15 @@
     </div>
 </div>
 </div>
+
+<%-- Audit Info Section --%>
+<c:set var="auditCreatedBy" value="${account.createdBy}" scope="request"/>
+<c:set var="auditCreatedAt" value="${account.createdAt}" scope="request"/>
+<c:set var="auditUpdatedAt" value="${account.updatedAt}" scope="request"/>
+<c:set var="auditApprovedBy" value="${account.approvedBy}" scope="request"/>
+<c:set var="auditApprovalStatus" value="${account.approvalStatus}" scope="request"/>
+<c:set var="auditEntityType" value="Account" scope="request"/>
+<c:set var="auditEntityId" value="${account.accountNumber}" scope="request"/>
+<%@ include file="../layout/audit-info.jsp" %>
 
 <%@ include file="../layout/footer.jsp" %>
