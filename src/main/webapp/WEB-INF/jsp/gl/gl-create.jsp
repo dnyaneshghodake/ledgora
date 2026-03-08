@@ -19,17 +19,18 @@
                 <form:form action="${pageContext.request.contextPath}/gl/create" method="post" modelAttribute="glDTO">
                     <div class="row mb-3">
                         <div class="col-md-4">
-                            <label for="glCode" class="form-label">GL Code *</label>
-                            <form:input path="glCode" cssClass="form-control" id="glCode" required="true" placeholder="e.g., 1100"/>
+                            <label for="glCode" class="form-label cbs-field-required">GL Code</label>
+                            <form:input path="glCode" cssClass="form-control" id="glCode" required="true" placeholder="e.g., 1100"
+                                        pattern="[0-9A-Za-z-]+" title="Alphanumeric characters and dashes only" maxlength="20"/>
                         </div>
                         <div class="col-md-8">
-                            <label for="glName" class="form-label">GL Name *</label>
-                            <form:input path="glName" cssClass="form-control" id="glName" required="true"/>
+                            <label for="glName" class="form-label cbs-field-required">GL Name</label>
+                            <form:input path="glName" cssClass="form-control" id="glName" required="true" maxlength="100"/>
                         </div>
                     </div>
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="accountType" class="form-label">Account Type *</label>
+                            <label for="accountType" class="form-label cbs-field-required">Account Type</label>
                             <form:select path="accountType" cssClass="form-select" id="accountType" required="true">
                                 <option value="">Select Type</option>
                                 <c:forEach var="type" items="${accountTypes}">

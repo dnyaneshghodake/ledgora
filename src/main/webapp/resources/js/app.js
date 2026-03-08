@@ -81,7 +81,41 @@ document.addEventListener('DOMContentLoaded', function() {
 
     if (bestMatch) {
         bestMatch.classList.add('active');
+        // Auto-expand the parent nav group of the active link
+        var parentGroup = bestMatch.closest('.cbs-nav-group');
+        if (parentGroup) {
+            parentGroup.classList.add('open');
+            var groupToggle = parentGroup.querySelector('.cbs-nav-group-toggle');
+            if (groupToggle) {
+                var groupId = groupToggle.getAttribute('data-group');
+                if (groupId) localStorage.setItem('cbs-nav-group-' + groupId, 'open');
+            }
+        }
     }
+
+    // ── CBS Sidebar Collapsible Nav Groups ──
+    var navGroupToggles = document.querySelectorAll('.cbs-nav-group-toggle');
+    navGroupToggles.forEach(function(toggle) {
+        var groupId = toggle.getAttribute('data-group');
+        var parentGroup = toggle.closest('.cbs-nav-group');
+        if (!parentGroup || !groupId) return;
+
+        // Restore saved state from localStorage
+        var savedState = localStorage.getItem('cbs-nav-group-' + groupId);
+        if (savedState === 'open') {
+            parentGroup.classList.add('open');
+        }
+
+        toggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            parentGroup.classList.toggle('open');
+            if (parentGroup.classList.contains('open')) {
+                localStorage.setItem('cbs-nav-group-' + groupId, 'open');
+            } else {
+                localStorage.setItem('cbs-nav-group-' + groupId, 'closed');
+            }
+        });
+    });
 
     // ── Auto-dismiss alerts after 5 seconds ──
     var alerts = document.querySelectorAll('.alert-dismissible');
