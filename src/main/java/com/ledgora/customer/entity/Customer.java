@@ -1,5 +1,6 @@
 package com.ledgora.customer.entity;
 
+import com.ledgora.auth.entity.User;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
 import lombok.*;
@@ -51,6 +52,10 @@ public class Customer {
 
     @Column(name = "address", length = 500)
     private String address;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private User createdBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
