@@ -621,6 +621,14 @@ public class DataInitializer implements CommandLineRunner {
                 .ledgerBalance(ledgerBalance)
                 .availableBalance(ledgerBalance)
                 .holdAmount(BigDecimal.ZERO)
+                .actualTotalBalance(ledgerBalance)
+                .actualClearedBalance(ledgerBalance)
+                .shadowTotalBalance(BigDecimal.ZERO)
+                .shadowClearingBalance(BigDecimal.ZERO)
+                .inwardClearingBalance(BigDecimal.ZERO)
+                .unclearedEffectBalance(BigDecimal.ZERO)
+                .lienBalance(BigDecimal.ZERO)
+                .chargeHoldBalance(BigDecimal.ZERO)
                 .build();
         accountBalanceRepository.save(ab);
     }
