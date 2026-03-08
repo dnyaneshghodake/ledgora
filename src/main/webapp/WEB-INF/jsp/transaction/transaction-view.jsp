@@ -117,7 +117,7 @@
                     <tr>
                         <td class="text-muted">Audit Trail</td>
                         <td>
-                            <a href="${pageContext.request.contextPath}/admin/audit-logs" class="btn btn-outline-secondary btn-sm">
+                            <a href="${pageContext.request.contextPath}/admin/audit" class="btn btn-outline-secondary btn-sm">
                                 <i class="bi bi-clock-history"></i> View Audit Trail
                             </a>
                         </td>

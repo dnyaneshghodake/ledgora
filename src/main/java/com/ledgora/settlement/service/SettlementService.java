@@ -99,8 +99,7 @@ public class SettlementService {
     @Transactional
     public Settlement processSettlement(LocalDate date) {
         // Get tenant context
-        Long tenantId = TenantContextHolder.getTenantId();
-        if (tenantId == null) tenantId = 1L;
+        Long tenantId = TenantContextHolder.getRequiredTenantId();
 
         User currentUser = getCurrentUser();
         String ref = "SET-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
@@ -123,8 +122,8 @@ public class SettlementService {
 
             // Step 2: Flush pending events (complete pending transactions)
             log.info("Settlement [{}] Step 2: Flushing pending transactions", ref);
-            List<Transaction> pendingTxns = transactionRepository.findByStatusAndBusinessDate(
-                    TransactionStatus.PENDING, date);
+            List<Transaction> pendingTxns = transactionRepository.findByTenantIdAndStatusAndBusinessDate(
+                    tenantId, TransactionStatus.PENDING, date);
             for (Transaction txn : pendingTxns) {
                 txn.setStatus(TransactionStatus.COMPLETED);
                 transactionRepository.save(txn);
@@ -133,8 +132,8 @@ public class SettlementService {
 
             // Step 3: Validate ledger integrity (system invariant)
             log.info("Settlement [{}] Step 3: Validating ledger integrity", ref);
-            BigDecimal totalDebits = ledgerEntryRepository.sumDebitsByBusinessDate(date);
-            BigDecimal totalCredits = ledgerEntryRepository.sumCreditsByBusinessDate(date);
+            BigDecimal totalDebits = ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(date, tenantId);
+            BigDecimal totalCredits = ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(date, tenantId);
             if (totalDebits.compareTo(totalCredits) != 0) {
                 throw new RuntimeException("SETTLEMENT INVARIANT VIOLATION: Total Debits ("
                         + totalDebits + ") != Total Credits (" + totalCredits + ") for date " + date);
@@ -162,7 +161,7 @@ public class SettlementService {
             log.info("Settlement [{}] Step 6: All batches settled for tenant {}", ref, tenantId);
 
             // Recalculate balances for all active accounts
-            List<Account> activeAccounts = accountRepository.findByStatus(AccountStatus.ACTIVE);
+            List<Account> activeAccounts = accountRepository.findByTenantIdAndStatus(tenantId, AccountStatus.ACTIVE);
             for (Account account : activeAccounts) {
                 BigDecimal accountDebits = ledgerEntryRepository.sumDebitsByAccountId(account.getId());
                 BigDecimal accountCredits = ledgerEntryRepository.sumCreditsByAccountId(account.getId());
@@ -180,8 +179,8 @@ public class SettlementService {
 
             // Step 7: Generate settlement reports (entries per account)
             log.info("Settlement [{}] Step 7: Generating settlement reports", ref);
-            List<Transaction> completedTxns = transactionRepository.findByStatusAndBusinessDate(
-                    TransactionStatus.COMPLETED, date);
+            List<Transaction> completedTxns = transactionRepository.findByTenantIdAndStatusAndBusinessDate(
+                    tenantId, TransactionStatus.COMPLETED, date);
             int txnCount = completedTxns.size();
 
             for (Account account : activeAccounts) {

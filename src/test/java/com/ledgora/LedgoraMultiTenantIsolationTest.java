@@ -17,6 +17,7 @@ import com.ledgora.customer.repository.CustomerMasterRepository;
 import com.ledgora.customer.service.CbsCustomerValidationService;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
+import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
 import com.ledgora.voucher.entity.Voucher;
@@ -42,6 +43,11 @@ import static org.junit.jupiter.api.Assertions.*;
 @ActiveProfiles("test")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class LedgoraMultiTenantIsolationTest {
+
+    @AfterEach
+    void clearTenantContext() {
+        TenantContextHolder.clear();
+    }
 
     @Autowired private VoucherService voucherService;
     @Autowired private VoucherRepository voucherRepository;
@@ -303,6 +309,7 @@ class LedgoraMultiTenantIsolationTest {
                 .isLocked(false)
                 .build());
 
+        TenantContextHolder.setTenantId(tenant.getId());
         return new TestData(tenant, branch, account, gl, cm, maker, checker);
     }
 
