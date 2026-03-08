@@ -95,6 +95,17 @@ public class Account {
     @Column(name = "gl_account_code", length = 20)
     private String glAccountCode;
 
+    // PART 3: Fields referenced in JSP forms (account-create, account-edit, account-view)
+    @Column(name = "interest_rate", precision = 5, scale = 2)
+    private java.math.BigDecimal interestRate;
+
+    @Column(name = "overdraft_limit", precision = 19, scale = 4)
+    private java.math.BigDecimal overdraftLimit;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "last_modified_by")
+    private User lastModifiedBy;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "ledger_account_type", length = 30)
     private LedgerAccountType ledgerAccountType;

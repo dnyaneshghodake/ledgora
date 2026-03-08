@@ -1,4 +1,5 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <%@ include file="../layout/header.jsp" %>
 
 <div class="container-fluid">
@@ -32,7 +33,10 @@
     </div>
 
     <div class="card">
-        <div class="card-header"><h5 class="mb-0">Audit Trail <span class="badge bg-secondary">${auditLogs.size()} entries</span></h5></div>
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Audit Trail <span class="badge bg-secondary">${totalEntries} total</span></h5>
+            <small class="text-muted">Page ${currentPage + 1} of ${totalPages > 0 ? totalPages : 1}</small>
+        </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-striped table-hover table-sm">
@@ -46,6 +50,7 @@
                             <th>User ID</th>
                             <th>Details</th>
                             <th>IP Address</th>
+                            <th>User Agent</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -59,11 +64,32 @@
                                 <td><c:out value="${log.userId}"/></td>
                                 <td><small><c:out value="${log.details}"/></small></td>
                                 <td><small><c:out value="${log.ipAddress}"/></small></td>
+                                <td><small title="${fn:escapeXml(log.userAgent)}"><c:out value="${log.userAgent}"/></small></td>
                             </tr>
                         </c:forEach>
                     </tbody>
                 </table>
             </div>
+            <%-- Pagination Controls --%>
+            <c:if test="${totalPages > 1}">
+            <nav aria-label="Audit log pagination" class="mt-3">
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    <li class="page-item ${currentPage == 0 ? 'disabled' : ''}">
+                        <a class="page-link" href="${pageContext.request.contextPath}/admin/audit?page=${currentPage - 1}<c:if test='${not empty filterEntity}'>&entity=${filterEntity}</c:if>">&laquo; Prev</a>
+                    </li>
+                    <c:forEach begin="0" end="${totalPages - 1}" var="i">
+                        <c:if test="${i == 0 || i == totalPages - 1 || (i >= currentPage - 2 && i <= currentPage + 2)}">
+                        <li class="page-item ${i == currentPage ? 'active' : ''}">
+                            <a class="page-link" href="${pageContext.request.contextPath}/admin/audit?page=${i}<c:if test='${not empty filterEntity}'>&entity=${filterEntity}</c:if>">${i + 1}</a>
+                        </li>
+                        </c:if>
+                    </c:forEach>
+                    <li class="page-item ${currentPage >= totalPages - 1 ? 'disabled' : ''}">
+                        <a class="page-link" href="${pageContext.request.contextPath}/admin/audit?page=${currentPage + 1}<c:if test='${not empty filterEntity}'>&entity=${filterEntity}</c:if>">Next &raquo;</a>
+                    </li>
+                </ul>
+            </nav>
+            </c:if>
         </div>
     </div>
 </div>

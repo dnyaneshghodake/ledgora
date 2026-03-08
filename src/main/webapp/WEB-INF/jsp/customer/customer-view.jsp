@@ -19,12 +19,7 @@
 </c:if>
 <%@ include file="../layout/status-banner.jsp" %>
 
-<c:if test="${not empty message}">
-    <div class="alert alert-success alert-dismissible fade show"><c:out value="${message}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-</c:if>
-<c:if test="${not empty error}">
-    <div class="alert alert-danger alert-dismissible fade show"><c:out value="${error}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-</c:if>
+<%-- Flash alerts already rendered and cleared by header.jsp (PART 7) --%>
 
 <ul class="nav nav-tabs mb-4" id="customerTabs">
     <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-basic">Basic Details</a></li>
@@ -239,9 +234,9 @@
 <%-- Audit Info Section --%>
 <c:set var="auditCreatedBy" value="${customer.createdBy}" scope="request"/>
 <c:set var="auditCreatedAt" value="${customer.createdAt}" scope="request"/>
-<c:set var="auditLastModifiedBy" value="${customer.lastModifiedBy}" scope="request"/>
-<c:set var="auditUpdatedAt" value="${customer.updatedAt}" scope="request"/>
-<c:set var="auditApprovedBy" value="${customer.approvedBy}" scope="request"/>
+<c:set var="auditLastModifiedBy" value="" scope="request"/>
+<c:set var="auditUpdatedAt" value="" scope="request"/>
+<c:set var="auditApprovedBy" value="" scope="request"/>
 <c:set var="auditApprovalStatus" value="${customer.kycStatus}" scope="request"/>
 <c:set var="auditCurrentStatus" value="${customer.kycStatus}" scope="request"/>
 <c:set var="auditEntityType" value="Customer" scope="request"/>

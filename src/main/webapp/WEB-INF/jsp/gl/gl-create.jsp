@@ -21,7 +21,7 @@
                         <div class="col-md-4">
                             <label for="glCode" class="form-label cbs-field-required">GL Code</label>
                             <form:input path="glCode" cssClass="form-control" id="glCode" required="true" placeholder="e.g., 1100"
-                                        pattern="[0-9A-Za-z-]+" title="Alphanumeric characters and dashes only" maxlength="20"/>
+                                        pattern="[0-9A-Za-z\-]+" title="Alphanumeric characters and dashes only" maxlength="20"/>
                         </div>
                         <div class="col-md-8">
                             <label for="glName" class="form-label cbs-field-required">GL Name</label>

@@ -1,5 +1,9 @@
 package com.ledgora.security;
 
+import com.ledgora.auth.entity.User;
+import com.ledgora.auth.repository.UserRepository;
+import com.ledgora.common.enums.TenantScope;
+import com.ledgora.tenant.context.TenantContextHolder;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -18,9 +22,12 @@ import java.util.stream.Collectors;
 public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthenticationSuccessHandler {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final UserRepository userRepository;
 
-    public CustomAuthenticationSuccessHandler(JwtTokenProvider jwtTokenProvider) {
+    public CustomAuthenticationSuccessHandler(JwtTokenProvider jwtTokenProvider,
+                                              UserRepository userRepository) {
         this.jwtTokenProvider = jwtTokenProvider;
+        this.userRepository = userRepository;
         setDefaultTargetUrl("/dashboard");
         setAlwaysUseDefaultTargetUrl(true);
     }
@@ -56,8 +63,44 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
         session.setAttribute("isOperations",    roles.contains("ROLE_OPERATIONS"));
         session.setAttribute("isAtmSystem",     roles.contains("ROLE_ATM_SYSTEM"));
 
-        // Generate and store JWT token in session for API calls
-        String token = jwtTokenProvider.generateToken(authentication);
+        // Resolve tenant context from User entity and generate JWT with tenant claims
+        User user = userRepository.findByUsername(userDetails.getUsername()).orElse(null);
+        Long tenantId = null;
+        String tenantScopeStr = TenantScope.SINGLE.name();
+        if (user != null && user.getTenant() != null) {
+            tenantId = user.getTenant().getId();
+            tenantScopeStr = user.getTenantScope() != null ? user.getTenantScope().name() : TenantScope.SINGLE.name();
+            // Set tenant context for the current request
+            TenantContextHolder.setTenantId(tenantId);
+            // Store tenant info in session for JSP access
+            session.setAttribute("tenantId", tenantId);
+            session.setAttribute("tenantName", user.getTenant().getTenantName());
+            session.setAttribute("tenantScope", tenantScopeStr);
+            // Store business date and day status in session
+            if (user.getTenant().getCurrentBusinessDate() != null) {
+                session.setAttribute("businessDate", user.getTenant().getCurrentBusinessDate().toString());
+            }
+            if (user.getTenant().getDayStatus() != null) {
+                session.setAttribute("businessDateStatus", user.getTenant().getDayStatus().name());
+            }
+        }
+        // Store branch info in session
+        if (user != null) {
+            if (user.getBranch() != null) {
+                session.setAttribute("branchCode", user.getBranch().getBranchCode());
+                session.setAttribute("branchName", user.getBranch().getName());
+            } else if (user.getBranchCode() != null) {
+                session.setAttribute("branchCode", user.getBranchCode());
+            }
+        }
+
+        // Generate JWT with tenant claims so TenantContextHolder is populated on every request
+        String token;
+        if (tenantId != null) {
+            token = jwtTokenProvider.generateTokenWithTenant(authentication, tenantId, tenantScopeStr);
+        } else {
+            token = jwtTokenProvider.generateToken(authentication);
+        }
         session.setAttribute("jwt_token", token);
 
         super.onAuthenticationSuccess(request, response, authentication);

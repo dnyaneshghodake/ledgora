@@ -218,17 +218,21 @@
     </nav>
     </c:if>
     <div class="cbs-content">
+        <%-- PART 7: Single alert mechanism only. Render flash/model messages once,
+             then clear to prevent duplicate display on re-render. --%>
         <c:if test="${not empty message}">
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <c:out value="${message}"/>
+            <div class="alert alert-success alert-dismissible fade show cbs-flash-alert" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i><c:out value="${message}"/>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
+            <c:remove var="message" scope="request"/>
         </c:if>
         <c:if test="${not empty error}">
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <c:out value="${error}"/>
+            <div class="alert alert-danger alert-dismissible fade show cbs-flash-alert" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i><c:out value="${error}"/>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
+            <c:remove var="error" scope="request"/>
         </c:if>
 </c:if>
 <c:if test="${empty sessionScope.username}">

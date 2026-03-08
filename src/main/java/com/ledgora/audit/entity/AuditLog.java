@@ -36,6 +36,10 @@ public class AuditLog {
     @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
+    // PART 9: User agent for audit trail
+    @Column(name = "user_agent", length = 500)
+    private String userAgent;
+
     // PART 11: Extended audit fields
     @Column(name = "request_payload", length = 4000)
     private String requestPayload;
