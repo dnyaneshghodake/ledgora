@@ -82,7 +82,7 @@ class LedgoraBankingInvariantTest {
 
         TransactionDTO dto = TransactionDTO.builder()
                 .transactionType("DEPOSIT")
-                .sourceAccountNumber(data.source.getAccountNumber())
+                .destinationAccountNumber(data.source.getAccountNumber())
                 .amount(new BigDecimal("100.00"))
                 .currency("INR")
                 .channel(TransactionChannel.TELLER.name())
@@ -97,7 +97,7 @@ class LedgoraBankingInvariantTest {
         // Second call with same clientReferenceId+channel should be rejected
         TransactionDTO duplicateDto = TransactionDTO.builder()
                 .transactionType("DEPOSIT")
-                .sourceAccountNumber(data.source.getAccountNumber())
+                .destinationAccountNumber(data.source.getAccountNumber())
                 .amount(new BigDecimal("100.00"))
                 .currency("INR")
                 .channel(TransactionChannel.TELLER.name())
@@ -126,7 +126,7 @@ class LedgoraBankingInvariantTest {
 
         TransactionDTO dto = TransactionDTO.builder()
                 .transactionType("DEPOSIT")
-                .sourceAccountNumber(data.source.getAccountNumber())
+                .destinationAccountNumber(data.source.getAccountNumber())
                 .amount(new BigDecimal("50.00"))
                 .currency("INR")
                 .channel(TransactionChannel.TELLER.name())
@@ -168,7 +168,7 @@ class LedgoraBankingInvariantTest {
 
         TransactionDTO dto = TransactionDTO.builder()
                 .transactionType("DEPOSIT")
-                .sourceAccountNumber(data.source.getAccountNumber())
+                .destinationAccountNumber(data.source.getAccountNumber())
                 .amount(new BigDecimal("500.00"))
                 .currency("INR")
                 .channel(TransactionChannel.TELLER.name())
@@ -234,7 +234,7 @@ class LedgoraBankingInvariantTest {
                 .build());
 
         Branch branch = branchRepository.save(Branch.builder()
-                .branchCode("BR-BATCH-AC")
+                .branchCode("BRBATCAC")
                 .name("Batch AutoCreate Branch")
                 .isActive(true)
                 .build());
@@ -263,7 +263,7 @@ class LedgoraBankingInvariantTest {
                 .build());
 
         Branch branch = branchRepository.save(Branch.builder()
-                .branchCode("BR-BATCH-CL")
+                .branchCode("BRBATCCL")
                 .name("Batch Close Branch")
                 .isActive(true)
                 .build());
@@ -403,6 +403,22 @@ class LedgoraBankingInvariantTest {
                         .normalBalance("DEBIT")
                         .balance(BigDecimal.ZERO)
                         .build()));
+
+        // Create Cash GL Account (Account entity with glAccountCode=1100) required by resolveCashGlAccount
+        Account cashGlAccount = accountRepository.findFirstByTenantIdAndGlAccountCode(tenant.getId(), "1100")
+                .orElseGet(() -> accountRepository.save(Account.builder()
+                        .tenant(tenant)
+                        .branch(branch)
+                        .homeBranch(branch)
+                        .accountNumber("GL-CASH-" + suffix)
+                        .accountName("Cash GL Account " + suffix)
+                        .accountType(AccountType.SAVINGS)
+                        .status(AccountStatus.ACTIVE)
+                        .balance(BigDecimal.ZERO)
+                        .currency("INR")
+                        .glAccountCode("1100")
+                        .build()));
+        seedBalance(cashGlAccount, new BigDecimal("100000.00"));
 
         Account source = accountRepository.save(Account.builder()
                 .tenant(tenant)
