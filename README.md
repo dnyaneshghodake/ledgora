@@ -1,478 +1,236 @@
-# LEDGORA - Core Banking Solutions Backend
+# Ledgora - Core Banking Platform
 
-## 📋 Project Overview
+Ledgora is an enterprise-grade Core Banking System (CBS) built with Spring Boot, designed for RBI-grade financial control with multi-tenant architecture, double-entry accounting, batch-based transaction processing, and strict end-of-day (EOD) enforcement.
 
-**Ledgora** is a microservices-based core banking solution built with **Spring Boot 4.0.3** and **Java 17**. The system provides comprehensive banking services through a multi-module Maven architecture with an Angular frontend.
+## Technology Stack
 
-### Key Information
-- **Version**: 0.0.1-SNAPSHOT
-- **Java Version**: 17
-- **Spring Boot**: 4.0.3
-- **Maven**: 3.9.9
-- **Final Artifact**: `ledgora.jar` (Located in `api-gateway/target/`)
-- **Deployment Type**: Executable JAR (not WAR)
+| Layer | Technology |
+|-------|-----------|
+| Backend | Spring Boot 3.2.3, Java 17 |
+| Security | Spring Security + JWT (JJWT 0.11.5) |
+| Database | H2 (Dev) / SQL Server (Prod) |
+| ORM | Spring Data JPA / Hibernate |
+| Frontend | JSP + JSTL + Bootstrap Icons |
+| Build | Maven |
+| Observability | Spring Boot Actuator + Micrometer Prometheus |
 
----
-
-## 📁 Project Structure
+## Architecture Overview
 
 ```
-ledgora/
-│
-├── pom.xml (Parent POM - Multi-module)
-├── common-lib/                  # Shared Library
-│   ├── pom.xml
-│   └── src/main/java/com/ledgora/
-│
-├── account-service/             # Account Management Service
-│   ├── pom.xml
-│   └── src/main/java/com/ledgora/
-│
-├── transaction-service/         # Transaction Processing Service
-│   ├── pom.xml
-│   └── src/main/java/com/ledgora/
-│
-├── ledger-service/             # Reconciliation & Settlement Service
-│   ├── pom.xml
-│   └── src/main/java/com/ledgora/
-│
-├── auth-service/               # Authentication & Authorization Service
-│   ├── pom.xml
-│   └── src/main/java/com/ledgora/
-│
-├── api-gateway/                # API Gateway & Main Application
-│   ├── pom.xml
-│   ├── src/main/
-│   │   ├── java/com/ledgora/
-│   │   │   ├── LedgoraApplication.java (Main Entry Point)
-│   │   │   ├── GatewayController.java
-│   │   │   └── ServletInitializer.java
-│   │   └── resources/
-│   │       └── application.properties
-│   └── target/
-│       └── ledgora.jar         # FINAL ARTIFACT
-│
-├── PROJECT_SETUP_SUMMARY.md    # Comprehensive Project Documentation
-├── CONFIGURATION_GUIDE.md      # Configuration Instructions
-├── build.bat                   # Windows Build Script
-├── build.sh                    # Linux/Mac Build Script
-├── HELP.md                     # Spring Boot Help
-└── mvnw/mvnw.cmd              # Maven Wrapper
++-----------------------------------------------------------+
+|                    LEDGORA CBS                              |
++-----------------------------------------------------------+
+|  JSP Frontend (Header, Sidebar, Dashboard, Batch UI)       |
++-----------------------------------------------------------+
+|  REST Controllers + MVC Controllers                         |
+|  (Auth, Customer, Account, Transaction, Settlement,         |
+|   Ledger, GL, Batch, Tenant, Reports, Approval)            |
++-----------------------------------------------------------+
+|  Service Layer                                              |
+|  TransactionService | SettlementService | LedgerService     |
+|  GlBalanceService   | BatchService      | TenantService     |
++-----------------------------------------------------------+
+|  Security Layer                                             |
+|  JWT Auth Filter | Tenant Context Filter | TenantContext    |
++-----------------------------------------------------------+
+|  JPA Repositories + H2/SQL Server                           |
++-----------------------------------------------------------+
 ```
 
----
+## Key Features
 
-## 🏗️ Module Architecture
+### 1. GL Balance Correction (PART 1)
 
-### 1. **common-lib** - Shared Library Foundation
+- **GlBalanceService** updates GL account balances following accounting sign conventions
+- **Accounting Rules:**
+  - Debit increases Asset & Expense accounts
+  - Credit increases Liability, Income (Revenue), and Equity accounts
+- **Parent GL Rollup:** Balance changes propagate recursively from child to parent GL accounts
+- **Chart of Accounts:** Full GL hierarchy with 5 root accounts (Assets, Liabilities, Equity, Revenue, Expenses) and multiple sub-levels
+
+### 2. Transaction Batching (PART 2)
+
+- **TransactionBatch entity** groups transactions by channel, tenant, and business date
+- **Batch Types:** ATM, ONLINE, BRANCH_CASH, INTERNAL, BATCH
+- **Batch Lifecycle:** OPEN -> CLOSED -> SETTLED
+- **Batch Rules:**
+  - Every transaction must belong to a batch
+  - Batch determined by channel + tenant + business_date
+  - Batch totals (debit/credit) tracked per transaction
+  - Settlement validates total_debit == total_credit before marking SETTLED
+  - Closed/settled batches cannot be modified
+- **BatchService** methods:
+  - `getOrCreateOpenBatch(tenantId, channel, businessDate)`
+  - `updateBatchTotals(batchId, debitAmount, creditAmount)`
+  - `closeAllBatches(tenantId, businessDate)`
+  - `settleAllBatches(tenantId, businessDate)` (validates balance)
+- **Batch Dashboard UI** showing open/closed/settled batches with summary cards
+
+### 3. Multi-Tenant Architecture (PART 3)
+
+- **Tenant entity** with independent business date and day status per tenant
+- **tenant_id added to:** customers, accounts, transactions, ledger_entries, ledger_journals, batches, approvals, idempotency_keys, general_ledgers
+- **Tenant Context Propagation:**
+  - `TenantContextHolder` (ThreadLocal) for request-scoped tenant isolation
+  - `TenantFilter` extracts tenant from JWT and sets context
+  - JWT enhanced with `tenant_id` and `tenant_scope` (SINGLE/MULTI) claims
+- **Security Rules:**
+  - SINGLE tenant user: only access their tenant data
+  - MULTI tenant admin: can switch tenant context via UI dropdown
+- **Composite Index:** `(client_reference_id, channel, tenant_id)` for tenant-aware idempotency
+- **Data Seeding:** Two default tenants (TENANT-001: Ledgora Main Bank, TENANT-002: Ledgora Partner Bank)
+
+### 4. Strict End-of-Day Control (PART 4)
+
+- **Per-tenant business date** with independent day status
+- **Day Status State Machine:** OPEN -> DAY_CLOSING -> CLOSED -> OPEN (next day)
+- **Transaction Blocking:**
+  - `BusinessDayClosedException` thrown when day_status != OPEN
+  - No transactions allowed during DAY_CLOSING or CLOSED states
+- **Settlement Flow (per tenant):**
+  1. Set tenant day_status = DAY_CLOSING (blocks new transactions)
+  2. Close all open batches for the tenant
+  3. Validate all batches balance (total_debit == total_credit)
+  4. Settle all batches
+  5. Validate ledger integrity
+  6. Advance tenant business_date to next day
+  7. Set day_status = OPEN
+
+### 5. UI Enhancements (PART 5)
+
+- **Batch Dashboard** (`/batches`): Shows open/closed/settled batches with summary cards, transaction counts, and totals per channel
+- **Tenant Switch Dropdown:** Header dropdown for MULTI-tenant users to switch active tenant context
+- **Header Enhancement:** Displays current Tenant Name | Business Date | Day Status
+- **Sidebar:** Added Batch Management section with link to Batch Dashboard
+
+## Banking Safety Rules
+
+| Rule | Implementation |
+|------|---------------|
+| Ledger Immutability | Entries never updated/deleted; append-only system of record |
+| Double-Entry Accounting | SUM(debits) = SUM(credits) enforced per journal |
+| GL Balance Integrity | Derived from ledger entries with parent rollup |
+| No Post-Close Transactions | BusinessDayClosedException when day_status != OPEN |
+| Batch Balance Validation | total_debit == total_credit required before settlement |
+| Tenant Data Isolation | tenant_id on all entities; context-based filtering |
+| Idempotency | Composite key (client_reference_id, channel, tenant_id) prevents duplicates |
+| Pessimistic Locking | Account-level locks for concurrent transaction safety |
+
+## Project Structure
+
 ```
-Purpose: Centralized dependencies and shared utilities
-Type: JAR Library (not executable)
-Scope: Used by all microservices
-Dependencies: Base Spring Boot, Database, Security, Utilities
+src/main/java/com/ledgora/
+  account/          - Account entities, repositories, services, controllers
+  approval/         - Maker-checker approval workflow
+  auth/             - Authentication (User, Role, JWT)
+  batch/            - Transaction batch management (NEW)
+  branch/           - Branch management
+  common/           - Shared enums, exceptions, DTOs, events
+  config/           - Security config, DataInitializer, WebMvc config
+  currency/         - Exchange rates
+  customer/         - Customer management
+  dashboard/        - Dashboard controller
+  gl/               - General Ledger (Chart of Accounts, GL Balance Service)
+  idempotency/      - Idempotency key management
+  ledger/           - Ledger journals and entries (immutable)
+  report/           - Financial reports (Trial Balance)
+  settlement/       - Settlement processing (per-tenant EOD)
+  tenant/           - Multi-tenant support (NEW)
+  transaction/      - Transaction processing
+
+src/main/webapp/WEB-INF/jsp/
+  layout/           - header.jsp, sidebar.jsp, footer.jsp
+  batch/            - batch-dashboard.jsp (NEW)
+  dashboard/        - Main dashboard
+  ...               - Other JSP views
+
+src/test/java/com/ledgora/
+  LedgoraEnhancementIntegrationTest.java - 25 integration tests covering all 5 parts
 ```
 
-### 2. **account-service** - Account Management Microservice
-```
-Port: 8081 (suggested)
-Purpose: Account opening, management, and operations
-Features:
-  - Account creation
-  - Account modification
-  - Account closure
-  - Account inquiry
-API Endpoints: /api/accounts/*
-Depends on: common-lib
-```
+## Getting Started
 
-### 3. **transaction-service** - Transaction Processing Microservice
-```
-Port: 8082 (suggested)
-Purpose: Handle all debit/credit transactions
-Features:
-  - Debit transactions
-  - Credit transactions
-  - Transaction validation
-  - Transaction history
-API Endpoints: /api/transactions/*
-Depends on: common-lib
-```
+### Prerequisites
+- Java 17+
+- Maven 3.6+
 
-### 4. **ledger-service** - Reconciliation & Settlement Service
-```
-Port: 8083 (suggested)
-Purpose: Settlement and reconciliation of transactions
-Features:
-  - Transaction settlement
-  - Balance reconciliation
-  - End-of-day reconciliation
-  - Ledger entries
-API Endpoints: /api/ledger/*
-Depends on: common-lib
-```
+### Build & Run
 
-### 5. **auth-service** - Security & Authorization Service
-```
-Port: 8084 (suggested)
-Purpose: Authentication and authorization management
-Features:
-  - User authentication
-  - JWT token generation/validation
-  - Role-based access control
-  - Security policies
-API Endpoints: /api/auth/*
-Depends on: common-lib
-```
-
-### 6. **api-gateway** - API Gateway & Main Application
-```
-Port: 8080 (default)
-Purpose: Single entry point for all requests
-Features:
-  - Request routing to microservices
-  - Load balancing
-  - API aggregation
-  - CORS handling
-  - Request/response filtering
-API Endpoints: /api/* (routes to respective services)
-Depends on: common-lib + all other services
-Final Artifact: ledgora.jar (EXECUTABLE)
-```
-
----
-
-## 🚀 Build & Deployment
-
-### Building the Project
-
-#### Option 1: Full Build with Install
 ```bash
-mvn clean install -DskipTests
+# Build
+mvn clean compile
+
+# Run tests
+mvn test
+
+# Full verification (compile + test + package)
+mvn verify
+
+# Run application
+mvn spring-boot:run
 ```
 
-#### Option 2: Package Only (No Install)
+The application starts on `http://localhost:8080` with H2 in-memory database.
+
+### Default Users
+
+| Username | Password | Role | Description |
+|----------|----------|------|-------------|
+| admin | admin123 | ADMIN | Full system access |
+| manager | manager123 | MANAGER | Branch management + approvals |
+| teller1 | teller123 | TELLER | Transaction processing |
+| teller2 | teller123 | TELLER | Transaction processing |
+| customer1 | cust123 | CUSTOMER | Rajesh Kumar |
+| customer2 | cust123 | CUSTOMER | Priya Sharma |
+
+### Default Tenants
+
+| Code | Name | Business Date | Status |
+|------|------|---------------|--------|
+| TENANT-001 | Ledgora Main Bank | Current Date | OPEN |
+| TENANT-002 | Ledgora Partner Bank | Current Date | OPEN |
+
+### H2 Console
+Access at `http://localhost:8080/h2-console` with:
+- JDBC URL: `jdbc:h2:mem:ledgoradb`
+- Username: `sa`
+- Password: (empty)
+
+## Integration Tests
+
+25 comprehensive integration tests covering:
+
+- **GL Balance Tests (5):** Asset/Liability/Expense/Revenue balance updates, parent GL rollup propagation
+- **Batch Tests (6):** Batch creation, reuse, totals update, close/settle lifecycle, unbalanced settlement rejection, closed batch modification prevention
+- **Multi-Tenant Tests (5):** Tenant creation, batch isolation, context holder, duplicate rejection, independent business dates
+- **EOD Control Tests (5):** BusinessDayClosedException, day status transitions, invalid state transitions, validation pass
+- **Settlement Tests (4):** Per-tenant settlement isolation, batch close isolation, all-batches-closed check, multi-channel batches
+
+Run tests:
 ```bash
-mvn clean package -DskipTests
+mvn test -Dtest=LedgoraEnhancementIntegrationTest
 ```
 
-#### Option 3: Build Specific Module
-```bash
-mvn clean package -pl :api-gateway -DskipTests
-```
-
-#### Option 4: Using Build Scripts
-```bash
-# Windows
-./build.bat
-
-# Linux/Mac
-./build.sh
-```
-
-### Build Output
-- ✅ **Location**: `api-gateway/target/ledgora.jar`
-- ✅ **Size**: ~70-80 MB (includes all dependencies)
-- ✅ **Type**: Executable JAR with embedded server
-- ✅ **No deployment server needed** (built-in Tomcat)
-
----
-
-## 🎯 Running the Application
-
-### Run the JAR File
-```bash
-java -jar api-gateway/target/ledgora.jar
-```
-
-### Run with Custom Port
-```bash
-java -jar api-gateway/target/ledgora.jar --server.port=8090
-```
-
-### Run with Spring Profile
-```bash
-java -jar api-gateway/target/ledgora.jar --spring.profiles.active=production
-```
-
-### Run Individual Modules (Development)
-```bash
-# Terminal 1 - Auth Service
-mvn -pl :auth-service spring-boot:run
-
-# Terminal 2 - Account Service
-mvn -pl :account-service spring-boot:run
-
-# Terminal 3 - Transaction Service
-mvn -pl :transaction-service spring-boot:run
-
-# Terminal 4 - Ledger Service
-mvn -pl :ledger-service spring-boot:run
-
-# Terminal 5 - API Gateway
-mvn -pl :api-gateway spring-boot:run
-```
-
----
-
-## 📋 Dependencies Overview
-
-### Parent POM (ledgora)
-- Spring Boot Parent: 4.0.3
-- Java Version: 17
-- Dependency Management: Centralized
-
-### common-lib Dependencies (to be added)
-- Spring Boot Starters (Web, Data JPA)
-- Database Drivers (MySQL, H2)
-- Security (Spring Security, JWT)
-- Validation (Bean Validation)
-- Logging (SLF4J, Logback)
-- API Documentation (Springdoc OpenAPI)
-- Utility (Lombok)
-
-### Service Dependencies
-- common-lib (all services)
-- Spring Boot Web Starter (microservices)
-- Spring Boot Maven Plugin (for executable JARs)
-
----
-
-## 🔧 Configuration
-
-### Environment Setup
-1. **Java 17** - Ensure PATH is set
-2. **Maven 3.9.9+** - Ensure PATH is set
-3. **Database** - MySQL or H2 (for development)
-4. **IDE** - IntelliJ IDEA, Eclipse, or VS Code
-
-### Port Configuration
-```properties
-# Add to each service's application.properties
-server.port=8081  # Change as per service
-
-# For api-gateway
-server.port=8080
-```
-
-### Database Configuration
-```properties
-# Spring Data JPA
-spring.jpa.hibernate.ddl-auto=update
-spring.datasource.url=jdbc:mysql://localhost:3306/ledgora_db
-spring.datasource.username=root
-spring.datasource.password=password
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-```
-
-### CORS for Angular
-```java
-// Add to api-gateway
-@Configuration
-public class CorsConfig implements WebMvcConfigurer {
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOrigins("http://localhost:4200")
-                .allowedMethods("*");
-    }
-}
-```
-
----
-
-## 🔐 Security Considerations
-
-1. **Authentication**: Implement JWT-based authentication in auth-service
-2. **Authorization**: Use role-based access control (RBAC)
-3. **API Gateway Routing**: Validate all requests through gateway
-4. **Database Security**: Use parameterized queries
-5. **HTTPS**: Enable TLS/SSL for production
-6. **Environment Variables**: Store sensitive data in env vars
-
----
-
-## 🌐 Integration with Angular Frontend
-
-### Frontend Configuration
-```typescript
-// environment.ts
-export const environment = {
-  apiUrl: 'http://localhost:8080/api'
-};
-```
-
-### Service Communication
-```typescript
-// service.ts
-constructor(private http: HttpClient) {}
-
-getAccounts() {
-  return this.http.get(`${this.apiUrl}/accounts`);
-}
-```
-
-### CORS Handling
-- API Gateway should allow requests from Angular dev server (port 4200)
-- Production: Configure for your domain
-
----
-
-## 📊 API Endpoints Structure
-
-```
-API Gateway (Port 8080)
-│
-├── /api/accounts/*           → Account Service (8081)
-├── /api/transactions/*       → Transaction Service (8082)
-├── /api/ledger/*            → Ledger Service (8083)
-├── /api/auth/*              → Auth Service (8084)
-└── /api/health              → Health Check
-```
-
----
-
-## 🧪 Testing
-
-### Build with Tests
-```bash
-mvn clean install
-```
-
-### Skip Tests (Faster Build)
-```bash
-mvn clean install -DskipTests
-```
-
-### Run Tests for Specific Module
-```bash
-mvn test -pl :account-service
-```
-
----
-
-## 📦 Maven Commands Reference
-
-| Command | Purpose |
-|---------|---------|
-| `mvn clean` | Remove all compiled files |
-| `mvn compile` | Compile source code |
-| `mvn test` | Run unit tests |
-| `mvn package` | Create JAR/WAR file |
-| `mvn install` | Install to local repository |
-| `mvn deploy` | Deploy to remote repository |
-| `mvn clean install` | Clean + Compile + Test + Package |
-| `mvn clean package -DskipTests` | Quick build without tests |
-
----
-
-## 🔍 Troubleshooting
-
-### Issue: Build Fails with Compilation Errors
-**Solution:**
-```bash
-mvn clean install -U  # Update dependencies
-mvn dependency:tree   # Check for conflicts
-```
-
-### Issue: Port Already in Use
-**Solution (Windows):**
-```bash
-netstat -ano | findstr :8080
-taskkill /PID <PID> /F
-```
-
-### Issue: JAR Not Created
-**Solution:**
-```bash
-mvn clean package -DskipTests -X  # Debug mode
-```
-
-### Issue: Dependency Not Found
-**Solution:**
-```bash
-# Check Maven repository
-mvn dependency:resolve
-mvn help:describe -Dplugin=org.apache.maven.plugins:maven-compiler-plugin
-```
-
----
-
-## 📚 Additional Resources
-
-- [Spring Boot Documentation](https://spring.io/projects/spring-boot)
-- [Maven Documentation](https://maven.apache.org/docs/)
-- [Spring Data JPA](https://spring.io/projects/spring-data-jpa)
-- [Spring Security](https://spring.io/projects/spring-security)
-- [Swagger/OpenAPI](https://swagger.io/)
-
----
-
-## ✅ Build Status
-
-```
-✓ Parent POM: CONFIGURED
-✓ common-lib: BUILD SUCCESS
-✓ account-service: BUILD SUCCESS
-✓ transaction-service: BUILD SUCCESS
-✓ ledger-service: BUILD SUCCESS
-✓ auth-service: BUILD SUCCESS
-✓ api-gateway: BUILD SUCCESS
-✓ Final Artifact: ledgora.jar CREATED
-```
-
----
-
-## 📝 Next Steps
-
-1. ✅ Multi-module structure configured
-2. ✅ Project builds successfully
-3. ⏭️ **Add common dependencies** to common-lib
-4. ⏭️ **Implement service interfaces** in each module
-5. ⏭️ **Configure database** connections
-6. ⏭️ **Create REST controllers** for each service
-7. ⏭️ **Implement authentication** in auth-service
-8. ⏭️ **Setup API gateway routing** rules
-9. ⏭️ **Develop Angular frontend**
-10. ⏭️ **Deploy to production**
-
----
-
-## 👨‍💻 Development Workflow
-
-```
-1. Clone/Setup Project
-   ↓
-2. Build Project (mvn clean install)
-   ↓
-3. Run Individual Services
-   ↓
-4. Test with Postman/Insomnia
-   ↓
-5. Develop Angular Frontend
-   ↓
-6. Test Frontend + Backend Integration
-   ↓
-7. Deploy ledgora.jar to server
-```
-
----
-
-## 🚀 Deployment Checklist
-
-- [ ] Update application properties for production
-- [ ] Configure database connection
-- [ ] Set up logging
-- [ ] Enable HTTPS/TLS
-- [ ] Configure environment variables
-- [ ] Set appropriate JVM parameters
-- [ ] Test all endpoints
-- [ ] Setup monitoring/alerting
-- [ ] Backup database
-- [ ] Deploy ledgora.jar
-
----
-
-**Last Updated:** 2026-03-04  
-**Project Version:** 0.0.1-SNAPSHOT  
-**Status:** ✅ Ready for Development
-
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/auth/login` | JWT authentication |
+| GET | `/dashboard` | Main dashboard |
+| GET/POST | `/customers/**` | Customer CRUD |
+| GET/POST | `/accounts/**` | Account management |
+| POST | `/transactions/deposit` | Deposit |
+| POST | `/transactions/withdraw` | Withdrawal |
+| POST | `/transactions/transfer` | Fund transfer |
+| GET | `/batches` | Batch dashboard |
+| GET | `/gl` | Chart of Accounts |
+| GET | `/ledger/explorer` | Ledger explorer |
+| POST | `/settlements/process` | Run settlement |
+| GET | `/tenant/switch/{id}` | Switch tenant context |
+| GET | `/reports/**` | Financial reports |
+| GET | `/actuator/health` | Health check |
+| GET | `/actuator/prometheus` | Prometheus metrics |
+
+## License
+
+Proprietary - Ledgora Core Banking Platform

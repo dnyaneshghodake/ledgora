@@ -123,16 +123,16 @@
                         <td>
                             <c:if test="${entry.transaction != null}">
                                 <a href="${pageContext.request.contextPath}/transactions/${entry.transaction.id}">
-                                    <code>${entry.transaction.transactionRef}</code>
+                                    <code><c:out value="${entry.transaction.transactionRef}"/></code>
                                 </a>
                             </c:if>
                         </td>
                         <td>
                             <c:if test="${entry.account != null}">
-                                <code>${entry.account.accountNumber}</code>
+                                <code><c:out value="${entry.account.accountNumber}"/></code>
                             </c:if>
                         </td>
-                        <td><code>${entry.glAccountCode}</code></td>
+                        <td><code><c:out value="${entry.glAccountCode}"/></code></td>
                         <td class="${entry.entryType == 'DEBIT' ? 'ledger-amount-debit' : 'ledger-amount-zero'}">
                             <c:if test="${entry.entryType == 'DEBIT'}">${entry.amount}</c:if>
                             <c:if test="${entry.entryType != 'DEBIT'}">-</c:if>
@@ -185,6 +185,12 @@
 </div>
 
 <script>
+function escapeHtml(str) {
+    if (str == null) return '';
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(String(str)));
+    return div.innerHTML;
+}
 function showJournalModal(journalId) {
     var modal = new bootstrap.Modal(document.getElementById('journalModal'));
     var body = document.getElementById('journalModalBody');
@@ -200,7 +206,7 @@ function showJournalModal(journalId) {
                 html += '<div class="col-md-4"><strong>Business Date:</strong> ' + data.businessDate + '</div>';
             }
             if (data.description) {
-                html += '<div class="col-md-4"><strong>Description:</strong> ' + data.description + '</div>';
+                html += '<div class="col-md-4"><strong>Description:</strong> ' + escapeHtml(data.description) + '</div>';
             }
             html += '</div></div>';
 
@@ -213,10 +219,10 @@ function showJournalModal(journalId) {
                 var typeClass = e.entryType === 'DEBIT' ? 'text-danger' : 'text-success';
                 html += '<tr>';
                 html += '<td><span class="badge ' + (e.entryType === 'DEBIT' ? 'bg-danger' : 'bg-success') + '">' + e.entryType + '</span></td>';
-                html += '<td><code>' + (e.accountNumber || '-') + '</code></td>';
-                html += '<td><code>' + (e.glAccountCode || '-') + '</code></td>';
-                html += '<td class="text-end ' + typeClass + ' fw-bold">' + e.amount + ' ' + e.currency + '</td>';
-                html += '<td><small>' + (e.narration || '-') + '</small></td>';
+                    html += '<td><code>' + escapeHtml(e.accountNumber || '-') + '</code></td>';
+                    html += '<td><code>' + escapeHtml(e.glAccountCode || '-') + '</code></td>';
+                    html += '<td class="text-end ' + typeClass + ' fw-bold">' + escapeHtml(String(e.amount)) + ' ' + escapeHtml(e.currency || '') + '</td>';
+                    html += '<td><small>' + escapeHtml(e.narration || '-') + '</small></td>';
                 html += '</tr>';
             }
 
@@ -235,7 +241,7 @@ function showJournalModal(journalId) {
             body.innerHTML = html;
         })
         .catch(function(err) {
-            body.innerHTML = '<div class="alert alert-danger">Failed to load journal details: ' + err.message + '</div>';
+            body.innerHTML = '<div class="alert alert-danger">Failed to load journal details: ' + escapeHtml(err.message) + '</div>';
         });
 }
 </script>

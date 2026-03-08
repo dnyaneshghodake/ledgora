@@ -1,5 +1,6 @@
 package com.ledgora.ledger.entity;
 
+import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.transaction.entity.Transaction;
 import jakarta.persistence.*;
 import lombok.*;
@@ -9,11 +10,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "ledger_journals")
+@Table(name = "ledger_journals", indexes = {
+    @Index(name = "idx_ledger_journal_tenant", columnList = "tenant_id")
+})
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class LedgerJournal {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id")
+    private Tenant tenant;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "transaction_id", nullable = false)

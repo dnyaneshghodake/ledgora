@@ -48,10 +48,10 @@
                 <c:forEach var="customer" items="${customers}">
                     <tr>
                         <td>${customer.customerId}</td>
-                        <td>${customer.firstName} ${customer.lastName}</td>
-                        <td><code>${customer.nationalId}</code></td>
-                        <td>${customer.email}</td>
-                        <td>${customer.phone}</td>
+                        <td><c:out value="${customer.firstName}"/> <c:out value="${customer.lastName}"/></td>
+                        <td><code><c:out value="${customer.nationalId}"/></code></td>
+                        <td><c:out value="${customer.email}"/></td>
+                        <td><c:out value="${customer.phone}"/></td>
                         <td>
                             <c:choose>
                                 <c:when test="${customer.kycStatus == 'VERIFIED'}"><span class="badge bg-success">VERIFIED</span></c:when>

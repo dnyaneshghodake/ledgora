@@ -25,6 +25,9 @@ import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.ledger.entity.LedgerJournal;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.ledger.repository.LedgerJournalRepository;
+import com.ledgora.tenant.entity.Tenant;
+import com.ledgora.tenant.repository.TenantRepository;
+import com.ledgora.common.enums.DayStatus;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.repository.TransactionRepository;
 import org.slf4j.Logger;
@@ -78,6 +81,7 @@ public class DataInitializer implements CommandLineRunner {
     private final SystemDateRepository systemDateRepository;
     private final ExchangeRateRepository exchangeRateRepository;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
+    private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
 
     // ── Cached references used across init methods ──
@@ -87,6 +91,8 @@ public class DataInitializer implements CommandLineRunner {
     private User adminUser;
     private User managerUser;
     private User teller1User;
+    private Tenant defaultTenant;
+    private Tenant secondTenant;
 
     public DataInitializer(RoleRepository roleRepository,
                            UserRepository userRepository,
@@ -101,6 +107,7 @@ public class DataInitializer implements CommandLineRunner {
                            SystemDateRepository systemDateRepository,
                            ExchangeRateRepository exchangeRateRepository,
                            IdempotencyKeyRepository idempotencyKeyRepository,
+                           TenantRepository tenantRepository,
                            PasswordEncoder passwordEncoder) {
         this.roleRepository = roleRepository;
         this.userRepository = userRepository;
@@ -115,6 +122,7 @@ public class DataInitializer implements CommandLineRunner {
         this.systemDateRepository = systemDateRepository;
         this.exchangeRateRepository = exchangeRateRepository;
         this.idempotencyKeyRepository = idempotencyKeyRepository;
+        this.tenantRepository = tenantRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -128,6 +136,7 @@ public class DataInitializer implements CommandLineRunner {
         log.info("  Ledgora DataInitializer — seeding reference data ...");
         log.info("═══════════════════════════════════════════════════════════");
 
+        initTenants();
         initRoles();
         initBranches();
         initUsers();
@@ -141,6 +150,35 @@ public class DataInitializer implements CommandLineRunner {
         log.info("═══════════════════════════════════════════════════════════");
         log.info("  Ledgora DataInitializer — seeding complete.");
         log.info("═══════════════════════════════════════════════════════════");
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // 0. SEED TENANTS — default and secondary tenants for multi-tenancy
+    // ════════════════════════════════════════════════════════════════════════
+    private void initTenants() {
+        defaultTenant = tenantRepository.findByTenantCode("TENANT-001").orElseGet(() -> {
+            Tenant t = Tenant.builder()
+                    .tenantCode("TENANT-001")
+                    .tenantName("Ledgora Main Bank")
+                    .status("ACTIVE")
+                    .currentBusinessDate(LocalDate.now())
+                    .dayStatus(DayStatus.OPEN)
+                    .build();
+            return tenantRepository.save(t);
+        });
+
+        secondTenant = tenantRepository.findByTenantCode("TENANT-002").orElseGet(() -> {
+            Tenant t = Tenant.builder()
+                    .tenantCode("TENANT-002")
+                    .tenantName("Ledgora Partner Bank")
+                    .status("ACTIVE")
+                    .currentBusinessDate(LocalDate.now())
+                    .dayStatus(DayStatus.OPEN)
+                    .build();
+            return tenantRepository.save(t);
+        });
+
+        log.info("  [Tenants] Default tenant (TENANT-001) and secondary tenant (TENANT-002) ready");
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -557,6 +595,7 @@ public class DataInitializer implements CommandLineRunner {
                 .accountName(accountName)
                 .accountType(accountType)
                 .ledgerAccountType(ledgerType)
+                .tenant(defaultTenant)
                 .status(AccountStatus.ACTIVE)
                 .balance(balance)
                 .currency(currency)
@@ -582,6 +621,14 @@ public class DataInitializer implements CommandLineRunner {
                 .ledgerBalance(ledgerBalance)
                 .availableBalance(ledgerBalance)
                 .holdAmount(BigDecimal.ZERO)
+                .actualTotalBalance(ledgerBalance)
+                .actualClearedBalance(ledgerBalance)
+                .shadowTotalBalance(BigDecimal.ZERO)
+                .shadowClearingBalance(BigDecimal.ZERO)
+                .inwardClearingBalance(BigDecimal.ZERO)
+                .unclearedEffectBalance(BigDecimal.ZERO)
+                .lienBalance(BigDecimal.ZERO)
+                .chargeHoldBalance(BigDecimal.ZERO)
                 .build();
         accountBalanceRepository.save(ab);
     }

@@ -13,7 +13,7 @@
         <div class="row g-3">
             <div class="col-md-6"><strong>Entity Type:</strong> ${approval.entityType}</div>
             <div class="col-md-6"><strong>Entity ID:</strong> ${approval.entityId}</div>
-            <div class="col-md-6"><strong>Requested By:</strong> ${approval.requestedBy != null ? approval.requestedBy.fullName : 'System'}</div>
+            <div class="col-md-6"><strong>Requested By:</strong> <c:out value="${approval.requestedBy != null ? approval.requestedBy.fullName : 'System'}"/></div>
             <div class="col-md-6">
                 <strong>Status:</strong>
                 <c:choose>
@@ -24,9 +24,9 @@
             </div>
             <div class="col-md-6"><strong>Created:</strong> ${approval.createdAt}</div>
             <div class="col-md-6"><strong>Approved/Rejected At:</strong> ${approval.approvedAt}</div>
-            <div class="col-md-6"><strong>Approved By:</strong> ${approval.approvedBy != null ? approval.approvedBy.fullName : '-'}</div>
-            <div class="col-12"><strong>Request Data:</strong> <pre class="mt-1">${approval.requestData}</pre></div>
-            <div class="col-12"><strong>Remarks:</strong> ${approval.remarks}</div>
+            <div class="col-md-6"><strong>Approved By:</strong> <c:out value="${approval.approvedBy != null ? approval.approvedBy.fullName : '-'}"/></div>
+            <div class="col-12"><strong>Request Data:</strong> <pre class="mt-1"><c:out value="${approval.requestData}"/></pre></div>
+            <div class="col-12"><strong>Remarks:</strong> <c:out value="${approval.remarks}"/></div>
         </div>
 
         <c:if test="${approval.status == 'PENDING'}">
@@ -34,6 +34,7 @@
             <div class="row g-3">
                 <div class="col-md-6">
                     <form method="post" action="${pageContext.request.contextPath}/approvals/${approval.id}/approve">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                         <div class="mb-2">
                             <input type="text" name="remarks" class="form-control" placeholder="Approval remarks..." />
                         </div>
@@ -42,6 +43,7 @@
                 </div>
                 <div class="col-md-6">
                     <form method="post" action="${pageContext.request.contextPath}/approvals/${approval.id}/reject">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                         <div class="mb-2">
                             <input type="text" name="remarks" class="form-control" placeholder="Rejection reason..." />
                         </div>

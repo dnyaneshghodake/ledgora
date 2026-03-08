@@ -1,6 +1,8 @@
 package com.ledgora.auth.entity;
 
 import com.ledgora.branch.entity.Branch;
+import com.ledgora.common.enums.TenantScope;
+import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -13,6 +15,15 @@ import java.util.Set;
 public class User {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id")
+    private Tenant tenant;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tenant_scope", length = 10)
+    @Builder.Default
+    private TenantScope tenantScope = TenantScope.SINGLE;
 
     @Column(name = "username", length = 50, nullable = false, unique = true)
     private String username;

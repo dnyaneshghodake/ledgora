@@ -7,11 +7,15 @@ import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.audit.service.AuditService;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
+import com.ledgora.batch.entity.TransactionBatch;
+import com.ledgora.batch.service.BatchService;
+import com.ledgora.branch.entity.Branch;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.EntryType;
 import com.ledgora.common.enums.TransactionChannel;
 import com.ledgora.common.enums.TransactionStatus;
 import com.ledgora.common.enums.TransactionType;
+import com.ledgora.common.enums.VoucherDrCr;
 import com.ledgora.common.service.BusinessDateService;
 import com.ledgora.events.TransactionCreatedEvent;
 import com.ledgora.idempotency.service.IdempotencyService;
@@ -19,12 +23,16 @@ import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
 import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
-import com.ledgora.ledger.service.LedgerService;
+import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.tenant.entity.Tenant;
+import com.ledgora.tenant.service.TenantService;
 import com.ledgora.transaction.dto.TransactionDTO;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.entity.TransactionLine;
 import com.ledgora.transaction.repository.TransactionLineRepository;
 import com.ledgora.transaction.repository.TransactionRepository;
+import com.ledgora.voucher.entity.Voucher;
+import com.ledgora.voucher.service.VoucherService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -40,10 +48,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * PART 1 + 3 + 4 + 8: Transaction service with:
+ * Transaction service with:
  * - Ledger journal/entry creation (system of record)
  * - Event-driven architecture (publishes TransactionCreatedEvent)
  * - Pessimistic locking for account balance protection
+ * - Multi-tenant support with day status enforcement
+ * - Transaction batch assignment
  */
 @Service
 public class TransactionService {
@@ -59,9 +69,11 @@ public class TransactionService {
     private final UserRepository userRepository;
     private final BusinessDateService businessDateService;
     private final AuditService auditService;
-    private final LedgerService ledgerService;
+    private final VoucherService voucherService;
     private final ApplicationEventPublisher eventPublisher;
     private final IdempotencyService idempotencyService;
+    private final TenantService tenantService;
+    private final BatchService batchService;
 
     public TransactionService(TransactionRepository transactionRepository,
                               TransactionLineRepository transactionLineRepository,
@@ -72,9 +84,11 @@ public class TransactionService {
                               UserRepository userRepository,
                               BusinessDateService businessDateService,
                               AuditService auditService,
-                              LedgerService ledgerService,
+                              VoucherService voucherService,
                               ApplicationEventPublisher eventPublisher,
-                              IdempotencyService idempotencyService) {
+                              IdempotencyService idempotencyService,
+                              TenantService tenantService,
+                              BatchService batchService) {
         this.transactionRepository = transactionRepository;
         this.transactionLineRepository = transactionLineRepository;
         this.accountRepository = accountRepository;
@@ -84,45 +98,64 @@ public class TransactionService {
         this.userRepository = userRepository;
         this.businessDateService = businessDateService;
         this.auditService = auditService;
-        this.ledgerService = ledgerService;
+        this.voucherService = voucherService;
         this.eventPublisher = eventPublisher;
         this.idempotencyService = idempotencyService;
+        this.tenantService = tenantService;
+        this.batchService = batchService;
     }
 
     /**
-     * PART 1 + 3 + 8: Deposit with full transaction safety.
-     * Flow: lock account -> create transaction -> create journal+entries -> update balances -> publish event
+     * Deposit with full transaction safety.
+     * Flow: validate tenant day -> lock account -> create transaction -> assign batch -> create journal+entries -> update balances -> publish event
      */
     @Transactional
     public Transaction deposit(TransactionDTO dto) {
-        // PART 2: Idempotency check
+        // CBS: Server-side amount validation - never trust client input
+        validateAmountPositive(dto.getAmount());
+
+        // PART 4: Validate tenant business day is OPEN
+        Long tenantId = requireTenantId();
+        tenantService.validateBusinessDayOpen(tenantId);
+        Tenant tenant = tenantService.getTenantById(tenantId);
+
+        // Idempotency check
         checkIdempotency(dto);
 
-        // PART 8: Pessimistic lock on account
-        Account account = accountRepository.findByAccountNumberWithLock(dto.getDestinationAccountNumber())
+        // Pessimistic lock on account
+        Account account = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getDestinationAccountNumber(), tenantId)
                 .orElseThrow(() -> new RuntimeException("Account not found: " + dto.getDestinationAccountNumber()));
         validateAccountActive(account);
 
         User currentUser = getCurrentUser();
-        LocalDate businessDate = businessDateService.getCurrentBusinessDate();
+        LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
         String txnRef = generateTransactionRef("DEP");
 
-        // Step 2: Create transaction record
+        // PART 2: Get or create open batch for this channel/tenant/date
+        TransactionChannel channel = parseChannel(dto.getChannel());
+        TransactionBatch batch = batchService.getOrCreateOpenBatch(tenantId, channel, businessDate);
+
+        // Create transaction record with tenant and batch
         Transaction transaction = Transaction.builder()
                 .transactionRef(txnRef)
                 .transactionType(TransactionType.DEPOSIT)
                 .status(TransactionStatus.COMPLETED)
                 .amount(dto.getAmount())
                 .currency(dto.getCurrency() != null ? dto.getCurrency() : "INR")
-                .channel(parseChannel(dto.getChannel()))
+                .channel(channel)
                 .clientReferenceId(dto.getClientReferenceId())
                 .destinationAccount(account)
                 .description(dto.getDescription() != null ? dto.getDescription() : "Cash Deposit")
                 .narration(dto.getNarration())
                 .businessDate(businessDate)
                 .performedBy(currentUser)
+                .tenant(tenant)
+                .batch(batch)
                 .build();
         transaction = transactionRepository.save(transaction);
+
+        // Update batch totals
+        batchService.updateBatchTotals(batch.getId(), dto.getAmount(), dto.getAmount());
 
         // Step 3: Create transaction lines (debit + credit)
         createTransactionLine(transaction, account, EntryType.DEBIT, dto.getAmount(),
@@ -130,16 +163,14 @@ public class TransactionService {
         createTransactionLine(transaction, account, EntryType.CREDIT, dto.getAmount(),
                 "Cash deposit - credit customer account");
 
-        // PART 1: Create ledger journal with entries (system of record)
+        // PART 1: Create and post balanced vouchers (ledger entries are created only via VoucherService)
         BigDecimal newBalance = account.getBalance().add(dto.getAmount());
+        Account cashAccount = resolveCashGlAccount(tenantId);
         String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
-        List<LedgerService.JournalEntryRequest> journalEntries = List.of(
-                LedgerService.JournalEntryRequest.of(account, EntryType.DEBIT, dto.getAmount(), newBalance,
-                        currency, "1100", "Cash deposit to " + account.getAccountNumber()),
-                LedgerService.JournalEntryRequest.of(account, EntryType.CREDIT, dto.getAmount(), newBalance,
-                        currency, "2100", "Customer deposit - " + account.getCustomerName())
-        );
-        ledgerService.postJournal(transaction, "Cash Deposit - " + txnRef, businessDate, journalEntries);
+        postVoucher(transaction, tenant, currentUser, cashAccount, VoucherDrCr.DR, dto.getAmount(),
+                currency, businessDate, batch, "Cash deposit - cash ledger leg");
+        postVoucher(transaction, tenant, currentUser, account, VoucherDrCr.CR, dto.getAmount(),
+                currency, businessDate, batch, "Cash deposit - customer ledger leg");
 
         // Step 5: Update account balance
         account.setBalance(newBalance);
@@ -158,15 +189,23 @@ public class TransactionService {
     }
 
     /**
-     * PART 1 + 3 + 8: Withdrawal with full transaction safety.
+     * Withdrawal with full transaction safety and tenant/batch support.
      */
     @Transactional
     public Transaction withdraw(TransactionDTO dto) {
-        // PART 2: Idempotency check
+        // CBS: Server-side amount validation - never trust client input
+        validateAmountPositive(dto.getAmount());
+
+        // PART 4: Validate tenant business day is OPEN
+        Long tenantId = requireTenantId();
+        tenantService.validateBusinessDayOpen(tenantId);
+        Tenant tenant = tenantService.getTenantById(tenantId);
+
+        // Idempotency check
         checkIdempotency(dto);
 
-        // PART 8: Pessimistic lock on account
-        Account account = accountRepository.findByAccountNumberWithLock(dto.getSourceAccountNumber())
+        // Pessimistic lock on account
+        Account account = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getSourceAccountNumber(), tenantId)
                 .orElseThrow(() -> new RuntimeException("Account not found: " + dto.getSourceAccountNumber()));
         validateAccountActive(account);
         if (account.getBalance().compareTo(dto.getAmount()) < 0) {
@@ -174,25 +213,34 @@ public class TransactionService {
         }
 
         User currentUser = getCurrentUser();
-        LocalDate businessDate = businessDateService.getCurrentBusinessDate();
+        LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
         String txnRef = generateTransactionRef("WDR");
 
-        // Step 2: Create transaction record
+        // PART 2: Get or create open batch
+        TransactionChannel channel = parseChannel(dto.getChannel());
+        TransactionBatch batch = batchService.getOrCreateOpenBatch(tenantId, channel, businessDate);
+
+        // Create transaction record with tenant and batch
         Transaction transaction = Transaction.builder()
                 .transactionRef(txnRef)
                 .transactionType(TransactionType.WITHDRAWAL)
                 .status(TransactionStatus.COMPLETED)
                 .amount(dto.getAmount())
                 .currency(dto.getCurrency() != null ? dto.getCurrency() : "INR")
-                .channel(parseChannel(dto.getChannel()))
+                .channel(channel)
                 .clientReferenceId(dto.getClientReferenceId())
                 .sourceAccount(account)
                 .description(dto.getDescription() != null ? dto.getDescription() : "Cash Withdrawal")
                 .narration(dto.getNarration())
                 .businessDate(businessDate)
                 .performedBy(currentUser)
+                .tenant(tenant)
+                .batch(batch)
                 .build();
         transaction = transactionRepository.save(transaction);
+
+        // Update batch totals
+        batchService.updateBatchTotals(batch.getId(), dto.getAmount(), dto.getAmount());
 
         // Step 3: Create transaction lines
         createTransactionLine(transaction, account, EntryType.DEBIT, dto.getAmount(),
@@ -200,16 +248,14 @@ public class TransactionService {
         createTransactionLine(transaction, account, EntryType.CREDIT, dto.getAmount(),
                 "Cash withdrawal - credit cash account");
 
-        // PART 1: Create ledger journal with entries
+        // PART 1: Create and post balanced vouchers (ledger entries are created only via VoucherService)
         BigDecimal newBalance = account.getBalance().subtract(dto.getAmount());
+        Account cashAccount = resolveCashGlAccount(tenantId);
         String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
-        List<LedgerService.JournalEntryRequest> journalEntries = List.of(
-                LedgerService.JournalEntryRequest.of(account, EntryType.DEBIT, dto.getAmount(), newBalance,
-                        currency, "2100", "Withdrawal from " + account.getAccountNumber()),
-                LedgerService.JournalEntryRequest.of(account, EntryType.CREDIT, dto.getAmount(), newBalance,
-                        currency, "1100", "Cash withdrawal - " + account.getCustomerName())
-        );
-        ledgerService.postJournal(transaction, "Cash Withdrawal - " + txnRef, businessDate, journalEntries);
+        postVoucher(transaction, tenant, currentUser, account, VoucherDrCr.DR, dto.getAmount(),
+                currency, businessDate, batch, "Cash withdrawal - customer ledger leg");
+        postVoucher(transaction, tenant, currentUser, cashAccount, VoucherDrCr.CR, dto.getAmount(),
+                currency, businessDate, batch, "Cash withdrawal - cash ledger leg");
 
         // Step 5: Update account balance
         account.setBalance(newBalance);
@@ -228,17 +274,25 @@ public class TransactionService {
     }
 
     /**
-     * PART 1 + 3 + 8: Transfer with full transaction safety.
+     * Transfer with full transaction safety and tenant/batch support.
      */
     @Transactional
     public Transaction transfer(TransactionDTO dto) {
-        // PART 2: Idempotency check
+        // CBS: Server-side amount validation - never trust client input
+        validateAmountPositive(dto.getAmount());
+
+        // PART 4: Validate tenant business day is OPEN
+        Long tenantId = requireTenantId();
+        tenantService.validateBusinessDayOpen(tenantId);
+        Tenant tenant = tenantService.getTenantById(tenantId);
+
+        // Idempotency check
         checkIdempotency(dto);
 
-        // PART 8: Pessimistic lock on both accounts
-        Account sourceAccount = accountRepository.findByAccountNumberWithLock(dto.getSourceAccountNumber())
+        // Pessimistic lock on both accounts
+        Account sourceAccount = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getSourceAccountNumber(), tenantId)
                 .orElseThrow(() -> new RuntimeException("Source account not found: " + dto.getSourceAccountNumber()));
-        Account destAccount = accountRepository.findByAccountNumberWithLock(dto.getDestinationAccountNumber())
+        Account destAccount = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getDestinationAccountNumber(), tenantId)
                 .orElseThrow(() -> new RuntimeException("Destination account not found: " + dto.getDestinationAccountNumber()));
         validateAccountActive(sourceAccount);
         validateAccountActive(destAccount);
@@ -250,17 +304,21 @@ public class TransactionService {
         }
 
         User currentUser = getCurrentUser();
-        LocalDate businessDate = businessDateService.getCurrentBusinessDate();
+        LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
         String txnRef = generateTransactionRef("TRF");
 
-        // Step 2: Create transaction record
+        // PART 2: Get or create open batch
+        TransactionChannel channel = parseChannel(dto.getChannel());
+        TransactionBatch batch = batchService.getOrCreateOpenBatch(tenantId, channel, businessDate);
+
+        // Create transaction record with tenant and batch
         Transaction transaction = Transaction.builder()
                 .transactionRef(txnRef)
                 .transactionType(TransactionType.TRANSFER)
                 .status(TransactionStatus.COMPLETED)
                 .amount(dto.getAmount())
                 .currency(dto.getCurrency() != null ? dto.getCurrency() : "INR")
-                .channel(parseChannel(dto.getChannel()))
+                .channel(channel)
                 .clientReferenceId(dto.getClientReferenceId())
                 .sourceAccount(sourceAccount)
                 .destinationAccount(destAccount)
@@ -268,8 +326,13 @@ public class TransactionService {
                 .narration(dto.getNarration())
                 .businessDate(businessDate)
                 .performedBy(currentUser)
+                .tenant(tenant)
+                .batch(batch)
                 .build();
         transaction = transactionRepository.save(transaction);
+
+        // Update batch totals
+        batchService.updateBatchTotals(batch.getId(), dto.getAmount(), dto.getAmount());
 
         // Step 3: Create transaction lines
         createTransactionLine(transaction, sourceAccount, EntryType.DEBIT, dto.getAmount(),
@@ -277,18 +340,14 @@ public class TransactionService {
         createTransactionLine(transaction, destAccount, EntryType.CREDIT, dto.getAmount(),
                 "Transfer from " + sourceAccount.getAccountNumber());
 
-        // PART 1: Create ledger journal with entries
+        // PART 1: Create and post balanced vouchers (ledger entries are created only via VoucherService)
         BigDecimal sourceNewBalance = sourceAccount.getBalance().subtract(dto.getAmount());
         BigDecimal destNewBalance = destAccount.getBalance().add(dto.getAmount());
         String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
-
-        List<LedgerService.JournalEntryRequest> journalEntries = List.of(
-                LedgerService.JournalEntryRequest.of(sourceAccount, EntryType.DEBIT, dto.getAmount(), sourceNewBalance,
-                        currency, "2100", "Transfer to " + destAccount.getAccountNumber()),
-                LedgerService.JournalEntryRequest.of(destAccount, EntryType.CREDIT, dto.getAmount(), destNewBalance,
-                        currency, "2100", "Transfer from " + sourceAccount.getAccountNumber())
-        );
-        ledgerService.postJournal(transaction, "Transfer - " + txnRef, businessDate, journalEntries);
+        postVoucher(transaction, tenant, currentUser, sourceAccount, VoucherDrCr.DR, dto.getAmount(),
+                currency, businessDate, batch, "Transfer to " + destAccount.getAccountNumber());
+        postVoucher(transaction, tenant, currentUser, destAccount, VoucherDrCr.CR, dto.getAmount(),
+                currency, businessDate, batch, "Transfer from " + sourceAccount.getAccountNumber());
 
         // Step 5: Update account balances
         sourceAccount.setBalance(sourceNewBalance);
@@ -314,45 +373,55 @@ public class TransactionService {
     // ===== Query methods (backward compatible) =====
 
     public List<Transaction> getAllTransactions() {
-        return transactionRepository.findAll();
+        Long tenantId = requireTenantId();
+        return transactionRepository.findByTenantId(tenantId);
     }
 
     public Optional<Transaction> getTransactionById(Long id) {
-        return transactionRepository.findById(id);
+        Long tenantId = requireTenantId();
+        return transactionRepository.findByIdAndTenantId(id, tenantId);
     }
 
     public Optional<Transaction> getTransactionByRef(String ref) {
-        return transactionRepository.findByTransactionRef(ref);
+        Long tenantId = requireTenantId();
+        return transactionRepository.findByTransactionRefAndTenantId(ref, tenantId);
     }
 
     public List<Transaction> getTransactionsByAccountNumber(String accountNumber) {
-        return transactionRepository.findByAccountNumber(accountNumber);
+        Long tenantId = requireTenantId();
+        return transactionRepository.findByTenantIdAndAccountNumber(tenantId, accountNumber);
     }
 
     public List<Transaction> getTransactionsByDateRange(LocalDateTime start, LocalDateTime end) {
-        return transactionRepository.findByDateRange(start, end);
+        Long tenantId = requireTenantId();
+        return transactionRepository.findByTenantIdAndDateRange(tenantId, start, end);
     }
 
     public List<Transaction> getTransactionsByType(TransactionType type) {
-        return transactionRepository.findByTransactionType(type);
+        Long tenantId = requireTenantId();
+        return transactionRepository.findByTenantIdAndTransactionType(tenantId, type);
     }
 
     public List<LedgerEntry> getLedgerEntriesByTransaction(Long transactionId) {
-        return ledgerEntryRepository.findByTransactionId(transactionId);
+        Long tenantId = requireTenantId();
+        return ledgerEntryRepository.findByTransactionIdAndTenantId(transactionId, tenantId);
     }
 
     public List<LedgerEntry> getLedgerEntriesByAccount(String accountNumber) {
-        return ledgerEntryRepository.findByAccountNumber(accountNumber);
+        Long tenantId = requireTenantId();
+        return ledgerEntryRepository.findByAccountNumberAndTenantId(accountNumber, tenantId);
     }
 
     public long countAll() {
-        return transactionRepository.count();
+        Long tenantId = requireTenantId();
+        return transactionRepository.countByTenantId(tenantId);
     }
 
     public List<Transaction> getTodayTransactions() {
+        Long tenantId = requireTenantId();
         LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
         LocalDateTime endOfDay = startOfDay.plusDays(1);
-        return transactionRepository.findByDateRange(startOfDay, endOfDay);
+        return transactionRepository.findByTenantIdAndDateRange(tenantId, startOfDay, endOfDay);
     }
 
     // ===== Private helper methods =====
@@ -381,6 +450,16 @@ public class TransactionService {
         accountBalanceRepository.save(balance);
     }
 
+    /**
+     * CBS: Server-side validation that transaction amount is positive.
+     * Never trust client-side validation alone for financial operations.
+     */
+    private void validateAmountPositive(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Transaction amount must be positive. Received: " + amount);
+        }
+    }
+
     private void validateAccountActive(Account account) {
         if (account.getStatus() != AccountStatus.ACTIVE) {
             throw new RuntimeException("Account " + account.getAccountNumber() + " is not active. Status: " + account.getStatus());
@@ -396,6 +475,60 @@ public class TransactionService {
         return prefix + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
     }
 
+    private Voucher postVoucher(Transaction transaction, Tenant tenant, User maker,
+                                Account account, VoucherDrCr drCr, BigDecimal amount,
+                                String currency, LocalDate businessDate,
+                                TransactionBatch batch, String narration) {
+        Branch branch = resolveBranch(account, maker);
+        GeneralLedger glAccount = resolveGlForAccount(account);
+        String batchCode = batch.getBatchCode() != null ? batch.getBatchCode() : "BATCH-" + batch.getId();
+
+        Voucher voucher = voucherService.createVoucher(
+                tenant,
+                branch,
+                account,
+                glAccount,
+                drCr,
+                amount,
+                amount,
+                currency,
+                businessDate,
+                businessDate,
+                batchCode,
+                1,
+                maker,
+                narration
+        );
+        voucherService.authorizeVoucher(voucher.getId(), null);
+        return voucherService.postVoucher(voucher.getId(), transaction);
+    }
+
+    private Branch resolveBranch(Account account, User currentUser) {
+        if (account.getBranch() != null) {
+            return account.getBranch();
+        }
+        if (account.getHomeBranch() != null) {
+            return account.getHomeBranch();
+        }
+        if (currentUser != null && currentUser.getBranch() != null) {
+            return currentUser.getBranch();
+        }
+        throw new RuntimeException("No branch mapping found for account " + account.getAccountNumber());
+    }
+
+    private GeneralLedger resolveGlForAccount(Account account) {
+        if (account.getGlAccountCode() == null || account.getGlAccountCode().isBlank()) {
+            return null;
+        }
+        return glRepository.findByGlCode(account.getGlAccountCode()).orElse(null);
+    }
+
+    private Account resolveCashGlAccount(Long tenantId) {
+        return accountRepository.findFirstByTenantIdAndGlAccountCode(tenantId, "1100")
+                .or(() -> accountRepository.findByAccountNumberAndTenantId("GL-CASH-001", tenantId))
+                .orElseThrow(() -> new RuntimeException("Cash GL account with code 1100 is required for cash transactions"));
+    }
+
     /**
      * PART 2: Idempotency check using client_reference_id + channel.
      * Prevents duplicate transaction processing.
@@ -404,7 +537,7 @@ public class TransactionService {
         if (dto.getClientReferenceId() != null && dto.getChannel() != null) {
             TransactionChannel channel = parseChannel(dto.getChannel());
             if (channel != null) {
-                transactionRepository.findByClientReferenceIdAndChannel(dto.getClientReferenceId(), channel)
+                transactionRepository.findByClientReferenceIdAndChannelAndTenantId(dto.getClientReferenceId(), channel, requireTenantId())
                         .ifPresent(existing -> {
                             throw new RuntimeException("Duplicate transaction detected. Existing ref: "
                                     + existing.getTransactionRef() + " for client_reference_id: "
@@ -418,6 +551,10 @@ public class TransactionService {
             });
             idempotencyService.registerKey(idempotencyKey, dto.toString());
         }
+    }
+
+    private Long requireTenantId() {
+        return TenantContextHolder.getRequiredTenantId();
     }
 
     private TransactionChannel parseChannel(String channel) {

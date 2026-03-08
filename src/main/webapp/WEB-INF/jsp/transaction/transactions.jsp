@@ -56,7 +56,7 @@
                         <td><c:if test="${txn.sourceAccount != null}"><code>${txn.sourceAccount.accountNumber}</code></c:if><c:if test="${txn.sourceAccount == null}">-</c:if></td>
                         <td><c:if test="${txn.destinationAccount != null}"><code>${txn.destinationAccount.accountNumber}</code></c:if><c:if test="${txn.destinationAccount == null}">-</c:if></td>
                         <td><span class="badge bg-success">${txn.status}</span></td>
-                        <td>${txn.description}</td>
+                        <td><c:out value="${txn.description}"/></td>
                         <td>${txn.createdAt}</td>
                         <td>
                             <a href="${pageContext.request.contextPath}/transactions/${txn.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>

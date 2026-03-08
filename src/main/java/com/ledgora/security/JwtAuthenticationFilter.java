@@ -1,5 +1,6 @@
 package com.ledgora.security;
 
+import com.ledgora.tenant.context.TenantContextHolder;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,6 +43,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                // Extract tenant context from JWT and set in TenantContextHolder
+                Long tenantId = jwtTokenProvider.getTenantIdFromToken(jwt);
+                if (tenantId != null) {
+                    TenantContextHolder.setTenantId(tenantId);
+                    // Also store in session for JSP access
+                    HttpSession session = request.getSession(true);
+                    session.setAttribute("tenantId", tenantId);
+                    session.setAttribute("tenantScope", jwtTokenProvider.getTenantScopeFromToken(jwt));
+                }
             }
         } catch (Exception ex) {
             logger.error("Could not set user authentication in security context", ex);

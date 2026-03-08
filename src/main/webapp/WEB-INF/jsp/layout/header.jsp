@@ -8,14 +8,17 @@
     <link href="${pageContext.request.contextPath}/resources/css/bootstrap.min.css" rel="stylesheet">
     <link href="${pageContext.request.contextPath}/resources/css/bootstrap-icons.css" rel="stylesheet">
     <link href="${pageContext.request.contextPath}/resources/css/style.css" rel="stylesheet">
+    <meta name="_csrf" content="${_csrf.token}"/>
+    <meta name="_csrf_header" content="${_csrf.headerName}"/>
 </head>
 <body>
 <c:if test="${not empty sessionScope.username}">
 <%--
   CBS Layout: Fixed Header + Fixed Sidebar + Scrollable Main Content
   Role flags set by CustomAuthenticationSuccessHandler on login:
-    sessionScope.isAdmin, sessionScope.isManager, sessionScope.isTeller, sessionScope.isCustomer
-    sessionScope.isFinance (if present)
+    sessionScope.isAdmin, sessionScope.isManager, sessionScope.isTeller, sessionScope.isCustomer,
+    sessionScope.isFinance, sessionScope.isMaker, sessionScope.isChecker,
+    sessionScope.isBranchManager, sessionScope.isTenantAdmin, sessionScope.isSuperAdmin
 --%>
 
 <%-- CBS Top Header Bar --%>
@@ -92,43 +95,111 @@
         </div>
     </div>
     <div class="cbs-header-right">
+        <%-- Tenant Context Display --%>
+        <div class="cbs-tenant-info" style="display: flex; align-items: center; gap: 8px; margin-right: 12px; padding: 4px 10px; background: rgba(255,255,255,0.1); border-radius: 6px;">
+            <i class="bi bi-building" style="color: #ffc107;"></i>
+            <c:choose>
+                <c:when test="${not empty sessionScope.tenantName}">
+                    <span style="font-size: 0.85rem; color: #e0e0e0;"><c:out value="${sessionScope.tenantName}"/></span>
+                </c:when>
+                <c:otherwise>
+                    <span style="font-size: 0.85rem; color: #e0e0e0;">Default Tenant</span>
+                </c:otherwise>
+            </c:choose>
+            <span class="cbs-header-separator"></span>
+            <%-- Tenant Switch Dropdown (for MULTI tenant users) --%>
+            <c:if test="${sessionScope.tenantScope == 'MULTI'}">
+                <div class="dropdown" style="display: inline-block;">
+                    <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.8rem; padding: 2px 8px;">
+                        Switch Tenant
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <c:forEach var="t" items="${sessionScope.availableTenants}">
+                            <li>
+                                <form method="post" action="${pageContext.request.contextPath}/tenant/switch" class="m-0">
+                                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                                    <input type="hidden" name="tenantId" value="${t.id}">
+                                    <button type="submit" class="dropdown-item"><c:out value="${t.tenantName}"/> (<c:out value="${t.tenantCode}"/>)</button>
+                                </form>
+                            </li>
+                        </c:forEach>
+                    </ul>
+                </div>
+            </c:if>
+        </div>
         <div class="cbs-user-info">
             <div class="cbs-user-avatar">
                 <i class="bi bi-person-circle"></i>
             </div>
             <div class="cbs-user-details">
-                <span class="cbs-user-name">${sessionScope.username}</span>
+                <span class="cbs-user-name"><c:out value="${sessionScope.username}"/></span>
                 <span class="cbs-user-role">
+                    <c:if test="${sessionScope.isSuperAdmin}"><span class="badge bg-dark">Super Admin</span></c:if>
+                    <c:if test="${sessionScope.isTenantAdmin}"><span class="badge bg-purple" style="background:#7c3aed!important;">Tenant Admin</span></c:if>
                     <c:if test="${sessionScope.isAdmin}"><span class="badge bg-danger">Admin</span></c:if>
+                    <c:if test="${sessionScope.isBranchManager}"><span class="badge bg-indigo" style="background:#4f46e5!important;">Branch Mgr</span></c:if>
                     <c:if test="${sessionScope.isManager}"><span class="badge bg-warning text-dark">Manager</span></c:if>
                     <c:if test="${sessionScope.isFinance}"><span class="badge bg-info">Finance</span></c:if>
+                    <c:if test="${sessionScope.isMaker}"><span class="badge bg-success">Maker</span></c:if>
+                    <c:if test="${sessionScope.isChecker}"><span class="badge bg-primary">Checker</span></c:if>
                     <c:if test="${sessionScope.isTeller}"><span class="badge bg-info">Teller</span></c:if>
                     <c:if test="${sessionScope.isCustomer && !sessionScope.isAdmin && !sessionScope.isManager && !sessionScope.isTeller}"><span class="badge bg-secondary">Customer</span></c:if>
                 </span>
             </div>
         </div>
-        <a href="${pageContext.request.contextPath}/logout" class="cbs-logout-btn" title="Sign Out">
-            <i class="bi bi-box-arrow-right"></i>
-            <span>Logout</span>
-        </a>
+        <form method="post" action="${pageContext.request.contextPath}/logout" style="display:inline; margin:0; padding:0;">
+            <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+            <button type="submit" class="cbs-logout-btn" title="Sign Out" style="background:none; border:none; cursor:pointer;">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Logout</span>
+            </button>
+        </form>
     </div>
 </header>
 
 <%-- CBS Sidebar --%>
 <%@ include file="sidebar.jsp" %>
 
+<%-- Business Day Closed Banner --%>
+<c:if test="${sessionScope.businessDateStatus == 'CLOSED'}">
+<div class="cbs-eod-banner" id="eodBanner">
+    <div class="cbs-eod-banner-content">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span>Business Day Closed &mdash; No transactions allowed until next business day is opened.</span>
+    </div>
+</div>
+</c:if>
+
 <%-- CBS Main Content Area --%>
 <main class="cbs-main" id="cbsMain">
+    <%-- Breadcrumb Navigation --%>
+    <c:if test="${not empty breadcrumb}">
+    <nav aria-label="breadcrumb" class="cbs-breadcrumb-nav">
+        <ol class="breadcrumb cbs-breadcrumb">
+            <li class="breadcrumb-item"><a href="${pageContext.request.contextPath}/dashboard">Dashboard</a></li>
+            <c:forEach var="crumb" items="${breadcrumb}">
+                <c:choose>
+                    <c:when test="${crumb.active}">
+                        <li class="breadcrumb-item active" aria-current="page">${crumb.label}</li>
+                    </c:when>
+                    <c:otherwise>
+                        <li class="breadcrumb-item"><a href="${pageContext.request.contextPath}${crumb.url}">${crumb.label}</a></li>
+                    </c:otherwise>
+                </c:choose>
+            </c:forEach>
+        </ol>
+    </nav>
+    </c:if>
     <div class="cbs-content">
         <c:if test="${not empty message}">
             <div class="alert alert-success alert-dismissible fade show" role="alert">
-                ${message}
+                <c:out value="${message}"/>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         </c:if>
         <c:if test="${not empty error}">
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                ${error}
+                <c:out value="${error}"/>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         </c:if>

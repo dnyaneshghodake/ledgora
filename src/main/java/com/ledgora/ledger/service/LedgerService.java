@@ -5,10 +5,12 @@ import com.ledgora.common.enums.EntryType;
 import com.ledgora.events.LedgerPostedEvent;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
+import com.ledgora.gl.service.GlBalanceService;
 import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.ledger.entity.LedgerJournal;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.ledger.repository.LedgerJournalRepository;
+import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.transaction.entity.Transaction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +28,7 @@ import java.util.List;
  * PART 1 + PART 3: Ledger service - system of record for all financial entries.
  * Creates immutable ledger journals and entries.
  * Publishes LedgerPostedEvent after successful posting.
+ * Now integrates GL balance updates and multi-tenant support.
  */
 @Service
 public class LedgerService {
@@ -34,15 +37,18 @@ public class LedgerService {
     private final LedgerJournalRepository journalRepository;
     private final LedgerEntryRepository entryRepository;
     private final GeneralLedgerRepository glRepository;
+    private final GlBalanceService glBalanceService;
     private final ApplicationEventPublisher eventPublisher;
 
     public LedgerService(LedgerJournalRepository journalRepository,
                          LedgerEntryRepository entryRepository,
                          GeneralLedgerRepository glRepository,
+                         GlBalanceService glBalanceService,
                          ApplicationEventPublisher eventPublisher) {
         this.journalRepository = journalRepository;
         this.entryRepository = entryRepository;
         this.glRepository = glRepository;
+        this.glBalanceService = glBalanceService;
         this.eventPublisher = eventPublisher;
     }
 
@@ -74,15 +80,19 @@ public class LedgerService {
             throw new RuntimeException("Ledger journal must have at least 2 entries for double-entry accounting");
         }
 
+        // Get tenant from transaction
+        Tenant tenant = transaction.getTenant();
+
         // Create journal
         LedgerJournal journal = LedgerJournal.builder()
                 .transaction(transaction)
+                .tenant(tenant)
                 .description(description)
                 .businessDate(businessDate)
                 .build();
         journal = journalRepository.save(journal);
 
-        // Create entries
+        // Create entries and update GL balances
         List<LedgerEntry> entries = new ArrayList<>();
         for (JournalEntryRequest req : entryRequests) {
             GeneralLedger glAccount = null;
@@ -93,6 +103,7 @@ public class LedgerService {
             LedgerEntry entry = LedgerEntry.builder()
                     .journal(journal)
                     .transaction(transaction)
+                    .tenant(tenant)
                     .account(req.account)
                     .glAccount(glAccount)
                     .glAccountCode(req.glCode)
@@ -105,6 +116,13 @@ public class LedgerService {
                     .narration(req.narration)
                     .build();
             entries.add(entryRepository.save(entry));
+
+            // PART 1: Update GL balance with accounting sign conventions
+            if (glAccount != null) {
+                BigDecimal debit = req.entryType == EntryType.DEBIT ? req.amount : BigDecimal.ZERO;
+                BigDecimal credit = req.entryType == EntryType.CREDIT ? req.amount : BigDecimal.ZERO;
+                glBalanceService.updateGlBalance(glAccount, debit, credit);
+            }
         }
 
         journal.setEntries(entries);

@@ -2,6 +2,7 @@ package com.ledgora.approval.entity;
 
 import com.ledgora.auth.entity.User;
 import com.ledgora.common.enums.ApprovalStatus;
+import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
@@ -9,16 +10,22 @@ import java.time.LocalDateTime;
 /**
  * PART 3: Maker-Checker approval request entity.
  * High-value transactions require manager approval before execution.
+ * Multi-tenant aware.
  */
 @Entity
 @Table(name = "approval_requests", indexes = {
     @Index(name = "idx_approval_entity", columnList = "entity_type, entity_id"),
-    @Index(name = "idx_approval_status", columnList = "status")
+    @Index(name = "idx_approval_status", columnList = "status"),
+    @Index(name = "idx_approval_tenant", columnList = "tenant_id")
 })
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class ApprovalRequest {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tenant_id")
+    private Tenant tenant;
 
     @Column(name = "entity_type", length = 50, nullable = false)
     private String entityType;

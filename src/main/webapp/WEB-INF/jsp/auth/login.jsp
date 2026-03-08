@@ -21,10 +21,10 @@
                         <p class="text-muted">Core Banking Platform</p>
                     </div>
                     <c:if test="${not empty error}">
-                        <div class="alert alert-danger">${error}</div>
+                        <div class="alert alert-danger"><c:out value="${error}"/></div>
                     </c:if>
                     <c:if test="${not empty message}">
-                        <div class="alert alert-success">${message}</div>
+                        <div class="alert alert-success"><c:out value="${message}"/></div>
                     </c:if>
                     <form:form action="${pageContext.request.contextPath}/perform_login" method="post" modelAttribute="loginRequest">
                         <div class="mb-3">
