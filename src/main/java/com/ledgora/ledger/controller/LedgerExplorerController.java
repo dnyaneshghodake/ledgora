@@ -126,7 +126,9 @@ public class LedgerExplorerController {
         }
 
         // Build a simple list of maps for JSON response
-        List<Map<String, Object>> entryList = entries.stream().map(e -> {
+        List<Map<String, Object>> entryList = entries.stream()
+                .filter(e -> e.getEntryType() != null && e.getAmount() != null)
+                .map(e -> {
             Map<String, Object> map = new HashMap<>();
             map.put("id", e.getId());
             map.put("entryType", e.getEntryType().name());

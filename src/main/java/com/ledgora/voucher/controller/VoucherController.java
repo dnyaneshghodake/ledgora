@@ -60,10 +60,13 @@ public class VoucherController {
                 redirectAttributes.addFlashAttribute("error", "Debit and credit accounts cannot be the same.");
                 return "redirect:/vouchers/create";
             }
-            redirectAttributes.addFlashAttribute("message",
-                    "Voucher submitted successfully for " + currency + " " + amount
+            // TODO: Wire voucherService.createVoucher() with Tenant, Branch, Account,
+            // GL lookups, and authenticated User context to actually persist the voucher.
+            redirectAttributes.addFlashAttribute("error",
+                    "Voucher creation is not yet implemented. "
+                    + "Validated: " + currency + " " + amount
                     + " from " + debitAccountNumber + " to " + creditAccountNumber + ".");
-            return "redirect:/vouchers";
+            return "redirect:/vouchers/create";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Voucher creation failed: " + e.getMessage());
             return "redirect:/vouchers/create";

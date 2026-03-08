@@ -187,6 +187,7 @@ public class AdminController {
     public String listRoles(Model model) {
         List<Role> roles = roleRepository.findAll();
         model.addAttribute("roles", roles);
+        model.addAttribute("users", userRepository.findAll());
         return "admin/users";
     }
 
