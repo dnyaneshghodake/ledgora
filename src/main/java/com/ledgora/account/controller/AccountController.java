@@ -6,11 +6,16 @@ import com.ledgora.account.service.AccountService;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
 import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 @Controller
 @RequestMapping("/accounts")
@@ -75,6 +80,7 @@ public class AccountController {
         Account account = accountService.getAccountById(id)
                 .orElseThrow(() -> new RuntimeException("Account not found"));
         model.addAttribute("account", account);
+        model.addAttribute("accountTypes", AccountType.values());
         return "account/account-view";
     }
 
@@ -94,6 +100,10 @@ public class AccountController {
         dto.setCustomerEmail(account.getCustomerEmail());
         dto.setCustomerPhone(account.getCustomerPhone());
         dto.setGlAccountCode(account.getGlAccountCode());
+        dto.setStatus(account.getStatus() != null ? account.getStatus().name() : null);
+        dto.setFreezeLevel(account.getFreezeLevel() != null ? account.getFreezeLevel().name() : null);
+        dto.setApprovalStatus(account.getApprovalStatus() != null ? account.getApprovalStatus().name() : null);
+        dto.setCreatedAt(account.getCreatedAt() != null ? account.getCreatedAt().toString() : null);
         model.addAttribute("accountDTO", dto);
         model.addAttribute("accountTypes", AccountType.values());
         return "account/account-edit";
@@ -128,5 +138,35 @@ public class AccountController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/accounts/" + id;
+    }
+
+    /**
+     * API endpoint for AJAX account lookup by account number.
+     * Used by transaction screens and account selection components.
+     */
+    @GetMapping("/api/lookup")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> lookupAccount(
+            @RequestParam("accountNumber") String accountNumber) {
+        Optional<Account> accountOpt = accountService.getAccountByNumber(accountNumber);
+        if (accountOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        Account account = accountOpt.get();
+        Map<String, Object> result = new HashMap<>();
+        result.put("id", account.getId());
+        result.put("accountNumber", account.getAccountNumber());
+        result.put("accountName", account.getAccountName());
+        result.put("accountType", account.getAccountType() != null ? account.getAccountType().name() : null);
+        result.put("status", account.getStatus() != null ? account.getStatus().name() : null);
+        result.put("balance", account.getBalance());
+        result.put("currency", account.getCurrency());
+        result.put("freezeLevel", account.getFreezeLevel() != null ? account.getFreezeLevel().name() : null);
+        result.put("freezeReason", account.getFreezeReason());
+        result.put("customerName", account.getCustomerName());
+        // availableBalance and totalLien would require balance engine lookup
+        result.put("availableBalance", account.getBalance());
+        result.put("totalLien", "0.00");
+        return ResponseEntity.ok(result);
     }
 }

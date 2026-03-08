@@ -107,6 +107,10 @@ public class AccountService {
         return accountRepository.findByTenantIdAndCustomerNameContainingIgnoreCase(requireTenantId(), name);
     }
 
+    public List<Account> getAccountsByCustomerId(Long customerId) {
+        return accountRepository.findByCustomerId(customerId);
+    }
+
     @Transactional
     public Account updateAccount(Long id, AccountDTO dto) {
         Account account = accountRepository.findById(id)

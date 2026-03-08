@@ -150,7 +150,8 @@ public class AccountLienService {
     }
 
     /**
-     * Release a lien (requires maker-checker).
+     * Release a lien (requires maker-checker: creator cannot release their own lien).
+     * Only approved and active liens can be released.
      */
     @Transactional
     public AccountLien releaseLien(Long lienId) {
@@ -161,14 +162,22 @@ public class AccountLienService {
             throw new RuntimeException("Lien is not active");
         }
 
-        if (lien.getApprovalStatus() == MakerCheckerStatus.APPROVED) {
-            balanceEngine.releaseLien(lien.getAccount().getId(), lien.getLienAmount());
+        if (lien.getApprovalStatus() != MakerCheckerStatus.APPROVED) {
+            throw new RuntimeException("Cannot release a lien that has not been approved");
         }
+
+        // Maker-checker: creator cannot release their own lien
+        User currentUser = getCurrentUser();
+        if (lien.getCreatedBy() != null && currentUser != null
+                && lien.getCreatedBy().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("Cannot release your own lien (maker-checker violation)");
+        }
+
+        balanceEngine.releaseLien(lien.getAccount().getId(), lien.getLienAmount());
 
         lien.setStatus(LienStatus.RELEASED);
         AccountLien saved = lienRepository.save(lien);
 
-        User currentUser = getCurrentUser();
         Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(userId, "LIEN_RELEASE", "ACCOUNT_LIEN", saved.getId(),
                 "Lien released: amount=" + lien.getLienAmount(), null);
@@ -184,11 +193,13 @@ public class AccountLienService {
     @Transactional
     public void autoReleaseExpiredLiens() {
         List<AccountLien> expiredLiens = lienRepository.findExpiredLiens(LocalDate.now());
+        int releasedCount = 0;
         for (AccountLien lien : expiredLiens) {
             try {
                 balanceEngine.releaseLien(lien.getAccount().getId(), lien.getLienAmount());
                 lien.setStatus(LienStatus.EXPIRED);
                 lienRepository.save(lien);
+                releasedCount++;
                 log.info("Auto-released expired lien: id={}, account={}, amount={}",
                         lien.getId(), lien.getAccount().getAccountNumber(), lien.getLienAmount());
             } catch (Exception e) {
@@ -196,7 +207,7 @@ public class AccountLienService {
             }
         }
         if (!expiredLiens.isEmpty()) {
-            log.info("Auto-released {} expired liens", expiredLiens.size());
+            log.info("Auto-released {}/{} expired liens", releasedCount, expiredLiens.size());
         }
     }
 
