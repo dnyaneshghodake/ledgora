@@ -352,6 +352,9 @@ body {
     list-style: none;
     padding: 0;
     margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
 }
 
 .cbs-nav-section {
@@ -364,13 +367,14 @@ body {
 }
 
 .cbs-nav-item {
-    margin: 1px 0.5rem;
+    margin: 0 0.5rem;
 }
 
 .cbs-nav-link {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    justify-content: flex-start;
     padding: 0.55rem 0.85rem;
     color: var(--cbs-sidebar-text);
     text-decoration: none;
@@ -379,6 +383,15 @@ body {
     border-radius: 0.5rem;
     transition: all 0.2s;
     position: relative;
+    min-height: 2.2rem;
+}
+
+.cbs-nav-link > span:not(.cbs-badge) {
+    flex: 1;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .cbs-nav-link i {
@@ -406,6 +419,7 @@ body {
 
 .cbs-badge {
     margin-left: auto;
+    flex: 0 0 auto;
     background: #dc3545;
     color: #fff;
     font-size: 0.65rem;
@@ -845,4 +859,399 @@ h3 small {
 
 .audit-disclaimer i {
     color: #d97706;
+}
+
+/* =========================================================================
+   Breadcrumb Navigation
+   ========================================================================= */
+.cbs-breadcrumb-nav {
+    padding: 0.75rem 1.5rem 0;
+    background: transparent;
+}
+
+.cbs-breadcrumb {
+    background: transparent;
+    padding: 0;
+    margin: 0;
+    font-size: 0.82rem;
+}
+
+.cbs-breadcrumb .breadcrumb-item a {
+    color: var(--cbs-accent);
+    text-decoration: none;
+}
+
+.cbs-breadcrumb .breadcrumb-item a:hover {
+    text-decoration: underline;
+}
+
+.cbs-breadcrumb .breadcrumb-item.active {
+    color: #64748b;
+}
+
+/* =========================================================================
+   Business Day Closed (EOD) Banner
+   ========================================================================= */
+.cbs-eod-banner {
+    position: fixed;
+    top: var(--cbs-header-height);
+    left: var(--cbs-sidebar-width);
+    right: 0;
+    z-index: 1025;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-bottom: 2px solid #f59e0b;
+    padding: 0.5rem 1rem;
+    transition: left 0.3s ease;
+}
+
+body.cbs-sidebar-collapsed .cbs-eod-banner {
+    left: 0;
+}
+
+.cbs-eod-banner-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #92400e;
+}
+
+.cbs-eod-banner-content i {
+    font-size: 1.1rem;
+    color: #d97706;
+}
+
+/* When EOD banner is visible, push main content down */
+body.cbs-eod-active .cbs-main {
+    margin-top: calc(var(--cbs-header-height) + 40px);
+}
+
+/* =========================================================================
+   Customer Freeze Banner
+   ========================================================================= */
+.cbs-freeze-banner {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border: 1px solid #f87171;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: #991b1b;
+    font-size: 0.9rem;
+}
+
+.cbs-freeze-banner i {
+    font-size: 1.2rem;
+    color: #dc2626;
+}
+
+/* =========================================================================
+   CBS Tab Navigation (Customer Tabbed Page)
+   ========================================================================= */
+.cbs-tabs {
+    border-bottom: 2px solid #e2e8f0;
+    margin-bottom: 1.5rem;
+}
+
+.cbs-tabs .nav-link {
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #64748b;
+    font-weight: 500;
+    font-size: 0.88rem;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+}
+
+.cbs-tabs .nav-link:hover {
+    color: var(--cbs-primary);
+    border-bottom-color: #cbd5e1;
+}
+
+.cbs-tabs .nav-link.active {
+    color: var(--cbs-accent);
+    border-bottom-color: var(--cbs-accent);
+    font-weight: 600;
+}
+
+/* =========================================================================
+   CBS Balance Cards (Account View)
+   ========================================================================= */
+.cbs-balance-section {
+    margin-bottom: 1.5rem;
+}
+
+.cbs-balance-section-title {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.cbs-balance-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+    height: 100%;
+}
+
+.cbs-balance-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.cbs-balance-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.cbs-balance-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--cbs-primary);
+}
+
+.cbs-balance-card.cbs-balance-primary {
+    border-color: var(--cbs-accent);
+    border-width: 2px;
+}
+
+.cbs-balance-card.cbs-balance-warning {
+    border-color: #f59e0b;
+}
+
+.cbs-balance-card.cbs-balance-danger {
+    border-color: #ef4444;
+}
+
+.cbs-balance-card.cbs-balance-success {
+    border-color: #22c55e;
+}
+
+/* =========================================================================
+   Voucher Status Badges
+   ========================================================================= */
+.cbs-voucher-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 0.25rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+}
+
+.cbs-voucher-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.cbs-voucher-authorized {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.cbs-voucher-posted {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.cbs-voucher-cancelled {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* =========================================================================
+   EOD Validation Checklist
+   ========================================================================= */
+.cbs-eod-check {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 0.5rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.cbs-eod-check-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    margin-right: 0.75rem;
+    flex-shrink: 0;
+    font-size: 0.9rem;
+}
+
+.cbs-eod-check-pass {
+    border-color: #86efac;
+    background: #f0fdf4;
+}
+
+.cbs-eod-check-pass .cbs-eod-check-icon {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.cbs-eod-check-fail {
+    border-color: #fca5a5;
+    background: #fef2f2;
+}
+
+.cbs-eod-check-fail .cbs-eod-check-icon {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.cbs-eod-check-label {
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--cbs-primary);
+}
+
+/* =========================================================================
+   Global Error Page
+   ========================================================================= */
+.cbs-error-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+}
+
+.cbs-error-card {
+    background: #fff;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
+    max-width: 600px;
+    width: 100%;
+    overflow: hidden;
+}
+
+.cbs-error-header {
+    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+    color: #fff;
+    padding: 1.5rem 2rem;
+    text-align: center;
+}
+
+.cbs-error-header i {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.cbs-error-header h4 {
+    margin: 0;
+    font-weight: 700;
+}
+
+.cbs-error-body {
+    padding: 2rem;
+}
+
+.cbs-error-message {
+    font-size: 1rem;
+    color: #475569;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.cbs-error-details {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    font-size: 0.82rem;
+}
+
+.cbs-error-details dt {
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.cbs-error-details dd {
+    color: var(--cbs-primary);
+    margin-bottom: 0.75rem;
+}
+
+.cbs-error-actions {
+    text-align: center;
+    padding: 0 2rem 2rem;
+}
+
+/* =========================================================================
+   CBS Lockable Elements (Business Day Lock)
+   ========================================================================= */
+.cbs-lockable.cbs-locked {
+    pointer-events: none;
+    opacity: 0.5;
+    position: relative;
+}
+
+.cbs-lockable.cbs-locked::after {
+    content: '\F47A';
+    font-family: 'bootstrap-icons';
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.75rem;
+    color: #dc2626;
+}
+
+/* =========================================================================
+   Tooltip for Balance Cards
+   ========================================================================= */
+.cbs-tooltip {
+    position: relative;
+    cursor: help;
+}
+
+.cbs-tooltip .cbs-tooltip-text {
+    visibility: hidden;
+    background: var(--cbs-primary);
+    color: #fff;
+    text-align: center;
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 400;
+    position: absolute;
+    z-index: 1050;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.cbs-tooltip:hover .cbs-tooltip-text {
+    visibility: visible;
+    opacity: 1;
 }
