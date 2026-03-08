@@ -15,6 +15,7 @@ import com.ledgora.customer.repository.CustomerMasterRepository;
 import com.ledgora.eod.service.EodValidationService;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
+import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
 import com.ledgora.voucher.service.VoucherService;
@@ -38,6 +39,11 @@ import static org.junit.jupiter.api.Assertions.*;
 @ActiveProfiles("test")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class LedgoraEodValidationTest {
+
+    @AfterEach
+    void clearTenantContext() {
+        TenantContextHolder.clear();
+    }
 
     @Autowired private EodValidationService eodValidationService;
     @Autowired private VoucherService voucherService;
@@ -246,6 +252,7 @@ class LedgoraEodValidationTest {
                 .isLocked(false)
                 .build());
 
+        TenantContextHolder.setTenantId(tenant.getId());
         return new TestData(tenant, branch, account, gl, cm, maker, checker);
     }
 

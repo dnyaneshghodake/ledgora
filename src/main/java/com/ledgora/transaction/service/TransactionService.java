@@ -112,8 +112,7 @@ public class TransactionService {
     @Transactional
     public Transaction deposit(TransactionDTO dto) {
         // PART 4: Validate tenant business day is OPEN
-        Long tenantId = TenantContextHolder.getTenantId();
-        if (tenantId == null) tenantId = 1L;
+        Long tenantId = requireTenantId();
         tenantService.validateBusinessDayOpen(tenantId);
         Tenant tenant = tenantService.getTenantById(tenantId);
 
@@ -121,7 +120,7 @@ public class TransactionService {
         checkIdempotency(dto);
 
         // Pessimistic lock on account
-        Account account = accountRepository.findByAccountNumberWithLock(dto.getDestinationAccountNumber())
+        Account account = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getDestinationAccountNumber(), tenantId)
                 .orElseThrow(() -> new RuntimeException("Account not found: " + dto.getDestinationAccountNumber()));
         validateAccountActive(account);
 
@@ -192,8 +191,7 @@ public class TransactionService {
     @Transactional
     public Transaction withdraw(TransactionDTO dto) {
         // PART 4: Validate tenant business day is OPEN
-        Long tenantId = TenantContextHolder.getTenantId();
-        if (tenantId == null) tenantId = 1L;
+        Long tenantId = requireTenantId();
         tenantService.validateBusinessDayOpen(tenantId);
         Tenant tenant = tenantService.getTenantById(tenantId);
 
@@ -201,7 +199,7 @@ public class TransactionService {
         checkIdempotency(dto);
 
         // Pessimistic lock on account
-        Account account = accountRepository.findByAccountNumberWithLock(dto.getSourceAccountNumber())
+        Account account = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getSourceAccountNumber(), tenantId)
                 .orElseThrow(() -> new RuntimeException("Account not found: " + dto.getSourceAccountNumber()));
         validateAccountActive(account);
         if (account.getBalance().compareTo(dto.getAmount()) < 0) {
@@ -275,8 +273,7 @@ public class TransactionService {
     @Transactional
     public Transaction transfer(TransactionDTO dto) {
         // PART 4: Validate tenant business day is OPEN
-        Long tenantId = TenantContextHolder.getTenantId();
-        if (tenantId == null) tenantId = 1L;
+        Long tenantId = requireTenantId();
         tenantService.validateBusinessDayOpen(tenantId);
         Tenant tenant = tenantService.getTenantById(tenantId);
 
@@ -284,9 +281,9 @@ public class TransactionService {
         checkIdempotency(dto);
 
         // Pessimistic lock on both accounts
-        Account sourceAccount = accountRepository.findByAccountNumberWithLock(dto.getSourceAccountNumber())
+        Account sourceAccount = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getSourceAccountNumber(), tenantId)
                 .orElseThrow(() -> new RuntimeException("Source account not found: " + dto.getSourceAccountNumber()));
-        Account destAccount = accountRepository.findByAccountNumberWithLock(dto.getDestinationAccountNumber())
+        Account destAccount = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getDestinationAccountNumber(), tenantId)
                 .orElseThrow(() -> new RuntimeException("Destination account not found: " + dto.getDestinationAccountNumber()));
         validateAccountActive(sourceAccount);
         validateAccountActive(destAccount);
@@ -367,45 +364,55 @@ public class TransactionService {
     // ===== Query methods (backward compatible) =====
 
     public List<Transaction> getAllTransactions() {
-        return transactionRepository.findAll();
+        Long tenantId = requireTenantId();
+        return transactionRepository.findByTenantId(tenantId);
     }
 
     public Optional<Transaction> getTransactionById(Long id) {
-        return transactionRepository.findById(id);
+        Long tenantId = requireTenantId();
+        return transactionRepository.findByIdAndTenantId(id, tenantId);
     }
 
     public Optional<Transaction> getTransactionByRef(String ref) {
-        return transactionRepository.findByTransactionRef(ref);
+        Long tenantId = requireTenantId();
+        return transactionRepository.findByTransactionRefAndTenantId(ref, tenantId);
     }
 
     public List<Transaction> getTransactionsByAccountNumber(String accountNumber) {
-        return transactionRepository.findByAccountNumber(accountNumber);
+        Long tenantId = requireTenantId();
+        return transactionRepository.findByTenantIdAndAccountNumber(tenantId, accountNumber);
     }
 
     public List<Transaction> getTransactionsByDateRange(LocalDateTime start, LocalDateTime end) {
-        return transactionRepository.findByDateRange(start, end);
+        Long tenantId = requireTenantId();
+        return transactionRepository.findByTenantIdAndDateRange(tenantId, start, end);
     }
 
     public List<Transaction> getTransactionsByType(TransactionType type) {
-        return transactionRepository.findByTransactionType(type);
+        Long tenantId = requireTenantId();
+        return transactionRepository.findByTenantIdAndTransactionType(tenantId, type);
     }
 
     public List<LedgerEntry> getLedgerEntriesByTransaction(Long transactionId) {
-        return ledgerEntryRepository.findByTransactionId(transactionId);
+        Long tenantId = requireTenantId();
+        return ledgerEntryRepository.findByTransactionIdAndTenantId(transactionId, tenantId);
     }
 
     public List<LedgerEntry> getLedgerEntriesByAccount(String accountNumber) {
-        return ledgerEntryRepository.findByAccountNumber(accountNumber);
+        Long tenantId = requireTenantId();
+        return ledgerEntryRepository.findByAccountNumberAndTenantId(accountNumber, tenantId);
     }
 
     public long countAll() {
-        return transactionRepository.count();
+        Long tenantId = requireTenantId();
+        return transactionRepository.countByTenantId(tenantId);
     }
 
     public List<Transaction> getTodayTransactions() {
+        Long tenantId = requireTenantId();
         LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
         LocalDateTime endOfDay = startOfDay.plusDays(1);
-        return transactionRepository.findByDateRange(startOfDay, endOfDay);
+        return transactionRepository.findByTenantIdAndDateRange(tenantId, startOfDay, endOfDay);
     }
 
     // ===== Private helper methods =====
@@ -499,7 +506,7 @@ public class TransactionService {
 
     private Account resolveCashGlAccount(Long tenantId) {
         return accountRepository.findFirstByTenantIdAndGlAccountCode(tenantId, "1100")
-                .or(() -> accountRepository.findByAccountNumber("GL-CASH-001"))
+                .or(() -> accountRepository.findByAccountNumberAndTenantId("GL-CASH-001", tenantId))
                 .orElseThrow(() -> new RuntimeException("Cash GL account with code 1100 is required for cash transactions"));
     }
 
@@ -511,7 +518,7 @@ public class TransactionService {
         if (dto.getClientReferenceId() != null && dto.getChannel() != null) {
             TransactionChannel channel = parseChannel(dto.getChannel());
             if (channel != null) {
-                transactionRepository.findByClientReferenceIdAndChannel(dto.getClientReferenceId(), channel)
+                transactionRepository.findByClientReferenceIdAndChannelAndTenantId(dto.getClientReferenceId(), channel, requireTenantId())
                         .ifPresent(existing -> {
                             throw new RuntimeException("Duplicate transaction detected. Existing ref: "
                                     + existing.getTransactionRef() + " for client_reference_id: "
@@ -525,6 +532,10 @@ public class TransactionService {
             });
             idempotencyService.registerKey(idempotencyKey, dto.toString());
         }
+    }
+
+    private Long requireTenantId() {
+        return TenantContextHolder.getRequiredTenantId();
     }
 
     private TransactionChannel parseChannel(String channel) {

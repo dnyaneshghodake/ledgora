@@ -15,6 +15,7 @@ import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.ledger.entity.LedgerJournal;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.ledger.repository.LedgerJournalRepository;
+import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.repository.TransactionRepository;
@@ -93,6 +94,8 @@ public class VoucherService {
                                   String currency, LocalDate postingDate, LocalDate valueDate,
                                   String batchCode, Integer setNo, User maker, String narration) {
 
+        assertTenantContext(tenant.getId());
+
         // Validate customer and account
         customerValidationService.validateAccountForTransaction(
                 account, tenant.getId(), branch.getId(), drCr);
@@ -145,7 +148,8 @@ public class VoucherService {
      */
     @Transactional
     public Voucher authorizeVoucher(Long voucherId, User checker) {
-        Voucher voucher = voucherRepository.findByIdWithLock(voucherId)
+        Long tenantId = requireTenantId();
+        Voucher voucher = voucherRepository.findByIdAndTenantId(voucherId, tenantId)
                 .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
 
         if ("Y".equals(voucher.getCancelFlag())) {
@@ -263,7 +267,8 @@ public class VoucherService {
      */
     @Transactional
     public Voucher cancelVoucher(Long voucherId, User cancelledBy, String reason) {
-        Voucher original = voucherRepository.findByIdWithLock(voucherId)
+        Long tenantId = requireTenantId();
+        Voucher original = voucherRepository.findByIdAndTenantId(voucherId, tenantId)
                 .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
 
         if ("Y".equals(original.getCancelFlag())) {
@@ -326,6 +331,18 @@ public class VoucherService {
                 voucherId, reversal.getId(), reason);
 
         return reversal;
+    }
+
+    private Long requireTenantId() {
+        return TenantContextHolder.getRequiredTenantId();
+    }
+
+    private void assertTenantContext(Long tenantId) {
+        Long requiredTenantId = requireTenantId();
+        if (!requiredTenantId.equals(tenantId)) {
+            throw new RuntimeException("Tenant mismatch for voucher operation. Expected tenant "
+                    + requiredTenantId + " but got " + tenantId);
+        }
     }
 
     /**
