@@ -108,6 +108,10 @@ public class Account {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 

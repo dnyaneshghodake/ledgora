@@ -54,6 +54,9 @@ public class BatchService {
                             .transactionCount(0)
                             .build();
                     TransactionBatch saved = batchRepository.save(batch);
+                    // Generate and set batchCode after save to include the generated ID
+                    saved.setBatchCode("BATCH-" + saved.getId());
+                    saved = batchRepository.save(saved);
                     log.info("Created new batch: tenant={} type={} date={}", tenantId, batchType, businessDate);
                     return saved;
                 });

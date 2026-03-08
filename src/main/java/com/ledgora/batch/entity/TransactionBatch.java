@@ -4,6 +4,7 @@ import com.ledgora.common.enums.BatchStatus;
 import com.ledgora.common.enums.BatchType;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
+import jakarta.persistence.Version;
 import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -30,8 +31,15 @@ public class TransactionBatch {
     @Column(name = "batch_type", length = 20, nullable = false)
     private BatchType batchType;
 
+    @Column(name = "batch_code", length = 50)
+    private String batchCode;
+
     @Column(name = "business_date", nullable = false)
     private LocalDate businessDate;
+
+    @Version
+    @Column(name = "version")
+    private Long version;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 20, nullable = false)
