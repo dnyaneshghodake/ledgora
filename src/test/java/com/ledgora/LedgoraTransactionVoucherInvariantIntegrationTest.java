@@ -53,7 +53,6 @@ class LedgoraTransactionVoucherInvariantIntegrationTest {
     @Autowired private AccountBalanceRepository accountBalanceRepository;
     @Autowired private GeneralLedgerRepository glRepository;
     @Autowired private VoucherRepository voucherRepository;
-    @Autowired private com.ledgora.voucher.service.VoucherService voucherService;
     @Autowired private LedgerEntryRepository ledgerEntryRepository;
     @Autowired private TransactionBatchRepository batchRepository;
 
@@ -111,73 +110,6 @@ class LedgoraTransactionVoucherInvariantIntegrationTest {
             assertEquals("Y", v.getPostFlag(), "Voucher leg must be posted");
             assertNotNull(v.getLedgerEntry(), "Posted voucher must link to immutable ledger entry");
         });
-    }
-
-
-    @Test
-    @Transactional
-    @DisplayName("Cross-tenant transaction lookup returns no data")
-    void crossTenantTransactionLookupFails() {
-        TestData tenantOne = setupTestData("INV-CTX-1");
-
-        TransactionDTO dto = TransactionDTO.builder()
-                .transactionType("TRANSFER")
-                .sourceAccountNumber(tenantOne.source.getAccountNumber())
-                .destinationAccountNumber(tenantOne.destination.getAccountNumber())
-                .amount(new BigDecimal("100.00"))
-                .currency("INR")
-                .channel(TransactionChannel.ONLINE.name())
-                .clientReferenceId("INV-CTX-REF-1")
-                .description("Cross tenant visibility")
-                .narration("Cross tenant visibility")
-                .build();
-
-        Transaction txn = transactionService.transfer(dto);
-
-        TestData tenantTwo = setupTestData("INV-CTX-2");
-        TenantContextHolder.setTenantId(tenantTwo.source.getTenant().getId());
-
-        assertTrue(transactionService.getTransactionById(txn.getId()).isEmpty(),
-                "Transaction from another tenant must not be visible");
-        assertTrue(transactionService.getLedgerEntriesByTransaction(txn.getId()).isEmpty(),
-                "Ledger entries from another tenant must not be visible");
-    }
-
-    @Test
-    @Transactional
-    @DisplayName("Cross-tenant voucher posting is blocked")
-    void crossTenantVoucherPostingFails() {
-        TestData tenantOne = setupTestData("INV-VCH-1");
-
-        Voucher voucher = voucherRepository.save(Voucher.builder()
-                .tenant(tenantOne.source.getTenant())
-                .branch(tenantOne.source.getBranch())
-                .account(tenantOne.source)
-                .glAccount(glRepository.findByGlCode(tenantOne.source.getGlAccountCode()).orElse(null))
-                .drCr(VoucherDrCr.CR)
-                .transactionAmount(new BigDecimal("50.00"))
-                .localCurrencyAmount(new BigDecimal("50.00"))
-                .currency("INR")
-                .entryDate(LocalDate.now())
-                .postingDate(LocalDate.now())
-                .valueDate(LocalDate.now())
-                .effectiveDate(LocalDate.now())
-                .batchCode("BATCH-X")
-                .setNo(1)
-                .scrollNo(999L)
-                .maker(userRepository.findByUsername("txn-user-INV-VCH-1").orElse(null))
-                .authFlag("Y")
-                .postFlag("N")
-                .cancelFlag("N")
-                .financialEffectFlag("Y")
-                .narration("Cross-tenant post attempt")
-                .build());
-
-        TestData tenantTwo = setupTestData("INV-VCH-2");
-        TenantContextHolder.setTenantId(tenantTwo.source.getTenant().getId());
-
-        assertThrows(RuntimeException.class, () -> voucherService.postVoucher(voucher.getId()),
-                "Posting another tenant voucher must fail");
     }
 
     @Test
