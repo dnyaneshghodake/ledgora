@@ -32,6 +32,7 @@
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-freeze">Freeze Control</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-accounts">Linked Accounts</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-approval">Approval</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-freeze-history">Freeze History</a></li>
 </ul>
 
 <div class="tab-content">
@@ -181,14 +182,60 @@
         </div>
     </div>
 </div>
+
+<%-- Freeze History Tab --%>
+<div class="tab-pane fade" id="tab-freeze-history">
+    <div class="card shadow">
+        <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-clock-history"></i> Freeze History</h5></div>
+        <div class="card-body">
+            <c:choose>
+                <c:when test="${not empty freezeHistory}">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
+                                <tr><th>Date</th><th>Action</th><th>Maker</th><th>Checker</th><th>Status</th><th>Reason</th></tr>
+                            </thead>
+                            <tbody>
+                                <c:forEach var="fh" items="${freezeHistory}">
+                                <tr>
+                                    <td><small><c:out value="${fh.timestamp}"/></small></td>
+                                    <td><span class="badge bg-info"><c:out value="${fh.action}"/></span></td>
+                                    <td><c:out value="${fh.username}" default="System"/></td>
+                                    <td><c:out value="${fh.checker}" default="--"/></td>
+                                    <td>
+                                        <c:choose>
+                                            <c:when test="${fh.action == 'FREEZE_APPLY'}"><span class="badge bg-danger">Frozen</span></c:when>
+                                            <c:when test="${fh.action == 'FREEZE_RELEASE'}"><span class="badge bg-success">Released</span></c:when>
+                                            <c:otherwise><span class="badge bg-secondary"><c:out value="${fh.action}"/></span></c:otherwise>
+                                        </c:choose>
+                                    </td>
+                                    <td><small><c:out value="${fh.details}"/></small></td>
+                                </tr>
+                                </c:forEach>
+                            </tbody>
+                        </table>
+                    </div>
+                </c:when>
+                <c:otherwise>
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+                        <p class="mt-2">No freeze history records found.</p>
+                    </div>
+                </c:otherwise>
+            </c:choose>
+        </div>
+    </div>
+</div>
 </div>
 
 <%-- Audit Info Section --%>
 <c:set var="auditCreatedBy" value="${customer.createdBy}" scope="request"/>
 <c:set var="auditCreatedAt" value="${customer.createdAt}" scope="request"/>
+<c:set var="auditLastModifiedBy" value="${customer.lastModifiedBy}" scope="request"/>
 <c:set var="auditUpdatedAt" value="${customer.updatedAt}" scope="request"/>
 <c:set var="auditApprovedBy" value="${customer.approvedBy}" scope="request"/>
 <c:set var="auditApprovalStatus" value="${customer.kycStatus}" scope="request"/>
+<c:set var="auditCurrentStatus" value="${customer.kycStatus}" scope="request"/>
 <c:set var="auditEntityType" value="Customer" scope="request"/>
 <c:set var="auditEntityId" value="${customer.customerId}" scope="request"/>
 <%@ include file="../layout/audit-info.jsp" %>

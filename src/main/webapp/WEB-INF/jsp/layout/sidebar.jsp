@@ -396,6 +396,36 @@
             </li>
             </c:if>
 
+            <%-- Audit & Governance Section --%>
+            <c:if test="${sessionScope.isAuditor || sessionScope.isAdmin || sessionScope.isSuperAdmin}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="audit-governance">
+                    <i class="bi bi-shield-check"></i>
+                    <span>Audit & Governance</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-audit-governance">
+                    <c:if test="${sessionScope.isAuditor || sessionScope.isAdmin || sessionScope.isSuperAdmin}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/audit/validation" class="cbs-nav-link" data-page="audit/validation">
+                            <i class="bi bi-clipboard-data"></i>
+                            <span>Audit Dashboard</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/approvals" class="cbs-nav-link" data-page="approvals-queue">
+                            <i class="bi bi-clipboard-check"></i>
+                            <span>Approval Queue</span>
+                            <c:if test="${sessionScope.pendingApprovals != null && sessionScope.pendingApprovals > 0}">
+                                <span class="cbs-badge">${sessionScope.pendingApprovals}</span>
+                            </c:if>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            </c:if>
+
             <c:if test="${sessionScope.isAdmin || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="admin">

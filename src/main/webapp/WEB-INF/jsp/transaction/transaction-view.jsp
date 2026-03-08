@@ -155,6 +155,16 @@
     </div>
 </div>
 
+<%-- Audit Info Section --%>
+<c:set var="auditCreatedBy" value="${transaction.performedBy != null ? transaction.performedBy.username : 'System'}" scope="request"/>
+<c:set var="auditCreatedAt" value="${transaction.createdAt}" scope="request"/>
+<c:set var="auditUpdatedAt" value="${transaction.updatedAt}" scope="request"/>
+<c:set var="auditApprovalStatus" value="${transaction.status}" scope="request"/>
+<c:set var="auditCurrentStatus" value="${transaction.status}" scope="request"/>
+<c:set var="auditEntityType" value="Transaction" scope="request"/>
+<c:set var="auditEntityId" value="${transaction.transactionRef}" scope="request"/>
+<%@ include file="../layout/audit-info.jsp" %>
+
 <%-- Audit Disclaimer --%>
 <div class="audit-disclaimer mt-3">
     <i class="bi bi-shield-lock"></i>

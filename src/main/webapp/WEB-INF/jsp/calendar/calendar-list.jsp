@@ -23,7 +23,7 @@
             <c:when test="${not empty entries}">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead class="table-light"><tr><th>Date</th><th>Type</th><th>Description</th><th>Status</th></tr></thead>
+                        <thead class="table-light"><tr><th>Date</th><th>Type</th><th>Description</th><th>Created By</th><th>Created At</th><th>Approved By</th><th>Approval Status</th><th>Last Updated</th></tr></thead>
                         <tbody>
                             <c:forEach var="e" items="${entries}">
                             <tr>
@@ -35,7 +35,18 @@
                                     </c:choose>
                                 </td>
                                 <td><c:out value="${e.description}"/></td>
-                                <td><span class="badge bg-info"><c:out value="${e.approvalStatus}"/></span></td>
+                                <td><c:out value="${e.createdBy != null ? e.createdBy.username : 'System'}"/></td>
+                                <td><small><c:out value="${e.createdAt}"/></small></td>
+                                <td><c:out value="${e.approvedBy != null ? e.approvedBy.username : '--'}"/></td>
+                                <td>
+                                    <c:choose>
+                                        <c:when test="${e.approvalStatus == 'APPROVED'}"><span class="badge bg-success">APPROVED</span></c:when>
+                                        <c:when test="${e.approvalStatus == 'PENDING'}"><span class="badge bg-warning">PENDING</span></c:when>
+                                        <c:when test="${e.approvalStatus == 'REJECTED'}"><span class="badge bg-danger">REJECTED</span></c:when>
+                                        <c:otherwise><span class="badge bg-info"><c:out value="${e.approvalStatus}"/></span></c:otherwise>
+                                    </c:choose>
+                                </td>
+                                <td><small><c:out value="${e.updatedAt}"/></small></td>
                             </tr>
                             </c:forEach>
                         </tbody>

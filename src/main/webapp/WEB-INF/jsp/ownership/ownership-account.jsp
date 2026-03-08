@@ -50,6 +50,41 @@
     </div>
 </div>
 
+<%-- Audit Info for Ownership --%>
+<c:if test="${not empty ownerships}">
+<div class="card shadow mb-4">
+    <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-shield-check"></i> Ownership Audit Trail</h5></div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm">
+                <thead class="table-light">
+                    <tr><th>Owner</th><th>Type</th><th>Created By</th><th>Created At</th><th>Approved By</th><th>Approval Status</th><th>Last Updated</th></tr>
+                </thead>
+                <tbody>
+                    <c:forEach var="o" items="${ownerships}">
+                    <tr>
+                        <td><c:out value="${o.customer.firstName}"/> <c:out value="${o.customer.lastName}"/></td>
+                        <td><span class="badge bg-info"><c:out value="${o.ownershipType}"/></span></td>
+                        <td><c:out value="${o.createdBy != null ? o.createdBy.username : 'System'}"/></td>
+                        <td><small><c:out value="${o.createdAt}"/></small></td>
+                        <td><c:out value="${o.approvedBy != null ? o.approvedBy.username : '--'}"/></td>
+                        <td>
+                            <c:choose>
+                                <c:when test="${o.approvalStatus == 'APPROVED'}"><span class="badge bg-success">APPROVED</span></c:when>
+                                <c:when test="${o.approvalStatus == 'PENDING'}"><span class="badge bg-warning">PENDING</span></c:when>
+                                <c:otherwise><span class="badge bg-secondary"><c:out value="${o.approvalStatus}"/></span></c:otherwise>
+                            </c:choose>
+                        </td>
+                        <td><small><c:out value="${o.updatedAt}"/></small></td>
+                    </tr>
+                    </c:forEach>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</c:if>
+
 <div class="card shadow">
     <div class="card-header bg-white"><h5 class="mb-0">Add Ownership</h5></div>
     <div class="card-body">

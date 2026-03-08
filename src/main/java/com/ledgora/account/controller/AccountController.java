@@ -4,6 +4,8 @@ import com.ledgora.account.dto.AccountDTO;
 import com.ledgora.account.entity.Account;
 import com.ledgora.account.entity.AccountBalance;
 import com.ledgora.account.service.AccountService;
+import com.ledgora.audit.entity.AuditLog;
+import com.ledgora.audit.repository.AuditLogRepository;
 import com.ledgora.balance.service.CbsBalanceEngine;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
@@ -16,8 +18,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/accounts")
@@ -25,10 +29,13 @@ public class AccountController {
 
     private final AccountService accountService;
     private final CbsBalanceEngine balanceEngine;
+    private final AuditLogRepository auditLogRepository;
 
-    public AccountController(AccountService accountService, CbsBalanceEngine balanceEngine) {
+    public AccountController(AccountService accountService, CbsBalanceEngine balanceEngine,
+                             AuditLogRepository auditLogRepository) {
         this.accountService = accountService;
         this.balanceEngine = balanceEngine;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @GetMapping
@@ -85,6 +92,45 @@ public class AccountController {
                 .orElseThrow(() -> new RuntimeException("Account not found"));
         model.addAttribute("account", account);
         model.addAttribute("accountTypes", AccountType.values());
+        // Load freeze history from audit logs
+        try {
+            List<AuditLog> freezeLogs = auditLogRepository.findByEntityAndEntityId("ACCOUNT", id)
+                    .stream()
+                    .filter(log -> log.getAction() != null && log.getAction().contains("FREEZE"))
+                    .collect(Collectors.toList());
+            List<Map<String, Object>> freezeHistory = freezeLogs.stream().map(log -> {
+                Map<String, Object> entry = new HashMap<>();
+                entry.put("timestamp", log.getTimestamp());
+                entry.put("action", log.getAction());
+                entry.put("username", log.getUsername() != null ? log.getUsername() : "System");
+                entry.put("checker", "--");
+                entry.put("details", log.getDetails());
+                return entry;
+            }).collect(Collectors.toList());
+            model.addAttribute("freezeHistory", freezeHistory);
+        } catch (Exception e) {
+            model.addAttribute("freezeHistory", List.of());
+        }
+        // Load lien history from audit logs
+        try {
+            List<AuditLog> lienLogs = auditLogRepository.findByEntityAndEntityId("ACCOUNT", id)
+                    .stream()
+                    .filter(log -> log.getAction() != null && log.getAction().contains("LIEN"))
+                    .collect(Collectors.toList());
+            List<Map<String, Object>> lienHistory = lienLogs.stream().map(log -> {
+                Map<String, Object> entry = new HashMap<>();
+                entry.put("timestamp", log.getTimestamp());
+                entry.put("action", log.getAction());
+                entry.put("username", log.getUsername() != null ? log.getUsername() : "System");
+                entry.put("checker", "--");
+                entry.put("details", log.getDetails());
+                entry.put("amount", "--");
+                return entry;
+            }).collect(Collectors.toList());
+            model.addAttribute("lienHistory", lienHistory);
+        } catch (Exception e) {
+            model.addAttribute("lienHistory", List.of());
+        }
         return "account/account-view";
     }
 
