@@ -2,56 +2,59 @@
 <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3><i class="bi bi-pencil-square"></i> Edit Account</h3>
-    <a href="${pageContext.request.contextPath}/accounts/${accountDTO.id}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+<div class="row mb-4">
+    <div class="col-12">
+        <h3><i class="bi bi-pencil"></i> Edit Account</h3>
+        <hr>
+    </div>
 </div>
 
-<c:if test="${not empty error}">
-    <div class="alert alert-danger"><c:out value="${error}"/></div>
-</c:if>
-
-<div class="card shadow">
-    <div class="card-body">
-        <form:form method="post" action="${pageContext.request.contextPath}/accounts/${accountDTO.id}/edit" modelAttribute="accountDTO">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">Account Number</label>
-                    <input type="text" class="form-control" value="<c:out value="${accountDTO.accountNumber}"/>" disabled/>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Account Name *</label>
-                    <form:input path="accountName" cssClass="form-control" required="required" maxlength="100"/>
-                    <form:errors path="accountName" cssClass="text-danger small" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Account Type</label>
-                    <input type="text" class="form-control" value="<c:out value="${accountDTO.accountType}"/>" disabled/>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Interest Rate (%)</label>
-                    <form:input path="interestRate" type="number" cssClass="form-control" step="0.01" min="0" max="100"/>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Overdraft Limit</label>
-                    <form:input path="overdraftLimit" type="number" cssClass="form-control" step="0.01" min="0"/>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">Status</label>
-                    <form:select path="status" cssClass="form-select">
-                        <option value="ACTIVE" ${accountDTO.status == 'ACTIVE' ? 'selected' : ''}>ACTIVE</option>
-                        <option value="INACTIVE" ${accountDTO.status == 'INACTIVE' ? 'selected' : ''}>INACTIVE</option>
-                        <option value="SUSPENDED" ${accountDTO.status == 'SUSPENDED' ? 'selected' : ''}>SUSPENDED</option>
-                        <option value="FROZEN" ${accountDTO.status == 'FROZEN' ? 'selected' : ''}>FROZEN</option>
-                        <option value="CLOSED" ${accountDTO.status == 'CLOSED' ? 'selected' : ''}>CLOSED</option>
-                    </form:select>
-                </div>
-                <div class="col-12">
-                    <hr>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Save Changes</button>
-                </div>
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-body p-4">
+                <form:form action="${pageContext.request.contextPath}/accounts/${accountDTO.id}/edit" method="post" modelAttribute="accountDTO">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Account Number</label>
+                            <input type="text" class="form-control" value="${accountDTO.accountNumber}" disabled/>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="accountName" class="form-label">Account Name *</label>
+                            <form:input path="accountName" cssClass="form-control" id="accountName" required="true"/>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="customerName" class="form-label">Customer Name *</label>
+                            <form:input path="customerName" cssClass="form-control" id="customerName" required="true"/>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="customerEmail" class="form-label">Customer Email</label>
+                            <form:input path="customerEmail" type="email" cssClass="form-control" id="customerEmail"/>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="customerPhone" class="form-label">Phone</label>
+                            <form:input path="customerPhone" cssClass="form-control" id="customerPhone"/>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="branchCode" class="form-label">Branch Code</label>
+                            <form:input path="branchCode" cssClass="form-control" id="branchCode"/>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="glAccountCode" class="form-label">GL Account Code</label>
+                            <form:input path="glAccountCode" cssClass="form-control" id="glAccountCode"/>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Update</button>
+                        <a href="${pageContext.request.contextPath}/accounts/${accountDTO.id}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form:form>
             </div>
-        </form:form>
+        </div>
     </div>
 </div>
 

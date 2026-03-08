@@ -1,176 +1,260 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
-<c:if test="${not empty message}">
-    <div class="alert alert-success alert-dismissible fade show"><c:out value="${message}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-</c:if>
-<c:if test="${not empty error}">
-    <div class="alert alert-danger alert-dismissible fade show"><c:out value="${error}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+<%-- Customer Freeze Banner --%>
+<c:if test="${customer.frozen || customer.debitFrozen || customer.creditFrozen}">
+<div class="cbs-freeze-banner">
+    <i class="bi bi-slash-circle-fill"></i>
+    <span>CUSTOMER FROZEN &mdash; Transactions Blocked
+        <c:if test="${customer.debitFrozen && !customer.creditFrozen}"> (Debit Freeze)</c:if>
+        <c:if test="${customer.creditFrozen && !customer.debitFrozen}"> (Credit Freeze)</c:if>
+        <c:if test="${customer.debitFrozen && customer.creditFrozen}"> (Full Freeze)</c:if>
+    </span>
+</div>
 </c:if>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3><i class="bi bi-person"></i> Customer Details</h3>
     <div>
-        <a href="${pageContext.request.contextPath}/customers/${customer.customerId}/edit" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
-        <a href="${pageContext.request.contextPath}/customers" class="btn btn-outline-primary"><i class="bi bi-arrow-left"></i> Back</a>
+        <a href="${pageContext.request.contextPath}/customers/${customer.customerId}/edit" class="btn btn-outline-secondary">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+        <a href="${pageContext.request.contextPath}/customers" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
     </div>
 </div>
 
-<c:if test="${customer.kycStatus == 'PENDING'}">
-<div class="alert alert-warning mb-3"><i class="bi bi-hourglass-split"></i> <strong>PENDING APPROVAL</strong> - This customer requires approval before accounts can be opened.</div>
-</c:if>
-
-<ul class="nav nav-tabs mb-4" id="customerTabs">
-    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-basic">Basic Details</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-tax">Tax Profile</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-freeze">Freeze Control</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-accounts">Linked Accounts</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-approval">Approval</a></li>
+<%-- CBS Tabbed Navigation --%>
+<ul class="nav cbs-tabs mb-4">
+    <li class="nav-item">
+        <a class="nav-link active" href="#" data-tab="tab-basic">Basic Details</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" data-tab="tab-tax">Tax Profile</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" data-tab="tab-freeze">Freeze Control</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" data-tab="tab-relationship">Relationship</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#" data-tab="tab-audit">Audit Trail</a>
+    </li>
 </ul>
 
-<div class="tab-content">
-<div class="tab-pane fade show active" id="tab-basic">
+<%-- Tab: Basic Details --%>
+<div class="cbs-tab-pane" id="tab-basic" style="display: block;">
     <div class="card shadow">
-        <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-person-badge"></i> Customer Information</h5></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-4"><strong>Customer ID:</strong> <c:out value="${customer.customerId}"/></div>
-                <div class="col-md-4"><strong>National ID:</strong> <c:out value="${customer.nationalId}"/></div>
-                <div class="col-md-4"><strong>KYC Status:</strong>
+                <div class="col-md-6"><strong>Customer ID:</strong> <c:out value="${customer.customerId}"/></div>
+                <div class="col-md-6"><strong>Name:</strong> <c:out value="${customer.firstName}"/> <c:out value="${customer.lastName}"/></div>
+                <div class="col-md-6"><strong>National ID:</strong> <code><c:out value="${customer.nationalId}"/></code></div>
+                <div class="col-md-6"><strong>Date of Birth:</strong> ${customer.dob}</div>
+                <div class="col-md-6"><strong>Email:</strong> <c:out value="${customer.email}"/></div>
+                <div class="col-md-6"><strong>Phone:</strong> <c:out value="${customer.phone}"/></div>
+                <div class="col-12"><strong>Address:</strong> <c:out value="${customer.address}"/></div>
+                <div class="col-md-6">
+                    <strong>KYC Status:</strong>
                     <c:choose>
                         <c:when test="${customer.kycStatus == 'VERIFIED'}"><span class="badge bg-success">VERIFIED</span></c:when>
                         <c:when test="${customer.kycStatus == 'PENDING'}"><span class="badge bg-warning">PENDING</span></c:when>
                         <c:when test="${customer.kycStatus == 'REJECTED'}"><span class="badge bg-danger">REJECTED</span></c:when>
-                        <c:otherwise><span class="badge bg-secondary"><c:out value="${customer.kycStatus}"/></span></c:otherwise>
+                        <c:otherwise><span class="badge bg-secondary">${customer.kycStatus}</span></c:otherwise>
                     </c:choose>
                 </div>
-                <div class="col-md-4"><strong>First Name:</strong> <c:out value="${customer.firstName}"/></div>
-                <div class="col-md-4"><strong>Last Name:</strong> <c:out value="${customer.lastName}"/></div>
-                <div class="col-md-4"><strong>Date of Birth:</strong> <c:out value="${customer.dob}"/></div>
-                <div class="col-md-4"><strong>Mobile:</strong> <c:out value="${customer.phone}"/></div>
-                <div class="col-md-4"><strong>Email:</strong> <c:out value="${customer.email}"/></div>
-                <div class="col-md-4"><strong>Created:</strong> <c:out value="${customer.createdAt}"/></div>
-                <div class="col-12"><strong>Address:</strong> <c:out value="${customer.address}"/></div>
+                <div class="col-md-6"><strong>Created:</strong> ${customer.createdAt}</div>
             </div>
             <hr>
-            <h6>Update KYC Status</h6>
+            <h5>Update KYC Status</h5>
             <form method="post" action="${pageContext.request.contextPath}/customers/${customer.customerId}/kyc" class="row g-2">
                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                 <div class="col-md-4">
                     <select name="kycStatus" class="form-select">
-                        <option value="PENDING" ${customer.kycStatus == 'PENDING' ? 'selected' : ''}>PENDING</option>
-                        <option value="VERIFIED" ${customer.kycStatus == 'VERIFIED' ? 'selected' : ''}>VERIFIED</option>
-                        <option value="REJECTED" ${customer.kycStatus == 'REJECTED' ? 'selected' : ''}>REJECTED</option>
+                        <option value="PENDING">PENDING</option>
+                        <option value="VERIFIED">VERIFIED</option>
+                        <option value="REJECTED">REJECTED</option>
                     </select>
                 </div>
-                <div class="col-md-2"><button type="submit" class="btn btn-primary">Update KYC</button></div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary">Update</button>
+                </div>
             </form>
         </div>
     </div>
 </div>
 
-<div class="tab-pane fade" id="tab-tax">
+<%-- Tab: Tax Profile --%>
+<div class="cbs-tab-pane" id="tab-tax" style="display: none;">
     <div class="card shadow">
         <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-receipt"></i> Tax Profile</h5></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-4"><strong>PAN:</strong> <c:out value="${customer.nationalId}" default="Not provided"/></div>
-                <div class="col-md-4"><strong>Aadhaar:</strong> <span class="text-muted">XXXX-XXXX-****</span></div>
-                <div class="col-md-4"><strong>GST:</strong> <span class="text-muted">Not provided</span></div>
+                <div class="col-md-6">
+                    <strong>PAN / Tax ID:</strong>
+                    <c:choose>
+                        <c:when test="${not empty customer.taxId}"><c:out value="${customer.taxId}"/></c:when>
+                        <c:otherwise><span class="text-muted">Not provided</span></c:otherwise>
+                    </c:choose>
+                </div>
+                <div class="col-md-6">
+                    <strong>Tax Residency:</strong>
+                    <c:choose>
+                        <c:when test="${not empty customer.taxResidency}"><c:out value="${customer.taxResidency}"/></c:when>
+                        <c:otherwise><span class="text-muted">Not set</span></c:otherwise>
+                    </c:choose>
+                </div>
+                <div class="col-md-6">
+                    <strong>TDS Applicable:</strong>
+                    <c:choose>
+                        <c:when test="${customer.tdsApplicable}"><span class="badge bg-warning">Yes</span></c:when>
+                        <c:otherwise><span class="badge bg-secondary">No</span></c:otherwise>
+                    </c:choose>
+                </div>
+                <div class="col-md-6">
+                    <strong>Tax Category:</strong>
+                    <c:choose>
+                        <c:when test="${not empty customer.taxCategory}"><c:out value="${customer.taxCategory}"/></c:when>
+                        <c:otherwise><span class="text-muted">Default</span></c:otherwise>
+                    </c:choose>
+                </div>
             </div>
-            <hr>
-            <a href="${pageContext.request.contextPath}/tax-profiles/create?customerId=${customer.customerId}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil"></i> Manage Tax Profile</a>
         </div>
     </div>
 </div>
 
-<div class="tab-pane fade" id="tab-freeze">
+<%-- Tab: Freeze Control --%>
+<div class="cbs-tab-pane" id="tab-freeze" style="display: none;">
     <div class="card shadow">
         <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-snow"></i> Freeze Control</h5></div>
         <div class="card-body">
-            <h6>Update Freeze Level</h6>
-            <form method="post" action="${pageContext.request.contextPath}/customers/${customer.customerId}/freeze" class="row g-2">
-                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
-                <div class="col-md-3">
-                    <label class="form-label">Freeze Level *</label>
-                    <select name="freezeLevel" class="form-select" required>
-                        <c:forEach var="fl" items="${freezeLevels}">
-                            <option value="${fl}"><c:out value="${fl}"/></option>
-                        </c:forEach>
-                    </select>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="card ${customer.debitFrozen ? 'border-danger' : 'border-success'}">
+                        <div class="card-body text-center">
+                            <i class="bi ${customer.debitFrozen ? 'bi-lock-fill text-danger' : 'bi-unlock-fill text-success'}" style="font-size: 2rem;"></i>
+                            <h6 class="mt-2">Debit Freeze</h6>
+                            <span class="badge ${customer.debitFrozen ? 'bg-danger' : 'bg-success'}">${customer.debitFrozen ? 'FROZEN' : 'ACTIVE'}</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-5">
-                    <label class="form-label">Freeze Reason *</label>
-                    <input type="text" name="freezeReason" class="form-control" required maxlength="255" placeholder="Reason for freeze/unfreeze"/>
+                <div class="col-md-4">
+                    <div class="card ${customer.creditFrozen ? 'border-danger' : 'border-success'}">
+                        <div class="card-body text-center">
+                            <i class="bi ${customer.creditFrozen ? 'bi-lock-fill text-danger' : 'bi-unlock-fill text-success'}" style="font-size: 2rem;"></i>
+                            <h6 class="mt-2">Credit Freeze</h6>
+                            <span class="badge ${customer.creditFrozen ? 'bg-danger' : 'bg-success'}">${customer.creditFrozen ? 'FROZEN' : 'ACTIVE'}</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button type="submit" class="btn btn-warning"><i class="bi bi-snow"></i> Update Freeze</button>
+                <div class="col-md-4">
+                    <div class="card ${customer.frozen ? 'border-danger' : 'border-success'}">
+                        <div class="card-body text-center">
+                            <i class="bi ${customer.frozen ? 'bi-shield-lock-fill text-danger' : 'bi-shield-check text-success'}" style="font-size: 2rem;"></i>
+                            <h6 class="mt-2">Full Freeze</h6>
+                            <span class="badge ${customer.frozen ? 'bg-danger' : 'bg-success'}">${customer.frozen ? 'FROZEN' : 'ACTIVE'}</span>
+                        </div>
+                    </div>
                 </div>
-            </form>
+            </div>
+            <c:if test="${not empty customer.freezeReason}">
+            <div class="alert alert-warning mt-3">
+                <strong>Freeze Reason:</strong> <c:out value="${customer.freezeReason}"/>
+            </div>
+            </c:if>
         </div>
     </div>
 </div>
 
-<div class="tab-pane fade" id="tab-accounts">
+<%-- Tab: Relationship --%>
+<div class="cbs-tab-pane" id="tab-relationship" style="display: none;">
     <div class="card shadow">
-        <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-wallet2"></i> Linked Accounts</h5></div>
+        <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-people"></i> Linked Accounts & Relationships</h5></div>
         <div class="card-body">
             <c:choose>
                 <c:when test="${not empty linkedAccounts}">
                     <div class="table-responsive">
                         <table class="table table-hover">
-                            <thead class="table-light">
-                                <tr><th>Account Number</th><th>Name</th><th>Type</th><th>Status</th><th>Balance</th><th>Actions</th></tr>
+                            <thead>
+                                <tr>
+                                    <th>Account Number</th>
+                                    <th>Account Name</th>
+                                    <th>Type</th>
+                                    <th>Status</th>
+                                    <th>Balance</th>
+                                </tr>
                             </thead>
                             <tbody>
                                 <c:forEach var="acct" items="${linkedAccounts}">
                                 <tr>
                                     <td><code><c:out value="${acct.accountNumber}"/></code></td>
                                     <td><c:out value="${acct.accountName}"/></td>
-                                    <td><span class="badge bg-info"><c:out value="${acct.accountType}"/></span></td>
-                                    <td><span class="badge bg-success"><c:out value="${acct.status}"/></span></td>
-                                    <td class="fw-bold"><c:out value="${acct.balance}"/></td>
-                                    <td><a href="${pageContext.request.contextPath}/accounts/${acct.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                                    <td><span class="badge bg-info">${acct.accountType}</span></td>
+                                    <td>
+                                        <c:choose>
+                                            <c:when test="${acct.status == 'ACTIVE'}"><span class="badge bg-success">ACTIVE</span></c:when>
+                                            <c:otherwise><span class="badge bg-secondary">${acct.status}</span></c:otherwise>
+                                        </c:choose>
+                                    </td>
+                                    <td>${acct.balance} ${acct.currency}</td>
                                 </tr>
                                 </c:forEach>
                             </tbody>
                         </table>
                     </div>
                 </c:when>
-                <c:otherwise><div class="text-center py-4 text-muted"><i class="bi bi-wallet2" style="font-size: 2rem;"></i><p class="mt-2">No linked accounts.</p></div></c:otherwise>
+                <c:otherwise>
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-wallet2" style="font-size: 2rem;"></i>
+                        <p class="mt-2">No linked accounts found for this customer.</p>
+                    </div>
+                </c:otherwise>
             </c:choose>
         </div>
     </div>
 </div>
 
-<div class="tab-pane fade" id="tab-approval">
+<%-- Tab: Audit Trail --%>
+<div class="cbs-tab-pane" id="tab-audit" style="display: none;">
     <div class="card shadow">
-        <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-clipboard-check"></i> Approval</h5></div>
+        <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-clock-history"></i> Audit Trail</h5></div>
         <div class="card-body">
-            <div class="row g-3 mb-3">
-                <div class="col-md-4"><strong>Status:</strong>
-                    <c:choose>
-                        <c:when test="${customer.kycStatus == 'VERIFIED'}"><span class="badge bg-success">APPROVED</span></c:when>
-                        <c:when test="${customer.kycStatus == 'PENDING'}"><span class="badge bg-warning">PENDING</span></c:when>
-                        <c:otherwise><span class="badge bg-secondary"><c:out value="${customer.kycStatus}"/></span></c:otherwise>
-                    </c:choose>
-                </div>
-            </div>
-            <c:if test="${customer.kycStatus == 'PENDING'}">
-                <div class="d-flex gap-2">
-                    <form method="post" action="${pageContext.request.contextPath}/customers/${customer.customerId}/approve">
-                        <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
-                        <button type="submit" class="btn btn-success" onclick="return confirm('Approve this customer?')"><i class="bi bi-check-circle"></i> Approve</button>
-                    </form>
-                    <form method="post" action="${pageContext.request.contextPath}/customers/${customer.customerId}/reject">
-                        <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
-                        <button type="submit" class="btn btn-danger" onclick="return confirm('Reject this customer?')"><i class="bi bi-x-circle"></i> Reject</button>
-                    </form>
-                </div>
-            </c:if>
+            <c:choose>
+                <c:when test="${not empty auditTrail}">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Action</th>
+                                    <th>Performed By</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <c:forEach var="audit" items="${auditTrail}">
+                                <tr>
+                                    <td><small>${audit.timestamp}</small></td>
+                                    <td><span class="badge bg-secondary">${audit.action}</span></td>
+                                    <td><c:out value="${audit.performedBy}"/></td>
+                                    <td><small><c:out value="${audit.details}"/></small></td>
+                                </tr>
+                                </c:forEach>
+                            </tbody>
+                        </table>
+                    </div>
+                </c:when>
+                <c:otherwise>
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+                        <p class="mt-2">No audit records available.</p>
+                    </div>
+                </c:otherwise>
+            </c:choose>
         </div>
     </div>
-</div>
 </div>
 
 <%@ include file="../layout/footer.jsp" %>

@@ -1,100 +1,80 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ include file="../layout/header.jsp" %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h3><i class="bi bi-people"></i> Customer Master</h3>
-    <a href="${pageContext.request.contextPath}/customers/create" class="btn btn-primary"><i class="bi bi-person-plus"></i> Add Customer</a>
+    <h3><i class="bi bi-people"></i> Customers</h3>
+    <a href="${pageContext.request.contextPath}/customers/create" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Add Customer
+    </a>
 </div>
 
-<c:if test="${not empty message}">
-    <div class="alert alert-success alert-dismissible fade show"><c:out value="${message}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-</c:if>
-
-<%-- Search & Filter Bar (PART 9) --%>
 <div class="card shadow mb-4">
     <div class="card-body">
-        <form method="get" action="${pageContext.request.contextPath}/customers" class="row g-2">
-            <div class="col-md-3">
-                <input type="text" name="search" class="form-control" placeholder="Search by Name or ID" value="<c:out value="${param.search}"/>"/>
+        <form method="get" action="${pageContext.request.contextPath}/customers" class="row g-3">
+            <div class="col-md-5">
+                <input type="text" name="search" class="form-control" placeholder="Search by name..." value="${search}">
             </div>
-            <div class="col-md-2">
+            <div class="col-md-4">
                 <select name="kycStatus" class="form-select">
                     <option value="">All KYC Status</option>
-                    <option value="PENDING" ${param.kycStatus == 'PENDING' ? 'selected' : ''}>PENDING</option>
-                    <option value="VERIFIED" ${param.kycStatus == 'VERIFIED' ? 'selected' : ''}>VERIFIED</option>
-                    <option value="REJECTED" ${param.kycStatus == 'REJECTED' ? 'selected' : ''}>REJECTED</option>
+                    <option value="PENDING" ${selectedKycStatus == 'PENDING' ? 'selected' : ''}>PENDING</option>
+                    <option value="VERIFIED" ${selectedKycStatus == 'VERIFIED' ? 'selected' : ''}>VERIFIED</option>
+                    <option value="REJECTED" ${selectedKycStatus == 'REJECTED' ? 'selected' : ''}>REJECTED</option>
                 </select>
             </div>
-            <div class="col-md-2">
-                <select name="approvalStatus" class="form-select">
-                    <option value="">All Approval</option>
-                    <option value="PENDING" ${param.approvalStatus == 'PENDING' ? 'selected' : ''}>PENDING</option>
-                    <option value="APPROVED" ${param.approvalStatus == 'APPROVED' ? 'selected' : ''}>APPROVED</option>
-                    <option value="REJECTED" ${param.approvalStatus == 'REJECTED' ? 'selected' : ''}>REJECTED</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-search"></i> Search</button>
-            </div>
-            <div class="col-md-2">
-                <a href="${pageContext.request.contextPath}/customers" class="btn btn-outline-secondary w-100">Reset</a>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-search"></i> Filter</button>
             </div>
         </form>
     </div>
 </div>
 
 <div class="card shadow">
-    <div class="card-body">
-        <c:choose>
-            <c:when test="${not empty customers}">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>ID</th>
-                                <th>Name</th>
-                                <th>National ID</th>
-                                <th>Mobile</th>
-                                <th>Email</th>
-                                <th>KYC Status</th>
-                                <th>Created</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <c:forEach var="c" items="${customers}">
-                            <tr>
-                                <td><c:out value="${c.customerId}"/></td>
-                                <td><c:out value="${c.firstName}"/> <c:out value="${c.lastName}"/></td>
-                                <td><code><c:out value="${c.nationalId}"/></code></td>
-                                <td><c:out value="${c.phone}"/></td>
-                                <td><c:out value="${c.email}"/></td>
-                                <td>
-                                    <c:choose>
-                                        <c:when test="${c.kycStatus == 'VERIFIED'}"><span class="badge bg-success">VERIFIED</span></c:when>
-                                        <c:when test="${c.kycStatus == 'PENDING'}"><span class="badge bg-warning">PENDING</span></c:when>
-                                        <c:when test="${c.kycStatus == 'REJECTED'}"><span class="badge bg-danger">REJECTED</span></c:when>
-                                        <c:otherwise><span class="badge bg-secondary"><c:out value="${c.kycStatus}"/></span></c:otherwise>
-                                    </c:choose>
-                                </td>
-                                <td><small><c:out value="${c.createdAt}"/></small></td>
-                                <td>
-                                    <a href="${pageContext.request.contextPath}/customers/${c.customerId}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
-                                    <a href="${pageContext.request.contextPath}/customers/${c.customerId}/edit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
-                                </td>
-                            </tr>
-                            </c:forEach>
-                        </tbody>
-                    </table>
-                </div>
-            </c:when>
-            <c:otherwise>
-                <div class="text-center py-4 text-muted">
-                    <i class="bi bi-people" style="font-size: 3rem;"></i>
-                    <p class="mt-2">No customers found.</p>
-                </div>
-            </c:otherwise>
-        </c:choose>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>National ID</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>KYC Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <c:forEach var="customer" items="${customers}">
+                    <tr>
+                        <td>${customer.customerId}</td>
+                        <td><c:out value="${customer.firstName}"/> <c:out value="${customer.lastName}"/></td>
+                        <td><code><c:out value="${customer.nationalId}"/></code></td>
+                        <td><c:out value="${customer.email}"/></td>
+                        <td><c:out value="${customer.phone}"/></td>
+                        <td>
+                            <c:choose>
+                                <c:when test="${customer.kycStatus == 'VERIFIED'}"><span class="badge bg-success">VERIFIED</span></c:when>
+                                <c:when test="${customer.kycStatus == 'PENDING'}"><span class="badge bg-warning">PENDING</span></c:when>
+                                <c:when test="${customer.kycStatus == 'REJECTED'}"><span class="badge bg-danger">REJECTED</span></c:when>
+                                <c:otherwise><span class="badge bg-secondary">${customer.kycStatus}</span></c:otherwise>
+                            </c:choose>
+                        </td>
+                        <td>
+                            <a href="${pageContext.request.contextPath}/customers/${customer.customerId}" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            <a href="${pageContext.request.contextPath}/customers/${customer.customerId}/edit" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                        </td>
+                    </tr>
+                </c:forEach>
+                <c:if test="${empty customers}">
+                    <tr><td colspan="7" class="text-center text-muted py-4">No customers found</td></tr>
+                </c:if>
+            </tbody>
+        </table>
     </div>
 </div>
 

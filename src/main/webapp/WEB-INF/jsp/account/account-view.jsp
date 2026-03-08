@@ -1,214 +1,190 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
-<c:if test="${not empty message}">
-    <div class="alert alert-success alert-dismissible fade show"><c:out value="${message}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-</c:if>
-<c:if test="${not empty error}">
-    <div class="alert alert-danger"><c:out value="${error}"/></div>
-</c:if>
-
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h3><i class="bi bi-wallet2"></i> Account Details</h3>
     <div>
-        <a href="${pageContext.request.contextPath}/accounts/${account.id}/edit" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
-        <a href="${pageContext.request.contextPath}/accounts" class="btn btn-outline-primary"><i class="bi bi-arrow-left"></i> Back</a>
+        <a href="${pageContext.request.contextPath}/accounts/${account.id}/edit" class="btn btn-outline-secondary">
+            <i class="bi bi-pencil"></i> Edit
+        </a>
+        <a href="${pageContext.request.contextPath}/transactions/history/${account.accountNumber}" class="btn btn-outline-info">
+            <i class="bi bi-clock-history"></i> Transaction History
+        </a>
+        <a href="${pageContext.request.contextPath}/accounts" class="btn btn-secondary">Back</a>
     </div>
 </div>
 
-<%-- Freeze Warning Banner --%>
-<c:if test="${account.freezeLevel != null && account.freezeLevel != 'NONE'}">
-<div class="alert alert-danger"><i class="bi bi-slash-circle-fill"></i> <strong>ACCOUNT FROZEN</strong> - Freeze Level: <c:out value="${account.freezeLevel}"/>
-    <c:if test="${not empty account.freezeReason}"> | Reason: <c:out value="${account.freezeReason}"/></c:if>
-</div>
-</c:if>
-
-<ul class="nav nav-tabs mb-4" id="accountTabs">
-    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-details">Details</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-balances">Balances</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-ownership">Ownership</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-liens">Liens</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-transactions">Transactions</a></li>
-</ul>
-
-<div class="tab-content">
-<%-- Details Tab --%>
-<div class="tab-pane fade show active" id="tab-details">
-    <div class="card shadow">
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-4"><strong>Account Number:</strong> <code><c:out value="${account.accountNumber}"/></code></div>
-                <div class="col-md-4"><strong>Account Name:</strong> <c:out value="${account.accountName}"/></div>
-                <div class="col-md-4"><strong>Type:</strong> <span class="badge bg-info"><c:out value="${account.accountType}"/></span></div>
-                <div class="col-md-4"><strong>Customer:</strong> <c:out value="${account.customerName}"/></div>
-                <div class="col-md-4"><strong>Currency:</strong> <c:out value="${account.currency}"/></div>
-                <div class="col-md-4">
-                    <strong>Status:</strong>
-                    <c:choose>
-                        <c:when test="${account.status == 'ACTIVE'}"><span class="badge bg-success">ACTIVE</span></c:when>
-                        <c:when test="${account.status == 'FROZEN'}"><span class="badge bg-danger">FROZEN</span></c:when>
-                        <c:otherwise><span class="badge bg-secondary"><c:out value="${account.status}"/></span></c:otherwise>
-                    </c:choose>
-                </div>
-                <div class="col-md-4"><strong>Freeze Level:</strong>
-                    <c:choose>
-                        <c:when test="${account.freezeLevel != null && account.freezeLevel != 'NONE'}"><span class="badge bg-danger"><c:out value="${account.freezeLevel}"/></span></c:when>
-                        <c:otherwise><span class="badge bg-success">NONE</span></c:otherwise>
-                    </c:choose>
-                </div>
-                <div class="col-md-4"><strong>Interest Rate:</strong> <c:out value="${account.interestRate}"/>%</div>
-                <div class="col-md-4"><strong>Overdraft Limit:</strong> <c:out value="${account.overdraftLimit}"/></div>
-                <div class="col-md-4"><strong>GL Code:</strong> <c:out value="${account.glAccountCode}"/></div>
-                <div class="col-md-4"><strong>Created:</strong> <c:out value="${account.createdAt}"/></div>
-                <div class="col-md-4"><strong>Approval:</strong>
-                    <c:choose>
-                        <c:when test="${account.approvalStatus == 'APPROVED'}"><span class="badge bg-success">APPROVED</span></c:when>
-                        <c:when test="${account.approvalStatus == 'PENDING'}"><span class="badge bg-warning">PENDING</span></c:when>
-                        <c:otherwise><span class="badge bg-secondary"><c:out value="${account.approvalStatus}"/></span></c:otherwise>
-                    </c:choose>
-                </div>
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-white"><h5 class="mb-0">Account Information</h5></div>
+            <div class="card-body">
+                <table class="table table-borderless">
+                    <tr><td class="text-muted" width="200">Account Number</td><td><code class="fs-5"><c:out value="${account.accountNumber}"/></code></td></tr>
+                    <tr><td class="text-muted">Account Name</td><td><c:out value="${account.accountName}"/></td></tr>
+                    <tr><td class="text-muted">Type</td><td><span class="badge bg-info">${account.accountType}</span></td></tr>
+                    <tr><td class="text-muted">Status</td><td>
+                        <c:choose>
+                            <c:when test="${account.status == 'ACTIVE'}"><span class="badge bg-success">ACTIVE</span></c:when>
+                            <c:when test="${account.status == 'SUSPENDED'}"><span class="badge bg-warning">SUSPENDED</span></c:when>
+                            <c:otherwise><span class="badge bg-danger">${account.status}</span></c:otherwise>
+                        </c:choose>
+                    </td></tr>
+                    <tr><td class="text-muted">Branch Code</td><td><c:out value="${account.branchCode}"/></td></tr>
+                    <tr><td class="text-muted">GL Account Code</td><td><c:out value="${account.glAccountCode}"/></td></tr>
+                    <tr><td class="text-muted">Created</td><td>${account.createdAt}</td></tr>
+                </table>
             </div>
         </div>
-    </div>
-</div>
 
-<%-- Balances Tab --%>
-<div class="tab-pane fade" id="tab-balances">
-    <div class="card shadow">
-        <div class="card-body">
-            <div class="row g-4">
-                <div class="col-md-3">
-                    <div class="card border-primary">
-                        <div class="card-body text-center">
-                            <h6 class="text-primary">Ledger Balance</h6>
-                            <h3 class="fw-bold"><c:out value="${account.balance}"/> <small><c:out value="${account.currency}"/></small></h3>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card border-success">
-                        <div class="card-body text-center">
-                            <h6 class="text-success">Available Balance</h6>
-                            <h3 class="fw-bold"><c:out value="${availableBalance != null ? availableBalance : account.balance}"/> <small><c:out value="${account.currency}"/></small></h3>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card border-warning">
-                        <div class="card-body text-center">
-                            <h6 class="text-warning">Total Lien</h6>
-                            <h3 class="fw-bold"><c:out value="${totalLien != null ? totalLien : '0.00'}"/> <small><c:out value="${account.currency}"/></small></h3>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card border-info">
-                        <div class="card-body text-center">
-                            <h6 class="text-info">Overdraft Limit</h6>
-                            <h3 class="fw-bold"><c:out value="${account.overdraftLimit}"/> <small><c:out value="${account.currency}"/></small></h3>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+        <%-- CBS Balance View - Grouped Cards --%>
+        <div class="card shadow mt-3">
+            <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-graph-up"></i> CBS Balance View</h5></div>
+            <div class="card-body">
 
-<%-- Ownership Tab --%>
-<div class="tab-pane fade" id="tab-ownership">
-    <div class="card shadow">
-        <div class="card-header bg-white d-flex justify-content-between">
-            <h5 class="mb-0"><i class="bi bi-people"></i> Account Ownership</h5>
-            <a href="${pageContext.request.contextPath}/ownerships/account/${account.id}" class="btn btn-sm btn-outline-primary">Manage Ownership</a>
-        </div>
-        <div class="card-body">
-            <c:choose>
-                <c:when test="${not empty ownerships}">
-                    <table class="table table-hover">
-                        <thead><tr><th>Customer</th><th>Type</th><th>Percentage</th><th>Operational</th></tr></thead>
-                        <tbody>
-                            <c:forEach var="o" items="${ownerships}">
-                            <tr>
-                                <td><c:out value="${o.customerName}"/></td>
-                                <td><span class="badge bg-info"><c:out value="${o.ownershipType}"/></span></td>
-                                <td><c:out value="${o.ownershipPercentage}"/>%</td>
-                                <td><c:choose><c:when test="${o.operational}"><span class="badge bg-success">Yes</span></c:when><c:otherwise><span class="badge bg-secondary">No</span></c:otherwise></c:choose></td>
-                            </tr>
-                            </c:forEach>
-                        </tbody>
-                    </table>
-                </c:when>
-                <c:otherwise><p class="text-muted text-center">No ownership records.</p></c:otherwise>
-            </c:choose>
-        </div>
-    </div>
-</div>
-
-<%-- Liens Tab --%>
-<div class="tab-pane fade" id="tab-liens">
-    <div class="card shadow">
-        <div class="card-header bg-white d-flex justify-content-between">
-            <h5 class="mb-0"><i class="bi bi-lock"></i> Account Liens</h5>
-            <a href="${pageContext.request.contextPath}/liens/account/${account.id}" class="btn btn-sm btn-outline-primary">Manage Liens</a>
-        </div>
-        <div class="card-body">
-            <c:choose>
-                <c:when test="${not empty liens}">
-                    <table class="table table-hover">
-                        <thead><tr><th>Amount</th><th>Type</th><th>Start</th><th>End</th><th>Status</th></tr></thead>
-                        <tbody>
-                            <c:forEach var="l" items="${liens}">
-                            <tr>
-                                <td class="fw-bold"><c:out value="${l.lienAmount}"/></td>
-                                <td><span class="badge bg-info"><c:out value="${l.lienType}"/></span></td>
-                                <td><c:out value="${l.startDate}"/></td>
-                                <td><c:out value="${l.endDate}"/></td>
-                                <td>
+                <%-- Ledger Section --%>
+                <div class="cbs-balance-section">
+                    <div class="cbs-balance-section-title">Ledger Section</div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="cbs-balance-card cbs-balance-primary cbs-tooltip">
+                                <div class="cbs-balance-label">Actual Total Balance</div>
+                                <div class="cbs-balance-value">${account.balance} ${account.currency}</div>
+                                <span class="cbs-tooltip-text">Total book balance including all posted entries</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="cbs-balance-card cbs-tooltip">
+                                <div class="cbs-balance-label">Actual Cleared Balance</div>
+                                <div class="cbs-balance-value">
                                     <c:choose>
-                                        <c:when test="${l.status == 'ACTIVE'}"><span class="badge bg-success">ACTIVE</span></c:when>
-                                        <c:otherwise><span class="badge bg-secondary"><c:out value="${l.status}"/></span></c:otherwise>
+                                        <c:when test="${not empty account.clearedBalance}">${account.clearedBalance} ${account.currency}</c:when>
+                                        <c:otherwise>${account.balance} ${account.currency}</c:otherwise>
                                     </c:choose>
-                                </td>
-                            </tr>
-                            </c:forEach>
-                        </tbody>
-                    </table>
-                </c:when>
-                <c:otherwise><p class="text-muted text-center">No liens on this account.</p></c:otherwise>
-            </c:choose>
-        </div>
-    </div>
-</div>
+                                </div>
+                                <span class="cbs-tooltip-text">Balance of cleared (settled) transactions only</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-<%-- Transactions Tab --%>
-<div class="tab-pane fade" id="tab-transactions">
-    <div class="card shadow">
-        <div class="card-header bg-white d-flex justify-content-between">
-            <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Recent Transactions</h5>
-            <a href="${pageContext.request.contextPath}/transactions?accountId=${account.id}" class="btn btn-sm btn-outline-primary">View All</a>
-        </div>
-        <div class="card-body">
-            <c:choose>
-                <c:when test="${not empty recentTransactions}">
-                    <table class="table table-hover table-sm">
-                        <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Balance After</th></tr></thead>
-                        <tbody>
-                            <c:forEach var="tx" items="${recentTransactions}">
-                            <tr>
-                                <td><small><c:out value="${tx.transactionDate}"/></small></td>
-                                <td><c:out value="${tx.transactionType}"/></td>
-                                <td class="fw-bold"><c:out value="${tx.amount}"/></td>
-                                <td><c:out value="${tx.balanceAfter}"/></td>
-                            </tr>
-                            </c:forEach>
-                        </tbody>
-                    </table>
-                </c:when>
-                <c:otherwise><p class="text-muted text-center">No recent transactions.</p></c:otherwise>
-            </c:choose>
+                <%-- Operational Section --%>
+                <div class="cbs-balance-section">
+                    <div class="cbs-balance-section-title">Operational Section</div>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="cbs-balance-card cbs-balance-warning cbs-tooltip">
+                                <div class="cbs-balance-label">Shadow Total Balance</div>
+                                <div class="cbs-balance-value">
+                                    <c:choose>
+                                        <c:when test="${not empty account.shadowBalance}">${account.shadowBalance} ${account.currency}</c:when>
+                                        <c:otherwise>0.00 ${account.currency}</c:otherwise>
+                                    </c:choose>
+                                </div>
+                                <span class="cbs-tooltip-text">Projected balance including pending/authorized vouchers</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="cbs-balance-card cbs-tooltip">
+                                <div class="cbs-balance-label">Inward Clearing Balance</div>
+                                <div class="cbs-balance-value">
+                                    <c:choose>
+                                        <c:when test="${not empty account.inwardClearingBalance}">${account.inwardClearingBalance} ${account.currency}</c:when>
+                                        <c:otherwise>0.00 ${account.currency}</c:otherwise>
+                                    </c:choose>
+                                </div>
+                                <span class="cbs-tooltip-text">Credits pending clearing (e.g. cheque deposits)</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="cbs-balance-card cbs-tooltip">
+                                <div class="cbs-balance-label">Uncleared Effect</div>
+                                <div class="cbs-balance-value">
+                                    <c:choose>
+                                        <c:when test="${not empty account.unclearedEffect}">${account.unclearedEffect} ${account.currency}</c:when>
+                                        <c:otherwise>0.00 ${account.currency}</c:otherwise>
+                                    </c:choose>
+                                </div>
+                                <span class="cbs-tooltip-text">Difference between total and cleared balance</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <%-- Control Section --%>
+                <div class="cbs-balance-section">
+                    <div class="cbs-balance-section-title">Control Section</div>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <div class="cbs-balance-card cbs-balance-danger cbs-tooltip">
+                                <div class="cbs-balance-label">Lien Balance</div>
+                                <div class="cbs-balance-value">
+                                    <c:choose>
+                                        <c:when test="${not empty account.lienBalance}">${account.lienBalance} ${account.currency}</c:when>
+                                        <c:otherwise>0.00 ${account.currency}</c:otherwise>
+                                    </c:choose>
+                                </div>
+                                <span class="cbs-tooltip-text">Amount marked under lien (blocked for specific purpose)</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="cbs-balance-card cbs-tooltip">
+                                <div class="cbs-balance-label">Charge Hold</div>
+                                <div class="cbs-balance-value">
+                                    <c:choose>
+                                        <c:when test="${not empty account.chargeHold}">${account.chargeHold} ${account.currency}</c:when>
+                                        <c:otherwise>0.00 ${account.currency}</c:otherwise>
+                                    </c:choose>
+                                </div>
+                                <span class="cbs-tooltip-text">Amount reserved for pending charges/fees</span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="cbs-balance-card cbs-balance-success cbs-tooltip">
+                                <div class="cbs-balance-label">Available Balance</div>
+                                <div class="cbs-balance-value">
+                                    <c:choose>
+                                        <c:when test="${not empty account.availableBalance}">${account.availableBalance} ${account.currency}</c:when>
+                                        <c:otherwise>${account.balance} ${account.currency}</c:otherwise>
+                                    </c:choose>
+                                </div>
+                                <span class="cbs-tooltip-text">Actual withdrawable amount after lien and holds</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </div>
     </div>
-</div>
+    <div class="col-md-4">
+        <div class="card shadow">
+            <div class="card-header bg-white"><h5 class="mb-0">Customer Info</h5></div>
+            <div class="card-body">
+                <p><strong><c:out value="${account.customerName}"/></strong></p>
+                <p><i class="bi bi-envelope"></i> <c:out value="${account.customerEmail}"/></p>
+                <p><i class="bi bi-telephone"></i> <c:out value="${account.customerPhone}"/></p>
+            </div>
+        </div>
+        <div class="card shadow mt-3">
+            <div class="card-header bg-white"><h5 class="mb-0">Quick Actions</h5></div>
+            <div class="card-body d-grid gap-2">
+                <a href="${pageContext.request.contextPath}/transactions/deposit?account=${account.accountNumber}" class="btn btn-outline-success btn-sm cbs-lockable">Deposit</a>
+                <a href="${pageContext.request.contextPath}/transactions/withdraw?account=${account.accountNumber}" class="btn btn-outline-danger btn-sm cbs-lockable">Withdraw</a>
+                <form method="post" action="${pageContext.request.contextPath}/accounts/${account.id}/status" class="d-inline">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                    <c:if test="${account.status == 'ACTIVE'}">
+                        <input type="hidden" name="status" value="SUSPENDED"/>
+                        <button type="submit" class="btn btn-outline-warning btn-sm w-100" onclick="return confirm('Suspend this account?')">Suspend</button>
+                    </c:if>
+                    <c:if test="${account.status == 'SUSPENDED'}">
+                        <input type="hidden" name="status" value="ACTIVE"/>
+                        <button type="submit" class="btn btn-outline-success btn-sm w-100">Reactivate</button>
+                    </c:if>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 
 <%@ include file="../layout/footer.jsp" %>

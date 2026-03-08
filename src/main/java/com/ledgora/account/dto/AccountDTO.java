@@ -27,16 +27,4 @@ public class AccountDTO {
     private String customerEmail;
     private String customerPhone;
     private String glAccountCode;
-
-    // Additional fields for UI alignment
-    private Long customerId;
-    private Long parentAccountId;
-    private BigDecimal interestRate;
-    private BigDecimal overdraftLimit;
-    private String freezeLevel;
-    private String freezeReason;
-    private String approvalStatus;
-    private BigDecimal availableBalance;
-    private BigDecimal totalLien;
-    private String createdAt;
 }
