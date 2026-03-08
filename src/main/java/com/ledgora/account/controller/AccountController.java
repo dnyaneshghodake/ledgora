@@ -2,7 +2,9 @@ package com.ledgora.account.controller;
 
 import com.ledgora.account.dto.AccountDTO;
 import com.ledgora.account.entity.Account;
+import com.ledgora.account.entity.AccountBalance;
 import com.ledgora.account.service.AccountService;
+import com.ledgora.balance.service.CbsBalanceEngine;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
 import jakarta.validation.Valid;
@@ -22,9 +24,11 @@ import java.util.Optional;
 public class AccountController {
 
     private final AccountService accountService;
+    private final CbsBalanceEngine balanceEngine;
 
-    public AccountController(AccountService accountService) {
+    public AccountController(AccountService accountService, CbsBalanceEngine balanceEngine) {
         this.accountService = accountService;
+        this.balanceEngine = balanceEngine;
     }
 
     @GetMapping
@@ -164,9 +168,19 @@ public class AccountController {
         result.put("freezeLevel", account.getFreezeLevel() != null ? account.getFreezeLevel().name() : null);
         result.put("freezeReason", account.getFreezeReason());
         result.put("customerName", account.getCustomerName());
-        // availableBalance and totalLien would require balance engine lookup
-        result.put("availableBalance", account.getBalance());
-        result.put("totalLien", "0.00");
+        // Use CbsBalanceEngine for real available balance and lien data
+        try {
+            AccountBalance cbsBalance = balanceEngine.getCbsBalance(account.getId());
+            result.put("availableBalance", cbsBalance.getAvailableBalance());
+            result.put("totalLien", cbsBalance.getLienBalance());
+            result.put("ledgerBalance", cbsBalance.getLedgerBalance());
+            result.put("actualBalance", cbsBalance.getActualTotalBalance());
+            result.put("shadowBalance", cbsBalance.getShadowTotalBalance());
+        } catch (Exception e) {
+            // Fallback to raw balance if balance engine fails
+            result.put("availableBalance", account.getBalance());
+            result.put("totalLien", "0.00");
+        }
         return ResponseEntity.ok(result);
     }
 }
