@@ -18,6 +18,10 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -257,16 +261,24 @@ public class AdminController {
 
     // ── Audit Logs ──
 
+    private static final int AUDIT_PAGE_SIZE = 50;
+
     @GetMapping("/audit")
-    public String viewAuditLogs(@RequestParam(required = false) String entity, Model model) {
-        List<AuditLog> logs;
+    public String viewAuditLogs(@RequestParam(required = false) String entity,
+                                @RequestParam(defaultValue = "0") int page,
+                                Model model) {
+        Pageable pageable = PageRequest.of(page, AUDIT_PAGE_SIZE);
+        Page<AuditLog> logPage;
         if (entity != null && !entity.isBlank()) {
-            logs = auditService.getByEntity(entity);
+            logPage = auditService.getByEntity(entity, pageable);
             model.addAttribute("filterEntity", entity);
         } else {
-            logs = auditService.getAuditLogs();
+            logPage = auditService.getAuditLogs(pageable);
         }
-        model.addAttribute("auditLogs", logs);
+        model.addAttribute("auditLogs", logPage.getContent());
+        model.addAttribute("currentPage", logPage.getNumber());
+        model.addAttribute("totalPages", logPage.getTotalPages());
+        model.addAttribute("totalEntries", logPage.getTotalElements());
         return "admin/audit";
     }
 }

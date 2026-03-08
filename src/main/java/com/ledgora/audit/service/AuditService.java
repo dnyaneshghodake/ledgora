@@ -4,6 +4,8 @@ import com.ledgora.audit.entity.AuditLog;
 import com.ledgora.audit.repository.AuditLogRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -98,8 +100,16 @@ public class AuditService {
         return auditLogRepository.findAll();
     }
 
+    public Page<AuditLog> getAuditLogs(Pageable pageable) {
+        return auditLogRepository.findAllByOrderByTimestampDesc(pageable);
+    }
+
     public List<AuditLog> getByEntity(String entity) {
         return auditLogRepository.findByEntity(entity);
+    }
+
+    public Page<AuditLog> getByEntity(String entity, Pageable pageable) {
+        return auditLogRepository.findByEntityOrderByTimestampDesc(entity, pageable);
     }
 
     public List<AuditLog> getByUser(Long userId) {

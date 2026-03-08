@@ -1,6 +1,22 @@
 package com.ledgora.voucher.controller;
 
+import com.ledgora.account.entity.Account;
+import com.ledgora.account.repository.AccountRepository;
+import com.ledgora.auth.entity.User;
+import com.ledgora.auth.repository.UserRepository;
+import com.ledgora.batch.entity.TransactionBatch;
+import com.ledgora.batch.service.BatchService;
+import com.ledgora.branch.entity.Branch;
+import com.ledgora.common.enums.TransactionChannel;
+import com.ledgora.common.enums.VoucherDrCr;
+import com.ledgora.gl.entity.GeneralLedger;
+import com.ledgora.gl.repository.GeneralLedgerRepository;
+import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.tenant.entity.Tenant;
+import com.ledgora.tenant.service.TenantService;
+import com.ledgora.voucher.entity.Voucher;
 import com.ledgora.voucher.service.VoucherService;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,18 +25,40 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
 /**
  * Controller for the Voucher lifecycle UI screens.
  * Routes: /vouchers, /vouchers/create, /vouchers/pending, /vouchers/posted, /vouchers/cancelled
+ *
+ * Voucher lifecycle: Create (Maker) -> Authorize (Checker) -> Post -> (Cancel via reversal)
+ * Vouchers created here remain in PENDING authorization state (authFlag=N)
+ * until a checker authorizes them via the pending vouchers screen.
  */
 @Controller
 @RequestMapping("/vouchers")
 public class VoucherController {
 
     private final VoucherService voucherService;
+    private final AccountRepository accountRepository;
+    private final GeneralLedgerRepository glRepository;
+    private final UserRepository userRepository;
+    private final TenantService tenantService;
+    private final BatchService batchService;
 
-    public VoucherController(VoucherService voucherService) {
+    public VoucherController(VoucherService voucherService,
+                             AccountRepository accountRepository,
+                             GeneralLedgerRepository glRepository,
+                             UserRepository userRepository,
+                             TenantService tenantService,
+                             BatchService batchService) {
         this.voucherService = voucherService;
+        this.accountRepository = accountRepository;
+        this.glRepository = glRepository;
+        this.userRepository = userRepository;
+        this.tenantService = tenantService;
+        this.batchService = batchService;
     }
 
     @GetMapping
@@ -36,18 +74,19 @@ public class VoucherController {
 
     /**
      * PART 4: Handle voucher creation form POST.
-     * Validates inputs and redirects with success/error flash message.
+     * Creates a pair of vouchers (DR + CR) in PENDING authorization state.
+     * Vouchers must be authorized by a checker before they can be posted.
      */
     @PostMapping("/create")
     public String createVoucher(@RequestParam String debitAccountNumber,
                                 @RequestParam String creditAccountNumber,
-                                @RequestParam java.math.BigDecimal amount,
+                                @RequestParam BigDecimal amount,
                                 @RequestParam(defaultValue = "INR") String currency,
                                 @RequestParam(defaultValue = "TRANSFER") String voucherType,
                                 @RequestParam(required = false) String narration,
                                 RedirectAttributes redirectAttributes) {
         try {
-            if (amount == null || amount.compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
                 redirectAttributes.addFlashAttribute("error", "Amount must be greater than zero.");
                 return "redirect:/vouchers/create";
             }
@@ -60,13 +99,55 @@ public class VoucherController {
                 redirectAttributes.addFlashAttribute("error", "Debit and credit accounts cannot be the same.");
                 return "redirect:/vouchers/create";
             }
-            // TODO: Wire voucherService.createVoucher() with Tenant, Branch, Account,
-            // GL lookups, and authenticated User context to actually persist the voucher.
-            redirectAttributes.addFlashAttribute("error",
-                    "Voucher creation is not yet implemented. "
-                    + "Validated: " + currency + " " + amount
+
+            // Resolve tenant context
+            Long tenantId = TenantContextHolder.getRequiredTenantId();
+            tenantService.validateBusinessDayOpen(tenantId);
+            Tenant tenant = tenantService.getTenantById(tenantId);
+            LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
+
+            // Resolve accounts with tenant isolation
+            Account debitAccount = accountRepository.findByAccountNumberAndTenantId(debitAccountNumber, tenantId)
+                    .orElseThrow(() -> new RuntimeException("Debit account not found: " + debitAccountNumber));
+            Account creditAccount = accountRepository.findByAccountNumberAndTenantId(creditAccountNumber, tenantId)
+                    .orElseThrow(() -> new RuntimeException("Credit account not found: " + creditAccountNumber));
+
+            // Resolve GL accounts from account GL codes
+            GeneralLedger debitGl = resolveGl(debitAccount);
+            GeneralLedger creditGl = resolveGl(creditAccount);
+
+            // Resolve maker (current user)
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            User maker = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("Current user not found"));
+
+            // Get or create batch
+            TransactionBatch batch = batchService.getOrCreateOpenBatch(
+                    tenantId, TransactionChannel.TELLER, businessDate);
+            String batchCode = batch.getBatchCode() != null ? batch.getBatchCode() : "BATCH-" + batch.getId();
+
+            // Create DR voucher (debit leg)
+            Branch debitBranch = resolveBranch(debitAccount, maker);
+            Voucher drVoucher = voucherService.createVoucher(
+                    tenant, debitBranch, debitAccount, debitGl, VoucherDrCr.DR,
+                    amount, amount, currency, businessDate, businessDate,
+                    batchCode, 1, maker,
+                    narration != null ? narration : "Voucher DR: " + debitAccountNumber);
+
+            // Create CR voucher (credit leg)
+            Branch creditBranch = resolveBranch(creditAccount, maker);
+            Voucher crVoucher = voucherService.createVoucher(
+                    tenant, creditBranch, creditAccount, creditGl, VoucherDrCr.CR,
+                    amount, amount, currency, businessDate, businessDate,
+                    batchCode, 1, maker,
+                    narration != null ? narration : "Voucher CR: " + creditAccountNumber);
+
+            redirectAttributes.addFlashAttribute("message",
+                    "Voucher pair created (PENDING authorization). DR scroll #" + drVoucher.getScrollNo()
+                    + ", CR scroll #" + crVoucher.getScrollNo()
+                    + " for " + currency + " " + amount
                     + " from " + debitAccountNumber + " to " + creditAccountNumber + ".");
-            return "redirect:/vouchers/create";
+            return "redirect:/vouchers/pending";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Voucher creation failed: " + e.getMessage());
             return "redirect:/vouchers/create";
@@ -89,5 +170,25 @@ public class VoucherController {
     public String cancelledVouchers(Model model) {
         // Show cancelled/reversed vouchers
         return "voucher/voucher-cancelled";
+    }
+
+    private GeneralLedger resolveGl(Account account) {
+        if (account.getGlAccountCode() == null || account.getGlAccountCode().isBlank()) {
+            return null;
+        }
+        return glRepository.findByGlCode(account.getGlAccountCode()).orElse(null);
+    }
+
+    private Branch resolveBranch(Account account, User currentUser) {
+        if (account.getBranch() != null) {
+            return account.getBranch();
+        }
+        if (account.getHomeBranch() != null) {
+            return account.getHomeBranch();
+        }
+        if (currentUser != null && currentUser.getBranch() != null) {
+            return currentUser.getBranch();
+        }
+        throw new RuntimeException("No branch mapping found for account " + account.getAccountNumber());
     }
 }
