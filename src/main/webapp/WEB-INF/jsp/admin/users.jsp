@@ -1,5 +1,6 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <%@ include file="../layout/header.jsp" %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -16,15 +17,15 @@
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Full Name</label>
-                    <input type="text" class="form-control" name="fullName" value="${editUser.fullName}" required/>
+                    <input type="text" class="form-control" name="fullName" value="${fn:escapeXml(editUser.fullName)}" required/>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Email</label>
-                    <input type="email" class="form-control" name="email" value="${editUser.email}"/>
+                    <input type="email" class="form-control" name="email" value="${fn:escapeXml(editUser.email)}"/>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Branch Code</label>
-                    <input type="text" class="form-control" name="branchCode" value="${editUser.branchCode}"/>
+                    <input type="text" class="form-control" name="branchCode" value="${fn:escapeXml(editUser.branchCode)}"/>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">New Password <small class="text-muted">(optional)</small></label>
@@ -93,7 +94,7 @@
                                 <form method="post" action="${pageContext.request.contextPath}/admin/users/${user.id}/toggle" style="display:inline;">
                                     <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                                     <button type="submit" class="btn btn-outline-warning" title="Toggle Active"
-                                            data-confirm="Toggle active status for ${user.username}?">
+                                            data-confirm="Toggle active status for ${fn:escapeXml(user.username)}?">
                                         <c:choose>
                                             <c:when test="${user.isActive}"><i class="bi bi-pause-circle"></i></c:when>
                                             <c:otherwise><i class="bi bi-play-circle"></i></c:otherwise>
@@ -103,7 +104,7 @@
                                 <form method="post" action="${pageContext.request.contextPath}/admin/users/${user.id}/delete" style="display:inline;">
                                     <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                                     <button type="submit" class="btn btn-outline-danger" title="Delete"
-                                            data-confirm="Are you sure you want to delete user ${user.username}? This cannot be undone.">
+                                            data-confirm="Are you sure you want to delete user ${fn:escapeXml(user.username)}? This cannot be undone.">
                                         <i class="bi bi-trash"></i>
                                     </button>
                                 </form>
@@ -141,7 +142,7 @@
                                 <form method="post" action="${pageContext.request.contextPath}/admin/roles/${role.id}/edit" class="d-flex gap-2">
                                     <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                                     <input type="text" class="form-control form-control-sm" name="description"
-                                           value="${role.description}" placeholder="Add description" style="max-width:300px;"/>
+                                           value="${fn:escapeXml(role.description)}" placeholder="Add description" style="max-width:300px;"/>
                                     <button type="submit" class="btn btn-outline-primary btn-sm"><i class="bi bi-check"></i></button>
                                 </form>
                             </td>
@@ -149,7 +150,7 @@
                                 <form method="post" action="${pageContext.request.contextPath}/admin/roles/${role.id}/delete" style="display:inline;">
                                     <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                                     <button type="submit" class="btn btn-outline-danger btn-sm"
-                                            data-confirm="Delete role ${role.name}? Users with this role may lose access.">
+                                            data-confirm="Delete role ${fn:escapeXml(role.name)}? Users with this role may lose access.">
                                         <i class="bi bi-trash"></i> Delete
                                     </button>
                                 </form>

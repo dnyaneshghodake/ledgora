@@ -1,4 +1,5 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%@ taglib prefix="fn" uri="jakarta.tags.functions" %>
 <%@ include file="../layout/header.jsp" %>
 
 <div class="container-fluid">
@@ -60,7 +61,7 @@
                                 <td><c:out value="${log.userId}"/></td>
                                 <td><small><c:out value="${log.details}"/></small></td>
                                 <td><small><c:out value="${log.ipAddress}"/></small></td>
-                                <td><small title="${log.userAgent}"><c:out value="${log.userAgent}"/></small></td>
+                                <td><small title="${fn:escapeXml(log.userAgent)}"><c:out value="${log.userAgent}"/></small></td>
                             </tr>
                         </c:forEach>
                     </tbody>
