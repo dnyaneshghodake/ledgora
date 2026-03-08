@@ -59,7 +59,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf
                 .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                 .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                .ignoringRequestMatchers("/h2-console/**", "/api/**")
+                .ignoringRequestMatchers("/h2-console/**")
             )
             .authorizeHttpRequests(auth -> auth
                 .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
@@ -67,6 +67,7 @@ public class SecurityConfig {
                 .requestMatchers("/resources/**", "/css/**", "/js/**").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/audit/validation").hasAnyRole("AUDITOR", "ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/customers/**").authenticated()
                 .requestMatchers("/approvals/**").authenticated()
                 .requestMatchers("/reports/**").authenticated()

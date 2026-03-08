@@ -35,6 +35,19 @@
         <span class="cbs-header-subtitle">Core Banking System</span>
     </div>
     <div class="cbs-header-center">
+        <%-- Branch Name --%>
+        <div class="cbs-branch-info">
+            <i class="bi bi-geo-alt"></i>
+            <span>Branch:</span>
+            <strong>
+                <c:choose>
+                    <c:when test="${not empty sessionScope.branchName}"><c:out value="${sessionScope.branchName}"/></c:when>
+                    <c:when test="${not empty sessionScope.branchCode}"><c:out value="${sessionScope.branchCode}"/></c:when>
+                    <c:otherwise>HQ</c:otherwise>
+                </c:choose>
+            </strong>
+        </div>
+        <span class="cbs-header-separator"></span>
         <%-- Environment Badge --%>
         <span class="cbs-env-badge cbs-env-dev">
             <c:choose>
@@ -159,6 +172,20 @@
 
 <%-- CBS Sidebar --%>
 <%@ include file="sidebar.jsp" %>
+
+<%-- Holiday System-Wide Red Banner --%>
+<c:if test="${sessionScope.isHoliday == true}">
+<div class="cbs-holiday-banner" id="holidayBanner" style="background: #dc2626; color: #fff; text-align: center; padding: 8px 16px; font-weight: 600; position: relative; z-index: 1030;">
+    <i class="bi bi-calendar-x-fill"></i>
+    <strong>BANK HOLIDAY</strong>
+    <span style="margin: 0 8px;">|</span>
+    <c:choose>
+        <c:when test="${not empty sessionScope.holidayName}"><c:out value="${sessionScope.holidayName}"/> &mdash; </c:when>
+        <c:otherwise></c:otherwise>
+    </c:choose>
+    Financial transactions are restricted today.
+</div>
+</c:if>
 
 <%-- Business Day Closed Banner --%>
 <c:if test="${sessionScope.businessDateStatus == 'CLOSED'}">
