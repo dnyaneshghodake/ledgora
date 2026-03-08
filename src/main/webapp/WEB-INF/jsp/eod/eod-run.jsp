@@ -12,10 +12,10 @@
     <div class="card-header bg-white"><h5 class="mb-0">EOD Confirmation</h5></div>
     <div class="card-body">
         <c:if test="${not empty error}">
-            <div class="alert alert-danger">${error}</div>
+            <div class="alert alert-danger"><c:out value="${error}"/></div>
         </c:if>
         <c:if test="${not empty message}">
-            <div class="alert alert-success">${message}</div>
+            <div class="alert alert-success"><c:out value="${message}"/></div>
         </c:if>
 
         <div class="row mb-4">

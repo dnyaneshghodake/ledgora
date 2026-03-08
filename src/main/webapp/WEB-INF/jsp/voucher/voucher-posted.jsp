@@ -36,14 +36,14 @@
                             <c:forEach var="v" items="${vouchers}">
                             <tr>
                                 <td><code>${v.id}</code></td>
-                                <td>${v.batchCode}</td>
-                                <td>${v.scrollNo}</td>
-                                <td>${v.debitAccountNumber}</td>
-                                <td>${v.creditAccountNumber}</td>
+                                <td><c:out value="${v.batchCode}"/></td>
+                                <td><c:out value="${v.scrollNo}"/></td>
+                                <td><c:out value="${v.debitAccountNumber}"/></td>
+                                <td><c:out value="${v.creditAccountNumber}"/></td>
                                 <td class="fw-bold">${v.amount} ${v.currency}</td>
                                 <td>${v.businessDate}</td>
-                                <td>${v.branchCode}</td>
-                                <td>${v.tenantCode}</td>
+                                <td><c:out value="${v.branchCode}"/></td>
+                                <td><c:out value="${v.tenantCode}"/></td>
                                 <td><span class="cbs-voucher-status cbs-voucher-posted">POSTED</span></td>
                             </tr>
                             </c:forEach>

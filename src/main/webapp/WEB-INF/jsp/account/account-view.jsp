@@ -20,8 +20,8 @@
             <div class="card-header bg-white"><h5 class="mb-0">Account Information</h5></div>
             <div class="card-body">
                 <table class="table table-borderless">
-                    <tr><td class="text-muted" width="200">Account Number</td><td><code class="fs-5">${account.accountNumber}</code></td></tr>
-                    <tr><td class="text-muted">Account Name</td><td>${account.accountName}</td></tr>
+                    <tr><td class="text-muted" width="200">Account Number</td><td><code class="fs-5"><c:out value="${account.accountNumber}"/></code></td></tr>
+                    <tr><td class="text-muted">Account Name</td><td><c:out value="${account.accountName}"/></td></tr>
                     <tr><td class="text-muted">Type</td><td><span class="badge bg-info">${account.accountType}</span></td></tr>
                     <tr><td class="text-muted">Status</td><td>
                         <c:choose>
@@ -30,8 +30,8 @@
                             <c:otherwise><span class="badge bg-danger">${account.status}</span></c:otherwise>
                         </c:choose>
                     </td></tr>
-                    <tr><td class="text-muted">Branch Code</td><td>${account.branchCode}</td></tr>
-                    <tr><td class="text-muted">GL Account Code</td><td>${account.glAccountCode}</td></tr>
+                    <tr><td class="text-muted">Branch Code</td><td><c:out value="${account.branchCode}"/></td></tr>
+                    <tr><td class="text-muted">GL Account Code</td><td><c:out value="${account.glAccountCode}"/></td></tr>
                     <tr><td class="text-muted">Created</td><td>${account.createdAt}</td></tr>
                 </table>
             </div>
@@ -161,9 +161,9 @@
         <div class="card shadow">
             <div class="card-header bg-white"><h5 class="mb-0">Customer Info</h5></div>
             <div class="card-body">
-                <p><strong>${account.customerName}</strong></p>
-                <p><i class="bi bi-envelope"></i> ${account.customerEmail}</p>
-                <p><i class="bi bi-telephone"></i> ${account.customerPhone}</p>
+                <p><strong><c:out value="${account.customerName}"/></strong></p>
+                <p><i class="bi bi-envelope"></i> <c:out value="${account.customerEmail}"/></p>
+                <p><i class="bi bi-telephone"></i> <c:out value="${account.customerPhone}"/></p>
             </div>
         </div>
         <div class="card shadow mt-3">

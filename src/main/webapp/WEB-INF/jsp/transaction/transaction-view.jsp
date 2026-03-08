@@ -25,9 +25,9 @@
                     <tr><td class="text-muted">Amount</td><td><span class="fs-4 fw-bold text-primary">${transaction.amount} ${transaction.currency}</span></td></tr>
                     <tr><td class="text-muted">Source Account</td><td><c:if test="${transaction.sourceAccount != null}"><code>${transaction.sourceAccount.accountNumber}</code> - ${transaction.sourceAccount.customerName}</c:if><c:if test="${transaction.sourceAccount == null}">N/A</c:if></td></tr>
                     <tr><td class="text-muted">Destination Account</td><td><c:if test="${transaction.destinationAccount != null}"><code>${transaction.destinationAccount.accountNumber}</code> - ${transaction.destinationAccount.customerName}</c:if><c:if test="${transaction.destinationAccount == null}">N/A</c:if></td></tr>
-                    <tr><td class="text-muted">Description</td><td>${transaction.description}</td></tr>
-                    <tr><td class="text-muted">Narration</td><td>${transaction.narration}</td></tr>
-                    <tr><td class="text-muted">Performed By</td><td><c:if test="${transaction.performedBy != null}">${transaction.performedBy.username}</c:if></td></tr>
+                    <tr><td class="text-muted">Description</td><td><c:out value="${transaction.description}"/></td></tr>
+                    <tr><td class="text-muted">Narration</td><td><c:out value="${transaction.narration}"/></td></tr>
+                    <tr><td class="text-muted">Performed By</td><td><c:if test="${transaction.performedBy != null}"><c:out value="${transaction.performedBy.username}"/></c:if></td></tr>
                     <tr><td class="text-muted">Date</td><td>${transaction.createdAt}</td></tr>
                 </table>
             </div>
@@ -137,8 +137,8 @@
                             <span class="badge ${entry.entryType == 'DEBIT' ? 'bg-danger' : 'bg-success'}">${entry.entryType}</span>
                             <strong>${entry.amount}</strong>
                         </div>
-                        <small class="text-muted">GL: ${entry.glAccountCode}</small><br>
-                        <small>${entry.narration}</small><br>
+                        <small class="text-muted">GL: <c:out value="${entry.glAccountCode}"/></small><br>
+                        <small><c:out value="${entry.narration}"/></small><br>
                         <small class="text-muted">Balance After: ${entry.balanceAfter}</small>
                     </div>
                 </c:forEach>

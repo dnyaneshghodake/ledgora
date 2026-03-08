@@ -53,12 +53,12 @@
                             <tr>
                                 <td>${log.id}</td>
                                 <td><small>${log.timestamp}</small></td>
-                                <td><span class="badge bg-info">${log.action}</span></td>
-                                <td><code>${log.entity}</code></td>
-                                <td>${log.entityId}</td>
-                                <td>${log.userId}</td>
-                                <td><small>${log.details}</small></td>
-                                <td><small>${log.ipAddress}</small></td>
+                                <td><span class="badge bg-info"><c:out value="${log.action}"/></span></td>
+                                <td><code><c:out value="${log.entity}"/></code></td>
+                                <td><c:out value="${log.entityId}"/></td>
+                                <td><c:out value="${log.userId}"/></td>
+                                <td><small><c:out value="${log.details}"/></small></td>
+                                <td><small><c:out value="${log.ipAddress}"/></small></td>
                             </tr>
                         </c:forEach>
                     </tbody>

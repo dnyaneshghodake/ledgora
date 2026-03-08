@@ -13,13 +13,13 @@
     </div>
     <h2 class="cbs-error-title">
         <c:choose>
-            <c:when test="${not empty errorTitle}">${errorTitle}</c:when>
+            <c:when test="${not empty errorTitle}"><c:out value="${errorTitle}"/></c:when>
             <c:otherwise>Something Went Wrong</c:otherwise>
         </c:choose>
     </h2>
     <p class="cbs-error-message">
         <c:choose>
-            <c:when test="${not empty errorMessage}">${errorMessage}</c:when>
+            <c:when test="${not empty errorMessage}"><c:out value="${errorMessage}"/></c:when>
             <c:otherwise>An unexpected error occurred. Please try again or contact support.</c:otherwise>
         </c:choose>
     </p>
@@ -28,7 +28,7 @@
         <table class="table table-sm table-borderless">
             <tr>
                 <td class="text-muted" width="140">Error Code</td>
-                <td><code>${not empty errorCode ? errorCode : 'UNKNOWN'}</code></td>
+                <td><code><c:out value="${not empty errorCode ? errorCode : 'UNKNOWN'}"/></code></td>
             </tr>
             <tr>
                 <td class="text-muted">Correlation ID</td>
@@ -40,11 +40,11 @@
             </tr>
             <tr>
                 <td class="text-muted">Tenant</td>
-                <td>${not empty tenantName ? tenantName : 'N/A'}</td>
+                <td><c:out value="${not empty tenantName ? tenantName : 'N/A'}"/></td>
             </tr>
             <tr>
                 <td class="text-muted">Branch</td>
-                <td>${not empty branchCode ? branchCode : 'N/A'}</td>
+                <td><c:out value="${not empty branchCode ? branchCode : 'N/A'}"/></td>
             </tr>
             <tr>
                 <td class="text-muted">Business Date</td>

@@ -49,9 +49,9 @@
                     <c:forEach var="branch" items="${branches}">
                         <tr>
                             <td>${branch.id}</td>
-                            <td><code>${branch.branchCode}</code></td>
-                            <td>${branch.name}</td>
-                            <td>${branch.address}</td>
+                            <td><code><c:out value="${branch.branchCode}"/></code></td>
+                            <td><c:out value="${branch.name}"/></td>
+                            <td><c:out value="${branch.address}"/></td>
                             <td>
                                 <c:choose>
                                     <c:when test="${branch.isActive}"><span class="badge bg-success">Active</span></c:when>

@@ -49,13 +49,13 @@
     <div class="card shadow">
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-6"><strong>Customer ID:</strong> ${customer.customerId}</div>
-                <div class="col-md-6"><strong>Name:</strong> ${customer.firstName} ${customer.lastName}</div>
-                <div class="col-md-6"><strong>National ID:</strong> <code>${customer.nationalId}</code></div>
+                <div class="col-md-6"><strong>Customer ID:</strong> <c:out value="${customer.customerId}"/></div>
+                <div class="col-md-6"><strong>Name:</strong> <c:out value="${customer.firstName}"/> <c:out value="${customer.lastName}"/></div>
+                <div class="col-md-6"><strong>National ID:</strong> <code><c:out value="${customer.nationalId}"/></code></div>
                 <div class="col-md-6"><strong>Date of Birth:</strong> ${customer.dob}</div>
-                <div class="col-md-6"><strong>Email:</strong> ${customer.email}</div>
-                <div class="col-md-6"><strong>Phone:</strong> ${customer.phone}</div>
-                <div class="col-12"><strong>Address:</strong> ${customer.address}</div>
+                <div class="col-md-6"><strong>Email:</strong> <c:out value="${customer.email}"/></div>
+                <div class="col-md-6"><strong>Phone:</strong> <c:out value="${customer.phone}"/></div>
+                <div class="col-12"><strong>Address:</strong> <c:out value="${customer.address}"/></div>
                 <div class="col-md-6">
                     <strong>KYC Status:</strong>
                     <c:choose>
@@ -95,14 +95,14 @@
                 <div class="col-md-6">
                     <strong>PAN / Tax ID:</strong>
                     <c:choose>
-                        <c:when test="${not empty customer.taxId}">${customer.taxId}</c:when>
+                        <c:when test="${not empty customer.taxId}"><c:out value="${customer.taxId}"/></c:when>
                         <c:otherwise><span class="text-muted">Not provided</span></c:otherwise>
                     </c:choose>
                 </div>
                 <div class="col-md-6">
                     <strong>Tax Residency:</strong>
                     <c:choose>
-                        <c:when test="${not empty customer.taxResidency}">${customer.taxResidency}</c:when>
+                        <c:when test="${not empty customer.taxResidency}"><c:out value="${customer.taxResidency}"/></c:when>
                         <c:otherwise><span class="text-muted">Not set</span></c:otherwise>
                     </c:choose>
                 </div>
@@ -116,7 +116,7 @@
                 <div class="col-md-6">
                     <strong>Tax Category:</strong>
                     <c:choose>
-                        <c:when test="${not empty customer.taxCategory}">${customer.taxCategory}</c:when>
+                        <c:when test="${not empty customer.taxCategory}"><c:out value="${customer.taxCategory}"/></c:when>
                         <c:otherwise><span class="text-muted">Default</span></c:otherwise>
                     </c:choose>
                 </div>
@@ -161,7 +161,7 @@
             </div>
             <c:if test="${not empty customer.freezeReason}">
             <div class="alert alert-warning mt-3">
-                <strong>Freeze Reason:</strong> ${customer.freezeReason}
+                <strong>Freeze Reason:</strong> <c:out value="${customer.freezeReason}"/>
             </div>
             </c:if>
         </div>
@@ -189,8 +189,8 @@
                             <tbody>
                                 <c:forEach var="acct" items="${linkedAccounts}">
                                 <tr>
-                                    <td><code>${acct.accountNumber}</code></td>
-                                    <td>${acct.accountName}</td>
+                                    <td><code><c:out value="${acct.accountNumber}"/></code></td>
+                                    <td><c:out value="${acct.accountName}"/></td>
                                     <td><span class="badge bg-info">${acct.accountType}</span></td>
                                     <td>
                                         <c:choose>
@@ -238,8 +238,8 @@
                                 <tr>
                                     <td><small>${audit.timestamp}</small></td>
                                     <td><span class="badge bg-secondary">${audit.action}</span></td>
-                                    <td>${audit.performedBy}</td>
-                                    <td><small>${audit.details}</small></td>
+                                    <td><c:out value="${audit.performedBy}"/></td>
+                                    <td><small><c:out value="${audit.details}"/></small></td>
                                 </tr>
                                 </c:forEach>
                             </tbody>

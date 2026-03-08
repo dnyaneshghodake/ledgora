@@ -132,7 +132,7 @@
                                 <code>${entry.account.accountNumber}</code>
                             </c:if>
                         </td>
-                        <td><code>${entry.glAccountCode}</code></td>
+                        <td><code><c:out value="${entry.glAccountCode}"/></code></td>
                         <td class="${entry.entryType == 'DEBIT' ? 'ledger-amount-debit' : 'ledger-amount-zero'}">
                             <c:if test="${entry.entryType == 'DEBIT'}">${entry.amount}</c:if>
                             <c:if test="${entry.entryType != 'DEBIT'}">-</c:if>

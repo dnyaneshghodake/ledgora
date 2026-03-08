@@ -1,5 +1,6 @@
 package com.ledgora.transaction.controller;
 
+import com.ledgora.common.enums.TransactionType;
 import com.ledgora.transaction.dto.TransactionDTO;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.account.service.AccountService;
@@ -10,6 +11,8 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.math.BigDecimal;
 
 @Controller
 @RequestMapping("/transactions")
@@ -58,6 +61,12 @@ public class TransactionController {
             model.addAttribute("accounts", accountService.getAllAccounts());
             return "transaction/transaction-deposit";
         }
+        String paramError = validateFinancialParams(dto, "DEPOSIT");
+        if (paramError != null) {
+            model.addAttribute("error", paramError);
+            model.addAttribute("accounts", accountService.getAllAccounts());
+            return "transaction/transaction-deposit";
+        }
         try {
             Transaction txn = transactionService.deposit(dto);
             redirectAttributes.addFlashAttribute("message",
@@ -81,6 +90,12 @@ public class TransactionController {
     public String withdraw(@Valid @ModelAttribute("transactionDTO") TransactionDTO dto,
                            BindingResult result, Model model, RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
+            model.addAttribute("accounts", accountService.getAllAccounts());
+            return "transaction/transaction-withdraw";
+        }
+        String paramError = validateFinancialParams(dto, "WITHDRAWAL");
+        if (paramError != null) {
+            model.addAttribute("error", paramError);
             model.addAttribute("accounts", accountService.getAllAccounts());
             return "transaction/transaction-withdraw";
         }
@@ -110,6 +125,12 @@ public class TransactionController {
             model.addAttribute("accounts", accountService.getAllAccounts());
             return "transaction/transaction-transfer";
         }
+        String paramError = validateFinancialParams(dto, "TRANSFER");
+        if (paramError != null) {
+            model.addAttribute("error", paramError);
+            model.addAttribute("accounts", accountService.getAllAccounts());
+            return "transaction/transaction-transfer";
+        }
         try {
             Transaction txn = transactionService.transfer(dto);
             redirectAttributes.addFlashAttribute("message",
@@ -128,5 +149,48 @@ public class TransactionController {
         model.addAttribute("ledgerEntries", transactionService.getLedgerEntriesByAccount(accountNumber));
         model.addAttribute("accountNumber", accountNumber);
         return "transaction/transaction-history";
+    }
+
+    /**
+     * Server-side validation to prevent parameter tampering of financial fields.
+     * Validates transaction type against allowed enum values and amount ranges.
+     */
+    private String validateFinancialParams(TransactionDTO dto, String expectedType) {
+        // Validate transaction type matches expected operation
+        if (dto.getTransactionType() != null && !dto.getTransactionType().equals(expectedType)) {
+            return "Invalid transaction type. Expected: " + expectedType;
+        }
+        // Validate transaction type is a known enum value
+        if (dto.getTransactionType() != null) {
+            try {
+                TransactionType.valueOf(dto.getTransactionType());
+            } catch (IllegalArgumentException e) {
+                return "Invalid transaction type: " + dto.getTransactionType();
+            }
+        }
+        // Validate amount is within acceptable range (prevent extreme values)
+        if (dto.getAmount() != null) {
+            if (dto.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+                return "Amount must be greater than zero.";
+            }
+            if (dto.getAmount().compareTo(new BigDecimal("999999999999.99")) > 0) {
+                return "Amount exceeds maximum allowed value.";
+            }
+            if (dto.getAmount().scale() > 2) {
+                return "Amount cannot have more than 2 decimal places.";
+            }
+        }
+        // Validate account number format (alphanumeric with hyphens only)
+        if (dto.getSourceAccountNumber() != null && !dto.getSourceAccountNumber().isEmpty()) {
+            if (!dto.getSourceAccountNumber().matches("^[A-Za-z0-9\\-]+$")) {
+                return "Invalid source account number format.";
+            }
+        }
+        if (dto.getDestinationAccountNumber() != null && !dto.getDestinationAccountNumber().isEmpty()) {
+            if (!dto.getDestinationAccountNumber().matches("^[A-Za-z0-9\\-]+$")) {
+                return "Invalid destination account number format.";
+            }
+        }
+        return null;
     }
 }

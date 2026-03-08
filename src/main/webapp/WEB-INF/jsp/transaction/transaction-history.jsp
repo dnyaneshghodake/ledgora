@@ -50,8 +50,8 @@
                             <span class="badge ${entry.entryType == 'DEBIT' ? 'bg-danger' : 'bg-success'}">${entry.entryType}</span>
                             <strong>${entry.amount}</strong>
                         </div>
-                        <small class="text-muted">GL: ${entry.glAccountCode}</small><br>
-                        <small>${entry.narration}</small>
+                        <small class="text-muted">GL: <c:out value="${entry.glAccountCode}"/></small><br>
+                        <small><c:out value="${entry.narration}"/></small>
                     </div>
                 </c:forEach>
                 <c:if test="${empty ledgerEntries}">
