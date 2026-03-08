@@ -58,6 +58,48 @@
     </div>
 </div>
 
+<%-- Audit Info for Liens --%>
+<c:if test="${not empty liens}">
+<div class="card shadow mb-4">
+    <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-shield-check"></i> Lien Audit Trail</h5></div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm">
+                <thead class="table-light">
+                    <tr><th>Lien ID</th><th>Created By</th><th>Created At</th><th>Approved By</th><th>Approval Status</th><th>Last Updated</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    <c:forEach var="l" items="${liens}">
+                    <tr>
+                        <td><code><c:out value="${l.id}"/></code></td>
+                        <td><c:out value="${l.createdBy != null ? l.createdBy.username : 'System'}"/></td>
+                        <td><small><c:out value="${l.createdAt}"/></small></td>
+                        <td><c:out value="${l.approvedBy != null ? l.approvedBy.username : '--'}"/></td>
+                        <td>
+                            <c:choose>
+                                <c:when test="${l.approvalStatus == 'APPROVED'}"><span class="badge bg-success">APPROVED</span></c:when>
+                                <c:when test="${l.approvalStatus == 'PENDING'}"><span class="badge bg-warning">PENDING</span></c:when>
+                                <c:when test="${l.approvalStatus == 'REJECTED'}"><span class="badge bg-danger">REJECTED</span></c:when>
+                                <c:otherwise><span class="badge bg-secondary"><c:out value="${l.approvalStatus}"/></span></c:otherwise>
+                            </c:choose>
+                        </td>
+                        <td><small><c:out value="${l.updatedAt}"/></small></td>
+                        <td>
+                            <c:choose>
+                                <c:when test="${l.status == 'ACTIVE'}"><span class="badge bg-success">ACTIVE</span></c:when>
+                                <c:when test="${l.status == 'RELEASED'}"><span class="badge bg-secondary">RELEASED</span></c:when>
+                                <c:otherwise><span class="badge bg-info"><c:out value="${l.status}"/></span></c:otherwise>
+                            </c:choose>
+                        </td>
+                    </tr>
+                    </c:forEach>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</c:if>
+
 <div class="card shadow">
     <div class="card-header bg-white"><h5 class="mb-0">Create New Lien</h5></div>
     <div class="card-body">

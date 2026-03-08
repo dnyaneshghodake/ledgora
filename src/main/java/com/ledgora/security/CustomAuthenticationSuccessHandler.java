@@ -52,6 +52,8 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
         session.setAttribute("isBranchManager", roles.contains("ROLE_BRANCH_MANAGER"));
         session.setAttribute("isTenantAdmin",   roles.contains("ROLE_TENANT_ADMIN"));
         session.setAttribute("isSuperAdmin",    roles.contains("ROLE_SUPER_ADMIN"));
+        session.setAttribute("isAuditor",       roles.contains("ROLE_AUDITOR"));
+        session.setAttribute("isFinance",       roles.contains("ROLE_FINANCE"));
 
         // Generate and store JWT token in session for API calls
         String token = jwtTokenProvider.generateToken(authentication);
