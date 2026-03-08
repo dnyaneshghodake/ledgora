@@ -15,6 +15,7 @@
             <div class="alert alert-danger">${error}</div>
         </c:if>
         <form method="post" action="${pageContext.request.contextPath}/vouchers/create" id="voucherForm">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
             <div class="row g-3">
                 <div class="col-md-6">
                     <label class="form-label">Debit Account</label>

@@ -47,11 +47,13 @@
                                 <td>
                                     <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager}">
                                     <form method="post" action="${pageContext.request.contextPath}/vouchers/${v.id}/authorize" class="d-inline">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                                         <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Authorize this voucher?')">
                                             <i class="bi bi-check-lg"></i> Authorize
                                         </button>
                                     </form>
                                     <form method="post" action="${pageContext.request.contextPath}/vouchers/${v.id}/reject" class="d-inline ms-1">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                                         <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Reject this voucher?')">
                                             <i class="bi bi-x-lg"></i> Reject
                                         </button>

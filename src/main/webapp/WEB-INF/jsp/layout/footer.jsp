@@ -27,5 +27,39 @@
 
 <script src="${pageContext.request.contextPath}/resources/js/bootstrap.bundle.min.js"></script>
 <script src="${pageContext.request.contextPath}/resources/js/app.js"></script>
+
+<%-- Phase 6: Day-closed lockout - disable financial operations when business day is not OPEN --%>
+<c:if test="${not empty sessionScope.username}">
+<script>
+(function() {
+    var dayStatus = '${sessionScope.businessDateStatus}';
+    if (dayStatus && dayStatus !== 'OPEN') {
+        // Disable all financial operation forms and buttons when day is not OPEN
+        var financialForms = document.querySelectorAll(
+            'form[action*="/transactions/"], form[action*="/vouchers/create"], ' +
+            'form[action*="/settlements/process"], form[action*="/eod/run"]'
+        );
+        financialForms.forEach(function(form) {
+            var buttons = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+            buttons.forEach(function(btn) {
+                btn.disabled = true;
+                btn.title = 'Business day is ' + dayStatus + '. Financial operations are locked.';
+                btn.classList.add('btn-secondary');
+                btn.classList.remove('btn-primary', 'btn-success', 'btn-danger');
+            });
+        });
+        // Show a banner warning
+        var banner = document.createElement('div');
+        banner.className = 'alert alert-warning text-center mb-0';
+        banner.setAttribute('role', 'alert');
+        banner.innerHTML = '<i class="bi bi-lock-fill"></i> <strong>Business Day ' + dayStatus +
+            '</strong> - Financial operations are locked until the business day is OPEN.';
+        var main = document.querySelector('.cbs-content') || document.querySelector('.container-fluid');
+        if (main) { main.insertBefore(banner, main.firstChild); }
+    }
+})();
+</script>
+</c:if>
+
 </body>
 </html>

@@ -8,6 +8,8 @@
     <link href="${pageContext.request.contextPath}/resources/css/bootstrap.min.css" rel="stylesheet">
     <link href="${pageContext.request.contextPath}/resources/css/bootstrap-icons.css" rel="stylesheet">
     <link href="${pageContext.request.contextPath}/resources/css/style.css" rel="stylesheet">
+    <meta name="_csrf" content="${_csrf.token}"/>
+    <meta name="_csrf_header" content="${_csrf.headerName}"/>
 </head>
 <body>
 <c:if test="${not empty sessionScope.username}">

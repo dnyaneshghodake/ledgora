@@ -266,6 +266,7 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                 <form method="post" action="${pageContext.request.contextPath}/settlements/process" id="settlementForm" style="display:inline">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                     <input type="hidden" name="settlementDate" value="${businessDate}">
                     <button type="submit" class="btn btn-danger" id="btnConfirmAdvance" disabled>
                         <i class="bi bi-skip-forward-fill"></i> Proceed with Settlement

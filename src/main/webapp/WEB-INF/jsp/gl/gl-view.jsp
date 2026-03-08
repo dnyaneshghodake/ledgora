@@ -25,6 +25,7 @@
                     <tr><td class="text-muted">Parent</td><td><c:if test="${gl.parent != null}"><code>${gl.parent.glCode}</code> - ${gl.parent.glName}</c:if><c:if test="${gl.parent == null}">Root Account</c:if></td></tr>
                 </table>
                 <form method="post" action="${pageContext.request.contextPath}/gl/${gl.id}/toggle" class="d-inline">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                     <button type="submit" class="btn btn-outline-warning btn-sm">
                         <c:choose><c:when test="${gl.isActive}">Deactivate</c:when><c:otherwise>Activate</c:otherwise></c:choose>
                     </button>

@@ -70,6 +70,7 @@
             <hr>
             <h5>Update KYC Status</h5>
             <form method="post" action="${pageContext.request.contextPath}/customers/${customer.customerId}/kyc" class="row g-2">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                 <div class="col-md-4">
                     <select name="kycStatus" class="form-select">
                         <option value="PENDING">PENDING</option>

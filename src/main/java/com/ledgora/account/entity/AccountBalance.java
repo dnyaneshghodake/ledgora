@@ -68,6 +68,10 @@ public class AccountBalance {
     @Builder.Default
     private Boolean odPermitted = false;
 
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @Column(name = "last_updated", nullable = false)
     private LocalDateTime lastUpdated;
 

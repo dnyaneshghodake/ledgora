@@ -16,6 +16,7 @@
                     <i class="bi bi-info-circle"></i> This will process all completed transactions for the selected date and generate a settlement report with netting calculations.
                 </div>
                 <form action="${pageContext.request.contextPath}/settlements/process" method="post">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                     <div class="mb-3">
                         <label for="settlementDate" class="form-label">Settlement Date *</label>
                         <input type="date" name="settlementDate" id="settlementDate" class="form-control" value="${settlementDate}" required/>
