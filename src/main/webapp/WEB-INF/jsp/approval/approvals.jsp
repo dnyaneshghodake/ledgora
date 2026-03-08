@@ -33,7 +33,7 @@
                         <td>${approval.id}</td>
                         <td><span class="badge bg-info">${approval.entityType}</span></td>
                         <td>${approval.entityId}</td>
-                        <td>${approval.requestedBy != null ? approval.requestedBy.fullName : 'System'}</td>
+                        <td><c:out value="${approval.requestedBy != null ? approval.requestedBy.fullName : 'System'}"/></td>
                         <td>
                             <c:choose>
                                 <c:when test="${approval.status == 'PENDING'}"><span class="badge bg-warning">PENDING</span></c:when>

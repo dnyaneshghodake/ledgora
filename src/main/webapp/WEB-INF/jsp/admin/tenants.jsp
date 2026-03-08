@@ -46,8 +46,8 @@
                     <c:forEach var="tenant" items="${tenants}">
                         <tr>
                             <td>${tenant.id}</td>
-                            <td><code>${tenant.tenantCode}</code></td>
-                            <td>${tenant.tenantName}</td>
+                            <td><code><c:out value="${tenant.tenantCode}"/></code></td>
+                            <td><c:out value="${tenant.tenantName}"/></td>
                             <td>
                                 <c:choose>
                                     <c:when test="${tenant.status == 'ACTIVE'}"><span class="badge bg-success">ACTIVE</span></c:when>

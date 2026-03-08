@@ -55,9 +55,9 @@
             <tbody>
                 <c:forEach var="account" items="${accounts}">
                     <tr>
-                        <td><code>${account.accountNumber}</code></td>
-                        <td>${account.accountName}</td>
-                        <td>${account.customerName}</td>
+                        <td><code><c:out value="${account.accountNumber}"/></code></td>
+                        <td><c:out value="${account.accountName}"/></td>
+                        <td><c:out value="${account.customerName}"/></td>
                         <td><span class="badge bg-info">${account.accountType}</span></td>
                         <td>
                             <c:choose>

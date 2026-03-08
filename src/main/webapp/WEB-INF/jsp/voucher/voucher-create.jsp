@@ -12,7 +12,7 @@
     <div class="card-header bg-white"><h5 class="mb-0">New Voucher Entry</h5></div>
     <div class="card-body">
         <c:if test="${not empty error}">
-            <div class="alert alert-danger">${error}</div>
+            <div class="alert alert-danger"><c:out value="${error}"/></div>
         </c:if>
         <form method="post" action="${pageContext.request.contextPath}/vouchers/create" id="voucherForm">
                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />

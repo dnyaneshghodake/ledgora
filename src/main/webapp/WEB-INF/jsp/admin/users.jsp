@@ -24,13 +24,13 @@
                 <c:forEach var="user" items="${users}">
                     <tr>
                         <td>${user.id}</td>
-                        <td><strong>${user.username}</strong></td>
-                        <td>${user.fullName}</td>
-                        <td>${user.email}</td>
-                        <td>${user.branchCode}</td>
+                        <td><strong><c:out value="${user.username}"/></strong></td>
+                        <td><c:out value="${user.fullName}"/></td>
+                        <td><c:out value="${user.email}"/></td>
+                        <td><c:out value="${user.branchCode}"/></td>
                         <td>
                             <c:forEach var="role" items="${user.roles}">
-                                <span class="badge bg-primary">${role.name}</span>
+                                <span class="badge bg-primary"><c:out value="${role.name}"/></span>
                             </c:forEach>
                         </td>
                         <td>
