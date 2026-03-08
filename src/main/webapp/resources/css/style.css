@@ -1255,3 +1255,233 @@ body.cbs-eod-active .cbs-main {
     visibility: visible;
     opacity: 1;
 }
+
+/* =========================================================================
+   Sidebar Collapsible Nav Groups
+   ========================================================================= */
+.cbs-nav-group {
+    margin: 0;
+}
+
+.cbs-nav-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.65rem 1.25rem;
+    color: var(--cbs-sidebar-text);
+    text-decoration: none;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: all 0.2s;
+    cursor: pointer;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+}
+
+.cbs-nav-group-toggle:hover {
+    color: var(--cbs-sidebar-active);
+    background: var(--cbs-sidebar-hover-bg);
+    text-decoration: none;
+}
+
+.cbs-nav-group-toggle > i:first-child {
+    font-size: 1.1rem;
+    width: 1.25rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.cbs-nav-group-toggle > span {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cbs-nav-arrow {
+    font-size: 0.7rem;
+    transition: transform 0.25s ease;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.cbs-nav-group.open > .cbs-nav-group-toggle .cbs-nav-arrow {
+    transform: rotate(180deg);
+}
+
+.cbs-nav-group.open > .cbs-nav-group-toggle {
+    color: var(--cbs-sidebar-active);
+}
+
+.cbs-nav-submenu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background: rgba(0, 0, 0, 0.12);
+}
+
+.cbs-nav-group.open > .cbs-nav-submenu {
+    max-height: 600px;
+}
+
+.cbs-nav-submenu .cbs-nav-item {
+    margin: 0;
+}
+
+.cbs-nav-submenu .cbs-nav-link {
+    padding: 0.45rem 0.85rem 0.45rem 2.75rem;
+    font-size: 0.82rem;
+    font-weight: 400;
+}
+
+.cbs-nav-submenu .cbs-nav-link i {
+    font-size: 0.95rem;
+}
+
+.cbs-nav-submenu .cbs-nav-link.active {
+    background: var(--cbs-accent);
+    color: #fff;
+    font-weight: 600;
+}
+
+/* =========================================================================
+   Lookup Modal Pagination
+   ========================================================================= */
+.cbs-lookup-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    font-size: 0.82rem;
+}
+
+.cbs-lookup-pagination button {
+    padding: 0.25rem 0.6rem;
+    border: 1px solid #dee2e6;
+    background: #fff;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.78rem;
+}
+
+.cbs-lookup-pagination button:hover:not(:disabled) {
+    background: #e9ecef;
+}
+
+.cbs-lookup-pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.cbs-lookup-pagination .cbs-page-info {
+    color: #64748b;
+    font-weight: 500;
+}
+
+/* =========================================================================
+   Transaction Balance Cards (enhanced)
+   ========================================================================= */
+.cbs-txn-balance-row {
+    margin-bottom: 1rem;
+}
+
+.cbs-txn-balance-card {
+    border-radius: 0.5rem;
+    text-align: center;
+    padding: 0.6rem 0.5rem;
+    transition: transform 0.2s;
+}
+
+.cbs-txn-balance-card:hover {
+    transform: translateY(-1px);
+}
+
+.cbs-txn-balance-card small {
+    font-weight: 600;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.cbs-txn-balance-card h5 {
+    font-weight: 700;
+    font-size: 1.05rem;
+    margin: 0;
+}
+
+/* Freeze warning banner on transaction screens */
+.cbs-txn-freeze-warning {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border: 1px solid #f87171;
+    border-radius: 0.5rem;
+    padding: 0.6rem 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: #991b1b;
+    font-size: 0.85rem;
+}
+
+.cbs-txn-freeze-warning i {
+    font-size: 1.1rem;
+    color: #dc2626;
+}
+
+/* Holiday restriction banner */
+.cbs-txn-holiday-warning {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid #f59e0b;
+    border-radius: 0.5rem;
+    padding: 0.6rem 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: #92400e;
+    font-size: 0.85rem;
+}
+
+.cbs-txn-holiday-warning i {
+    font-size: 1.1rem;
+    color: #d97706;
+}
+
+/* =========================================================================
+   Input Discipline: Validation Feedback
+   ========================================================================= */
+.cbs-field-required::after {
+    content: ' *';
+    color: #dc2626;
+    font-weight: 700;
+}
+
+.cbs-inline-error {
+    color: #dc2626;
+    font-size: 0.78rem;
+    margin-top: 0.2rem;
+    display: none;
+}
+
+.cbs-inline-error.visible {
+    display: block;
+}
+
+input:invalid:not(:placeholder-shown),
+select:invalid:not(:placeholder-shown) {
+    border-color: #f87171;
+}
+
+input:valid:not(:placeholder-shown),
+select:valid:not(:placeholder-shown) {
+    border-color: #86efac;
+}

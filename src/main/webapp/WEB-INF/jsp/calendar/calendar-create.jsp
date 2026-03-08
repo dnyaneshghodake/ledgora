@@ -21,11 +21,11 @@
             <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
             <div class="row g-3">
                 <div class="col-md-4">
-                    <label class="form-label">Date *</label>
+                    <label class="form-label cbs-field-required">Date</label>
                     <input type="date" name="calendarDate" class="form-control" required/>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Day Type *</label>
+                    <label class="form-label cbs-field-required">Day Type</label>
                     <select name="dayType" class="form-select" required>
                         <option value="WORKING_DAY">WORKING_DAY</option>
                         <option value="HOLIDAY">HOLIDAY</option>
