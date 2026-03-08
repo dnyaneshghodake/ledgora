@@ -13,6 +13,7 @@ import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.reporting.dto.*;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.repository.TransactionRepository;
+import com.ledgora.tenant.context.TenantContextHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -57,7 +58,7 @@ public class ReportingService {
         BigDecimal totalCredits = BigDecimal.ZERO;
 
         for (GeneralLedger gl : glAccounts) {
-            List<LedgerEntry> entries = ledgerEntryRepository.findByGlAccountCode(gl.getGlCode());
+            List<LedgerEntry> entries = ledgerEntryRepository.findByGlAccountCodeAndTenantId(gl.getGlCode(), requireTenantId());
             BigDecimal debits = entries.stream()
                     .filter(e -> e.getEntryType() == EntryType.DEBIT)
                     .map(LedgerEntry::getAmount)
@@ -105,7 +106,7 @@ public class ReportingService {
         GeneralLedger gl = glRepository.findByGlCode(glCode)
                 .orElseThrow(() -> new RuntimeException("GL account not found: " + glCode));
 
-        List<LedgerEntry> entries = ledgerEntryRepository.findByGlAccountCode(glCode);
+        List<LedgerEntry> entries = ledgerEntryRepository.findByGlAccountCodeAndTenantId(glCode, requireTenantId());
         List<GeneralLedgerReport.GLReportEntry> reportEntries = new ArrayList<>();
         BigDecimal runningBalance = BigDecimal.ZERO;
 
@@ -144,10 +145,10 @@ public class ReportingService {
      * Generate Account Statement from ledger entries.
      */
     public AccountStatementReport generateAccountStatement(String accountNumber, LocalDate startDate, LocalDate endDate) {
-        Account account = accountRepository.findByAccountNumber(accountNumber)
+        Account account = accountRepository.findByAccountNumberAndTenantId(accountNumber, requireTenantId())
                 .orElseThrow(() -> new RuntimeException("Account not found: " + accountNumber));
 
-        List<LedgerEntry> entries = ledgerEntryRepository.findByAccountNumber(accountNumber);
+        List<LedgerEntry> entries = ledgerEntryRepository.findByAccountNumberAndTenantId(accountNumber, requireTenantId());
         List<AccountStatementReport.StatementLine> statementLines = new ArrayList<>();
         BigDecimal totalDebits = BigDecimal.ZERO;
         BigDecimal totalCredits = BigDecimal.ZERO;
@@ -189,7 +190,7 @@ public class ReportingService {
      * Generate Daily Transaction Summary from ledger entries.
      */
     public DailyTransactionSummary generateDailyTransactionSummary(LocalDate date) {
-        List<Transaction> transactions = transactionRepository.findByBusinessDate(date);
+        List<Transaction> transactions = transactionRepository.findByTenantIdAndBusinessDate(requireTenantId(), date);
 
         long depositCount = transactions.stream().filter(t -> t.getTransactionType() == TransactionType.DEPOSIT).count();
         long withdrawalCount = transactions.stream().filter(t -> t.getTransactionType() == TransactionType.WITHDRAWAL).count();
@@ -205,8 +206,8 @@ public class ReportingService {
                 .filter(t -> t.getTransactionType() == TransactionType.TRANSFER)
                 .map(Transaction::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        BigDecimal totalDebits = ledgerEntryRepository.sumDebitsByBusinessDate(date);
-        BigDecimal totalCredits = ledgerEntryRepository.sumCreditsByBusinessDate(date);
+        BigDecimal totalDebits = ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(date, requireTenantId());
+        BigDecimal totalCredits = ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(date, requireTenantId());
 
         return DailyTransactionSummary.builder()
                 .date(date)
@@ -235,7 +236,7 @@ public class ReportingService {
         BigDecimal totalCashHoldings = BigDecimal.ZERO;
 
         for (GeneralLedger gl : allGL) {
-            List<LedgerEntry> entries = ledgerEntryRepository.findByGlAccountCode(gl.getGlCode());
+            List<LedgerEntry> entries = ledgerEntryRepository.findByGlAccountCodeAndTenantId(gl.getGlCode(), requireTenantId());
             BigDecimal debits = entries.stream()
                     .filter(e -> e.getEntryType() == EntryType.DEBIT)
                     .map(LedgerEntry::getAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -286,5 +287,8 @@ public class ReportingService {
                 .liquidityRatio(liquidityRatio)
                 .details(details)
                 .build();
+    }
+    private Long requireTenantId() {
+        return TenantContextHolder.getRequiredTenantId();
     }
 }

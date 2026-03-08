@@ -10,6 +10,7 @@ import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
+import com.ledgora.tenant.context.TenantContextHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -48,6 +49,7 @@ public class AccountService {
 
         Account account = Account.builder()
                 .accountNumber(accountNumber)
+                .tenant(resolveCurrentTenant())
                 .accountName(dto.getAccountName())
                 .accountType(AccountType.valueOf(dto.getAccountType()))
                 .status(AccountStatus.ACTIVE)
@@ -81,27 +83,28 @@ public class AccountService {
     }
 
     public List<Account> getAllAccounts() {
-        return accountRepository.findAll();
+        return accountRepository.findByTenantId(requireTenantId());
     }
 
     public Optional<Account> getAccountById(Long id) {
-        return accountRepository.findById(id);
+        return accountRepository.findById(id)
+                .filter(a -> a.getTenant() != null && requireTenantId().equals(a.getTenant().getId()));
     }
 
     public Optional<Account> getAccountByNumber(String accountNumber) {
-        return accountRepository.findByAccountNumber(accountNumber);
+        return accountRepository.findByAccountNumberAndTenantId(accountNumber, requireTenantId());
     }
 
     public List<Account> getAccountsByStatus(AccountStatus status) {
-        return accountRepository.findByStatus(status);
+        return accountRepository.findByTenantIdAndStatus(requireTenantId(), status);
     }
 
     public List<Account> getAccountsByType(AccountType type) {
-        return accountRepository.findByAccountType(type);
+        return accountRepository.findByTenantIdAndAccountType(requireTenantId(), type);
     }
 
     public List<Account> searchByCustomerName(String name) {
-        return accountRepository.findByCustomerNameContainingIgnoreCase(name);
+        return accountRepository.findByTenantIdAndCustomerNameContainingIgnoreCase(requireTenantId(), name);
     }
 
     @Transactional
@@ -142,6 +145,15 @@ public class AccountService {
 
     public long countAll() {
         return accountRepository.count();
+    }
+
+    private Long requireTenantId() {
+        return TenantContextHolder.getRequiredTenantId();
+    }
+
+    private com.ledgora.tenant.entity.Tenant resolveCurrentTenant() {
+        Long tenantId = requireTenantId();
+        return com.ledgora.tenant.entity.Tenant.builder().id(tenantId).build();
     }
 
     private User getCurrentUser() {

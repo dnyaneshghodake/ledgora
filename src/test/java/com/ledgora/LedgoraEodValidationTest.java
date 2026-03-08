@@ -4,9 +4,13 @@ import com.ledgora.account.entity.Account;
 import com.ledgora.account.entity.AccountBalance;
 import com.ledgora.account.repository.AccountBalanceRepository;
 import com.ledgora.account.repository.AccountRepository;
+import com.ledgora.approval.entity.ApprovalRequest;
+import com.ledgora.approval.repository.ApprovalRequestRepository;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.balance.service.CbsBalanceEngine;
+import com.ledgora.batch.entity.TransactionBatch;
+import com.ledgora.batch.repository.TransactionBatchRepository;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.common.enums.*;
@@ -15,6 +19,7 @@ import com.ledgora.customer.repository.CustomerMasterRepository;
 import com.ledgora.eod.service.EodValidationService;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
+import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
 import com.ledgora.voucher.service.VoucherService;
@@ -39,8 +44,15 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class LedgoraEodValidationTest {
 
+    @AfterEach
+    void clearTenantContext() {
+        TenantContextHolder.clear();
+    }
+
     @Autowired private EodValidationService eodValidationService;
     @Autowired private VoucherService voucherService;
+    @Autowired private ApprovalRequestRepository approvalRequestRepository;
+    @Autowired private TransactionBatchRepository transactionBatchRepository;
     @Autowired private CbsBalanceEngine cbsBalanceEngine;
     @Autowired private AccountBalanceRepository accountBalanceRepository;
     @Autowired private AccountRepository accountRepository;
@@ -64,7 +76,6 @@ class LedgoraEodValidationTest {
         TestData data = setupTestData("EOD-02");
         seedBalance(data.account.getId(), "50000.0000");
 
-        // Create voucher but don't authorize
         voucherService.createVoucher(
                 data.tenant, data.branch, data.account, data.gl,
                 VoucherDrCr.CR, new BigDecimal("1000.0000"), new BigDecimal("1000.0000"),
@@ -83,7 +94,6 @@ class LedgoraEodValidationTest {
         TestData data = setupTestData("EOD-03");
         seedBalance(data.account.getId(), "50000.0000");
 
-        // Create and authorize but don't post
         var voucher = voucherService.createVoucher(
                 data.tenant, data.branch, data.account, data.gl,
                 VoucherDrCr.CR, new BigDecimal("1000.0000"), new BigDecimal("1000.0000"),
@@ -98,22 +108,21 @@ class LedgoraEodValidationTest {
     }
 
     @Test @Order(4) @Transactional
-    @DisplayName("EOD: Passes when all vouchers are authorized and posted")
-    void testEodPassesAllPosted() {
+    @DisplayName("EOD: Passes voucher checks when all vouchers are authorized and posted")
+    void testEodPassesVoucherChecksAllPosted() {
         TestData data = setupTestData("EOD-04");
         seedBalance(data.account.getId(), "50000.0000");
 
-        // Create, authorize, and post voucher
+        String batchCode = createOpenBatchCode(data.tenant, LocalDate.now());
         var voucher = voucherService.createVoucher(
                 data.tenant, data.branch, data.account, data.gl,
                 VoucherDrCr.CR, new BigDecimal("1000.0000"), new BigDecimal("1000.0000"),
-                "INR", LocalDate.now(), LocalDate.now(), "BATCH-EOD", 1,
+                "INR", LocalDate.now(), LocalDate.now(), batchCode, 1,
                 data.maker, "Fully posted voucher");
         voucherService.authorizeVoucher(voucher.getId(), data.checker);
         voucherService.postVoucher(voucher.getId());
 
         List<String> errors = eodValidationService.validateEod(data.tenant.getId(), LocalDate.now());
-        // There may be GL balance errors since we only posted one side, but no voucher errors
         boolean hasVoucherErrors = errors.stream().anyMatch(e ->
                 e.contains("unauthorized") || e.contains("unposted"));
         assertFalse(hasVoucherErrors, "No voucher-related EOD errors expected when all posted");
@@ -125,7 +134,6 @@ class LedgoraEodValidationTest {
         TestData data = setupTestData("EOD-05");
         seedBalance(data.account.getId(), "50000.0000");
 
-        // Create unauthorized voucher
         voucherService.createVoucher(
                 data.tenant, data.branch, data.account, data.gl,
                 VoucherDrCr.CR, new BigDecimal("500.0000"), new BigDecimal("500.0000"),
@@ -153,9 +161,68 @@ class LedgoraEodValidationTest {
                 "canRunEod should return false when unauthorized vouchers exist");
     }
 
-    // ═══════════════════════════════════════════
-    // HELPERS
-    // ═══════════════════════════════════════════
+    @Test @Order(7) @Transactional
+    @DisplayName("EOD: Blocks when ledger debits and credits are not balanced")
+    void testEodBlocksLedgerImbalance() {
+        TestData data = setupTestData("EOD-07");
+        seedBalance(data.account.getId(), "50000.0000");
+
+        String batchCode = createOpenBatchCode(data.tenant, LocalDate.now());
+        var voucher = voucherService.createVoucher(
+                data.tenant, data.branch, data.account, data.gl,
+                VoucherDrCr.CR, new BigDecimal("1000.0000"), new BigDecimal("1000.0000"),
+                "INR", LocalDate.now(), LocalDate.now(), batchCode, 1,
+                data.maker, "Ledger imbalance check");
+        voucherService.authorizeVoucher(voucher.getId(), data.checker);
+        voucherService.postVoucher(voucher.getId());
+
+        List<String> errors = eodValidationService.validateEod(data.tenant.getId(), LocalDate.now());
+        assertTrue(errors.stream().anyMatch(e -> e.contains("Ledger integrity check failed")),
+                "EOD should fail when tenant debits and credits are not balanced");
+    }
+
+    @Test @Order(8) @Transactional
+    @DisplayName("EOD: Blocks when pending approvals exist")
+    void testEodBlocksPendingApprovals() {
+        TestData data = setupTestData("EOD-08");
+
+        approvalRequestRepository.save(ApprovalRequest.builder()
+                .tenant(data.tenant)
+                .entityType("TRANSACTION")
+                .entityId(999L)
+                .requestedBy(data.maker)
+                .status(ApprovalStatus.PENDING)
+                .remarks("Pending approval before EOD")
+                .build());
+
+        List<String> errors = eodValidationService.validateEod(data.tenant.getId(), LocalDate.now());
+        assertTrue(errors.stream().anyMatch(e -> e.contains("pending approval")),
+                "EOD should fail when pending approvals exist");
+    }
+
+    @Test @Order(9) @Transactional
+    @DisplayName("Voucher posting requires OPEN batch")
+    void testVoucherPostingRequiresOpenBatch() {
+        TestData data = setupTestData("EOD-09");
+        seedBalance(data.account.getId(), "50000.0000");
+
+        TransactionBatch closedBatch = transactionBatchRepository.save(TransactionBatch.builder()
+                .tenant(data.tenant)
+                .batchType(BatchType.BATCH)
+                .businessDate(LocalDate.now())
+                .status(BatchStatus.CLOSED)
+                .build());
+
+        var voucher = voucherService.createVoucher(
+                data.tenant, data.branch, data.account, data.gl,
+                VoucherDrCr.CR, new BigDecimal("1000.0000"), new BigDecimal("1000.0000"),
+                "INR", LocalDate.now(), LocalDate.now(), "BATCH-" + closedBatch.getId(), 1,
+                data.maker, "Closed batch should block post");
+        voucherService.authorizeVoucher(voucher.getId(), data.checker);
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> voucherService.postVoucher(voucher.getId()));
+        assertTrue(ex.getMessage().contains("must be OPEN"));
+    }
 
     private Tenant createTestTenant(String suffix) {
         return tenantRepository.save(Tenant.builder()
@@ -175,6 +242,16 @@ class LedgoraEodValidationTest {
         bal.setAvailableBalance(amt);
         bal.setLedgerBalance(amt);
         accountBalanceRepository.save(bal);
+    }
+
+    private String createOpenBatchCode(Tenant tenant, LocalDate businessDate) {
+        TransactionBatch openBatch = transactionBatchRepository.save(TransactionBatch.builder()
+                .tenant(tenant)
+                .batchType(BatchType.BATCH)
+                .businessDate(businessDate)
+                .status(BatchStatus.OPEN)
+                .build());
+        return "BATCH-" + openBatch.getId();
     }
 
     private TestData setupTestData(String suffix) {
@@ -246,6 +323,7 @@ class LedgoraEodValidationTest {
                 .isLocked(false)
                 .build());
 
+        TenantContextHolder.setTenantId(tenant.getId());
         return new TestData(tenant, branch, account, gl, cm, maker, checker);
     }
 
