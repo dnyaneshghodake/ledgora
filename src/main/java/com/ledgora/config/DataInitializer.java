@@ -595,6 +595,7 @@ public class DataInitializer implements CommandLineRunner {
                 .accountName(accountName)
                 .accountType(accountType)
                 .ledgerAccountType(ledgerType)
+                .tenant(defaultTenant)
                 .status(AccountStatus.ACTIVE)
                 .balance(balance)
                 .currency(currency)

@@ -147,10 +147,13 @@
                 </span>
             </div>
         </div>
-        <a href="${pageContext.request.contextPath}/logout" class="cbs-logout-btn" title="Sign Out">
-            <i class="bi bi-box-arrow-right"></i>
-            <span>Logout</span>
-        </a>
+        <form method="post" action="${pageContext.request.contextPath}/logout" style="display:inline; margin:0; padding:0;">
+            <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+            <button type="submit" class="cbs-logout-btn" title="Sign Out" style="background:none; border:none; cursor:pointer;">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Logout</span>
+            </button>
+        </form>
     </div>
 </header>
 
