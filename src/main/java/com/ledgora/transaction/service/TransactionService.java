@@ -462,7 +462,7 @@ public class TransactionService {
                                 TransactionBatch batch, String narration) {
         Branch branch = resolveBranch(account, maker);
         GeneralLedger glAccount = resolveGlForAccount(account);
-        String batchCode = "BATCH-" + batch.getId();
+        String batchCode = batch.getBatchCode() != null ? batch.getBatchCode() : "BATCH-" + batch.getId();
 
         Voucher voucher = voucherService.createVoucher(
                 tenant,

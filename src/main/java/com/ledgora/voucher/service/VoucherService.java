@@ -192,8 +192,7 @@ public class VoucherService {
      */
     @Transactional
     public Voucher postVoucher(Long voucherId, Transaction linkedTransaction) {
-        Long tenantId = requireTenantId();
-        Voucher voucher = voucherRepository.findByIdAndTenantId(voucherId, tenantId)
+        Voucher voucher = voucherRepository.findByIdWithLock(voucherId)
                 .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
 
         if ("Y".equals(voucher.getCancelFlag())) {
@@ -402,10 +401,6 @@ public class VoucherService {
 
     private Transaction findOrCreateTransaction(Voucher voucher, Transaction linkedTransaction) {
         if (linkedTransaction != null) {
-            if (linkedTransaction.getTenant() == null || voucher.getTenant() == null
-                    || !linkedTransaction.getTenant().getId().equals(voucher.getTenant().getId())) {
-                throw new RuntimeException("Cross-tenant transaction linking is not allowed for voucher posting");
-            }
             return linkedTransaction;
         }
         // Look for existing transactions linked to this account on the same date
