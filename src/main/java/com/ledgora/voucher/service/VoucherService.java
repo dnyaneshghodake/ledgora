@@ -3,9 +3,12 @@ package com.ledgora.voucher.service;
 import com.ledgora.account.entity.Account;
 import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.auth.entity.User;
+import com.ledgora.batch.entity.TransactionBatch;
+import com.ledgora.batch.repository.TransactionBatchRepository;
 import com.ledgora.balance.service.CbsBalanceEngine;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.common.enums.EntryType;
+import com.ledgora.common.enums.BatchStatus;
 import com.ledgora.common.enums.VoucherDrCr;
 import com.ledgora.customer.service.CbsCustomerValidationService;
 import com.ledgora.gl.entity.GeneralLedger;
@@ -59,6 +62,7 @@ public class VoucherService {
     private final LedgerEntryRepository entryRepository;
     private final TransactionRepository transactionRepository;
     private final CbsBalanceEngine cbsBalanceEngine;
+    private final TransactionBatchRepository transactionBatchRepository;
     private final CbsCustomerValidationService customerValidationService;
     private final GlBalanceService glBalanceService;
 
@@ -70,6 +74,7 @@ public class VoucherService {
                           LedgerEntryRepository entryRepository,
                           TransactionRepository transactionRepository,
                           CbsBalanceEngine cbsBalanceEngine,
+                          TransactionBatchRepository transactionBatchRepository,
                           CbsCustomerValidationService customerValidationService,
                           GlBalanceService glBalanceService) {
         this.voucherRepository = voucherRepository;
@@ -80,6 +85,7 @@ public class VoucherService {
         this.entryRepository = entryRepository;
         this.transactionRepository = transactionRepository;
         this.cbsBalanceEngine = cbsBalanceEngine;
+        this.transactionBatchRepository = transactionBatchRepository;
         this.customerValidationService = customerValidationService;
         this.glBalanceService = glBalanceService;
     }
@@ -198,6 +204,8 @@ public class VoucherService {
         if ("Y".equals(voucher.getPostFlag())) {
             throw new RuntimeException("Voucher already posted: " + voucherId);
         }
+
+        ensureBatchIsOpen(voucher);
 
         Account account = voucher.getAccount();
         Tenant tenant = voucher.getTenant();
@@ -412,5 +420,32 @@ public class VoucherService {
                 .businessDate(voucher.getPostingDate())
                 .build();
         return transactionRepository.save(transaction);
+    }
+
+    private void ensureBatchIsOpen(Voucher voucher) {
+        String batchCode = voucher.getBatchCode();
+        if (batchCode == null || !batchCode.startsWith("BATCH-")) {
+            throw new RuntimeException("Voucher posting requires a valid open batch code. Found: " + batchCode);
+        }
+        Long batchId;
+        try {
+            batchId = Long.parseLong(batchCode.substring("BATCH-".length()));
+        } catch (NumberFormatException ex) {
+            throw new RuntimeException("Voucher posting requires batch code format BATCH-<id>. Found: " + batchCode);
+        }
+
+        TransactionBatch batch = transactionBatchRepository.findById(batchId)
+                .orElseThrow(() -> new RuntimeException("Batch not found for voucher posting: " + batchCode));
+
+        if (batch.getTenant() == null || voucher.getTenant() == null
+                || !batch.getTenant().getId().equals(voucher.getTenant().getId())) {
+            throw new RuntimeException("Batch " + batchCode + " does not belong to voucher tenant");
+        }
+        if (!voucher.getPostingDate().equals(batch.getBusinessDate())) {
+            throw new RuntimeException("Batch " + batchCode + " business date does not match voucher posting date");
+        }
+        if (batch.getStatus() != BatchStatus.OPEN) {
+            throw new RuntimeException("Batch " + batchCode + " must be OPEN before voucher posting");
+        }
     }
 }

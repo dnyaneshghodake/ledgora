@@ -7,6 +7,8 @@ import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.balance.service.CbsBalanceEngine;
+import com.ledgora.batch.entity.TransactionBatch;
+import com.ledgora.batch.repository.TransactionBatchRepository;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.common.enums.*;
@@ -47,6 +49,7 @@ class LedgoraVoucherLifecycleTest {
 
     @Autowired private VoucherService voucherService;
     @Autowired private VoucherRepository voucherRepository;
+    @Autowired private TransactionBatchRepository transactionBatchRepository;
     @Autowired private CbsBalanceEngine cbsBalanceEngine;
     @Autowired private AccountBalanceRepository accountBalanceRepository;
     @Autowired private AccountRepository accountRepository;
@@ -116,7 +119,7 @@ class LedgoraVoucherLifecycleTest {
         Voucher voucher = voucherService.createVoucher(
                 data.tenant, data.branch, data.account, data.gl,
                 VoucherDrCr.CR, new BigDecimal("2000.0000"), new BigDecimal("2000.0000"),
-                "INR", LocalDate.now(), LocalDate.now(), "BATCH-03", 1,
+                "INR", LocalDate.now(), LocalDate.now(), createOpenBatchCode(data.tenant, LocalDate.now()), 1,
                 data.maker, "Test post voucher");
 
         voucherService.authorizeVoucher(voucher.getId(), data.checker);
@@ -157,7 +160,7 @@ class LedgoraVoucherLifecycleTest {
         Voucher voucher = voucherService.createVoucher(
                 data.tenant, data.branch, data.account, data.gl,
                 VoucherDrCr.CR, new BigDecimal("1000.0000"), new BigDecimal("1000.0000"),
-                "INR", LocalDate.now(), LocalDate.now(), "BATCH-05", 1,
+                "INR", LocalDate.now(), LocalDate.now(), createOpenBatchCode(data.tenant, LocalDate.now()), 1,
                 data.maker, "Cancel test");
 
         voucherService.authorizeVoucher(voucher.getId(), data.checker);
@@ -200,7 +203,7 @@ class LedgoraVoucherLifecycleTest {
         Voucher voucher = voucherService.createVoucher(
                 data.tenant, data.branch, data.account, data.gl,
                 VoucherDrCr.CR, new BigDecimal("300.0000"), new BigDecimal("300.0000"),
-                "INR", LocalDate.now(), LocalDate.now(), "BATCH-07", 1,
+                "INR", LocalDate.now(), LocalDate.now(), createOpenBatchCode(data.tenant, LocalDate.now()), 1,
                 data.maker, "Double cancel test");
 
         voucherService.authorizeVoucher(voucher.getId(), data.checker);
@@ -246,6 +249,17 @@ class LedgoraVoucherLifecycleTest {
         bal.setAvailableBalance(amt);
         bal.setLedgerBalance(amt);
         accountBalanceRepository.save(bal);
+    }
+
+
+    private String createOpenBatchCode(Tenant tenant, LocalDate businessDate) {
+        TransactionBatch openBatch = transactionBatchRepository.save(TransactionBatch.builder()
+                .tenant(tenant)
+                .batchType(BatchType.BATCH)
+                .businessDate(businessDate)
+                .status(BatchStatus.OPEN)
+                .build());
+        return "BATCH-" + openBatch.getId();
     }
 
     private TestData setupTestData(String suffix) {
