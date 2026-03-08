@@ -48,9 +48,11 @@
                             </a>
                             <c:if test="${approval.status == 'PENDING'}">
                                 <form method="post" action="${pageContext.request.contextPath}/approvals/${approval.id}/approve" style="display:inline;">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                                     <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-check"></i></button>
                                 </form>
                                 <form method="post" action="${pageContext.request.contextPath}/approvals/${approval.id}/reject" style="display:inline;">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                                     <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-x"></i></button>
                                 </form>
                             </c:if>

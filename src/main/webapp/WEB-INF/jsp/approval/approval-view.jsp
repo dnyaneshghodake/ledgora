@@ -34,6 +34,7 @@
             <div class="row g-3">
                 <div class="col-md-6">
                     <form method="post" action="${pageContext.request.contextPath}/approvals/${approval.id}/approve">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                         <div class="mb-2">
                             <input type="text" name="remarks" class="form-control" placeholder="Approval remarks..." />
                         </div>
@@ -42,6 +43,7 @@
                 </div>
                 <div class="col-md-6">
                     <form method="post" action="${pageContext.request.contextPath}/approvals/${approval.id}/reject">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                         <div class="mb-2">
                             <input type="text" name="remarks" class="form-control" placeholder="Rejection reason..." />
                         </div>

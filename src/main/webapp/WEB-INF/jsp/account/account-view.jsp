@@ -172,6 +172,7 @@
                 <a href="${pageContext.request.contextPath}/transactions/deposit?account=${account.accountNumber}" class="btn btn-outline-success btn-sm cbs-lockable">Deposit</a>
                 <a href="${pageContext.request.contextPath}/transactions/withdraw?account=${account.accountNumber}" class="btn btn-outline-danger btn-sm cbs-lockable">Withdraw</a>
                 <form method="post" action="${pageContext.request.contextPath}/accounts/${account.id}/status" class="d-inline">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                     <c:if test="${account.status == 'ACTIVE'}">
                         <input type="hidden" name="status" value="SUSPENDED"/>
                         <button type="submit" class="btn btn-outline-warning btn-sm w-100" onclick="return confirm('Suspend this account?')">Suspend</button>
