@@ -1,20 +1,20 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-cash-stack"></i> Deposit</h3>
     <a href="${pageContext.request.contextPath}/transactions" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
 </div>
+
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
 
 <c:if test="${not empty error}">
     <div class="alert alert-danger"><c:out value="${error}"/></div>
 </c:if>
 
-<%-- Holiday Warning --%>
-<c:if test="${isHoliday}">
-<div class="alert alert-danger"><i class="bi bi-calendar-x"></i> <strong>HOLIDAY</strong> - Manual transactions are blocked on holidays.</div>
-</c:if>
-
+<%-- Main Content Section --%>
 <div class="card shadow">
     <div class="card-body">
         <form method="post" action="${pageContext.request.contextPath}/transactions/deposit" id="depositForm">

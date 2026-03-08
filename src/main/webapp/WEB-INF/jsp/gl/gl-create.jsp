@@ -2,13 +2,16 @@
 <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="row mb-4">
-    <div class="col-12">
-        <h3><i class="bi bi-plus-circle"></i> Create GL Account</h3>
-        <hr>
-    </div>
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3><i class="bi bi-plus-circle"></i> Create GL Account</h3>
+    <a href="${pageContext.request.contextPath}/gl" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
 </div>
 
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
+
+<%-- Main Content Section --%>
 <div class="row justify-content-center">
     <div class="col-md-8">
         <div class="card shadow">

@@ -1,13 +1,18 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-play-circle"></i> Run End of Day</h3>
     <a href="${pageContext.request.contextPath}/eod/validate" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Back to Validation
     </a>
 </div>
 
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
+
+<%-- Main Content Section --%>
 <div class="card shadow">
     <div class="card-header bg-white"><h5 class="mb-0">EOD Confirmation</h5></div>
     <div class="card-body">
@@ -25,7 +30,7 @@
                         <div class="text-muted small">Business Date</div>
                         <div class="fs-5 fw-bold">
                             <c:choose>
-                                <c:when test="${not empty businessDate}">${businessDate}</c:when>
+                                <c:when test="${not empty businessDate}"><c:out value="${businessDate}"/></c:when>
                                 <c:otherwise><%= new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date()) %></c:otherwise>
                             </c:choose>
                         </div>
@@ -51,7 +56,7 @@
                 <div class="card bg-light">
                     <div class="card-body text-center">
                         <div class="text-muted small">Branch</div>
-                        <div class="fs-5 fw-bold">${not empty branchCode ? branchCode : 'HQ'}</div>
+                        <div class="fs-5 fw-bold"><c:out value="${not empty branchCode ? branchCode : 'HQ'}"/></div>
                     </div>
                 </div>
             </div>

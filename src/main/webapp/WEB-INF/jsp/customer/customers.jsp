@@ -1,17 +1,24 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-people"></i> Customer Master</h3>
+    <c:if test="${sessionScope.isMaker || sessionScope.isAdmin || sessionScope.isManager}">
     <a href="${pageContext.request.contextPath}/customers/create" class="btn btn-primary"><i class="bi bi-person-plus"></i> Add Customer</a>
+    </c:if>
 </div>
+
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
 
 <c:if test="${not empty message}">
     <div class="alert alert-success alert-dismissible fade show"><c:out value="${message}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 </c:if>
 
-<%-- Search & Filter Bar (PART 9) --%>
+<%-- Search / Filter Section --%>
 <div class="card shadow mb-4">
+    <div class="card-header bg-light"><h6 class="mb-0"><i class="bi bi-funnel"></i> Search &amp; Filter</h6></div>
     <div class="card-body">
         <form method="get" action="${pageContext.request.contextPath}/customers" class="row g-2">
             <div class="col-md-3">
@@ -79,14 +86,18 @@
                                 </td>
                                 <td><small><c:out value="${c.createdAt}"/></small></td>
                                 <td>
-                                    <a href="${pageContext.request.contextPath}/customers/${c.customerId}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
-                                    <a href="${pageContext.request.contextPath}/customers/${c.customerId}/edit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i></a>
+                                                    <a href="${pageContext.request.contextPath}/customers/${c.customerId}" class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
+                                                    <c:if test="${sessionScope.isMaker || sessionScope.isAdmin || sessionScope.isManager}">
+                                                    <a href="${pageContext.request.contextPath}/customers/${c.customerId}/edit" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
+                                                    </c:if>
                                 </td>
                             </tr>
                             </c:forEach>
                         </tbody>
                     </table>
                 </div>
+                <%-- Pagination --%>
+                <%@ include file="../layout/pagination.jsp" %>
             </c:when>
             <c:otherwise>
                 <div class="text-center py-4 text-muted">

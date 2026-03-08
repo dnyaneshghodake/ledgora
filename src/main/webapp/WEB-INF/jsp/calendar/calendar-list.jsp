@@ -1,15 +1,22 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-calendar3"></i> Banking Calendar</h3>
+    <c:if test="${sessionScope.isMaker || sessionScope.isAdmin || sessionScope.isManager}">
     <a href="${pageContext.request.contextPath}/calendar/create" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Add Entry</a>
+    </c:if>
 </div>
+
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
 
 <c:if test="${not empty message}">
     <div class="alert alert-success"><c:out value="${message}"/></div>
 </c:if>
 
+<%-- Main Content Section --%>
 <div class="card shadow">
     <div class="card-body">
         <c:choose>
@@ -35,7 +42,12 @@
                     </table>
                 </div>
             </c:when>
-            <c:otherwise><div class="text-center py-4 text-muted"><p>No calendar entries.</p></div></c:otherwise>
+            <c:otherwise>
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-calendar3" style="font-size: 3rem;"></i>
+                    <p class="mt-2">No calendar entries.</p>
+                </div>
+            </c:otherwise>
         </c:choose>
     </div>
 </div>
