@@ -1,10 +1,16 @@
 package com.ledgora.customer.service;
 
+import com.ledgora.auth.entity.User;
+import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.customer.dto.CustomerDTO;
 import com.ledgora.customer.entity.Customer;
 import com.ledgora.customer.repository.CustomerRepository;
+import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.tenant.entity.Tenant;
+import com.ledgora.tenant.service.TenantService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,9 +25,15 @@ public class CustomerService {
 
     private static final Logger log = LoggerFactory.getLogger(CustomerService.class);
     private final CustomerRepository customerRepository;
+    private final TenantService tenantService;
+    private final UserRepository userRepository;
 
-    public CustomerService(CustomerRepository customerRepository) {
+    public CustomerService(CustomerRepository customerRepository,
+                           TenantService tenantService,
+                           UserRepository userRepository) {
         this.customerRepository = customerRepository;
+        this.tenantService = tenantService;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -29,6 +41,10 @@ public class CustomerService {
         if (dto.getNationalId() != null && customerRepository.existsByNationalId(dto.getNationalId())) {
             throw new RuntimeException("Customer with national ID " + dto.getNationalId() + " already exists");
         }
+
+        Long tenantId = requireTenantId();
+        Tenant tenant = tenantService.getTenantById(tenantId);
+        User currentUser = getCurrentUser();
 
         Customer customer = Customer.builder()
                 .firstName(dto.getFirstName())
@@ -39,10 +55,13 @@ public class CustomerService {
                 .phone(dto.getPhone())
                 .email(dto.getEmail())
                 .address(dto.getAddress())
+                .tenant(tenant)
+                .createdBy(currentUser)
                 .build();
 
         Customer saved = customerRepository.save(customer);
-        log.info("Customer created: {} {} (ID: {})", saved.getFirstName(), saved.getLastName(), saved.getCustomerId());
+        log.info("Customer created: {} {} (ID: {}) by user {}", saved.getFirstName(), saved.getLastName(),
+                saved.getCustomerId(), currentUser != null ? currentUser.getUsername() : "system");
         return saved;
     }
 
@@ -72,7 +91,7 @@ public class CustomerService {
     }
 
     public List<Customer> getAllCustomers() {
-        return customerRepository.findAll();
+        return customerRepository.findByTenantId(requireTenantId());
     }
 
     public Optional<Customer> getCustomerById(Long id) {
@@ -84,15 +103,15 @@ public class CustomerService {
     }
 
     public List<Customer> searchByName(String name) {
-        return customerRepository.searchByName(name);
+        return customerRepository.searchByTenantIdAndName(requireTenantId(), name);
     }
 
     public List<Customer> getByKycStatus(String kycStatus) {
-        return customerRepository.findByKycStatus(kycStatus);
+        return customerRepository.findByTenantIdAndKycStatus(requireTenantId(), kycStatus);
     }
 
     public long countAll() {
-        return customerRepository.count();
+        return customerRepository.countByTenantId(requireTenantId());
     }
 
     @Transactional
@@ -109,8 +128,17 @@ public class CustomerService {
     public Customer approveCustomer(Long customerId) {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
+
+        // Maker-checker: approver must be different from creator
+        User currentUser = getCurrentUser();
+        if (customer.getCreatedBy() != null && currentUser != null
+                && customer.getCreatedBy().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("Cannot approve your own customer record (maker-checker violation)");
+        }
+
         customer.setKycStatus("VERIFIED");
-        log.info("Customer {} approved", customerId);
+        log.info("Customer {} approved by user {}", customerId,
+                currentUser != null ? currentUser.getUsername() : "system");
         return customerRepository.save(customer);
     }
 
@@ -118,8 +146,30 @@ public class CustomerService {
     public Customer rejectCustomer(Long customerId) {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
+
+        // Maker-checker: rejector must be different from creator
+        User currentUser = getCurrentUser();
+        if (customer.getCreatedBy() != null && currentUser != null
+                && customer.getCreatedBy().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("Cannot reject your own customer record (maker-checker violation)");
+        }
+
         customer.setKycStatus("REJECTED");
-        log.info("Customer {} rejected", customerId);
+        log.info("Customer {} rejected by user {}", customerId,
+                currentUser != null ? currentUser.getUsername() : "system");
         return customerRepository.save(customer);
+    }
+
+    private Long requireTenantId() {
+        return TenantContextHolder.getRequiredTenantId();
+    }
+
+    private User getCurrentUser() {
+        try {
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            return userRepository.findByUsername(username).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

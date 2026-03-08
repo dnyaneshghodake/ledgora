@@ -151,6 +151,7 @@ public class VoucherService {
 
     /**
      * Authorize a voucher. Sets auth_flag = Y.
+     * Checker must not be null and must differ from maker (maker-checker enforcement).
      */
     @Transactional
     public Voucher authorizeVoucher(Long voucherId, User checker) {
@@ -164,7 +165,10 @@ public class VoucherService {
         if ("Y".equals(voucher.getAuthFlag())) {
             throw new RuntimeException("Voucher already authorized: " + voucherId);
         }
-        if (voucher.getMaker() != null && checker != null
+        if (checker == null) {
+            throw new RuntimeException("Checker must not be null for voucher authorization: " + voucherId);
+        }
+        if (voucher.getMaker() != null
                 && voucher.getMaker().getId().equals(checker.getId())) {
             throw new RuntimeException("Maker and checker cannot be the same user for voucher: " + voucherId);
         }
@@ -173,8 +177,38 @@ public class VoucherService {
         voucher.setChecker(checker);
         voucher = voucherRepository.save(voucher);
 
-        log.info("Voucher authorized: id={}, checker={}", voucherId,
-                checker != null ? checker.getUsername() : "SYSTEM");
+        log.info("Voucher authorized: id={}, checker={}", voucherId, checker.getUsername());
+
+        return voucher;
+    }
+
+    /**
+     * System auto-authorize a voucher for straight-through processing (e.g. teller deposits).
+     * Records the maker as the initiator and marks authorization as SYSTEM_AUTO.
+     * This maintains audit trail while allowing single-user transaction flows.
+     */
+    @Transactional
+    public Voucher systemAuthorizeVoucher(Long voucherId, User maker) {
+        Long tenantId = requireTenantId();
+        Voucher voucher = voucherRepository.findByIdAndTenantId(voucherId, tenantId)
+                .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
+
+        if ("Y".equals(voucher.getCancelFlag())) {
+            throw new RuntimeException("Cannot authorize a cancelled voucher: " + voucherId);
+        }
+        if ("Y".equals(voucher.getAuthFlag())) {
+            throw new RuntimeException("Voucher already authorized: " + voucherId);
+        }
+
+        voucher.setAuthFlag("Y");
+        // Record maker as checker with SYSTEM_AUTO narration for audit trail
+        voucher.setChecker(maker);
+        String existingNarration = voucher.getNarration() != null ? voucher.getNarration() : "";
+        voucher.setNarration(existingNarration + " [SYSTEM_AUTO_AUTHORIZED]");
+        voucher = voucherRepository.save(voucher);
+
+        log.info("Voucher system-auto-authorized: id={}, maker={}", voucherId,
+                maker != null ? maker.getUsername() : "SYSTEM");
 
         return voucher;
     }

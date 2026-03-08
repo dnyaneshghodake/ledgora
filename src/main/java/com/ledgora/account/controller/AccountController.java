@@ -191,6 +191,34 @@ public class AccountController {
     }
 
     /**
+     * H2: Approve an account (checker step with maker-checker enforcement).
+     */
+    @PostMapping("/{id}/approve")
+    public String approveAccount(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            accountService.approveAccount(id);
+            redirectAttributes.addFlashAttribute("message", "Account approved successfully");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/accounts/" + id;
+    }
+
+    /**
+     * H2: Reject an account (checker step with maker-checker enforcement).
+     */
+    @PostMapping("/{id}/reject")
+    public String rejectAccount(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            accountService.rejectAccount(id);
+            redirectAttributes.addFlashAttribute("error", "Account rejected");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/accounts/" + id;
+    }
+
+    /**
      * API endpoint for AJAX account lookup by account number.
      * Used by transaction screens and account selection components.
      */

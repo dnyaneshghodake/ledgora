@@ -20,4 +20,17 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     boolean existsByNationalId(String nationalId);
     boolean existsByEmail(String email);
+
+    // Tenant-isolated queries
+    @Query("SELECT c FROM Customer c WHERE c.tenant.id = :tenantId")
+    List<Customer> findByTenantId(@Param("tenantId") Long tenantId);
+
+    @Query("SELECT c FROM Customer c WHERE c.tenant.id = :tenantId AND c.kycStatus = :kycStatus")
+    List<Customer> findByTenantIdAndKycStatus(@Param("tenantId") Long tenantId, @Param("kycStatus") String kycStatus);
+
+    @Query("SELECT c FROM Customer c WHERE c.tenant.id = :tenantId AND (LOWER(c.firstName) LIKE LOWER(CONCAT('%', :name, '%')) OR LOWER(c.lastName) LIKE LOWER(CONCAT('%', :name, '%')))")
+    List<Customer> searchByTenantIdAndName(@Param("tenantId") Long tenantId, @Param("name") String name);
+
+    @Query("SELECT COUNT(c) FROM Customer c WHERE c.tenant.id = :tenantId")
+    long countByTenantId(@Param("tenantId") Long tenantId);
 }
