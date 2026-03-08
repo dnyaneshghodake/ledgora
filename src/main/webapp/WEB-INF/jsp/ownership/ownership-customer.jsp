@@ -2,13 +2,18 @@
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-person-badge"></i> Customer Accounts</h3>
     <a href="${pageContext.request.contextPath}/ownership" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Back
     </a>
 </div>
 
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
+
+<%-- Main Content Section --%>
 <div class="card shadow">
     <div class="table-responsive">
         <table class="table table-hover mb-0">
@@ -22,7 +27,7 @@
                         <td><span class="badge bg-info"><c:out value="${o.account.accountType}"/></span></td>
                         <td><span class="badge bg-primary"><c:out value="${o.ownershipType}"/></span></td>
                         <td><c:out value="${o.ownershipPercentage}"/>%</td>
-                        <td>${o.isOperational ? 'Yes' : 'No'}</td>
+                        <td><c:choose><c:when test="${o.isOperational}"><span class="badge bg-success">Yes</span></c:when><c:otherwise><span class="badge bg-secondary">No</span></c:otherwise></c:choose></td>
                     </tr>
                 </c:forEach>
                 <c:if test="${empty ownerships}">

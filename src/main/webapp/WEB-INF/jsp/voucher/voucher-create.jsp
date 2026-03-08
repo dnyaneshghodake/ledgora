@@ -18,20 +18,38 @@
                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label">Debit Account</label>
-                    <input type="text" name="debitAccountNumber" class="form-control" placeholder="Enter debit account number" required />
+                    <label class="form-label cbs-field-required">Debit Account</label>
+                    <div class="input-group">
+                        <input type="text" name="debitAccountNumber" id="debitAccountNumber" class="form-control" readonly
+                               placeholder="Use lookup to select" required />
+                        <button type="button" class="btn btn-outline-primary" onclick="openAccountLookup('debitAccountNumber','debitAccountName')" title="Search Account">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    <input type="hidden" id="debitAccountName"/>
+                    <small id="debitAcctInfo" class="text-muted"></small>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Credit Account</label>
-                    <input type="text" name="creditAccountNumber" class="form-control" placeholder="Enter credit account number" required />
+                    <label class="form-label cbs-field-required">Credit Account</label>
+                    <div class="input-group">
+                        <input type="text" name="creditAccountNumber" id="creditAccountNumber" class="form-control" readonly
+                               placeholder="Use lookup to select" required />
+                        <button type="button" class="btn btn-outline-primary" onclick="openAccountLookup('creditAccountNumber','creditAccountName')" title="Search Account">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    <input type="hidden" id="creditAccountName"/>
+                    <small id="creditAcctInfo" class="text-muted"></small>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Amount</label>
-                    <input type="number" name="amount" class="form-control" step="0.01" min="0.01" placeholder="0.00" required />
+                    <label class="form-label cbs-field-required">Amount</label>
+                    <input type="number" name="amount" class="form-control" step="0.01" min="0.01" placeholder="0.00" required
+                           id="voucherAmount"/>
+                    <div id="voucherAmtError" class="cbs-inline-error">Amount must be greater than zero.</div>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Currency</label>
-                    <select name="currency" class="form-select">
+                    <label class="form-label cbs-field-required">Currency</label>
+                    <select name="currency" class="form-select" required>
                         <option value="INR">INR</option>
                         <option value="USD">USD</option>
                         <option value="EUR">EUR</option>
@@ -39,8 +57,8 @@
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Voucher Type</label>
-                    <select name="voucherType" class="form-select">
+                    <label class="form-label cbs-field-required">Voucher Type</label>
+                    <select name="voucherType" class="form-select" required>
                         <option value="TRANSFER">Transfer</option>
                         <option value="CASH">Cash</option>
                         <option value="CLEARING">Clearing</option>
@@ -49,7 +67,7 @@
                 </div>
                 <div class="col-12">
                     <label class="form-label">Narration</label>
-                    <textarea name="narration" class="form-control" rows="2" placeholder="Enter transaction narration"></textarea>
+                    <textarea name="narration" class="form-control" rows="2" maxlength="500" placeholder="Enter transaction narration"></textarea>
                 </div>
             </div>
             <div class="mt-4">

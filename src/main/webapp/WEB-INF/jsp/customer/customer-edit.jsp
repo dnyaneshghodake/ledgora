@@ -2,17 +2,22 @@
 <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-pencil-square"></i> Edit Customer</h3>
     <a href="${pageContext.request.contextPath}/customers/${customerDTO.customerId}" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Back
     </a>
 </div>
 
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
+
 <c:if test="${not empty error}">
     <div class="alert alert-danger"><c:out value="${error}"/></div>
 </c:if>
 
+<%-- Main Content Section --%>
 <div class="card shadow">
     <div class="card-header bg-white">
         <h5 class="mb-0"><i class="bi bi-pencil"></i> Edit Customer Details</h5>
@@ -23,7 +28,7 @@
                 <%-- Customer ID (read-only) --%>
                 <div class="col-md-4">
                     <label class="form-label">Customer ID</label>
-                    <input type="text" class="form-control" value="${customerDTO.customerId}" disabled/>
+                    <input type="text" class="form-control" value="<c:out value='${customerDTO.customerId}'/>" disabled/>
                 </div>
                 <%-- Customer Type --%>
                 <div class="col-md-4">
@@ -36,7 +41,7 @@
                 <%-- KYC Status (read-only) --%>
                 <div class="col-md-4">
                     <label class="form-label">KYC Status</label>
-                    <input type="text" class="form-control" value="${customerDTO.kycStatus}" disabled/>
+                    <input type="text" class="form-control" value="<c:out value='${customerDTO.kycStatus}'/>" disabled/>
                 </div>
                 <%-- First Name --%>
                 <div class="col-md-4">

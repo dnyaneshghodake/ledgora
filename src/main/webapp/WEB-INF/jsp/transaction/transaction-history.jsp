@@ -1,11 +1,16 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-clock-history"></i> Transaction History - <code><c:out value="${accountNumber}"/></code></h3>
-    <a href="${pageContext.request.contextPath}/transactions" class="btn btn-secondary">Back</a>
+    <a href="${pageContext.request.contextPath}/transactions" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
 </div>
 
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
+
+<%-- Main Content Section --%>
 <div class="row">
     <div class="col-md-8">
         <div class="card shadow">
@@ -26,9 +31,9 @@
                                         <c:otherwise><span class="badge bg-info">TRANSFER</span></c:otherwise>
                                     </c:choose>
                                 </td>
-                                <td class="fw-bold">${txn.amount} ${txn.currency}</td>
-                                <td><span class="badge bg-success">${txn.status}</span></td>
-                                <td>${txn.createdAt}</td>
+                                <td class="fw-bold"><c:out value="${txn.amount}"/> <c:out value="${txn.currency}"/></td>
+                                <td><span class="badge bg-success"><c:out value="${txn.status}"/></span></td>
+                                <td><c:out value="${txn.createdAt}"/></td>
                                 <td><a href="${pageContext.request.contextPath}/transactions/${txn.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
                             </tr>
                         </c:forEach>
@@ -47,8 +52,8 @@
                 <c:forEach var="entry" items="${ledgerEntries}">
                     <div class="border rounded p-2 mb-2">
                         <div class="d-flex justify-content-between">
-                            <span class="badge ${entry.entryType == 'DEBIT' ? 'bg-danger' : 'bg-success'}">${entry.entryType}</span>
-                            <strong>${entry.amount}</strong>
+                            <span class="badge ${entry.entryType == 'DEBIT' ? 'bg-danger' : 'bg-success'}"><c:out value="${entry.entryType}"/></span>
+                            <strong><c:out value="${entry.amount}"/></strong>
                         </div>
                         <small class="text-muted">GL: <c:out value="${entry.glAccountCode}"/></small><br>
                         <small><c:out value="${entry.narration}"/></small>

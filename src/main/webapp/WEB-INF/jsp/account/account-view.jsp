@@ -1,26 +1,34 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3><i class="bi bi-wallet2"></i> Account Details</h3>
+    <div>
+        <c:if test="${sessionScope.isMaker || sessionScope.isAdmin || sessionScope.isManager}">
+        <a href="${pageContext.request.contextPath}/accounts/${account.id}/edit" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
+        </c:if>
+        <a href="${pageContext.request.contextPath}/accounts" class="btn btn-outline-primary"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
+</div>
+
+<%-- Operational Status Banner --%>
+<c:if test="${account.freezeLevel != null && account.freezeLevel != 'NONE'}">
+    <c:set var="freezeActive" value="${true}" scope="request"/>
+    <c:set var="freezeLevel" value="${account.freezeLevel}" scope="request"/>
+    <c:set var="freezeReason" value="${account.freezeReason}" scope="request"/>
+</c:if>
+<c:if test="${account.approvalStatus == 'PENDING'}">
+    <c:set var="approvalPending" value="${true}" scope="request"/>
+    <c:set var="approvalPendingMessage" value="This account is pending maker-checker approval." scope="request"/>
+</c:if>
+<%@ include file="../layout/status-banner.jsp" %>
+
 <c:if test="${not empty message}">
     <div class="alert alert-success alert-dismissible fade show"><c:out value="${message}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 </c:if>
 <c:if test="${not empty error}">
     <div class="alert alert-danger"><c:out value="${error}"/></div>
-</c:if>
-
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h3><i class="bi bi-wallet2"></i> Account Details</h3>
-    <div>
-        <a href="${pageContext.request.contextPath}/accounts/${account.id}/edit" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
-        <a href="${pageContext.request.contextPath}/accounts" class="btn btn-outline-primary"><i class="bi bi-arrow-left"></i> Back</a>
-    </div>
-</div>
-
-<%-- Freeze Warning Banner --%>
-<c:if test="${account.freezeLevel != null && account.freezeLevel != 'NONE'}">
-<div class="alert alert-danger"><i class="bi bi-slash-circle-fill"></i> <strong>ACCOUNT FROZEN</strong> - Freeze Level: <c:out value="${account.freezeLevel}"/>
-    <c:if test="${not empty account.freezeReason}"> | Reason: <c:out value="${account.freezeReason}"/></c:if>
-</div>
 </c:if>
 
 <ul class="nav nav-tabs mb-4" id="accountTabs">
@@ -29,6 +37,8 @@
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-ownership">Ownership</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-liens">Liens</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-transactions">Transactions</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-freeze-history">Freeze History</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-lien-history">Lien History</a></li>
 </ul>
 
 <div class="tab-content">
@@ -209,6 +219,108 @@
         </div>
     </div>
 </div>
+
+<%-- Freeze History Tab --%>
+<div class="tab-pane fade" id="tab-freeze-history">
+    <div class="card shadow">
+        <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-clock-history"></i> Freeze History</h5></div>
+        <div class="card-body">
+            <c:choose>
+                <c:when test="${not empty freezeHistory}">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
+                                <tr><th>Date</th><th>Action</th><th>Maker</th><th>Checker</th><th>Status</th><th>Details</th></tr>
+                            </thead>
+                            <tbody>
+                                <c:forEach var="fh" items="${freezeHistory}">
+                                <tr>
+                                    <td><small><c:out value="${fh.timestamp}"/></small></td>
+                                    <td><span class="badge bg-info"><c:out value="${fh.action}"/></span></td>
+                                    <td><c:out value="${fh.username}" default="System"/></td>
+                                    <td><c:out value="${fh.checker}" default="--"/></td>
+                                    <td>
+                                        <c:choose>
+                                            <c:when test="${fh.action == 'FREEZE_APPLY'}"><span class="badge bg-danger">Frozen</span></c:when>
+                                            <c:when test="${fh.action == 'FREEZE_RELEASE'}"><span class="badge bg-success">Released</span></c:when>
+                                            <c:otherwise><span class="badge bg-secondary"><c:out value="${fh.action}"/></span></c:otherwise>
+                                        </c:choose>
+                                    </td>
+                                    <td><small><c:out value="${fh.details}"/></small></td>
+                                </tr>
+                                </c:forEach>
+                            </tbody>
+                        </table>
+                    </div>
+                </c:when>
+                <c:otherwise>
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+                        <p class="mt-2">No freeze history records found.</p>
+                    </div>
+                </c:otherwise>
+            </c:choose>
+        </div>
+    </div>
 </div>
+
+<%-- Lien History Tab --%>
+<div class="tab-pane fade" id="tab-lien-history">
+    <div class="card shadow">
+        <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-lock-fill"></i> Lien History</h5></div>
+        <div class="card-body">
+            <c:choose>
+                <c:when test="${not empty lienHistory}">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
+                                <tr><th>Date</th><th>Action</th><th>Maker</th><th>Checker</th><th>Status</th><th>Amount</th><th>Details</th></tr>
+                            </thead>
+                            <tbody>
+                                <c:forEach var="lh" items="${lienHistory}">
+                                <tr>
+                                    <td><small><c:out value="${lh.timestamp}"/></small></td>
+                                    <td><span class="badge bg-info"><c:out value="${lh.action}"/></span></td>
+                                    <td><c:out value="${lh.username}" default="System"/></td>
+                                    <td><c:out value="${lh.checker}" default="--"/></td>
+                                    <td>
+                                        <c:choose>
+                                            <c:when test="${lh.action == 'LIEN_CREATE'}"><span class="badge bg-warning">Created</span></c:when>
+                                            <c:when test="${lh.action == 'LIEN_APPROVE'}"><span class="badge bg-success">Approved</span></c:when>
+                                            <c:when test="${lh.action == 'LIEN_RELEASE'}"><span class="badge bg-secondary">Released</span></c:when>
+                                            <c:otherwise><span class="badge bg-info"><c:out value="${lh.action}"/></span></c:otherwise>
+                                        </c:choose>
+                                    </td>
+                                    <td class="fw-bold"><c:out value="${lh.amount}" default="--"/></td>
+                                    <td><small><c:out value="${lh.details}"/></small></td>
+                                </tr>
+                                </c:forEach>
+                            </tbody>
+                        </table>
+                    </div>
+                </c:when>
+                <c:otherwise>
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-lock" style="font-size: 2rem;"></i>
+                        <p class="mt-2">No lien history records found.</p>
+                    </div>
+                </c:otherwise>
+            </c:choose>
+        </div>
+    </div>
+</div>
+</div>
+
+<%-- Audit Info Section --%>
+<c:set var="auditCreatedBy" value="${account.createdBy != null ? account.createdBy.username : ''}" scope="request"/>
+<c:set var="auditCreatedAt" value="${account.createdAt}" scope="request"/>
+<c:set var="auditLastModifiedBy" value="${account.lastModifiedBy}" scope="request"/>
+<c:set var="auditUpdatedAt" value="${account.updatedAt}" scope="request"/>
+<c:set var="auditApprovedBy" value="${account.approvedBy != null ? account.approvedBy.username : ''}" scope="request"/>
+<c:set var="auditApprovalStatus" value="${account.approvalStatus}" scope="request"/>
+<c:set var="auditCurrentStatus" value="${account.status}" scope="request"/>
+<c:set var="auditEntityType" value="Account" scope="request"/>
+<c:set var="auditEntityId" value="${account.accountNumber}" scope="request"/>
+<%@ include file="../layout/audit-info.jsp" %>
 
 <%@ include file="../layout/footer.jsp" %>
