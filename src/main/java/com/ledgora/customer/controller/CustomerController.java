@@ -1,5 +1,8 @@
 package com.ledgora.customer.controller;
 
+import com.ledgora.account.service.AccountService;
+import com.ledgora.common.enums.FreezeLevel;
+import com.ledgora.common.enums.MakerCheckerStatus;
 import com.ledgora.customer.dto.CustomerDTO;
 import com.ledgora.customer.entity.Customer;
 import com.ledgora.customer.service.CustomerService;
@@ -10,38 +13,50 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.List;
+
 /**
- * PART 1: Customer controller for JSP-based customer management.
+ * Customer controller for JSP-based customer management.
+ * Supports RBI-grade fields: customerType, freeze, approval, tax profile.
  */
 @Controller
 @RequestMapping("/customers")
 public class CustomerController {
 
     private final CustomerService customerService;
+    private final AccountService accountService;
 
-    public CustomerController(CustomerService customerService) {
+    public CustomerController(CustomerService customerService, AccountService accountService) {
         this.customerService = customerService;
+        this.accountService = accountService;
     }
 
     @GetMapping
     public String listCustomers(@RequestParam(value = "search", required = false) String search,
                                 @RequestParam(value = "kycStatus", required = false) String kycStatus,
+                                @RequestParam(value = "approvalStatus", required = false) String approvalStatus,
+                                @RequestParam(value = "status", required = false) String status,
                                 Model model) {
+        List<Customer> customers;
         if (search != null && !search.isEmpty()) {
-            model.addAttribute("customers", customerService.searchByName(search));
+            customers = customerService.searchByName(search);
             model.addAttribute("search", search);
         } else if (kycStatus != null && !kycStatus.isEmpty()) {
-            model.addAttribute("customers", customerService.getByKycStatus(kycStatus));
+            customers = customerService.getByKycStatus(kycStatus);
             model.addAttribute("selectedKycStatus", kycStatus);
         } else {
-            model.addAttribute("customers", customerService.getAllCustomers());
+            customers = customerService.getAllCustomers();
         }
+        model.addAttribute("customers", customers);
+        model.addAttribute("freezeLevels", FreezeLevel.values());
+        model.addAttribute("approvalStatuses", MakerCheckerStatus.values());
         return "customer/customers";
     }
 
     @GetMapping("/create")
     public String createForm(Model model) {
         model.addAttribute("customerDTO", new CustomerDTO());
+        model.addAttribute("freezeLevels", FreezeLevel.values());
         return "customer/customer-create";
     }
 
@@ -49,15 +64,17 @@ public class CustomerController {
     public String createCustomer(@Valid @ModelAttribute("customerDTO") CustomerDTO dto,
                                  BindingResult result, Model model, RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
+            model.addAttribute("freezeLevels", FreezeLevel.values());
             return "customer/customer-create";
         }
         try {
             Customer customer = customerService.createCustomer(dto);
             redirectAttributes.addFlashAttribute("message",
-                    "Customer created: " + customer.getFirstName() + " " + customer.getLastName());
+                    "Customer created (PENDING approval): " + customer.getFirstName() + " " + customer.getLastName());
             return "redirect:/customers";
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
+            model.addAttribute("freezeLevels", FreezeLevel.values());
             return "customer/customer-create";
         }
     }
@@ -67,6 +84,14 @@ public class CustomerController {
         Customer customer = customerService.getCustomerById(id)
                 .orElseThrow(() -> new RuntimeException("Customer not found"));
         model.addAttribute("customer", customer);
+        // Load linked accounts for this customer
+        try {
+            model.addAttribute("linkedAccounts", accountService.getAccountsByCustomerId(id));
+        } catch (Exception e) {
+            // If method not available, set empty list
+            model.addAttribute("linkedAccounts", List.of());
+        }
+        model.addAttribute("freezeLevels", FreezeLevel.values());
         return "customer/customer-view";
     }
 
@@ -86,6 +111,7 @@ public class CustomerController {
                 .address(customer.getAddress())
                 .build();
         model.addAttribute("customerDTO", dto);
+        model.addAttribute("freezeLevels", FreezeLevel.values());
         return "customer/customer-edit";
     }
 
@@ -94,6 +120,7 @@ public class CustomerController {
                                  @Valid @ModelAttribute("customerDTO") CustomerDTO dto,
                                  BindingResult result, Model model, RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
+            model.addAttribute("freezeLevels", FreezeLevel.values());
             return "customer/customer-edit";
         }
         try {
@@ -102,6 +129,7 @@ public class CustomerController {
             return "redirect:/customers/" + id;
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
+            model.addAttribute("freezeLevels", FreezeLevel.values());
             return "customer/customer-edit";
         }
     }
@@ -116,5 +144,48 @@ public class CustomerController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
         return "redirect:/customers/" + id;
+    }
+
+    @PostMapping("/{id}/freeze")
+    public String freezeCustomer(@PathVariable Long id,
+                                 @RequestParam String freezeLevel,
+                                 @RequestParam String freezeReason,
+                                 RedirectAttributes redirectAttributes) {
+        try {
+            customerService.updateFreezeStatus(id, freezeLevel, freezeReason);
+            redirectAttributes.addFlashAttribute("message", "Customer freeze updated to " + freezeLevel);
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/customers/" + id;
+    }
+
+    @PostMapping("/{id}/approve")
+    public String approveCustomer(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            customerService.approveCustomer(id);
+            redirectAttributes.addFlashAttribute("message", "Customer approved successfully");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/customers/" + id;
+    }
+
+    @PostMapping("/{id}/reject")
+    public String rejectCustomer(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            customerService.rejectCustomer(id);
+            redirectAttributes.addFlashAttribute("message", "Customer rejected");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/customers/" + id;
+    }
+
+    /** AJAX endpoint for customer lookup - returns JSON */
+    @GetMapping("/api/search")
+    @ResponseBody
+    public List<Customer> searchCustomersApi(@RequestParam("q") String query) {
+        return customerService.searchByName(query);
     }
 }

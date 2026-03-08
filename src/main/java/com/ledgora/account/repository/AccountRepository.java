@@ -54,4 +54,11 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     Optional<Account> findByAccountNumberWithLockAndTenantId(@Param("accountNumber") String accountNumber, @Param("tenantId") Long tenantId);
 
     Optional<Account> findFirstByTenantIdAndGlAccountCode(Long tenantId, String glAccountCode);
+
+    // Customer-linked accounts
+    @Query("SELECT a FROM Account a WHERE a.customer.customerId = :customerId")
+    List<Account> findByCustomerId(@Param("customerId") Long customerId);
+
+    @Query("SELECT a FROM Account a WHERE a.tenant.id = :tenantId AND a.customer.customerId = :customerId")
+    List<Account> findByTenantIdAndCustomerId(@Param("tenantId") Long tenantId, @Param("customerId") Long customerId);
 }

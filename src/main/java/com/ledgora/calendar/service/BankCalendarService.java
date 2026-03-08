@@ -98,6 +98,13 @@ public class BankCalendarService {
                 throw new RuntimeException("System/batch transactions are not allowed on this holiday. Date: " + date);
             }
         }
+
+        // ONLINE and MOBILE channels follow the same policy as ATM on holidays
+        if (channel == TransactionChannel.ONLINE || channel == TransactionChannel.MOBILE) {
+            if (calendar == null || !Boolean.TRUE.equals(calendar.getAtmAllowed())) {
+                throw new RuntimeException("Digital banking transactions (" + channel + ") are not allowed on this holiday. Date: " + date);
+            }
+        }
     }
 
     /**

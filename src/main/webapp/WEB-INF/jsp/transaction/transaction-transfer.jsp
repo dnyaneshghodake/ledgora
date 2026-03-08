@@ -1,61 +1,86 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
-<%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="row mb-4">
-    <div class="col-12">
-        <h3><i class="bi bi-arrow-left-right text-info"></i> Internal Transfer</h3>
-        <hr>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3><i class="bi bi-arrow-left-right"></i> Transfer</h3>
+    <a href="${pageContext.request.contextPath}/transactions" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+<c:if test="${not empty error}">
+    <div class="alert alert-danger"><c:out value="${error}"/></div>
+</c:if>
+
+<c:if test="${isHoliday}">
+<div class="alert alert-danger"><i class="bi bi-calendar-x"></i> <strong>HOLIDAY</strong> - Manual transactions are blocked.</div>
+</c:if>
+
+<div class="card shadow">
+    <div class="card-body">
+        <form method="post" action="${pageContext.request.contextPath}/transactions/transfer" id="transferForm">
+            <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-header"><strong>From Account (Debit)</strong></div>
+                        <div class="card-body">
+                            <label class="form-label">Account Number *</label>
+                            <div class="input-group">
+                                <input type="text" name="fromAccountNumber" id="fromAccount" class="form-control" required/>
+                                <button type="button" class="btn btn-outline-primary" onclick="lookupFrom()"><i class="bi bi-search"></i></button>
+                            </div>
+                            <div class="mt-2" id="fromInfo"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-header"><strong>To Account (Credit)</strong></div>
+                        <div class="card-body">
+                            <label class="form-label">Account Number *</label>
+                            <div class="input-group">
+                                <input type="text" name="toAccountNumber" id="toAccount" class="form-control" required/>
+                                <button type="button" class="btn btn-outline-primary" onclick="lookupTo()"><i class="bi bi-search"></i></button>
+                            </div>
+                            <div class="mt-2" id="toInfo"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Amount *</label>
+                    <input type="number" name="amount" class="form-control" required step="0.01" min="0.01" id="amountInput"/>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Description</label>
+                    <input type="text" name="description" class="form-control" maxlength="255"/>
+                </div>
+                <div class="col-12"><hr>
+                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" ${isHoliday ? 'disabled' : ''}><i class="bi bi-arrow-left-right"></i> Execute Transfer</button>
+                </div>
+            </div>
+        </form>
     </div>
 </div>
 
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card shadow">
-            <div class="card-body p-4">
-                <form:form action="${pageContext.request.contextPath}/transactions/transfer" method="post" modelAttribute="transactionDTO" id="transferForm">
-                    <form:hidden path="transactionType" value="TRANSFER"/>
-                    <div class="mb-3">
-                        <label for="sourceAccountNumber" class="form-label">From Account *</label>
-                        <form:select path="sourceAccountNumber" cssClass="form-select" id="sourceAccountNumber" required="true">
-                            <option value="">Select Source Account</option>
-                            <c:forEach var="acc" items="${accounts}">
-                                <option value="${acc.accountNumber}">${acc.accountNumber} - ${acc.customerName} (${acc.balance} ${acc.currency})</option>
-                            </c:forEach>
-                        </form:select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="destinationAccountNumber" class="form-label">To Account *</label>
-                        <form:select path="destinationAccountNumber" cssClass="form-select" id="destinationAccountNumber" required="true">
-                            <option value="">Select Destination Account</option>
-                            <c:forEach var="acc" items="${accounts}">
-                                <option value="${acc.accountNumber}">${acc.accountNumber} - ${acc.customerName} (${acc.balance} ${acc.currency})</option>
-                            </c:forEach>
-                        </form:select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="amount" class="form-label">Amount *</label>
-                        <div class="input-group">
-                            <span class="input-group-text">INR</span>
-                            <form:input path="amount" type="number" step="0.01" min="0.01" cssClass="form-control" id="amount" required="true" placeholder="0.00"/>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="description" class="form-label">Description</label>
-                        <form:input path="description" cssClass="form-control" id="description" placeholder="Internal Transfer"/>
-                    </div>
-                    <div class="mb-3">
-                        <label for="narration" class="form-label">Narration</label>
-                        <form:textarea path="narration" cssClass="form-control" id="narration" rows="2"/>
-                    </div>
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-info text-white"><i class="bi bi-check-circle"></i> Transfer</button>
-                        <a href="${pageContext.request.contextPath}/transactions" class="btn btn-secondary">Cancel</a>
-                    </div>
-                </form:form>
-            </div>
-        </div>
-    </div>
-</div>
+<script>
+function lookupFrom() { doLookup('fromAccount', 'fromInfo'); }
+function lookupTo() { doLookup('toAccount', 'toInfo'); }
+function doLookup(inputId, infoId) {
+    var num = document.getElementById(inputId).value;
+    if (!num) return;
+    fetch('${pageContext.request.contextPath}/accounts/api/lookup?accountNumber=' + encodeURIComponent(num))
+        .then(function(r) { return r.json(); })
+        .then(function(d) {
+            if (d) {
+                var html = '<small><strong>' + (d.accountName||'') + '</strong> | Balance: ' + (d.balance||'0') + ' | Available: ' + (d.availableBalance||d.balance||'0') + '</small>';
+                if (d.freezeLevel && d.freezeLevel !== 'NONE') html += '<br><span class="badge bg-danger">Freeze: ' + d.freezeLevel + '</span>';
+                document.getElementById(infoId).innerHTML = html;
+            }
+        }).catch(function(e) { console.error(e); });
+}
+document.getElementById('transferForm').addEventListener('submit', function(e) {
+    var amt = parseFloat(document.getElementById('amountInput').value);
+    if (isNaN(amt) || amt <= 0) { e.preventDefault(); alert('Amount must be > 0.'); }
+});
+</script>
 
 <%@ include file="../layout/footer.jsp" %>
