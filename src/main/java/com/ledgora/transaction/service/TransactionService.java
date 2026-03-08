@@ -111,6 +111,9 @@ public class TransactionService {
      */
     @Transactional
     public Transaction deposit(TransactionDTO dto) {
+        // CBS: Server-side amount validation - never trust client input
+        validateAmountPositive(dto.getAmount());
+
         // PART 4: Validate tenant business day is OPEN
         Long tenantId = requireTenantId();
         tenantService.validateBusinessDayOpen(tenantId);
@@ -190,6 +193,9 @@ public class TransactionService {
      */
     @Transactional
     public Transaction withdraw(TransactionDTO dto) {
+        // CBS: Server-side amount validation - never trust client input
+        validateAmountPositive(dto.getAmount());
+
         // PART 4: Validate tenant business day is OPEN
         Long tenantId = requireTenantId();
         tenantService.validateBusinessDayOpen(tenantId);
@@ -272,6 +278,9 @@ public class TransactionService {
      */
     @Transactional
     public Transaction transfer(TransactionDTO dto) {
+        // CBS: Server-side amount validation - never trust client input
+        validateAmountPositive(dto.getAmount());
+
         // PART 4: Validate tenant business day is OPEN
         Long tenantId = requireTenantId();
         tenantService.validateBusinessDayOpen(tenantId);
@@ -439,6 +448,16 @@ public class TransactionService {
         balance.setLedgerBalance(newLedgerBalance);
         balance.setAvailableBalance(newLedgerBalance.subtract(balance.getHoldAmount()));
         accountBalanceRepository.save(balance);
+    }
+
+    /**
+     * CBS: Server-side validation that transaction amount is positive.
+     * Never trust client-side validation alone for financial operations.
+     */
+    private void validateAmountPositive(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RuntimeException("Transaction amount must be positive. Received: " + amount);
+        }
     }
 
     private void validateAccountActive(Account account) {

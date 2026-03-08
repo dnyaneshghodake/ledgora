@@ -89,6 +89,9 @@ class LedgoraMultiTenantIsolationTest {
         seedBalance(data1.account.getId(), "50000.0000");
         seedBalance(data2.account.getId(), "50000.0000");
 
+        // Switch context to tenant 1 before creating voucher for tenant 1
+        TenantContextHolder.setTenantId(data1.tenant.getId());
+
         // Create voucher for tenant 1
         Voucher v1 = voucherService.createVoucher(
                 data1.tenant, data1.branch, data1.account, data1.gl,
@@ -165,13 +168,16 @@ class LedgoraMultiTenantIsolationTest {
         seedBalance(data1.account.getId(), "50000.0000");
         seedBalance(data2.account.getId(), "50000.0000");
 
-        // Create vouchers for both tenants
+        // Switch context to tenant 1 before creating voucher
+        TenantContextHolder.setTenantId(data1.tenant.getId());
         voucherService.createVoucher(
                 data1.tenant, data1.branch, data1.account, data1.gl,
                 VoucherDrCr.CR, new BigDecimal("100.0000"), new BigDecimal("100.0000"),
                 "INR", LocalDate.now(), LocalDate.now(), "BATCH-MT", 1,
                 data1.maker, "T1 voucher");
 
+        // Switch context to tenant 2 before creating voucher
+        TenantContextHolder.setTenantId(data2.tenant.getId());
         voucherService.createVoucher(
                 data2.tenant, data2.branch, data2.account, data2.gl,
                 VoucherDrCr.CR, new BigDecimal("200.0000"), new BigDecimal("200.0000"),
