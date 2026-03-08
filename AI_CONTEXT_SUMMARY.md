@@ -84,6 +84,7 @@ Use these as discovery anchors while implementing changes:
 - `/batches`
 - `/eod/**`
 - `/vouchers/**`
+- `/tenant/switch` (POST)
 - `/tenant/switch/{tenantId}`
 
 ## 9) Seeded local environment assumptions

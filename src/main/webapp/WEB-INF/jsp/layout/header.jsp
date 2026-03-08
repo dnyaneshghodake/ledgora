@@ -113,7 +113,12 @@
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <c:forEach var="t" items="${sessionScope.availableTenants}">
-                            <li><a class="dropdown-item" href="${pageContext.request.contextPath}/tenant/switch/${t.id}">${t.tenantName} (${t.tenantCode})</a></li>
+                            <li>
+                                <form method="post" action="${pageContext.request.contextPath}/tenant/switch" class="m-0">
+                                    <input type="hidden" name="tenantId" value="${t.id}">
+                                    <button type="submit" class="dropdown-item">${t.tenantName} (${t.tenantCode})</button>
+                                </form>
+                            </li>
                         </c:forEach>
                     </ul>
                 </div>
