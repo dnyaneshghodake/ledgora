@@ -63,9 +63,5 @@ public class AuthController {
         }
     }
 
-    @GetMapping("/admin/users")
-    public String usersPage(Model model) {
-        model.addAttribute("users", authService.getAllUsers());
-        return "admin/users";
-    }
+    // /admin/users endpoint moved to AdminController to avoid ambiguous mapping
 }

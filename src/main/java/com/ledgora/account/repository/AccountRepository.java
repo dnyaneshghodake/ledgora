@@ -22,6 +22,14 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     List<Account> findByBranchCode(String branchCode);
     List<Account> findByCustomerNameContainingIgnoreCase(String customerName);
 
+    Optional<Account> findByAccountNumberAndTenantId(String accountNumber, Long tenantId);
+    List<Account> findByTenantId(Long tenantId);
+    List<Account> findByTenantIdAndStatus(Long tenantId, AccountStatus status);
+    List<Account> findByTenantIdAndAccountType(Long tenantId, AccountType accountType);
+
+    @Query("SELECT a FROM Account a WHERE a.tenant.id = :tenantId AND LOWER(a.customerName) LIKE LOWER(CONCAT('%', :customerName, '%'))")
+    List<Account> findByTenantIdAndCustomerNameContainingIgnoreCase(@Param("tenantId") Long tenantId, @Param("customerName") String customerName);
+
     @Query("SELECT a FROM Account a WHERE a.status = :status AND a.accountType = :type")
     List<Account> findByStatusAndType(@Param("status") AccountStatus status, @Param("type") AccountType type);
 
@@ -40,4 +48,17 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM Account a WHERE a.accountNumber = :accountNumber")
     Optional<Account> findByAccountNumberWithLock(@Param("accountNumber") String accountNumber);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Account a WHERE a.accountNumber = :accountNumber AND a.tenant.id = :tenantId")
+    Optional<Account> findByAccountNumberWithLockAndTenantId(@Param("accountNumber") String accountNumber, @Param("tenantId") Long tenantId);
+
+    Optional<Account> findFirstByTenantIdAndGlAccountCode(Long tenantId, String glAccountCode);
+
+    // Customer-linked accounts
+    @Query("SELECT a FROM Account a WHERE a.customer.customerId = :customerId")
+    List<Account> findByCustomerId(@Param("customerId") Long customerId);
+
+    @Query("SELECT a FROM Account a WHERE a.tenant.id = :tenantId AND a.customer.customerId = :customerId")
+    List<Account> findByTenantIdAndCustomerId(@Param("tenantId") Long tenantId, @Param("customerId") Long customerId);
 }

@@ -3,9 +3,12 @@ package com.ledgora.voucher.service;
 import com.ledgora.account.entity.Account;
 import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.auth.entity.User;
+import com.ledgora.batch.entity.TransactionBatch;
+import com.ledgora.batch.repository.TransactionBatchRepository;
 import com.ledgora.balance.service.CbsBalanceEngine;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.common.enums.EntryType;
+import com.ledgora.common.enums.BatchStatus;
 import com.ledgora.common.enums.VoucherDrCr;
 import com.ledgora.customer.service.CbsCustomerValidationService;
 import com.ledgora.gl.entity.GeneralLedger;
@@ -15,6 +18,7 @@ import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.ledger.entity.LedgerJournal;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.ledger.repository.LedgerJournalRepository;
+import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.repository.TransactionRepository;
@@ -58,6 +62,7 @@ public class VoucherService {
     private final LedgerEntryRepository entryRepository;
     private final TransactionRepository transactionRepository;
     private final CbsBalanceEngine cbsBalanceEngine;
+    private final TransactionBatchRepository transactionBatchRepository;
     private final CbsCustomerValidationService customerValidationService;
     private final GlBalanceService glBalanceService;
 
@@ -69,6 +74,7 @@ public class VoucherService {
                           LedgerEntryRepository entryRepository,
                           TransactionRepository transactionRepository,
                           CbsBalanceEngine cbsBalanceEngine,
+                          TransactionBatchRepository transactionBatchRepository,
                           CbsCustomerValidationService customerValidationService,
                           GlBalanceService glBalanceService) {
         this.voucherRepository = voucherRepository;
@@ -79,6 +85,7 @@ public class VoucherService {
         this.entryRepository = entryRepository;
         this.transactionRepository = transactionRepository;
         this.cbsBalanceEngine = cbsBalanceEngine;
+        this.transactionBatchRepository = transactionBatchRepository;
         this.customerValidationService = customerValidationService;
         this.glBalanceService = glBalanceService;
     }
@@ -92,6 +99,8 @@ public class VoucherService {
                                   BigDecimal transactionAmount, BigDecimal localCurrencyAmount,
                                   String currency, LocalDate postingDate, LocalDate valueDate,
                                   String batchCode, Integer setNo, User maker, String narration) {
+
+        assertTenantContext(tenant.getId());
 
         // Validate customer and account
         customerValidationService.validateAccountForTransaction(
@@ -145,7 +154,8 @@ public class VoucherService {
      */
     @Transactional
     public Voucher authorizeVoucher(Long voucherId, User checker) {
-        Voucher voucher = voucherRepository.findByIdWithLock(voucherId)
+        Long tenantId = requireTenantId();
+        Voucher voucher = voucherRepository.findByIdAndTenantId(voucherId, tenantId)
                 .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
 
         if ("Y".equals(voucher.getCancelFlag())) {
@@ -174,6 +184,14 @@ public class VoucherService {
      */
     @Transactional
     public Voucher postVoucher(Long voucherId) {
+        return postVoucher(voucherId, null);
+    }
+
+    /**
+     * Post a voucher and optionally link ledger entries to an existing transaction.
+     */
+    @Transactional
+    public Voucher postVoucher(Long voucherId, Transaction linkedTransaction) {
         Voucher voucher = voucherRepository.findByIdWithLock(voucherId)
                 .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
 
@@ -187,13 +205,15 @@ public class VoucherService {
             throw new RuntimeException("Voucher already posted: " + voucherId);
         }
 
+        ensureBatchIsOpen(voucher);
+
         Account account = voucher.getAccount();
         Tenant tenant = voucher.getTenant();
         BigDecimal amount = voucher.getTransactionAmount();
         VoucherDrCr drCr = voucher.getDrCr();
 
         // Find or create a transaction reference for this voucher
-        Transaction transaction = findOrCreateTransaction(voucher);
+        Transaction transaction = findOrCreateTransaction(voucher, linkedTransaction);
 
         // Create LedgerJournal
         LedgerJournal journal = LedgerJournal.builder()
@@ -255,7 +275,8 @@ public class VoucherService {
      */
     @Transactional
     public Voucher cancelVoucher(Long voucherId, User cancelledBy, String reason) {
-        Voucher original = voucherRepository.findByIdWithLock(voucherId)
+        Long tenantId = requireTenantId();
+        Voucher original = voucherRepository.findByIdAndTenantId(voucherId, tenantId)
                 .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
 
         if ("Y".equals(original.getCancelFlag())) {
@@ -320,6 +341,18 @@ public class VoucherService {
         return reversal;
     }
 
+    private Long requireTenantId() {
+        return TenantContextHolder.getRequiredTenantId();
+    }
+
+    private void assertTenantContext(Long tenantId) {
+        Long requiredTenantId = requireTenantId();
+        if (!requiredTenantId.equals(tenantId)) {
+            throw new RuntimeException("Tenant mismatch for voucher operation. Expected tenant "
+                    + requiredTenantId + " but got " + tenantId);
+        }
+    }
+
     /**
      * Get voucher by ID with tenant isolation.
      */
@@ -366,7 +399,10 @@ public class VoucherService {
         }
     }
 
-    private Transaction findOrCreateTransaction(Voucher voucher) {
+    private Transaction findOrCreateTransaction(Voucher voucher, Transaction linkedTransaction) {
+        if (linkedTransaction != null) {
+            return linkedTransaction;
+        }
         // Look for existing transactions linked to this account on the same date
         // Create a minimal transaction record for the voucher posting
         String txRef = "VCH-" + voucher.getId() + "-" + System.currentTimeMillis();
@@ -384,5 +420,32 @@ public class VoucherService {
                 .businessDate(voucher.getPostingDate())
                 .build();
         return transactionRepository.save(transaction);
+    }
+
+    private void ensureBatchIsOpen(Voucher voucher) {
+        String batchCode = voucher.getBatchCode();
+        if (batchCode == null || !batchCode.startsWith("BATCH-")) {
+            throw new RuntimeException("Voucher posting requires a valid open batch code. Found: " + batchCode);
+        }
+        Long batchId;
+        try {
+            batchId = Long.parseLong(batchCode.substring("BATCH-".length()));
+        } catch (NumberFormatException ex) {
+            throw new RuntimeException("Voucher posting requires batch code format BATCH-<id>. Found: " + batchCode);
+        }
+
+        TransactionBatch batch = transactionBatchRepository.findById(batchId)
+                .orElseThrow(() -> new RuntimeException("Batch not found for voucher posting: " + batchCode));
+
+        if (batch.getTenant() == null || voucher.getTenant() == null
+                || !batch.getTenant().getId().equals(voucher.getTenant().getId())) {
+            throw new RuntimeException("Batch " + batchCode + " does not belong to voucher tenant");
+        }
+        if (!voucher.getPostingDate().equals(batch.getBusinessDate())) {
+            throw new RuntimeException("Batch " + batchCode + " business date does not match voucher posting date");
+        }
+        if (batch.getStatus() != BatchStatus.OPEN) {
+            throw new RuntimeException("Batch " + batchCode + " must be OPEN before voucher posting");
+        }
     }
 }

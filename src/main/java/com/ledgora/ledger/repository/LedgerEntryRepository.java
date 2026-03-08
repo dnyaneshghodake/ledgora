@@ -14,14 +14,21 @@ import java.util.List;
 @Repository
 public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> {
     List<LedgerEntry> findByTransactionId(Long transactionId);
+    List<LedgerEntry> findByTransactionIdAndTenantId(Long transactionId, Long tenantId);
     List<LedgerEntry> findByAccountId(Long accountId);
     List<LedgerEntry> findByEntryType(EntryType entryType);
 
     @Query("SELECT le FROM LedgerEntry le WHERE le.account.accountNumber = :accountNumber ORDER BY le.createdAt DESC")
     List<LedgerEntry> findByAccountNumber(@Param("accountNumber") String accountNumber);
 
+    @Query("SELECT le FROM LedgerEntry le WHERE le.tenant.id = :tenantId AND le.account.accountNumber = :accountNumber ORDER BY le.createdAt DESC")
+    List<LedgerEntry> findByAccountNumberAndTenantId(@Param("accountNumber") String accountNumber, @Param("tenantId") Long tenantId);
+
     @Query("SELECT le FROM LedgerEntry le WHERE le.glAccountCode = :glCode ORDER BY le.createdAt DESC")
     List<LedgerEntry> findByGlAccountCode(@Param("glCode") String glCode);
+
+    @Query("SELECT le FROM LedgerEntry le WHERE le.tenant.id = :tenantId AND le.glAccountCode = :glCode ORDER BY le.createdAt DESC")
+    List<LedgerEntry> findByGlAccountCodeAndTenantId(@Param("glCode") String glCode, @Param("tenantId") Long tenantId);
 
     @Query("SELECT le FROM LedgerEntry le WHERE le.createdAt BETWEEN :startDate AND :endDate ORDER BY le.createdAt DESC")
     List<LedgerEntry> findByDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
@@ -29,11 +36,20 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     @Query("SELECT le FROM LedgerEntry le WHERE le.businessDate = :businessDate ORDER BY le.createdAt DESC")
     List<LedgerEntry> findByBusinessDate(@Param("businessDate") LocalDate businessDate);
 
+    @Query("SELECT le FROM LedgerEntry le WHERE le.tenant.id = :tenantId AND le.businessDate = :businessDate ORDER BY le.createdAt DESC")
+    List<LedgerEntry> findByBusinessDateAndTenantId(@Param("businessDate") LocalDate businessDate, @Param("tenantId") Long tenantId);
+
     @Query("SELECT COALESCE(SUM(CASE WHEN le.entryType = 'DEBIT' THEN le.amount ELSE 0 END), 0) FROM LedgerEntry le WHERE le.businessDate = :businessDate")
     BigDecimal sumDebitsByBusinessDate(@Param("businessDate") LocalDate businessDate);
 
+    @Query("SELECT COALESCE(SUM(CASE WHEN le.entryType = 'DEBIT' THEN le.amount ELSE 0 END), 0) FROM LedgerEntry le WHERE le.tenant.id = :tenantId AND le.businessDate = :businessDate")
+    BigDecimal sumDebitsByBusinessDateAndTenantId(@Param("businessDate") LocalDate businessDate, @Param("tenantId") Long tenantId);
+
     @Query("SELECT COALESCE(SUM(CASE WHEN le.entryType = 'CREDIT' THEN le.amount ELSE 0 END), 0) FROM LedgerEntry le WHERE le.businessDate = :businessDate")
     BigDecimal sumCreditsByBusinessDate(@Param("businessDate") LocalDate businessDate);
+
+    @Query("SELECT COALESCE(SUM(CASE WHEN le.entryType = 'CREDIT' THEN le.amount ELSE 0 END), 0) FROM LedgerEntry le WHERE le.tenant.id = :tenantId AND le.businessDate = :businessDate")
+    BigDecimal sumCreditsByBusinessDateAndTenantId(@Param("businessDate") LocalDate businessDate, @Param("tenantId") Long tenantId);
 
     @Query("SELECT COALESCE(SUM(CASE WHEN le.entryType = 'DEBIT' THEN le.amount ELSE 0 END), 0) FROM LedgerEntry le WHERE le.account.id = :accountId")
     BigDecimal sumDebitsByAccountId(@Param("accountId") Long accountId);

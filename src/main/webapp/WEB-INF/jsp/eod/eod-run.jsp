@@ -12,10 +12,10 @@
     <div class="card-header bg-white"><h5 class="mb-0">EOD Confirmation</h5></div>
     <div class="card-body">
         <c:if test="${not empty error}">
-            <div class="alert alert-danger">${error}</div>
+            <div class="alert alert-danger"><c:out value="${error}"/></div>
         </c:if>
         <c:if test="${not empty message}">
-            <div class="alert alert-success">${message}</div>
+            <div class="alert alert-success"><c:out value="${message}"/></div>
         </c:if>
 
         <div class="row mb-4">
@@ -64,6 +64,7 @@
 
         <c:if test="${businessDateStatus != 'CLOSED'}">
         <form method="post" action="${pageContext.request.contextPath}/eod/run" class="text-center mt-4">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
             <button type="submit" class="btn btn-danger btn-lg" data-confirm="Are you sure you want to run EOD? This action cannot be undone.">
                 <i class="bi bi-play-circle-fill"></i> Run End of Day
             </button>

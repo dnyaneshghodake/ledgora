@@ -4,7 +4,9 @@ import com.ledgora.auth.entity.User;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
+import com.ledgora.common.enums.FreezeLevel;
 import com.ledgora.common.enums.LedgerAccountType;
+import com.ledgora.common.enums.MakerCheckerStatus;
 import com.ledgora.customer.entity.Customer;
 import com.ledgora.customer.entity.CustomerMaster;
 import com.ledgora.tenant.entity.Tenant;
@@ -101,12 +103,33 @@ public class Account {
     @JoinColumn(name = "parent_account_id")
     private Account parentAccount;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "freeze_level", length = 20, nullable = false)
+    @Builder.Default
+    private FreezeLevel freezeLevel = FreezeLevel.NONE;
+
+    @Column(name = "freeze_reason", length = 255)
+    private String freezeReason;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status", length = 20, nullable = false)
+    @Builder.Default
+    private MakerCheckerStatus approvalStatus = MakerCheckerStatus.APPROVED;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "approved_by")
+    private User approvedBy;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Version
+    @Column(name = "version")
+    private Long version;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;

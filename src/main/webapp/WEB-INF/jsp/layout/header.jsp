@@ -8,6 +8,8 @@
     <link href="${pageContext.request.contextPath}/resources/css/bootstrap.min.css" rel="stylesheet">
     <link href="${pageContext.request.contextPath}/resources/css/bootstrap-icons.css" rel="stylesheet">
     <link href="${pageContext.request.contextPath}/resources/css/style.css" rel="stylesheet">
+    <meta name="_csrf" content="${_csrf.token}"/>
+    <meta name="_csrf_header" content="${_csrf.headerName}"/>
 </head>
 <body>
 <c:if test="${not empty sessionScope.username}">
@@ -98,7 +100,7 @@
             <i class="bi bi-building" style="color: #ffc107;"></i>
             <c:choose>
                 <c:when test="${not empty sessionScope.tenantName}">
-                    <span style="font-size: 0.85rem; color: #e0e0e0;">${sessionScope.tenantName}</span>
+                    <span style="font-size: 0.85rem; color: #e0e0e0;"><c:out value="${sessionScope.tenantName}"/></span>
                 </c:when>
                 <c:otherwise>
                     <span style="font-size: 0.85rem; color: #e0e0e0;">Default Tenant</span>
@@ -115,8 +117,9 @@
                         <c:forEach var="t" items="${sessionScope.availableTenants}">
                             <li>
                                 <form method="post" action="${pageContext.request.contextPath}/tenant/switch" class="m-0">
+                                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                                     <input type="hidden" name="tenantId" value="${t.id}">
-                                    <button type="submit" class="dropdown-item">${t.tenantName} (${t.tenantCode})</button>
+                                    <button type="submit" class="dropdown-item"><c:out value="${t.tenantName}"/> (<c:out value="${t.tenantCode}"/>)</button>
                                 </form>
                             </li>
                         </c:forEach>
@@ -129,7 +132,7 @@
                 <i class="bi bi-person-circle"></i>
             </div>
             <div class="cbs-user-details">
-                <span class="cbs-user-name">${sessionScope.username}</span>
+                <span class="cbs-user-name"><c:out value="${sessionScope.username}"/></span>
                 <span class="cbs-user-role">
                     <c:if test="${sessionScope.isSuperAdmin}"><span class="badge bg-dark">Super Admin</span></c:if>
                     <c:if test="${sessionScope.isTenantAdmin}"><span class="badge bg-purple" style="background:#7c3aed!important;">Tenant Admin</span></c:if>
@@ -144,10 +147,13 @@
                 </span>
             </div>
         </div>
-        <a href="${pageContext.request.contextPath}/logout" class="cbs-logout-btn" title="Sign Out">
-            <i class="bi bi-box-arrow-right"></i>
-            <span>Logout</span>
-        </a>
+        <form method="post" action="${pageContext.request.contextPath}/logout" style="display:inline; margin:0; padding:0;">
+            <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+            <button type="submit" class="cbs-logout-btn" title="Sign Out" style="background:none; border:none; cursor:pointer;">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>Logout</span>
+            </button>
+        </form>
     </div>
 </header>
 
@@ -187,13 +193,13 @@
     <div class="cbs-content">
         <c:if test="${not empty message}">
             <div class="alert alert-success alert-dismissible fade show" role="alert">
-                ${message}
+                <c:out value="${message}"/>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         </c:if>
         <c:if test="${not empty error}">
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                ${error}
+                <c:out value="${error}"/>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         </c:if>

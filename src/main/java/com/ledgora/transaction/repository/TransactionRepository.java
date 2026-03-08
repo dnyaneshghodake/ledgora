@@ -18,6 +18,18 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     List<Transaction> findByTransactionType(TransactionType type);
     List<Transaction> findByStatus(TransactionStatus status);
 
+    Optional<Transaction> findByIdAndTenantId(Long id, Long tenantId);
+    Optional<Transaction> findByTransactionRefAndTenantId(String transactionRef, Long tenantId);
+    List<Transaction> findByTenantId(Long tenantId);
+    List<Transaction> findByTenantIdAndTransactionType(Long tenantId, TransactionType type);
+    long countByTenantId(Long tenantId);
+
+    @Query("SELECT t FROM Transaction t WHERE t.tenant.id = :tenantId AND (t.sourceAccount.accountNumber = :accountNumber OR t.destinationAccount.accountNumber = :accountNumber) ORDER BY t.createdAt DESC")
+    List<Transaction> findByTenantIdAndAccountNumber(@Param("tenantId") Long tenantId, @Param("accountNumber") String accountNumber);
+
+    @Query("SELECT t FROM Transaction t WHERE t.tenant.id = :tenantId AND t.createdAt BETWEEN :startDate AND :endDate ORDER BY t.createdAt DESC")
+    List<Transaction> findByTenantIdAndDateRange(@Param("tenantId") Long tenantId, @Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
+
     @Query("SELECT t FROM Transaction t WHERE t.sourceAccount.id = :accountId OR t.destinationAccount.id = :accountId ORDER BY t.createdAt DESC")
     List<Transaction> findByAccountId(@Param("accountId") Long accountId);
 
@@ -33,11 +45,15 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     @Query("SELECT t FROM Transaction t WHERE t.status = :status AND t.businessDate = :businessDate")
     List<Transaction> findByStatusAndBusinessDate(@Param("status") TransactionStatus status, @Param("businessDate") LocalDate businessDate);
 
+    @Query("SELECT t FROM Transaction t WHERE t.tenant.id = :tenantId AND t.status = :status AND t.businessDate = :businessDate")
+    List<Transaction> findByTenantIdAndStatusAndBusinessDate(@Param("tenantId") Long tenantId, @Param("status") TransactionStatus status, @Param("businessDate") LocalDate businessDate);
+
     List<Transaction> findByBusinessDate(LocalDate businessDate);
+    List<Transaction> findByTenantIdAndBusinessDate(Long tenantId, LocalDate businessDate);
 
     // PART 2: Idempotency - find by client reference and channel
-    @Query("SELECT t FROM Transaction t WHERE t.clientReferenceId = :clientRefId AND t.channel = :channel")
-    Optional<Transaction> findByClientReferenceIdAndChannel(@Param("clientRefId") String clientReferenceId, @Param("channel") com.ledgora.common.enums.TransactionChannel channel);
+    @Query("SELECT t FROM Transaction t WHERE t.tenant.id = :tenantId AND t.clientReferenceId = :clientRefId AND t.channel = :channel")
+    Optional<Transaction> findByClientReferenceIdAndChannelAndTenantId(@Param("clientRefId") String clientReferenceId, @Param("channel") com.ledgora.common.enums.TransactionChannel channel, @Param("tenantId") Long tenantId);
 
     // PART 6: Validator - get all transaction IDs for validation
     @Query("SELECT t.id FROM Transaction t")

@@ -17,6 +17,7 @@ import com.ledgora.customer.repository.CustomerMasterRepository;
 import com.ledgora.customer.service.CbsCustomerValidationService;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
+import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
 import com.ledgora.voucher.entity.Voucher;
@@ -42,6 +43,11 @@ import static org.junit.jupiter.api.Assertions.*;
 @ActiveProfiles("test")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class LedgoraMultiTenantIsolationTest {
+
+    @AfterEach
+    void clearTenantContext() {
+        TenantContextHolder.clear();
+    }
 
     @Autowired private VoucherService voucherService;
     @Autowired private VoucherRepository voucherRepository;
@@ -82,6 +88,9 @@ class LedgoraMultiTenantIsolationTest {
         TestData data2 = setupFullTestData("MTI-02B");
         seedBalance(data1.account.getId(), "50000.0000");
         seedBalance(data2.account.getId(), "50000.0000");
+
+        // Switch context to tenant 1 before creating voucher for tenant 1
+        TenantContextHolder.setTenantId(data1.tenant.getId());
 
         // Create voucher for tenant 1
         Voucher v1 = voucherService.createVoucher(
@@ -159,13 +168,16 @@ class LedgoraMultiTenantIsolationTest {
         seedBalance(data1.account.getId(), "50000.0000");
         seedBalance(data2.account.getId(), "50000.0000");
 
-        // Create vouchers for both tenants
+        // Switch context to tenant 1 before creating voucher
+        TenantContextHolder.setTenantId(data1.tenant.getId());
         voucherService.createVoucher(
                 data1.tenant, data1.branch, data1.account, data1.gl,
                 VoucherDrCr.CR, new BigDecimal("100.0000"), new BigDecimal("100.0000"),
                 "INR", LocalDate.now(), LocalDate.now(), "BATCH-MT", 1,
                 data1.maker, "T1 voucher");
 
+        // Switch context to tenant 2 before creating voucher
+        TenantContextHolder.setTenantId(data2.tenant.getId());
         voucherService.createVoucher(
                 data2.tenant, data2.branch, data2.account, data2.gl,
                 VoucherDrCr.CR, new BigDecimal("200.0000"), new BigDecimal("200.0000"),
@@ -303,6 +315,7 @@ class LedgoraMultiTenantIsolationTest {
                 .isLocked(false)
                 .build());
 
+        TenantContextHolder.setTenantId(tenant.getId());
         return new TestData(tenant, branch, account, gl, cm, maker, checker);
     }
 

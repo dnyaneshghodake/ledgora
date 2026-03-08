@@ -10,6 +10,7 @@ import java.util.List;
 @Repository
 public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest, Long> {
     List<ApprovalRequest> findByStatus(ApprovalStatus status);
+    long countByTenantIdAndStatus(Long tenantId, ApprovalStatus status);
     List<ApprovalRequest> findByEntityTypeAndEntityId(String entityType, Long entityId);
     List<ApprovalRequest> findByRequestedById(Long userId);
     List<ApprovalRequest> findByApprovedById(Long userId);

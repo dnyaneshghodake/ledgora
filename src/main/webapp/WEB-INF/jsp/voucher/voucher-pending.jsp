@@ -36,22 +36,24 @@
                             <c:forEach var="v" items="${vouchers}">
                             <tr>
                                 <td><code>${v.id}</code></td>
-                                <td>${v.batchCode}</td>
-                                <td>${v.scrollNo}</td>
-                                <td>${v.debitAccountNumber}</td>
-                                <td>${v.creditAccountNumber}</td>
+                                <td><c:out value="${v.batchCode}"/></td>
+                                <td><c:out value="${v.scrollNo}"/></td>
+                                <td><c:out value="${v.debitAccountNumber}"/></td>
+                                <td><c:out value="${v.creditAccountNumber}"/></td>
                                 <td class="fw-bold">${v.amount} ${v.currency}</td>
                                 <td>${v.businessDate}</td>
-                                <td>${v.branchCode}</td>
+                                <td><c:out value="${v.branchCode}"/></td>
                                 <td><span class="cbs-voucher-status cbs-voucher-pending">PENDING</span></td>
                                 <td>
                                     <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager}">
                                     <form method="post" action="${pageContext.request.contextPath}/vouchers/${v.id}/authorize" class="d-inline">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                                         <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Authorize this voucher?')">
                                             <i class="bi bi-check-lg"></i> Authorize
                                         </button>
                                     </form>
                                     <form method="post" action="${pageContext.request.contextPath}/vouchers/${v.id}/reject" class="d-inline ms-1">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                                         <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Reject this voucher?')">
                                             <i class="bi bi-x-lg"></i> Reject
                                         </button>

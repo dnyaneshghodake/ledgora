@@ -38,6 +38,21 @@ public class CustomerTaxProfile {
     @Column(name = "gst_number", length = 20)
     private String gstNumber;
 
+    @Column(name = "aadhaar_number", length = 255)
+    private String aadhaarNumber;
+
+    @Column(name = "tds_applicable", nullable = false)
+    @Builder.Default
+    private Boolean tdsApplicable = true;
+
+    @Column(name = "tds_rate", precision = 5)
+    @Builder.Default
+    private java.math.BigDecimal tdsRate = java.math.BigDecimal.ZERO;
+
+    @Column(name = "fatca_declaration", nullable = false)
+    @Builder.Default
+    private Boolean fatcaDeclaration = false;
+
     @Column(name = "tax_residency_status", length = 20)
     @Builder.Default
     private String taxResidencyStatus = "RESIDENT";

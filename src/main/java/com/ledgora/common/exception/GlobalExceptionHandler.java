@@ -43,6 +43,34 @@ public class GlobalExceptionHandler {
         return "error/error";
     }
 
+    @ExceptionHandler(InvalidTransactionAmountException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String handleInvalidAmount(InvalidTransactionAmountException ex, Model model, HttpServletRequest request) {
+        populateErrorModel(model, request, "Invalid Transaction Amount",
+                ex.getMessage(), "INVALID_AMOUNT");
+        log.warn("Invalid transaction amount: {}", ex.getMessage());
+        return "error/error";
+    }
+
+    @ExceptionHandler(ScriptInjectionException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String handleScriptInjection(ScriptInjectionException ex, Model model, HttpServletRequest request) {
+        populateErrorModel(model, request, "Invalid Input",
+                "Your input contains invalid characters. Please remove any special characters and try again.",
+                "SCRIPT_INJECTION");
+        log.warn("Script injection attempt detected: {} - URI: {}", ex.getMessage(), request.getRequestURI());
+        return "error/error";
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public String handleIllegalArgument(IllegalArgumentException ex, Model model, HttpServletRequest request) {
+        populateErrorModel(model, request, "Validation Error",
+                ex.getMessage(), "VALIDATION_ERROR");
+        log.warn("Validation error: {}", ex.getMessage());
+        return "error/error";
+    }
+
     @ExceptionHandler(InsufficientBalanceException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public String handleInsufficientBalance(InsufficientBalanceException ex, Model model, HttpServletRequest request) {

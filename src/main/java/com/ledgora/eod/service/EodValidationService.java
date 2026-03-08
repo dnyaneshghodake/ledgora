@@ -1,7 +1,9 @@
 package com.ledgora.eod.service;
 
+import com.ledgora.approval.repository.ApprovalRequestRepository;
 import com.ledgora.account.entity.AccountBalance;
 import com.ledgora.account.repository.AccountBalanceRepository;
+import com.ledgora.common.enums.ApprovalStatus;
 import com.ledgora.gl.service.CbsGlBalanceService;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.tenant.entity.Tenant;
@@ -45,6 +47,7 @@ public class EodValidationService {
     private final VoucherRepository voucherRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final AccountBalanceRepository accountBalanceRepository;
+    private final ApprovalRequestRepository approvalRequestRepository;
     private final CbsGlBalanceService cbsGlBalanceService;
     private final TenantService tenantService;
     private final TenantRepository tenantRepository;
@@ -52,12 +55,14 @@ public class EodValidationService {
     public EodValidationService(VoucherRepository voucherRepository,
                                  LedgerEntryRepository ledgerEntryRepository,
                                  AccountBalanceRepository accountBalanceRepository,
+                                 ApprovalRequestRepository approvalRequestRepository,
                                  CbsGlBalanceService cbsGlBalanceService,
                                  TenantService tenantService,
                                  TenantRepository tenantRepository) {
         this.voucherRepository = voucherRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.accountBalanceRepository = accountBalanceRepository;
+        this.approvalRequestRepository = approvalRequestRepository;
         this.cbsGlBalanceService = cbsGlBalanceService;
         this.tenantService = tenantService;
         this.tenantRepository = tenantRepository;
@@ -84,10 +89,15 @@ public class EodValidationService {
 
         // 3. Validate actual_total_balance == SUM(ledger) per account
         // This is done by checking ledger integrity for the date
-        BigDecimal debits = ledgerEntryRepository.sumDebitsByBusinessDate(businessDate);
-        BigDecimal credits = ledgerEntryRepository.sumCreditsByBusinessDate(businessDate);
+        BigDecimal debits = ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(businessDate, tenantId);
+        BigDecimal credits = ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(businessDate, tenantId);
         if (debits.compareTo(credits) != 0) {
             errors.add("EOD blocked: Ledger integrity check failed. Debits=" + debits + ", Credits=" + credits);
+        }
+
+        long pendingApprovals = approvalRequestRepository.countByTenantIdAndStatus(tenantId, ApprovalStatus.PENDING);
+        if (pendingApprovals > 0) {
+            errors.add("EOD blocked: " + pendingApprovals + " pending approval request(s) exist for tenant " + tenantId);
         }
 
         // 4. Validate shadow_total_balance is correct (should be zero if all vouchers posted)

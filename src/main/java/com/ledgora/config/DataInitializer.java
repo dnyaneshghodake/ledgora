@@ -16,7 +16,11 @@ import com.ledgora.common.repository.SystemDateRepository;
 import com.ledgora.currency.entity.ExchangeRate;
 import com.ledgora.currency.repository.ExchangeRateRepository;
 import com.ledgora.customer.entity.Customer;
+import com.ledgora.customer.entity.CustomerMaster;
+import com.ledgora.customer.entity.CustomerTaxProfile;
+import com.ledgora.customer.repository.CustomerMasterRepository;
 import com.ledgora.customer.repository.CustomerRepository;
+import com.ledgora.customer.repository.CustomerTaxProfileRepository;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
 import com.ledgora.idempotency.entity.IdempotencyKey;
@@ -72,6 +76,8 @@ public class DataInitializer implements CommandLineRunner {
     private final UserRepository userRepository;
     private final BranchRepository branchRepository;
     private final CustomerRepository customerRepository;
+    private final CustomerMasterRepository customerMasterRepository;
+    private final CustomerTaxProfileRepository customerTaxProfileRepository;
     private final AccountRepository accountRepository;
     private final AccountBalanceRepository accountBalanceRepository;
     private final GeneralLedgerRepository glRepository;
@@ -98,6 +104,8 @@ public class DataInitializer implements CommandLineRunner {
                            UserRepository userRepository,
                            BranchRepository branchRepository,
                            CustomerRepository customerRepository,
+                           CustomerMasterRepository customerMasterRepository,
+                           CustomerTaxProfileRepository customerTaxProfileRepository,
                            AccountRepository accountRepository,
                            AccountBalanceRepository accountBalanceRepository,
                            GeneralLedgerRepository glRepository,
@@ -113,6 +121,8 @@ public class DataInitializer implements CommandLineRunner {
         this.userRepository = userRepository;
         this.branchRepository = branchRepository;
         this.customerRepository = customerRepository;
+        this.customerMasterRepository = customerMasterRepository;
+        this.customerTaxProfileRepository = customerTaxProfileRepository;
         this.accountRepository = accountRepository;
         this.accountBalanceRepository = accountBalanceRepository;
         this.glRepository = glRepository;
@@ -146,6 +156,7 @@ public class DataInitializer implements CommandLineRunner {
         initSampleTransactionsAndLedger();
         initExchangeRates();
         initIdempotencyKeys();
+        initCbsCustomersAndTaxProfiles();
 
         log.info("═══════════════════════════════════════════════════════════");
         log.info("  Ledgora DataInitializer — seeding complete.");
@@ -267,7 +278,31 @@ public class DataInitializer implements CommandLineRunner {
         createUserIfMissing("customer4", "cust123", "Sneha Reddy",
                 "sneha.reddy@email.com", "+91-9100000004", branch2, Set.of(customerRole));
 
-        log.info("  [Users] 8 users ready (admin, manager, teller1, teller2, customer1-4)");
+        // ── MAKER & CHECKER users for maker-checker governance ──
+        Role makerRole = roleRepository.findByName(RoleName.ROLE_MAKER)
+                .orElseThrow(() -> new RuntimeException("ROLE_MAKER not found"));
+        Role checkerRole = roleRepository.findByName(RoleName.ROLE_CHECKER)
+                .orElseThrow(() -> new RuntimeException("ROLE_CHECKER not found"));
+
+        createUserIfMissing("maker1", "maker123", "Maker One",
+                "maker1@ledgora.com", "+91-9000000010", branch1, Set.of(makerRole));
+
+        createUserIfMissing("checker1", "checker123", "Checker One",
+                "checker1@ledgora.com", "+91-9000000011", branch1, Set.of(checkerRole));
+
+        // ── OPERATIONS & AUDITOR users ──
+        Role opsRole = roleRepository.findByName(RoleName.ROLE_OPERATIONS)
+                .orElseThrow(() -> new RuntimeException("ROLE_OPERATIONS not found"));
+        Role auditorRole = roleRepository.findByName(RoleName.ROLE_AUDITOR)
+                .orElseThrow(() -> new RuntimeException("ROLE_AUDITOR not found"));
+
+        createUserIfMissing("ops1", "ops123", "Operations Officer",
+                "ops1@ledgora.com", "+91-9000000012", hqBranch, Set.of(opsRole));
+
+        createUserIfMissing("auditor1", "auditor123", "Auditor One",
+                "auditor1@ledgora.com", "+91-9000000013", hqBranch, Set.of(auditorRole));
+
+        log.info("  [Users] 12 users ready (admin, manager, teller1-2, customer1-4, maker1, checker1, ops1, auditor1)");
     }
 
     /**
@@ -595,6 +630,7 @@ public class DataInitializer implements CommandLineRunner {
                 .accountName(accountName)
                 .accountType(accountType)
                 .ledgerAccountType(ledgerType)
+                .tenant(defaultTenant)
                 .status(AccountStatus.ACTIVE)
                 .balance(balance)
                 .currency(currency)
@@ -620,6 +656,14 @@ public class DataInitializer implements CommandLineRunner {
                 .ledgerBalance(ledgerBalance)
                 .availableBalance(ledgerBalance)
                 .holdAmount(BigDecimal.ZERO)
+                .actualTotalBalance(ledgerBalance)
+                .actualClearedBalance(ledgerBalance)
+                .shadowTotalBalance(BigDecimal.ZERO)
+                .shadowClearingBalance(BigDecimal.ZERO)
+                .inwardClearingBalance(BigDecimal.ZERO)
+                .unclearedEffectBalance(BigDecimal.ZERO)
+                .lienBalance(BigDecimal.ZERO)
+                .chargeHoldBalance(BigDecimal.ZERO)
                 .build();
         accountBalanceRepository.save(ab);
     }
@@ -869,5 +913,138 @@ public class DataInitializer implements CommandLineRunner {
                 .status(status)
                 .build();
         idempotencyKeyRepository.save(ik);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // 11. SEED CBS CUSTOMERS & TAX PROFILES
+    //     Sample verified customers with tax profiles (tenant-scoped)
+    // ════════════════════════════════════════════════════════════════════════
+    private void initCbsCustomersAndTaxProfiles() {
+        if (customerMasterRepository.count() > 0) {
+            log.info("  [CBS Customers] CustomerMaster records already exist — skipping");
+            return;
+        }
+
+        // ── Sample verified customer 1: Rajesh Kumar ──
+        CustomerMaster cm1 = CustomerMaster.builder()
+                .tenant(defaultTenant)
+                .customerNumber("CBS-CUST-001")
+                .firstName("Rajesh")
+                .lastName("Kumar")
+                .fullName("Rajesh Kumar")
+                .dob(LocalDate.of(1985, 3, 15))
+                .nationalId("ABCDE1234F")
+                .phone("9100000001")
+                .email("rajesh.kumar@email.com")
+                .address("123 MG Road, Mumbai")
+                .kycStatus("VERIFIED")
+                .customerType("INDIVIDUAL")
+                .makerCheckerStatus(MakerCheckerStatus.APPROVED)
+                .approvalStatus(MakerCheckerStatus.APPROVED)
+                .build();
+        cm1 = customerMasterRepository.save(cm1);
+
+        CustomerTaxProfile tp1 = CustomerTaxProfile.builder()
+                .tenant(defaultTenant)
+                .customerMaster(cm1)
+                .panNumber("ABCDE1234F")
+                .aadhaarNumber("123456789012")
+                .tdsApplicable(true)
+                .tdsRate(new BigDecimal("10.00"))
+                .fatcaDeclaration(true)
+                .taxResidencyStatus("RESIDENT")
+                .taxDeductionFlag(true)
+                .build();
+        tp1 = customerTaxProfileRepository.save(tp1);
+        cm1.setTaxProfile(tp1);
+        customerMasterRepository.save(cm1);
+
+        // ── Sample verified customer 2: Priya Sharma ──
+        CustomerMaster cm2 = CustomerMaster.builder()
+                .tenant(defaultTenant)
+                .customerNumber("CBS-CUST-002")
+                .firstName("Priya")
+                .lastName("Sharma")
+                .fullName("Priya Sharma")
+                .dob(LocalDate.of(1990, 7, 22))
+                .nationalId("FGHIJ5678K")
+                .phone("9100000002")
+                .email("priya.sharma@email.com")
+                .address("456 Park Avenue, Delhi")
+                .kycStatus("VERIFIED")
+                .customerType("INDIVIDUAL")
+                .makerCheckerStatus(MakerCheckerStatus.APPROVED)
+                .approvalStatus(MakerCheckerStatus.APPROVED)
+                .build();
+        cm2 = customerMasterRepository.save(cm2);
+
+        CustomerTaxProfile tp2 = CustomerTaxProfile.builder()
+                .tenant(defaultTenant)
+                .customerMaster(cm2)
+                .panNumber("FGHIJ5678K")
+                .aadhaarNumber("987654321098")
+                .tdsApplicable(true)
+                .tdsRate(new BigDecimal("10.00"))
+                .fatcaDeclaration(true)
+                .taxResidencyStatus("RESIDENT")
+                .taxDeductionFlag(true)
+                .build();
+        tp2 = customerTaxProfileRepository.save(tp2);
+        cm2.setTaxProfile(tp2);
+        customerMasterRepository.save(cm2);
+
+        // ── Sample corporate customer 3 ──
+        CustomerMaster cm3 = CustomerMaster.builder()
+                .tenant(defaultTenant)
+                .customerNumber("CBS-CUST-003")
+                .firstName("Acme")
+                .lastName("Corp")
+                .fullName("Acme Corp")
+                .nationalId("KLMNO9012P")
+                .phone("9100000003")
+                .email("finance@acmecorp.com")
+                .address("789 Business Park, Bangalore")
+                .kycStatus("VERIFIED")
+                .customerType("CORPORATE")
+                .makerCheckerStatus(MakerCheckerStatus.APPROVED)
+                .approvalStatus(MakerCheckerStatus.APPROVED)
+                .build();
+        cm3 = customerMasterRepository.save(cm3);
+
+        CustomerTaxProfile tp3 = CustomerTaxProfile.builder()
+                .tenant(defaultTenant)
+                .customerMaster(cm3)
+                .panNumber("KLMNO9012P")
+                .gstNumber("29KLMNO9012PZAB")
+                .tdsApplicable(true)
+                .tdsRate(new BigDecimal("2.00"))
+                .fatcaDeclaration(false)
+                .taxResidencyStatus("RESIDENT")
+                .taxDeductionFlag(true)
+                .build();
+        tp3 = customerTaxProfileRepository.save(tp3);
+        cm3.setTaxProfile(tp3);
+        customerMasterRepository.save(cm3);
+
+        // ── Sample pending customer 4 (not yet approved) ──
+        CustomerMaster cm4 = CustomerMaster.builder()
+                .tenant(defaultTenant)
+                .customerNumber("CBS-CUST-004")
+                .firstName("Amit")
+                .lastName("Patel")
+                .fullName("Amit Patel")
+                .dob(LocalDate.of(1988, 11, 5))
+                .nationalId("PQRST3456U")
+                .phone("9100000004")
+                .email("amit.patel@email.com")
+                .address("321 Hill Street, Hyderabad")
+                .kycStatus("PENDING")
+                .customerType("INDIVIDUAL")
+                .makerCheckerStatus(MakerCheckerStatus.PENDING)
+                .approvalStatus(MakerCheckerStatus.PENDING)
+                .build();
+        customerMasterRepository.save(cm4);
+
+        log.info("  [CBS Customers] 4 CustomerMaster records seeded (3 APPROVED, 1 PENDING) with tax profiles");
     }
 }

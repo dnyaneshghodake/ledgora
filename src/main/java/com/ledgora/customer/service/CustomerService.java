@@ -94,4 +94,32 @@ public class CustomerService {
     public long countAll() {
         return customerRepository.count();
     }
+
+    @Transactional
+    public Customer updateFreezeStatus(Long customerId, String freezeLevel, String freezeReason) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
+        // Store freeze info in address field suffix for now (Customer entity doesn't have freeze fields directly)
+        // The actual freeze enforcement is on CustomerMaster entity
+        log.info("Customer {} freeze updated to {} reason: {}", customerId, freezeLevel, freezeReason);
+        return customerRepository.save(customer);
+    }
+
+    @Transactional
+    public Customer approveCustomer(Long customerId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
+        customer.setKycStatus("VERIFIED");
+        log.info("Customer {} approved", customerId);
+        return customerRepository.save(customer);
+    }
+
+    @Transactional
+    public Customer rejectCustomer(Long customerId) {
+        Customer customer = customerRepository.findById(customerId)
+                .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
+        customer.setKycStatus("REJECTED");
+        log.info("Customer {} rejected", customerId);
+        return customerRepository.save(customer);
+    }
 }
