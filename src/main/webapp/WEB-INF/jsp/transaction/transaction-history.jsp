@@ -2,7 +2,7 @@
 <%@ include file="../layout/header.jsp" %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h3><i class="bi bi-clock-history"></i> Transaction History - <code>${accountNumber}</code></h3>
+    <h3><i class="bi bi-clock-history"></i> Transaction History - <code><c:out value="${accountNumber}"/></code></h3>
     <a href="${pageContext.request.contextPath}/transactions" class="btn btn-secondary">Back</a>
 </div>
 
@@ -18,7 +18,7 @@
                     <tbody>
                         <c:forEach var="txn" items="${transactions}">
                             <tr>
-                                <td><code>${txn.transactionRef}</code></td>
+                                <td><code><c:out value="${txn.transactionRef}"/></code></td>
                                 <td>
                                     <c:choose>
                                         <c:when test="${txn.transactionType == 'DEPOSIT'}"><span class="badge bg-success">DEPOSIT</span></c:when>

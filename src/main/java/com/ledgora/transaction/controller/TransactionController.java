@@ -156,16 +156,15 @@ public class TransactionController {
      * Validates transaction type against allowed enum values and amount ranges.
      */
     private String validateFinancialParams(TransactionDTO dto, String expectedType) {
-        // Validate transaction type matches expected operation
-        if (dto.getTransactionType() != null && !dto.getTransactionType().equals(expectedType)) {
-            return "Invalid transaction type. Expected: " + expectedType;
-        }
-        // Validate transaction type is a known enum value
+        // Validate transaction type matches expected operation and is a known enum value
         if (dto.getTransactionType() != null) {
             try {
                 TransactionType.valueOf(dto.getTransactionType());
             } catch (IllegalArgumentException e) {
-                return "Invalid transaction type: " + dto.getTransactionType();
+                return "Invalid transaction type.";
+            }
+            if (!dto.getTransactionType().equals(expectedType)) {
+                return "Invalid transaction type for this operation.";
             }
         }
         // Validate amount is within acceptable range (prevent extreme values)

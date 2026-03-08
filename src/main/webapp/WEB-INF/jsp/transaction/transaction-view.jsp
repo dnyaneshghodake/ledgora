@@ -12,19 +12,19 @@
             <div class="card-header bg-white"><h5 class="mb-0">Transaction Information</h5></div>
             <div class="card-body">
                 <table class="table table-borderless">
-                    <tr><td class="text-muted" width="200">Reference</td><td><code class="fs-5">${transaction.transactionRef}</code></td></tr>
+                    <tr><td class="text-muted" width="200">Reference</td><td><code class="fs-5"><c:out value="${transaction.transactionRef}"/></code></td></tr>
                     <tr><td class="text-muted">Type</td><td>
                         <c:choose>
                             <c:when test="${transaction.transactionType == 'DEPOSIT'}"><span class="badge bg-success fs-6">DEPOSIT</span></c:when>
                             <c:when test="${transaction.transactionType == 'WITHDRAWAL'}"><span class="badge bg-danger fs-6">WITHDRAWAL</span></c:when>
                             <c:when test="${transaction.transactionType == 'TRANSFER'}"><span class="badge bg-info fs-6">TRANSFER</span></c:when>
-                            <c:otherwise><span class="badge bg-secondary fs-6">${transaction.transactionType}</span></c:otherwise>
+                            <c:otherwise><span class="badge bg-secondary fs-6"><c:out value="${transaction.transactionType}"/></span></c:otherwise>
                         </c:choose>
                     </td></tr>
                     <tr><td class="text-muted">Status</td><td><span class="badge bg-success">${transaction.status}</span></td></tr>
                     <tr><td class="text-muted">Amount</td><td><span class="fs-4 fw-bold text-primary">${transaction.amount} ${transaction.currency}</span></td></tr>
-                    <tr><td class="text-muted">Source Account</td><td><c:if test="${transaction.sourceAccount != null}"><code>${transaction.sourceAccount.accountNumber}</code> - ${transaction.sourceAccount.customerName}</c:if><c:if test="${transaction.sourceAccount == null}">N/A</c:if></td></tr>
-                    <tr><td class="text-muted">Destination Account</td><td><c:if test="${transaction.destinationAccount != null}"><code>${transaction.destinationAccount.accountNumber}</code> - ${transaction.destinationAccount.customerName}</c:if><c:if test="${transaction.destinationAccount == null}">N/A</c:if></td></tr>
+                    <tr><td class="text-muted">Source Account</td><td><c:if test="${transaction.sourceAccount != null}"><code><c:out value="${transaction.sourceAccount.accountNumber}"/></code> - <c:out value="${transaction.sourceAccount.customerName}"/></c:if><c:if test="${transaction.sourceAccount == null}">N/A</c:if></td></tr>
+                    <tr><td class="text-muted">Destination Account</td><td><c:if test="${transaction.destinationAccount != null}"><code><c:out value="${transaction.destinationAccount.accountNumber}"/></code> - <c:out value="${transaction.destinationAccount.customerName}"/></c:if><c:if test="${transaction.destinationAccount == null}">N/A</c:if></td></tr>
                     <tr><td class="text-muted">Description</td><td><c:out value="${transaction.description}"/></td></tr>
                     <tr><td class="text-muted">Narration</td><td><c:out value="${transaction.narration}"/></td></tr>
                     <tr><td class="text-muted">Performed By</td><td><c:if test="${transaction.performedBy != null}"><c:out value="${transaction.performedBy.username}"/></c:if></td></tr>
@@ -42,18 +42,18 @@
                 <table class="table table-sm table-borderless">
                     <tr>
                         <td class="text-muted" width="200">Transaction ID</td>
-                        <td><code>${transaction.id}</code></td>
+                        <td><code><c:out value="${transaction.id}"/></code></td>
                     </tr>
                     <tr>
                         <td class="text-muted">Transaction Reference</td>
-                        <td><code>${transaction.transactionRef}</code></td>
+                        <td><code><c:out value="${transaction.transactionRef}"/></code></td>
                     </tr>
                     <tr>
                         <td class="text-muted">Idempotency Key</td>
                         <td>
                             <c:choose>
                                 <c:when test="${transaction.clientReferenceId != null && !transaction.clientReferenceId.isEmpty()}">
-                                    <code>${transaction.clientReferenceId}</code>
+                                    <code><c:out value="${transaction.clientReferenceId}"/></code>
                                 </c:when>
                                 <c:otherwise><span class="text-muted">N/A</span></c:otherwise>
                             </c:choose>
@@ -64,7 +64,7 @@
                         <td>
                             <c:choose>
                                 <c:when test="${transaction.channel != null}">
-                                    <span class="badge bg-secondary">${transaction.channel}</span>
+                                    <span class="badge bg-secondary"><c:out value="${transaction.channel}"/></span>
                                 </c:when>
                                 <c:otherwise><span class="text-muted">N/A</span></c:otherwise>
                             </c:choose>
@@ -75,7 +75,7 @@
                         <td>
                             <c:choose>
                                 <c:when test="${transaction.performedBy != null}">
-                                    <i class="bi bi-person"></i> ${transaction.performedBy.username}
+                                    <i class="bi bi-person"></i> <c:out value="${transaction.performedBy.username}"/>
                                 </c:when>
                                 <c:otherwise><span class="text-muted">System</span></c:otherwise>
                             </c:choose>
