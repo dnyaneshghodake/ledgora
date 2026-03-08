@@ -103,9 +103,9 @@
                                 </form>
                                 <form method="post" action="${pageContext.request.contextPath}/admin/users/${user.id}/delete" style="display:inline;">
                                     <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-                                    <button type="submit" class="btn btn-outline-danger" title="Delete"
-                                            data-confirm="Are you sure you want to delete user ${fn:escapeXml(user.username)}? This cannot be undone.">
-                                        <i class="bi bi-trash"></i>
+                                    <button type="submit" class="btn btn-outline-danger" title="Deactivate"
+                                            data-confirm="Deactivate user ${fn:escapeXml(user.username)}? The user will be unable to log in.">
+                                        <i class="bi bi-person-x"></i>
                                     </button>
                                 </form>
                             </div>

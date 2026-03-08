@@ -11,6 +11,7 @@ import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -146,6 +147,9 @@ public class AdminController {
                 user.setPassword(passwordEncoder.encode(password));
             }
             userRepository.save(user);
+            String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
+            auditService.logEvent(null, "USER_UPDATED", "USER", user.getId(),
+                    "User updated by admin: " + currentUser, null);
             redirectAttributes.addFlashAttribute("message", "User updated: " + user.getUsername());
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Failed to update user: " + e.getMessage());
@@ -161,6 +165,9 @@ public class AdminController {
             user.setIsActive(!user.getIsActive());
             userRepository.save(user);
             String status = user.getIsActive() ? "activated" : "deactivated";
+            String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
+            auditService.logEvent(null, "USER_STATUS_TOGGLED", "USER", user.getId(),
+                    "User " + status + " by admin: " + currentUser, null);
             redirectAttributes.addFlashAttribute("message", "User " + status + ": " + user.getUsername());
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Failed to toggle user: " + e.getMessage());
@@ -173,10 +180,22 @@ public class AdminController {
         try {
             User user = userRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("User not found"));
-            userRepository.delete(user);
-            redirectAttributes.addFlashAttribute("message", "User deleted: " + user.getUsername());
+            // Prevent self-deletion
+            String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+            if (user.getUsername().equals(currentUsername)) {
+                redirectAttributes.addFlashAttribute("error", "Cannot delete your own account.");
+                return "redirect:/admin/users";
+            }
+            // Soft-delete: deactivate instead of hard-delete to preserve audit trail and FK integrity
+            // Users are referenced by Voucher (maker/checker), Transaction (performedBy),
+            // Account (createdBy/approvedBy), ApprovalRequest (requestedBy/approvedBy), AuditLog (userId)
+            user.setIsActive(false);
+            userRepository.save(user);
+            auditService.logEvent(null, "USER_DEACTIVATED", "USER", user.getId(),
+                    "User deactivated (soft-delete) by admin: " + currentUsername, null);
+            redirectAttributes.addFlashAttribute("message", "User deactivated: " + user.getUsername());
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Failed to delete user: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "Failed to deactivate user: " + e.getMessage());
         }
         return "redirect:/admin/users";
     }
@@ -200,6 +219,9 @@ public class AdminController {
                     .orElseThrow(() -> new RuntimeException("Role not found"));
             role.setDescription(description);
             roleRepository.save(role);
+            String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
+            auditService.logEvent(null, "ROLE_UPDATED", "ROLE", role.getId(),
+                    "Role description updated by admin: " + currentUser, null);
             redirectAttributes.addFlashAttribute("message", "Role updated: " + role.getName());
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Failed to update role: " + e.getMessage());
@@ -212,7 +234,20 @@ public class AdminController {
         try {
             Role role = roleRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Role not found"));
+            // Check if any users still have this role assigned
+            List<User> usersWithRole = userRepository.findAll().stream()
+                    .filter(u -> u.getRoles().contains(role))
+                    .toList();
+            if (!usersWithRole.isEmpty()) {
+                redirectAttributes.addFlashAttribute("error",
+                        "Cannot delete role " + role.getName() + ": still assigned to "
+                        + usersWithRole.size() + " user(s). Remove the role from all users first.");
+                return "redirect:/admin/users";
+            }
             roleRepository.delete(role);
+            String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+            auditService.logEvent(null, "ROLE_DELETED", "ROLE", role.getId(),
+                    "Role deleted by admin: " + currentUsername, null);
             redirectAttributes.addFlashAttribute("message", "Role deleted: " + role.getName());
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Failed to delete role: " + e.getMessage());
