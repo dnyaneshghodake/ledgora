@@ -174,6 +174,14 @@ public class VoucherService {
      */
     @Transactional
     public Voucher postVoucher(Long voucherId) {
+        return postVoucher(voucherId, null);
+    }
+
+    /**
+     * Post a voucher and optionally link ledger entries to an existing transaction.
+     */
+    @Transactional
+    public Voucher postVoucher(Long voucherId, Transaction linkedTransaction) {
         Voucher voucher = voucherRepository.findByIdWithLock(voucherId)
                 .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
 
@@ -193,7 +201,7 @@ public class VoucherService {
         VoucherDrCr drCr = voucher.getDrCr();
 
         // Find or create a transaction reference for this voucher
-        Transaction transaction = findOrCreateTransaction(voucher);
+        Transaction transaction = findOrCreateTransaction(voucher, linkedTransaction);
 
         // Create LedgerJournal
         LedgerJournal journal = LedgerJournal.builder()
@@ -366,7 +374,10 @@ public class VoucherService {
         }
     }
 
-    private Transaction findOrCreateTransaction(Voucher voucher) {
+    private Transaction findOrCreateTransaction(Voucher voucher, Transaction linkedTransaction) {
+        if (linkedTransaction != null) {
+            return linkedTransaction;
+        }
         // Look for existing transactions linked to this account on the same date
         // Create a minimal transaction record for the voucher posting
         String txRef = "VCH-" + voucher.getId() + "-" + System.currentTimeMillis();

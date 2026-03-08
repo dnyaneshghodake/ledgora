@@ -9,11 +9,13 @@ import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.batch.entity.TransactionBatch;
 import com.ledgora.batch.service.BatchService;
+import com.ledgora.branch.entity.Branch;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.EntryType;
 import com.ledgora.common.enums.TransactionChannel;
 import com.ledgora.common.enums.TransactionStatus;
 import com.ledgora.common.enums.TransactionType;
+import com.ledgora.common.enums.VoucherDrCr;
 import com.ledgora.common.service.BusinessDateService;
 import com.ledgora.events.TransactionCreatedEvent;
 import com.ledgora.idempotency.service.IdempotencyService;
@@ -21,7 +23,6 @@ import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
 import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
-import com.ledgora.ledger.service.LedgerService;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
@@ -30,6 +31,8 @@ import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.entity.TransactionLine;
 import com.ledgora.transaction.repository.TransactionLineRepository;
 import com.ledgora.transaction.repository.TransactionRepository;
+import com.ledgora.voucher.entity.Voucher;
+import com.ledgora.voucher.service.VoucherService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -66,7 +69,7 @@ public class TransactionService {
     private final UserRepository userRepository;
     private final BusinessDateService businessDateService;
     private final AuditService auditService;
-    private final LedgerService ledgerService;
+    private final VoucherService voucherService;
     private final ApplicationEventPublisher eventPublisher;
     private final IdempotencyService idempotencyService;
     private final TenantService tenantService;
@@ -81,7 +84,7 @@ public class TransactionService {
                               UserRepository userRepository,
                               BusinessDateService businessDateService,
                               AuditService auditService,
-                              LedgerService ledgerService,
+                              VoucherService voucherService,
                               ApplicationEventPublisher eventPublisher,
                               IdempotencyService idempotencyService,
                               TenantService tenantService,
@@ -95,7 +98,7 @@ public class TransactionService {
         this.userRepository = userRepository;
         this.businessDateService = businessDateService;
         this.auditService = auditService;
-        this.ledgerService = ledgerService;
+        this.voucherService = voucherService;
         this.eventPublisher = eventPublisher;
         this.idempotencyService = idempotencyService;
         this.tenantService = tenantService;
@@ -158,16 +161,14 @@ public class TransactionService {
         createTransactionLine(transaction, account, EntryType.CREDIT, dto.getAmount(),
                 "Cash deposit - credit customer account");
 
-        // PART 1: Create ledger journal with entries (system of record)
+        // PART 1: Create and post balanced vouchers (ledger entries are created only via VoucherService)
         BigDecimal newBalance = account.getBalance().add(dto.getAmount());
+        Account cashAccount = resolveCashGlAccount(tenantId);
         String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
-        List<LedgerService.JournalEntryRequest> journalEntries = List.of(
-                LedgerService.JournalEntryRequest.of(account, EntryType.DEBIT, dto.getAmount(), newBalance,
-                        currency, "1100", "Cash deposit to " + account.getAccountNumber()),
-                LedgerService.JournalEntryRequest.of(account, EntryType.CREDIT, dto.getAmount(), newBalance,
-                        currency, "2100", "Customer deposit - " + account.getCustomerName())
-        );
-        ledgerService.postJournal(transaction, "Cash Deposit - " + txnRef, businessDate, journalEntries);
+        postVoucher(transaction, tenant, currentUser, cashAccount, VoucherDrCr.DR, dto.getAmount(),
+                currency, businessDate, batch, "Cash deposit - cash ledger leg");
+        postVoucher(transaction, tenant, currentUser, account, VoucherDrCr.CR, dto.getAmount(),
+                currency, businessDate, batch, "Cash deposit - customer ledger leg");
 
         // Step 5: Update account balance
         account.setBalance(newBalance);
@@ -243,16 +244,14 @@ public class TransactionService {
         createTransactionLine(transaction, account, EntryType.CREDIT, dto.getAmount(),
                 "Cash withdrawal - credit cash account");
 
-        // PART 1: Create ledger journal with entries
+        // PART 1: Create and post balanced vouchers (ledger entries are created only via VoucherService)
         BigDecimal newBalance = account.getBalance().subtract(dto.getAmount());
+        Account cashAccount = resolveCashGlAccount(tenantId);
         String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
-        List<LedgerService.JournalEntryRequest> journalEntries = List.of(
-                LedgerService.JournalEntryRequest.of(account, EntryType.DEBIT, dto.getAmount(), newBalance,
-                        currency, "2100", "Withdrawal from " + account.getAccountNumber()),
-                LedgerService.JournalEntryRequest.of(account, EntryType.CREDIT, dto.getAmount(), newBalance,
-                        currency, "1100", "Cash withdrawal - " + account.getCustomerName())
-        );
-        ledgerService.postJournal(transaction, "Cash Withdrawal - " + txnRef, businessDate, journalEntries);
+        postVoucher(transaction, tenant, currentUser, account, VoucherDrCr.DR, dto.getAmount(),
+                currency, businessDate, batch, "Cash withdrawal - customer ledger leg");
+        postVoucher(transaction, tenant, currentUser, cashAccount, VoucherDrCr.CR, dto.getAmount(),
+                currency, businessDate, batch, "Cash withdrawal - cash ledger leg");
 
         // Step 5: Update account balance
         account.setBalance(newBalance);
@@ -335,18 +334,14 @@ public class TransactionService {
         createTransactionLine(transaction, destAccount, EntryType.CREDIT, dto.getAmount(),
                 "Transfer from " + sourceAccount.getAccountNumber());
 
-        // PART 1: Create ledger journal with entries
+        // PART 1: Create and post balanced vouchers (ledger entries are created only via VoucherService)
         BigDecimal sourceNewBalance = sourceAccount.getBalance().subtract(dto.getAmount());
         BigDecimal destNewBalance = destAccount.getBalance().add(dto.getAmount());
         String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
-
-        List<LedgerService.JournalEntryRequest> journalEntries = List.of(
-                LedgerService.JournalEntryRequest.of(sourceAccount, EntryType.DEBIT, dto.getAmount(), sourceNewBalance,
-                        currency, "2100", "Transfer to " + destAccount.getAccountNumber()),
-                LedgerService.JournalEntryRequest.of(destAccount, EntryType.CREDIT, dto.getAmount(), destNewBalance,
-                        currency, "2100", "Transfer from " + sourceAccount.getAccountNumber())
-        );
-        ledgerService.postJournal(transaction, "Transfer - " + txnRef, businessDate, journalEntries);
+        postVoucher(transaction, tenant, currentUser, sourceAccount, VoucherDrCr.DR, dto.getAmount(),
+                currency, businessDate, batch, "Transfer to " + destAccount.getAccountNumber());
+        postVoucher(transaction, tenant, currentUser, destAccount, VoucherDrCr.CR, dto.getAmount(),
+                currency, businessDate, batch, "Transfer from " + sourceAccount.getAccountNumber());
 
         // Step 5: Update account balances
         sourceAccount.setBalance(sourceNewBalance);
@@ -452,6 +447,60 @@ public class TransactionService {
 
     private String generateTransactionRef(String prefix) {
         return prefix + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+    }
+
+    private Voucher postVoucher(Transaction transaction, Tenant tenant, User maker,
+                                Account account, VoucherDrCr drCr, BigDecimal amount,
+                                String currency, LocalDate businessDate,
+                                TransactionBatch batch, String narration) {
+        Branch branch = resolveBranch(account, maker);
+        GeneralLedger glAccount = resolveGlForAccount(account);
+        String batchCode = batch.getBatchCode() != null ? batch.getBatchCode() : "BATCH-" + batch.getId();
+
+        Voucher voucher = voucherService.createVoucher(
+                tenant,
+                branch,
+                account,
+                glAccount,
+                drCr,
+                amount,
+                amount,
+                currency,
+                businessDate,
+                businessDate,
+                batchCode,
+                1,
+                maker,
+                narration
+        );
+        voucherService.authorizeVoucher(voucher.getId(), null);
+        return voucherService.postVoucher(voucher.getId(), transaction);
+    }
+
+    private Branch resolveBranch(Account account, User currentUser) {
+        if (account.getBranch() != null) {
+            return account.getBranch();
+        }
+        if (account.getHomeBranch() != null) {
+            return account.getHomeBranch();
+        }
+        if (currentUser != null && currentUser.getBranch() != null) {
+            return currentUser.getBranch();
+        }
+        throw new RuntimeException("No branch mapping found for account " + account.getAccountNumber());
+    }
+
+    private GeneralLedger resolveGlForAccount(Account account) {
+        if (account.getGlAccountCode() == null || account.getGlAccountCode().isBlank()) {
+            return null;
+        }
+        return glRepository.findByGlCode(account.getGlAccountCode()).orElse(null);
+    }
+
+    private Account resolveCashGlAccount(Long tenantId) {
+        return accountRepository.findFirstByTenantIdAndGlAccountCode(tenantId, "1100")
+                .or(() -> accountRepository.findByAccountNumber("GL-CASH-001"))
+                .orElseThrow(() -> new RuntimeException("Cash GL account with code 1100 is required for cash transactions"));
     }
 
     /**
