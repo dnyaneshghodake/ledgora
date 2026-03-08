@@ -15,6 +15,7 @@ import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.ledger.entity.LedgerJournal;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.ledger.repository.LedgerJournalRepository;
+import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.repository.TransactionRepository;
@@ -93,6 +94,8 @@ public class VoucherService {
                                   String currency, LocalDate postingDate, LocalDate valueDate,
                                   String batchCode, Integer setNo, User maker, String narration) {
 
+        assertTenantContext(tenant.getId());
+
         // Validate customer and account
         customerValidationService.validateAccountForTransaction(
                 account, tenant.getId(), branch.getId(), drCr);
@@ -145,7 +148,8 @@ public class VoucherService {
      */
     @Transactional
     public Voucher authorizeVoucher(Long voucherId, User checker) {
-        Voucher voucher = voucherRepository.findByIdWithLock(voucherId)
+        Long tenantId = requireTenantId();
+        Voucher voucher = voucherRepository.findByIdAndTenantId(voucherId, tenantId)
                 .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
 
         if ("Y".equals(voucher.getCancelFlag())) {
@@ -174,7 +178,16 @@ public class VoucherService {
      */
     @Transactional
     public Voucher postVoucher(Long voucherId) {
-        Voucher voucher = voucherRepository.findByIdWithLock(voucherId)
+        return postVoucher(voucherId, null);
+    }
+
+    /**
+     * Post a voucher and optionally link ledger entries to an existing transaction.
+     */
+    @Transactional
+    public Voucher postVoucher(Long voucherId, Transaction linkedTransaction) {
+        Long tenantId = requireTenantId();
+        Voucher voucher = voucherRepository.findByIdAndTenantId(voucherId, tenantId)
                 .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
 
         if ("Y".equals(voucher.getCancelFlag())) {
@@ -193,7 +206,7 @@ public class VoucherService {
         VoucherDrCr drCr = voucher.getDrCr();
 
         // Find or create a transaction reference for this voucher
-        Transaction transaction = findOrCreateTransaction(voucher);
+        Transaction transaction = findOrCreateTransaction(voucher, linkedTransaction);
 
         // Create LedgerJournal
         LedgerJournal journal = LedgerJournal.builder()
@@ -255,7 +268,8 @@ public class VoucherService {
      */
     @Transactional
     public Voucher cancelVoucher(Long voucherId, User cancelledBy, String reason) {
-        Voucher original = voucherRepository.findByIdWithLock(voucherId)
+        Long tenantId = requireTenantId();
+        Voucher original = voucherRepository.findByIdAndTenantId(voucherId, tenantId)
                 .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
 
         if ("Y".equals(original.getCancelFlag())) {
@@ -320,6 +334,18 @@ public class VoucherService {
         return reversal;
     }
 
+    private Long requireTenantId() {
+        return TenantContextHolder.getRequiredTenantId();
+    }
+
+    private void assertTenantContext(Long tenantId) {
+        Long requiredTenantId = requireTenantId();
+        if (!requiredTenantId.equals(tenantId)) {
+            throw new RuntimeException("Tenant mismatch for voucher operation. Expected tenant "
+                    + requiredTenantId + " but got " + tenantId);
+        }
+    }
+
     /**
      * Get voucher by ID with tenant isolation.
      */
@@ -366,7 +392,14 @@ public class VoucherService {
         }
     }
 
-    private Transaction findOrCreateTransaction(Voucher voucher) {
+    private Transaction findOrCreateTransaction(Voucher voucher, Transaction linkedTransaction) {
+        if (linkedTransaction != null) {
+            if (linkedTransaction.getTenant() == null || voucher.getTenant() == null
+                    || !linkedTransaction.getTenant().getId().equals(voucher.getTenant().getId())) {
+                throw new RuntimeException("Cross-tenant transaction linking is not allowed for voucher posting");
+            }
+            return linkedTransaction;
+        }
         // Look for existing transactions linked to this account on the same date
         // Create a minimal transaction record for the voucher posting
         String txRef = "VCH-" + voucher.getId() + "-" + System.currentTimeMillis();
