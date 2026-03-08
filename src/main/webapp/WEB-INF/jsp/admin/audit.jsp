@@ -46,6 +46,7 @@
                             <th>User ID</th>
                             <th>Details</th>
                             <th>IP Address</th>
+                            <th>User Agent</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -59,6 +60,7 @@
                                 <td><c:out value="${log.userId}"/></td>
                                 <td><small><c:out value="${log.details}"/></small></td>
                                 <td><small><c:out value="${log.ipAddress}"/></small></td>
+                                <td><small title="${log.userAgent}"><c:out value="${log.userAgent}"/></small></td>
                             </tr>
                         </c:forEach>
                     </tbody>

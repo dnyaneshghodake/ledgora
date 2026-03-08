@@ -70,10 +70,13 @@ public class LedgerExplorerController {
             businessDate = currentDate;
         }
 
-        // Calculate totals
+        // PART 12: Calculate totals with null-safe access for entries
         BigDecimal totalDebits = BigDecimal.ZERO;
         BigDecimal totalCredits = BigDecimal.ZERO;
         for (LedgerEntry entry : entries) {
+            if (entry.getEntryType() == null || entry.getAmount() == null) {
+                continue; // Skip entries with null type or amount
+            }
             if ("DEBIT".equals(entry.getEntryType().name())) {
                 totalDebits = totalDebits.add(entry.getAmount());
             } else {
@@ -111,6 +114,10 @@ public class LedgerExplorerController {
         BigDecimal totalDebits = BigDecimal.ZERO;
         BigDecimal totalCredits = BigDecimal.ZERO;
         for (LedgerEntry entry : entries) {
+            // PART 12: Null-safe access for AJAX endpoint
+            if (entry.getEntryType() == null || entry.getAmount() == null) {
+                continue;
+            }
             if ("DEBIT".equals(entry.getEntryType().name())) {
                 totalDebits = totalDebits.add(entry.getAmount());
             } else {

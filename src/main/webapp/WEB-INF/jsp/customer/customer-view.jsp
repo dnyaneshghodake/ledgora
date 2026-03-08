@@ -239,9 +239,9 @@
 <%-- Audit Info Section --%>
 <c:set var="auditCreatedBy" value="${customer.createdBy}" scope="request"/>
 <c:set var="auditCreatedAt" value="${customer.createdAt}" scope="request"/>
-<c:set var="auditLastModifiedBy" value="${customer.lastModifiedBy}" scope="request"/>
-<c:set var="auditUpdatedAt" value="${customer.updatedAt}" scope="request"/>
-<c:set var="auditApprovedBy" value="${customer.approvedBy}" scope="request"/>
+<c:set var="auditLastModifiedBy" value="" scope="request"/>
+<c:set var="auditUpdatedAt" value="" scope="request"/>
+<c:set var="auditApprovedBy" value="" scope="request"/>
 <c:set var="auditApprovalStatus" value="${customer.kycStatus}" scope="request"/>
 <c:set var="auditCurrentStatus" value="${customer.kycStatus}" scope="request"/>
 <c:set var="auditEntityType" value="Customer" scope="request"/>

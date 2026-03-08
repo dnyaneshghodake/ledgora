@@ -1,6 +1,7 @@
 package com.ledgora.transaction.controller;
 
 import com.ledgora.common.enums.TransactionType;
+import com.ledgora.common.exception.TransactionNotFoundException;
 import com.ledgora.transaction.dto.TransactionDTO;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.account.service.AccountService;
@@ -40,8 +41,9 @@ public class TransactionController {
 
     @GetMapping("/{id}")
     public String viewTransaction(@PathVariable Long id, Model model) {
+        // PART 11: Use custom TransactionNotFoundException instead of raw RuntimeException
         Transaction transaction = transactionService.getTransactionById(id)
-                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+                .orElseThrow(() -> new TransactionNotFoundException(id));
         model.addAttribute("transaction", transaction);
         model.addAttribute("ledgerEntries", transactionService.getLedgerEntriesByTransaction(id));
         return "transaction/transaction-view";

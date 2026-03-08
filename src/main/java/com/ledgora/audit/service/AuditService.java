@@ -28,6 +28,15 @@ public class AuditService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logEvent(Long userId, String action, String entity, Long entityId, String details, String ipAddress) {
+        logEvent(userId, action, entity, entityId, details, ipAddress, null);
+    }
+
+    /**
+     * PART 9: Enhanced audit logging with userAgent capture.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void logEvent(Long userId, String action, String entity, Long entityId, String details,
+                         String ipAddress, String userAgent) {
         AuditLog auditLog = AuditLog.builder()
                 .userId(userId)
                 .action(action)
@@ -36,6 +45,7 @@ public class AuditService {
                 .details(details)
                 .timestamp(LocalDateTime.now())
                 .ipAddress(ipAddress)
+                .userAgent(userAgent)
                 .build();
         auditLogRepository.save(auditLog);
         log.debug("Audit log: {} {} {} {}", action, entity, entityId, details);
