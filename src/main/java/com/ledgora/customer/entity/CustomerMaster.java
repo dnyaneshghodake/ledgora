@@ -3,6 +3,7 @@ package com.ledgora.customer.entity;
 import com.ledgora.auth.entity.User;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.common.enums.CustomerStatus;
+import com.ledgora.common.enums.FreezeLevel;
 import com.ledgora.common.enums.MakerCheckerStatus;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
@@ -70,6 +71,31 @@ public class CustomerMaster {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "home_branch_id")
     private Branch homeBranch;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "freeze_level", length = 20, nullable = false)
+    @Builder.Default
+    private FreezeLevel freezeLevel = FreezeLevel.NONE;
+
+    @Column(name = "freeze_reason", length = 255)
+    private String freezeReason;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status", length = 20, nullable = false)
+    @Builder.Default
+    private MakerCheckerStatus approvalStatus = MakerCheckerStatus.PENDING;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "approved_by")
+    private User approvedBy;
+
+    @Column(name = "customer_type", length = 20)
+    @Builder.Default
+    private String customerType = "INDIVIDUAL";
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tax_profile_id")
+    private CustomerTaxProfile taxProfile;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "maker_checker_status", length = 20, nullable = false)
