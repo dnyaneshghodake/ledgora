@@ -23,7 +23,7 @@
             <c:when test="${not empty entries}">
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
-                        <thead class="table-light"><tr><th>Date</th><th>Type</th><th>Description</th><th>Created By</th><th>Created At</th><th>Approved By</th><th>Approval Status</th><th>Last Updated</th></tr></thead>
+                        <thead class="table-light"><tr><th>Date</th><th>Type</th><th>Holiday Name</th><th>ATM</th><th>Sys Txn</th><th>Created By</th><th>Approval Status</th><th>Last Updated</th></tr></thead>
                         <tbody>
                             <c:forEach var="e" items="${entries}">
                             <tr>
@@ -34,10 +34,10 @@
                                         <c:otherwise><span class="badge bg-success">WORKING_DAY</span></c:otherwise>
                                     </c:choose>
                                 </td>
-                                <td><c:out value="${e.description}"/></td>
+                                <td><c:out value="${e.holidayName}"/></td>
+                                <td><c:choose><c:when test="${e.atmAllowed}"><span class="badge bg-success">Yes</span></c:when><c:otherwise><span class="badge bg-secondary">No</span></c:otherwise></c:choose></td>
+                                <td><c:choose><c:when test="${e.systemTransactionsAllowed}"><span class="badge bg-success">Yes</span></c:when><c:otherwise><span class="badge bg-secondary">No</span></c:otherwise></c:choose></td>
                                 <td><c:out value="${e.createdBy != null ? e.createdBy.username : 'System'}"/></td>
-                                <td><small><c:out value="${e.createdAt}"/></small></td>
-                                <td><c:out value="${e.approvedBy != null ? e.approvedBy.username : '--'}"/></td>
                                 <td>
                                     <c:choose>
                                         <c:when test="${e.approvalStatus == 'APPROVED'}"><span class="badge bg-success">APPROVED</span></c:when>

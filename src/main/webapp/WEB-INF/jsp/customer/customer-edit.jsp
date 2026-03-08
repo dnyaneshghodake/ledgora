@@ -45,14 +45,14 @@
                 </div>
                 <%-- First Name --%>
                 <div class="col-md-4">
-                    <label class="form-label">First Name *</label>
+                    <label class="form-label cbs-field-required">First Name</label>
                     <form:input path="firstName" cssClass="form-control" required="required"
                                 pattern="[A-Za-z .]+" title="Alphabets, spaces, and dots only" maxlength="50"/>
                     <form:errors path="firstName" cssClass="text-danger small" />
                 </div>
                 <%-- Last Name --%>
                 <div class="col-md-4">
-                    <label class="form-label">Last Name *</label>
+                    <label class="form-label cbs-field-required">Last Name</label>
                     <form:input path="lastName" cssClass="form-control" required="required"
                                 pattern="[A-Za-z .]+" title="Alphabets, spaces, and dots only" maxlength="50"/>
                     <form:errors path="lastName" cssClass="text-danger small" />
@@ -91,7 +91,7 @@
                 </div>
                 <%-- Mobile --%>
                 <div class="col-md-4">
-                    <label class="form-label">Mobile *</label>
+                    <label class="form-label cbs-field-required">Mobile</label>
                     <form:input path="phone" cssClass="form-control" required="required"
                                 pattern="[0-9]{10}" title="10 digit mobile number" maxlength="10" type="tel"/>
                     <form:errors path="phone" cssClass="text-danger small" />

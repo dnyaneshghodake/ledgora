@@ -110,6 +110,7 @@
                         <td>
                             <a href="${pageContext.request.contextPath}/approvals/${approval.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i> View</a>
                             <c:if test="${approval.status == 'PENDING'}">
+                                <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isSuperAdmin}">
                                 <%-- Maker cannot approve own records --%>
                                 <c:if test="${approval.requestedBy == null || approval.requestedBy.id != sessionScope.userId}">
                                     <form method="post" action="${pageContext.request.contextPath}/approvals/${approval.id}/approve" style="display:inline;">
@@ -123,6 +124,7 @@
                                 </c:if>
                                 <c:if test="${approval.requestedBy != null && approval.requestedBy.id == sessionScope.userId}">
                                     <span class="badge bg-light text-dark border" title="Maker cannot approve own records"><i class="bi bi-lock"></i> Own Request</span>
+                                </c:if>
                                 </c:if>
                             </c:if>
                         </td>
@@ -153,11 +155,13 @@
                         <td><small>${a.createdAt}</small></td>
                         <td>
                             <a href="${pageContext.request.contextPath}/approvals/${a.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                            <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isSuperAdmin}">
                             <c:if test="${a.requestedBy == null || a.requestedBy.id != sessionScope.userId}">
                                 <form method="post" action="${pageContext.request.contextPath}/approvals/${a.id}/approve" style="display:inline;"><input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" /><button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Approve?')"><i class="bi bi-check-lg"></i></button></form>
                                 <form method="post" action="${pageContext.request.contextPath}/approvals/${a.id}/reject" style="display:inline;"><input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" /><button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reject?')"><i class="bi bi-x-lg"></i></button></form>
                             </c:if>
                             <c:if test="${a.requestedBy != null && a.requestedBy.id == sessionScope.userId}"><span class="badge bg-light text-dark border"><i class="bi bi-lock"></i> Own</span></c:if>
+                            </c:if>
                         </td>
                     </tr>
                     </c:forEach>
@@ -184,11 +188,13 @@
                         <td><small>${a.createdAt}</small></td>
                         <td>
                             <a href="${pageContext.request.contextPath}/approvals/${a.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                            <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isSuperAdmin}">
                             <c:if test="${a.requestedBy == null || a.requestedBy.id != sessionScope.userId}">
                                 <form method="post" action="${pageContext.request.contextPath}/approvals/${a.id}/approve" style="display:inline;"><input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" /><button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Approve?')"><i class="bi bi-check-lg"></i></button></form>
                                 <form method="post" action="${pageContext.request.contextPath}/approvals/${a.id}/reject" style="display:inline;"><input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" /><button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reject?')"><i class="bi bi-x-lg"></i></button></form>
                             </c:if>
                             <c:if test="${a.requestedBy != null && a.requestedBy.id == sessionScope.userId}"><span class="badge bg-light text-dark border"><i class="bi bi-lock"></i> Own</span></c:if>
+                            </c:if>
                         </td>
                     </tr>
                     </c:forEach>
@@ -214,11 +220,13 @@
                         <td><small>${a.createdAt}</small></td>
                         <td>
                             <a href="${pageContext.request.contextPath}/approvals/${a.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                            <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isSuperAdmin}">
                             <c:if test="${a.requestedBy == null || a.requestedBy.id != sessionScope.userId}">
                                 <form method="post" action="${pageContext.request.contextPath}/approvals/${a.id}/approve" style="display:inline;"><input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" /><button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Approve?')"><i class="bi bi-check-lg"></i></button></form>
                                 <form method="post" action="${pageContext.request.contextPath}/approvals/${a.id}/reject" style="display:inline;"><input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" /><button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reject?')"><i class="bi bi-x-lg"></i></button></form>
                             </c:if>
                             <c:if test="${a.requestedBy != null && a.requestedBy.id == sessionScope.userId}"><span class="badge bg-light text-dark border"><i class="bi bi-lock"></i> Own</span></c:if>
+                            </c:if>
                         </td>
                     </tr>
                     </c:forEach>
@@ -244,11 +252,13 @@
                         <td><small>${a.createdAt}</small></td>
                         <td>
                             <a href="${pageContext.request.contextPath}/approvals/${a.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                            <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isSuperAdmin}">
                             <c:if test="${a.requestedBy == null || a.requestedBy.id != sessionScope.userId}">
                                 <form method="post" action="${pageContext.request.contextPath}/approvals/${a.id}/approve" style="display:inline;"><input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" /><button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Approve?')"><i class="bi bi-check-lg"></i></button></form>
                                 <form method="post" action="${pageContext.request.contextPath}/approvals/${a.id}/reject" style="display:inline;"><input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" /><button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reject?')"><i class="bi bi-x-lg"></i></button></form>
                             </c:if>
                             <c:if test="${a.requestedBy != null && a.requestedBy.id == sessionScope.userId}"><span class="badge bg-light text-dark border"><i class="bi bi-lock"></i> Own</span></c:if>
+                            </c:if>
                         </td>
                     </tr>
                     </c:forEach>
@@ -275,11 +285,13 @@
                         <td><small>${a.createdAt}</small></td>
                         <td>
                             <a href="${pageContext.request.contextPath}/approvals/${a.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                            <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isSuperAdmin}">
                             <c:if test="${a.requestedBy == null || a.requestedBy.id != sessionScope.userId}">
                                 <form method="post" action="${pageContext.request.contextPath}/approvals/${a.id}/approve" style="display:inline;"><input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" /><button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Approve high-value txn?')"><i class="bi bi-check-lg"></i></button></form>
                                 <form method="post" action="${pageContext.request.contextPath}/approvals/${a.id}/reject" style="display:inline;"><input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" /><button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reject?')"><i class="bi bi-x-lg"></i></button></form>
                             </c:if>
                             <c:if test="${a.requestedBy != null && a.requestedBy.id == sessionScope.userId}"><span class="badge bg-light text-dark border"><i class="bi bi-lock"></i> Own</span></c:if>
+                            </c:if>
                         </td>
                     </tr>
                     </c:forEach>

@@ -97,11 +97,12 @@
     <div class="card shadow">
         <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-snow"></i> Freeze Control</h5></div>
         <div class="card-body">
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
             <h6>Update Freeze Level</h6>
             <form method="post" action="${pageContext.request.contextPath}/customers/${customer.customerId}/freeze" class="row g-2">
                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                 <div class="col-md-3">
-                    <label class="form-label">Freeze Level *</label>
+                    <label class="form-label cbs-field-required">Freeze Level</label>
                     <select name="freezeLevel" class="form-select" required>
                         <c:forEach var="fl" items="${freezeLevels}">
                             <option value="${fl}"><c:out value="${fl}"/></option>
@@ -109,13 +110,20 @@
                     </select>
                 </div>
                 <div class="col-md-5">
-                    <label class="form-label">Freeze Reason *</label>
+                    <label class="form-label cbs-field-required">Freeze Reason</label>
                     <input type="text" name="freezeReason" class="form-control" required maxlength="255" placeholder="Reason for freeze/unfreeze"/>
                 </div>
                 <div class="col-md-4 d-flex align-items-end">
                     <button type="submit" class="btn btn-warning"><i class="bi bi-snow"></i> Update Freeze</button>
                 </div>
             </form>
+            </c:if>
+            <c:if test="${!sessionScope.isAdmin && !sessionScope.isManager && !sessionScope.isBranchManager && !sessionScope.isTenantAdmin && !sessionScope.isSuperAdmin}">
+            <div class="text-center py-3 text-muted">
+                <i class="bi bi-lock" style="font-size: 2rem;"></i>
+                <p class="mt-2">You do not have permission to modify freeze controls.</p>
+            </div>
+            </c:if>
         </div>
     </div>
 </div>
