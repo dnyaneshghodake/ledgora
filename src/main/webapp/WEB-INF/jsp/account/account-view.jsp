@@ -317,8 +317,8 @@
 <c:set var="auditLastModifiedBy" value="" scope="request"/>
 <c:set var="auditUpdatedAt" value="${account.updatedAt}" scope="request"/>
 <c:set var="auditApprovedBy" value="${approvedByUsername}" scope="request"/>
-<c:set var="auditApprovalStatus" value="${account.approvalStatus}" scope="request"/>
-<c:set var="auditCurrentStatus" value="${account.status}" scope="request"/>
+<c:set var="auditApprovalStatus" value="${account.approvalStatus != null ? account.approvalStatus.name() : ''}" scope="request"/>
+<c:set var="auditCurrentStatus" value="${account.status != null ? account.status.name() : ''}" scope="request"/>
 <c:set var="auditEntityType" value="Account" scope="request"/>
 <c:set var="auditEntityId" value="${account.accountNumber}" scope="request"/>
 <%@ include file="../layout/audit-info.jsp" %>
