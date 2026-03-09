@@ -82,7 +82,7 @@
                         <td>
                             <c:choose>
                                 <c:when test="${not empty user.lastLogin}">
-                                    <small>${user.lastLogin}</small>
+                                    <small><c:out value="${user.lastLogin}"/></small>
                                 </c:when>
                                 <c:otherwise><small class="text-muted">Never</small></c:otherwise>
                             </c:choose>

@@ -19,13 +19,14 @@
     <div class="card-body">
         <form method="post" action="${pageContext.request.contextPath}/transactions/deposit" id="depositForm">
             <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+            <input type="hidden" name="transactionType" value="DEPOSIT"/>
 
             <div class="row g-3">
                                 <%-- Account Lookup --%>
                                 <div class="col-md-6">
                                     <label class="form-label cbs-field-required">Account Number</label>
                                     <div class="input-group">
-                                        <input type="text" name="accountNumber" id="accountNumber" class="form-control" required readonly
+                                        <input type="text" name="destinationAccountNumber" id="accountNumber" class="form-control" required readonly
                                                value="<c:out value="${param.accountNumber}"/>" placeholder="Use lookup to select account"/>
                                         <button type="button" class="btn btn-outline-primary" onclick="openAccountLookup('accountNumber','accountNameDisplay')" title="Search Account">
                                             <i class="bi bi-search"></i>

@@ -24,7 +24,7 @@
     <div class="card-body">
         <form method="get" action="${pageContext.request.contextPath}/transactions" class="row g-2">
             <div class="col-md-4">
-                <input type="text" name="accountId" class="form-control" placeholder="Account ID" value="<c:out value="${param.accountId}"/>"/>
+                <input type="text" name="accountNumber" class="form-control" placeholder="Account Number" value="<c:out value="${param.accountNumber}"/>"/>
             </div>
             <div class="col-md-2">
                 <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-search"></i> Search</button>
@@ -46,9 +46,13 @@
                             <c:forEach var="tx" items="${transactions}">
                             <tr>
                                 <td><c:out value="${tx.id}"/></td>
-                                <td><small><c:out value="${tx.transactionDate}"/></small></td>
+                                <td><small><c:out value="${tx.businessDate != null ? tx.businessDate : tx.createdAt}"/></small></td>
                                 <td><c:out value="${tx.transactionType}"/></td>
-                                <td><code><c:out value="${tx.accountNumber}"/></code></td>
+                                <td>
+                                    <c:if test="${tx.sourceAccount != null}"><code><c:out value="${tx.sourceAccount.accountNumber}"/></code></c:if>
+                                    <c:if test="${tx.sourceAccount != null && tx.destinationAccount != null}"> &rarr; </c:if>
+                                    <c:if test="${tx.destinationAccount != null}"><code><c:out value="${tx.destinationAccount.accountNumber}"/></code></c:if>
+                                </td>
                                 <td class="fw-bold"><c:out value="${tx.amount}"/></td>
                                 <td><span class="badge bg-success"><c:out value="${tx.status}"/></span></td>
                                 <td><a href="${pageContext.request.contextPath}/transactions/${tx.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>

@@ -142,8 +142,10 @@ document.addEventListener('DOMContentLoaded', function() {
     var transferForm = document.getElementById('transferForm');
     if (transferForm) {
         transferForm.addEventListener('submit', function(e) {
-            var source = document.getElementById('sourceAccountNumber').value;
-            var dest = document.getElementById('destinationAccountNumber').value;
+            var sourceEl = document.getElementById('fromAccount');
+            var destEl = document.getElementById('toAccount');
+            var source = sourceEl ? sourceEl.value : '';
+            var dest = destEl ? destEl.value : '';
             if (source && dest && source === dest) {
                 e.preventDefault();
                 showAlert('Source and destination accounts cannot be the same', 'danger');

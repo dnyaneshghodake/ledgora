@@ -91,7 +91,7 @@
 <c:if test="${not empty sessionScope.username}">
 <script>
 (function() {
-    var dayStatus = '${sessionScope.businessDateStatus}';
+    var dayStatus = '<c:out value="${sessionScope.businessDateStatus}"/>';
     if (dayStatus && dayStatus !== 'OPEN') {
         // Disable all financial operation forms and buttons when day is not OPEN
         var financialForms = document.querySelectorAll(
