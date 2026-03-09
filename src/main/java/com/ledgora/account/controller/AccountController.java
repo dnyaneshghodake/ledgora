@@ -9,6 +9,13 @@ import com.ledgora.audit.repository.AuditLogRepository;
 import com.ledgora.balance.service.CbsBalanceEngine;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
+import com.ledgora.lien.entity.AccountLien;
+import com.ledgora.lien.service.AccountLienService;
+import com.ledgora.ownership.entity.AccountOwnership;
+import com.ledgora.ownership.service.AccountOwnershipService;
+import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.transaction.entity.Transaction;
+import com.ledgora.transaction.repository.TransactionRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -30,12 +37,21 @@ public class AccountController {
     private final AccountService accountService;
     private final CbsBalanceEngine balanceEngine;
     private final AuditLogRepository auditLogRepository;
+    private final AccountOwnershipService ownershipService;
+    private final AccountLienService lienService;
+    private final TransactionRepository transactionRepository;
 
     public AccountController(AccountService accountService, CbsBalanceEngine balanceEngine,
-                             AuditLogRepository auditLogRepository) {
+                             AuditLogRepository auditLogRepository,
+                             AccountOwnershipService ownershipService,
+                             AccountLienService lienService,
+                             TransactionRepository transactionRepository) {
         this.accountService = accountService;
         this.balanceEngine = balanceEngine;
         this.auditLogRepository = auditLogRepository;
+        this.ownershipService = ownershipService;
+        this.lienService = lienService;
+        this.transactionRepository = transactionRepository;
     }
 
     @GetMapping
@@ -92,33 +108,75 @@ public class AccountController {
                 .orElseThrow(() -> new RuntimeException("Account not found"));
         model.addAttribute("account", account);
         model.addAttribute("accountTypes", AccountType.values());
+
+        // Eagerly resolve lazy User fields for JSP audit section to avoid LazyInitializationException
+        String createdByUsername = "";
+        try { if (account.getCreatedBy() != null) createdByUsername = account.getCreatedBy().getUsername(); } catch (Exception e) { /* lazy proxy failed */ }
+        model.addAttribute("createdByUsername", createdByUsername);
+        String approvedByUsername = "";
+        try { if (account.getApprovedBy() != null) approvedByUsername = account.getApprovedBy().getUsername(); } catch (Exception e) { /* lazy proxy failed */ }
+        model.addAttribute("approvedByUsername", approvedByUsername);
+
         // Load balance data for Balances tab
         try {
-            AccountBalance cbsBalance = balanceEngine.getCbsBalance(account.getId());
+            AccountBalance cbsBalance = balanceEngine.getCbsBalance(id);
             model.addAttribute("availableBalance", cbsBalance.getAvailableBalance());
             model.addAttribute("totalLien", cbsBalance.getLienBalance());
         } catch (Exception e) {
             model.addAttribute("availableBalance", account.getBalance());
-            model.addAttribute("totalLien", java.math.BigDecimal.ZERO);
+            model.addAttribute("totalLien", "0.00");
         }
-        // Load ownership data for Ownership tab
+
+        // Load ownership data for Ownership tab (safe projection to avoid lazy-loading)
         try {
-            model.addAttribute("ownerships", accountService.getOwnershipsByAccountId(id));
+            Long tenantId = TenantContextHolder.getTenantId();
+            List<AccountOwnership> ownershipEntities = ownershipService.getOwnershipsByAccount(id, tenantId);
+            List<Map<String, Object>> ownerships = ownershipEntities.stream().map(o -> {
+                Map<String, Object> m = new HashMap<>();
+                try { m.put("customerName", o.getCustomerMaster() != null ? o.getCustomerMaster().getFullName() : ""); } catch (Exception e) { m.put("customerName", ""); }
+                m.put("ownershipType", o.getOwnershipType() != null ? o.getOwnershipType().name() : "");
+                m.put("ownershipPercentage", o.getOwnershipPercentage());
+                m.put("operational", o.getIsOperational());
+                return m;
+            }).collect(Collectors.toList());
+            model.addAttribute("ownerships", ownerships);
         } catch (Exception e) {
             model.addAttribute("ownerships", List.of());
         }
-        // Load lien data for Liens tab
+
+        // Load lien data for Liens tab (safe projection)
         try {
-            model.addAttribute("liens", accountService.getLiensByAccountId(id));
+            List<AccountLien> lienEntities = lienService.getActiveLiensByAccount(id);
+            List<Map<String, Object>> liens = lienEntities.stream().map(l -> {
+                Map<String, Object> m = new HashMap<>();
+                m.put("lienAmount", l.getLienAmount());
+                m.put("lienType", l.getLienType() != null ? l.getLienType().name() : "");
+                m.put("startDate", l.getStartDate());
+                m.put("endDate", l.getEndDate());
+                m.put("status", l.getStatus() != null ? l.getStatus().name() : "");
+                return m;
+            }).collect(Collectors.toList());
+            model.addAttribute("liens", liens);
         } catch (Exception e) {
             model.addAttribute("liens", List.of());
         }
-        // Load recent transactions for Transactions tab
+
+        // Load recent transactions for Transactions tab (safe projection)
         try {
-            model.addAttribute("recentTransactions", accountService.getRecentTransactionsByAccountId(id));
+            List<Transaction> txEntities = transactionRepository.findByAccountId(id);
+            List<Map<String, Object>> recentTransactions = txEntities.stream().limit(20).map(tx -> {
+                Map<String, Object> m = new HashMap<>();
+                m.put("transactionDate", tx.getCreatedAt());
+                m.put("transactionType", tx.getTransactionType() != null ? tx.getTransactionType().name() : "");
+                m.put("amount", tx.getAmount());
+                m.put("balanceAfter", "--");
+                return m;
+            }).collect(Collectors.toList());
+            model.addAttribute("recentTransactions", recentTransactions);
         } catch (Exception e) {
             model.addAttribute("recentTransactions", List.of());
         }
+
         // Load freeze history from audit logs
         try {
             List<AuditLog> freezeLogs = auditLogRepository.findByEntityAndEntityId("ACCOUNT", id)
@@ -177,6 +235,8 @@ public class AccountController {
         dto.setCustomerEmail(account.getCustomerEmail());
         dto.setCustomerPhone(account.getCustomerPhone());
         dto.setGlAccountCode(account.getGlAccountCode());
+        dto.setInterestRate(account.getInterestRate());
+        dto.setOverdraftLimit(account.getOverdraftLimit());
         dto.setStatus(account.getStatus() != null ? account.getStatus().name() : null);
         dto.setFreezeLevel(account.getFreezeLevel() != null ? account.getFreezeLevel().name() : null);
         dto.setApprovalStatus(account.getApprovalStatus() != null ? account.getApprovalStatus().name() : null);
@@ -246,10 +306,30 @@ public class AccountController {
     }
 
     /**
+     * API endpoint for AJAX account search by partial account number or name.
+     * Used by lookup modals on transaction and account opening screens.
+     */
+    @GetMapping("/api/search")
+    @ResponseBody
+    public List<Map<String, Object>> searchAccountsApi(@RequestParam("q") String query) {
+        List<Account> accounts = accountService.searchAccounts(query);
+        return accounts.stream().map(a -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", a.getId());
+            m.put("accountNumber", a.getAccountNumber());
+            m.put("accountName", a.getAccountName());
+            m.put("accountType", a.getAccountType() != null ? a.getAccountType().name() : null);
+            m.put("status", a.getStatus() != null ? a.getStatus().name() : null);
+            m.put("balance", a.getBalance());
+            m.put("currency", a.getCurrency());
+            m.put("customerName", a.getCustomerName());
+            return m;
+        }).collect(Collectors.toList());
+    }
+
+    /**
      * API endpoint for AJAX account lookup by exact account number.
-     * Used by transaction screens to load balance/freeze details after account selection.
-     * Returns JSON object for a single account, or empty JSON object if not found
-     * (never returns 404 to avoid JSP error handler intercepting @ResponseBody responses).
+     * Used by transaction screens and account selection components.
      */
     @GetMapping("/api/lookup")
     @ResponseBody
@@ -257,9 +337,7 @@ public class AccountController {
             @RequestParam("accountNumber") String accountNumber) {
         Optional<Account> accountOpt = accountService.getAccountByNumber(accountNumber);
         if (accountOpt.isEmpty()) {
-            // Return empty JSON instead of 404 to prevent JSP error handler from
-            // intercepting the response and causing getOutputStream() errors
-            return ResponseEntity.ok(new HashMap<>());
+            return ResponseEntity.notFound().build();
         }
         Account account = accountOpt.get();
         Map<String, Object> result = new HashMap<>();
@@ -287,40 +365,5 @@ public class AccountController {
             result.put("totalLien", "0.00");
         }
         return ResponseEntity.ok(result);
-    }
-
-    /**
-     * API endpoint for AJAX account search (partial match).
-     * Used by the account lookup modal to find accounts by partial number or name.
-     * Returns a JSON array of matching accounts.
-     */
-    @GetMapping("/api/search")
-    @ResponseBody
-    public ResponseEntity<List<Map<String, Object>>> searchAccounts(
-            @RequestParam("q") String query) {
-        List<Account> accounts;
-        try {
-            // Try exact match first
-            Optional<Account> exact = accountService.getAccountByNumber(query);
-            if (exact.isPresent()) {
-                accounts = List.of(exact.get());
-            } else {
-                // Fall back to search by customer name or account name
-                accounts = accountService.searchByCustomerName(query);
-            }
-        } catch (Exception e) {
-            accounts = List.of();
-        }
-        List<Map<String, Object>> results = accounts.stream().map(a -> {
-            Map<String, Object> m = new HashMap<>();
-            m.put("id", a.getId());
-            m.put("accountNumber", a.getAccountNumber());
-            m.put("accountName", a.getAccountName());
-            m.put("accountType", a.getAccountType() != null ? a.getAccountType().name() : null);
-            m.put("status", a.getStatus() != null ? a.getStatus().name() : null);
-            m.put("customerName", a.getCustomerName());
-            return m;
-        }).collect(Collectors.toList());
-        return ResponseEntity.ok(results);
     }
 }

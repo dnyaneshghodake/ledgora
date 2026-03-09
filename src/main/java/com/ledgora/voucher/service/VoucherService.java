@@ -106,8 +106,10 @@ public class VoucherService {
         customerValidationService.validateAccountForTransaction(
                 account, tenant.getId(), branch.getId(), drCr);
 
-        // Validate sufficient balance for debit
-        if (drCr == VoucherDrCr.DR) {
+        // Validate sufficient balance for debit (skip for GL/internal accounts — they are contra legs)
+        if (drCr == VoucherDrCr.DR
+                && account.getAccountType() != com.ledgora.common.enums.AccountType.GL_ACCOUNT
+                && account.getAccountType() != com.ledgora.common.enums.AccountType.INTERNAL_ACCOUNT) {
             cbsBalanceEngine.validateSufficientBalance(account.getId(), transactionAmount);
         }
 

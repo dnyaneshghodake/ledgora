@@ -16,10 +16,10 @@
     <div class="col-12">
         <h3>
             <i class="bi bi-speedometer2"></i> Dashboard
-            <c:if test="${isAdmin}"><small class="text-muted fs-6">— Administrator View</small></c:if>
-            <c:if test="${isManager}"><small class="text-muted fs-6">— Manager View</small></c:if>
-            <c:if test="${isTeller}"><small class="text-muted fs-6">— Teller View</small></c:if>
-            <c:if test="${isCustomer && !isAdmin && !isManager && !isTeller}"><small class="text-muted fs-6">— My Banking</small></c:if>
+            <c:if test="${isAdmin}"><small class="text-muted fs-6">&mdash; Administrator View</small></c:if>
+            <c:if test="${isManager}"><small class="text-muted fs-6">&mdash; Manager View</small></c:if>
+            <c:if test="${isTeller}"><small class="text-muted fs-6">&mdash; Teller View</small></c:if>
+            <c:if test="${isCustomer && !isAdmin && !isManager && !isTeller}"><small class="text-muted fs-6">&mdash; My Banking</small></c:if>
         </h3>
         <hr>
     </div>

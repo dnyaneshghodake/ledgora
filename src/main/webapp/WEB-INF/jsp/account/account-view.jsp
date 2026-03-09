@@ -195,7 +195,7 @@
     <div class="card shadow">
         <div class="card-header bg-white d-flex justify-content-between">
             <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Recent Transactions</h5>
-            <a href="${pageContext.request.contextPath}/transactions?accountNumber=${account.accountNumber}" class="btn btn-sm btn-outline-primary">View All</a>
+            <a href="${pageContext.request.contextPath}/transactions?accountId=${account.id}" class="btn btn-sm btn-outline-primary">View All</a>
         </div>
         <div class="card-body">
             <c:choose>
@@ -311,16 +311,37 @@
 </div>
 </div>
 
-<%-- Audit Info Section --%>
-<c:set var="auditCreatedBy" value="${account.createdBy != null ? account.createdBy.username : ''}" scope="request"/>
+<%-- Audit Info Section (uses eagerly-resolved model attributes to avoid LazyInitializationException) --%>
+<c:set var="auditCreatedBy" value="${createdByUsername}" scope="request"/>
 <c:set var="auditCreatedAt" value="${account.createdAt}" scope="request"/>
-<c:set var="auditLastModifiedBy" value="${account.lastModifiedBy != null ? account.lastModifiedBy.username : ''}" scope="request"/>
+<c:set var="auditLastModifiedBy" value="" scope="request"/>
 <c:set var="auditUpdatedAt" value="${account.updatedAt}" scope="request"/>
-<c:set var="auditApprovedBy" value="${account.approvedBy != null ? account.approvedBy.username : ''}" scope="request"/>
-<c:set var="auditApprovalStatus" value="${account.approvalStatus}" scope="request"/>
-<c:set var="auditCurrentStatus" value="${account.status}" scope="request"/>
+<c:set var="auditApprovedBy" value="${approvedByUsername}" scope="request"/>
+<c:set var="auditApprovalStatus" value="${account.approvalStatus != null ? account.approvalStatus.name() : ''}" scope="request"/>
+<c:set var="auditCurrentStatus" value="${account.status != null ? account.status.name() : ''}" scope="request"/>
 <c:set var="auditEntityType" value="Account" scope="request"/>
 <c:set var="auditEntityId" value="${account.accountNumber}" scope="request"/>
 <%@ include file="../layout/audit-info.jsp" %>
 
 <%@ include file="../layout/footer.jsp" %>
+
+<%-- Activate tab from URL hash (e.g., #tab-balances) — must run after bootstrap.bundle.min.js is loaded by footer --%>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var hash = window.location.hash;
+    if (hash) {
+        var tabLink = document.querySelector('#accountTabs a[href="' + hash + '"]');
+        if (tabLink && typeof bootstrap !== 'undefined') {
+            var tab = new bootstrap.Tab(tabLink);
+            tab.show();
+        }
+    }
+    // Update URL hash when tabs are clicked
+    var tabEls = document.querySelectorAll('#accountTabs a[data-bs-toggle="tab"]');
+    tabEls.forEach(function(tabEl) {
+        tabEl.addEventListener('shown.bs.tab', function(e) {
+            history.replaceState(null, null, e.target.getAttribute('href'));
+        });
+    });
+});
+</script>

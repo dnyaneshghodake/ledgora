@@ -57,6 +57,7 @@ body {
     align-items: center;
     gap: 0.75rem;
     min-width: 0;
+    flex-shrink: 0;
 }
 
 .cbs-sidebar-toggle {
@@ -113,6 +114,15 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* Prevent center header items from squishing — they should clip cleanly instead */
+.cbs-header-center > * {
+    flex-shrink: 0;
 }
 
 /* Environment Badge */
@@ -143,6 +153,26 @@ body {
     background: #dcfce7;
     color: #166534;
     border: 1px solid #86efac;
+}
+
+.cbs-branch-info {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #f1f5f9;
+    padding: 0.35rem 0.85rem;
+    border-radius: 0.5rem;
+    font-size: 0.78rem;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.cbs-branch-info i {
+    color: var(--cbs-accent);
+}
+
+.cbs-branch-info strong {
+    color: var(--cbs-primary);
 }
 
 .cbs-business-date {
@@ -239,10 +269,28 @@ body {
     color: #991b1b;
 }
 
+.cbs-tenant-info {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-right: 0.5rem;
+    padding: 0.25rem 0.65rem;
+    background: #f1f5f9;
+    border-radius: 0.5rem;
+    font-size: 0.78rem;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.cbs-tenant-info i {
+    color: #d97706;
+}
+
 .cbs-header-right {
     display: flex;
     align-items: center;
     gap: 1rem;
+    flex-shrink: 0;
 }
 
 .cbs-user-info {
@@ -464,10 +512,12 @@ body {
     margin-top: var(--cbs-header-height);
     min-height: calc(100vh - var(--cbs-header-height) - var(--cbs-footer-height));
     transition: margin-left 0.3s ease;
+    overflow-x: hidden;
 }
 
 .cbs-content {
     padding: 1.5rem;
+    max-width: 1600px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -561,6 +611,10 @@ body.cbs-sidebar-collapsed .cbs-footer {
         display: none;
     }
 
+    .cbs-branch-info span {
+        display: none;
+    }
+
     .cbs-business-date span {
         display: none;
     }
@@ -580,6 +634,10 @@ body.cbs-sidebar-collapsed .cbs-footer {
     .cbs-ledger-health {
         display: none;
     }
+
+    .cbs-tenant-info span {
+        display: none;
+    }
 }
 
 @media (max-width: 767.98px) {
@@ -589,6 +647,10 @@ body.cbs-sidebar-collapsed .cbs-footer {
 
     .cbs-header-brand-text {
         display: none;
+    }
+
+    .cbs-tenant-info {
+        display: none !important;
     }
 
     .cbs-content {
@@ -603,12 +665,15 @@ body.cbs-sidebar-collapsed .cbs-footer {
     border: none;
     border-radius: 0.5rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-    transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.card:hover {
+/* Only animate hover on cards inside specific interactive containers */
+.cbs-balance-card:hover,
+.col-md-3 > .card:hover,
+.col-md-4 > .card:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .card-header {
@@ -682,10 +747,6 @@ h3 small {
 
 .shadow {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
-}
-
-.shadow:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
 }
 
 /* =========================================================================
@@ -820,6 +881,14 @@ h3 small {
     font-size: 0.78rem;
     color: #64748b;
     margin-top: 0.15rem;
+}
+
+/* Disable hover transform on static/informational cards */
+.cbs-audit-info,
+.cbs-audit-info:hover,
+.tab-pane > .card,
+.tab-pane > .card:hover {
+    transform: none !important;
 }
 
 /* =========================================================================

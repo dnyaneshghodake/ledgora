@@ -83,7 +83,9 @@
                 <div class="col-md-4"><strong>GST:</strong> <span class="text-muted">Not provided</span></div>
             </div>
             <hr>
-            <a href="${pageContext.request.contextPath}/tax-profiles/create?customerId=${customer.customerId}" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil"></i> Manage Tax Profile</a>
+            <a href="${pageContext.request.contextPath}/tax-profiles/create?customerId=${customer.customerId}" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-pencil"></i> Manage Tax Profile
+            </a>
         </div>
     </div>
 </div>
@@ -232,7 +234,7 @@
 </div>
 
 <%-- Audit Info Section --%>
-<c:set var="auditCreatedBy" value="${customer.createdBy}" scope="request"/>
+<c:set var="auditCreatedBy" value="${customer.createdBy != null ? customer.createdBy.username : ''}" scope="request"/>
 <c:set var="auditCreatedAt" value="${customer.createdAt}" scope="request"/>
 <c:set var="auditLastModifiedBy" value="" scope="request"/>
 <c:set var="auditUpdatedAt" value="" scope="request"/>

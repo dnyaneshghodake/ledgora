@@ -19,6 +19,9 @@
 <div class="card shadow">
     <div class="card-body">
         <form:form method="post" action="${pageContext.request.contextPath}/accounts/${accountDTO.id}/edit" modelAttribute="accountDTO">
+            <%-- Hidden fields for required DTO validation fields that are displayed as read-only --%>
+            <form:hidden path="accountType"/>
+            <form:hidden path="customerName"/>
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Account Number</label>

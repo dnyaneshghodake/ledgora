@@ -14,13 +14,6 @@
     SUPER_ADMIN    -> All tenants
 --%>
 <aside class="cbs-sidebar" id="cbsSidebar">
-    <div class="cbs-sidebar-header">
-        <a href="${pageContext.request.contextPath}/dashboard" class="cbs-sidebar-brand">
-            <i class="bi bi-bank2"></i>
-            <span>LEDGORA</span>
-        </a>
-    </div>
-
     <nav class="cbs-sidebar-nav">
         <ul class="cbs-nav-list">
 
@@ -270,9 +263,9 @@
             </li>
             </c:if>
 
-                        <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin || sessionScope.isOperations}">
-                        <li class="cbs-nav-group">
-                            <a href="#" class="cbs-nav-group-toggle" data-group="ledger">
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin || sessionScope.isOperations}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="ledger">
                     <i class="bi bi-book"></i>
                     <span>Ledger & GL</span>
                     <i class="bi bi-chevron-down cbs-nav-arrow"></i>
