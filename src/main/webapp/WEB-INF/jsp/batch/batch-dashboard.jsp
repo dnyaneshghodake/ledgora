@@ -58,7 +58,7 @@
                                 <tr>
                                     <th>Batch Code</th>
                                     <th>Batch Type</th>
-                                    <th>Branch</th>
+                                    <th>Tenant</th>
                                     <th>Business Date</th>
                                     <th>Transactions</th>
                                     <th>Total Debit</th>
@@ -73,7 +73,7 @@
                                     <tr>
                                         <td><code><c:out value="${not empty batch.batchCode ? batch.batchCode : batch.id}"/></code></td>
                                         <td><span class="badge bg-info"><c:out value="${batch.batchType}"/></span></td>
-                                        <td><c:out value="${not empty batch.branchCode ? batch.branchCode : '-'}"/></td>
+                                        <td><c:out value="${batch.tenant != null ? batch.tenant.tenantName : '-'}"/></td>
                                         <td><c:out value="${batch.businessDate}"/></td>
                                         <td><c:out value="${batch.transactionCount}"/></td>
                                         <td class="text-end"><c:out value="${batch.totalDebit}"/></td>
@@ -113,7 +113,7 @@
                                 <tr>
                                     <th>Batch Code</th>
                                     <th>Batch Type</th>
-                                    <th>Branch</th>
+                                    <th>Tenant</th>
                                     <th>Business Date</th>
                                     <th>Transactions</th>
                                     <th>Total Debit</th>
@@ -128,7 +128,7 @@
                                     <tr>
                                         <td><code><c:out value="${not empty batch.batchCode ? batch.batchCode : batch.id}"/></code></td>
                                         <td><span class="badge bg-warning text-dark"><c:out value="${batch.batchType}"/></span></td>
-                                        <td><c:out value="${not empty batch.branchCode ? batch.branchCode : '-'}"/></td>
+                                        <td><c:out value="${batch.tenant != null ? batch.tenant.tenantName : '-'}"/></td>
                                         <td><c:out value="${batch.businessDate}"/></td>
                                         <td><c:out value="${batch.transactionCount}"/></td>
                                         <td class="text-end"><c:out value="${batch.totalDebit}"/></td>
@@ -168,7 +168,7 @@
                                 <tr>
                                     <th>Batch Code</th>
                                     <th>Batch Type</th>
-                                    <th>Branch</th>
+                                    <th>Tenant</th>
                                     <th>Business Date</th>
                                     <th>Transactions</th>
                                     <th>Total Debit</th>
@@ -182,7 +182,7 @@
                                     <tr>
                                         <td><code><c:out value="${not empty batch.batchCode ? batch.batchCode : batch.id}"/></code></td>
                                         <td><span class="badge bg-success"><c:out value="${batch.batchType}"/></span></td>
-                                        <td><c:out value="${not empty batch.branchCode ? batch.branchCode : '-'}"/></td>
+                                        <td><c:out value="${batch.tenant != null ? batch.tenant.tenantName : '-'}"/></td>
                                         <td><c:out value="${batch.businessDate}"/></td>
                                         <td><c:out value="${batch.transactionCount}"/></td>
                                         <td class="text-end"><c:out value="${batch.totalDebit}"/></td>
