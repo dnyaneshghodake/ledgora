@@ -120,6 +120,11 @@ body {
     overflow: hidden;
 }
 
+/* Prevent center header items from squishing — they should clip cleanly instead */
+.cbs-header-center > * {
+    flex-shrink: 0;
+}
+
 /* Environment Badge */
 .cbs-env-badge {
     display: inline-flex;

@@ -31,8 +31,6 @@
             <i class="bi bi-bank2"></i>
             <span class="cbs-header-brand-text">LEDGORA</span>
         </a>
-        <span class="cbs-header-separator"></span>
-        <span class="cbs-header-subtitle">Core Banking System</span>
     </div>
     <div class="cbs-header-center">
         <%-- Branch Name --%>
