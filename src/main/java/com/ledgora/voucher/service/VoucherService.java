@@ -605,8 +605,23 @@ public class VoucherService {
             throw new RuntimeException("Voucher posting requires a valid open batch code. Found: " + batchCode);
         }
 
+        // Try lookup by batchCode column first; fall back to BATCH-<id> pattern for backward compat
         TransactionBatch batch = transactionBatchRepository.findByBatchCode(batchCode)
-                .orElseThrow(() -> new RuntimeException("Batch not found for voucher posting: " + batchCode));
+                .orElseGet(() -> {
+                    // Legacy pattern: batchCode string is "BATCH-<id>" but the DB column may be null
+                    if (batchCode.startsWith("BATCH-")) {
+                        try {
+                            Long batchId = Long.parseLong(batchCode.substring("BATCH-".length()));
+                            return transactionBatchRepository.findById(batchId).orElse(null);
+                        } catch (NumberFormatException ex) {
+                            return null;
+                        }
+                    }
+                    return null;
+                });
+        if (batch == null) {
+            throw new RuntimeException("Batch not found for voucher posting: " + batchCode);
+        }
 
         if (batch.getTenant() == null || voucher.getTenant() == null
                 || !batch.getTenant().getId().equals(voucher.getTenant().getId())) {
