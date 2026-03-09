@@ -15,4 +15,8 @@ public class DashboardDTO {
     private long totalUsers;
     private long pendingSettlements;
     private long completedSettlements;
+
+    // Maker-checker approval queue counts
+    private long pendingApprovals;
+    private long pendingTransactionApprovals;
 }

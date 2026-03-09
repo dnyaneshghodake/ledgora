@@ -1,5 +1,6 @@
 package com.ledgora.dashboard.service;
 
+import com.ledgora.approval.service.ApprovalService;
 import com.ledgora.dashboard.dto.DashboardDTO;
 import com.ledgora.account.service.AccountService;
 import com.ledgora.auth.service.AuthService;
@@ -21,13 +22,16 @@ public class DashboardService {
     private final TransactionService transactionService;
     private final AuthService authService;
     private final SettlementService settlementService;
+    private final ApprovalService approvalService;
 
     public DashboardService(AccountService accountService, TransactionService transactionService,
-                            AuthService authService, SettlementService settlementService) {
+                            AuthService authService, SettlementService settlementService,
+                            ApprovalService approvalService) {
         this.accountService = accountService;
         this.transactionService = transactionService;
         this.authService = authService;
         this.settlementService = settlementService;
+        this.approvalService = approvalService;
     }
 
     public DashboardDTO getDashboardData() {
@@ -57,6 +61,8 @@ public class DashboardService {
                 .totalUsers(authService.getAllUsers().size())
                 .pendingSettlements(settlementService.countByStatus(SettlementStatus.PENDING))
                 .completedSettlements(settlementService.countByStatus(SettlementStatus.COMPLETED))
+                .pendingApprovals(approvalService.getPendingRequests().size())
+                .pendingTransactionApprovals(transactionService.countPendingApproval())
                 .build();
     }
 }

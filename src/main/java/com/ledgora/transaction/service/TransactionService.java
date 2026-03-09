@@ -398,7 +398,11 @@ public class TransactionService {
 
         // Re-validate accounts with pessimistic lock
         TransactionType txnType = transaction.getTransactionType();
-        TransactionBatch batch = transaction.getBatch();
+
+        // Get a fresh open batch for the current business date (original batch may be CLOSED)
+        TransactionChannel channel = transaction.getChannel() != null ? transaction.getChannel() : TransactionChannel.TELLER;
+        TransactionBatch batch = batchService.getOrCreateOpenBatch(tenantId, channel, businessDate);
+        transaction.setBatch(batch);
 
         if (txnType == TransactionType.DEPOSIT) {
             Account account = accountRepository.findByIdWithLock(transaction.getDestinationAccount().getId())

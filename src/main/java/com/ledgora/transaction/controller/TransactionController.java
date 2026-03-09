@@ -71,8 +71,13 @@ public class TransactionController {
         }
         try {
             Transaction txn = transactionService.deposit(dto);
-            redirectAttributes.addFlashAttribute("message",
-                    "Deposit successful! Ref: " + txn.getTransactionRef());
+            if (txn.getStatus() == com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL) {
+                redirectAttributes.addFlashAttribute("message",
+                        "Deposit submitted for approval. Ref: " + txn.getTransactionRef());
+            } else {
+                redirectAttributes.addFlashAttribute("message",
+                        "Deposit successful! Ref: " + txn.getTransactionRef());
+            }
             return "redirect:/transactions";
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
@@ -103,8 +108,13 @@ public class TransactionController {
         }
         try {
             Transaction txn = transactionService.withdraw(dto);
-            redirectAttributes.addFlashAttribute("message",
-                    "Withdrawal successful! Ref: " + txn.getTransactionRef());
+            if (txn.getStatus() == com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL) {
+                redirectAttributes.addFlashAttribute("message",
+                        "Withdrawal submitted for approval. Ref: " + txn.getTransactionRef());
+            } else {
+                redirectAttributes.addFlashAttribute("message",
+                        "Withdrawal successful! Ref: " + txn.getTransactionRef());
+            }
             return "redirect:/transactions";
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
@@ -135,8 +145,13 @@ public class TransactionController {
         }
         try {
             Transaction txn = transactionService.transfer(dto);
-            redirectAttributes.addFlashAttribute("message",
-                    "Transfer successful! Ref: " + txn.getTransactionRef());
+            if (txn.getStatus() == com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL) {
+                redirectAttributes.addFlashAttribute("message",
+                        "Transfer submitted for approval. Ref: " + txn.getTransactionRef());
+            } else {
+                redirectAttributes.addFlashAttribute("message",
+                        "Transfer successful! Ref: " + txn.getTransactionRef());
+            }
             return "redirect:/transactions";
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
