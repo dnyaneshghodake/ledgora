@@ -79,7 +79,7 @@
                                 <td>
                                     <c:choose>
                                         <c:when test="${c.kycStatus == 'VERIFIED'}"><span class="badge bg-success">VERIFIED</span></c:when>
-                                        <c:when test="${c.kycStatus == 'PENDING'}"><span class="badge bg-warning">PENDING</span></c:when>
+                                        <c:when test="${c.kycStatus == 'PENDING'}"><span class="badge bg-warning text-dark">PENDING APPROVAL</span></c:when>
                                         <c:when test="${c.kycStatus == 'REJECTED'}"><span class="badge bg-danger">REJECTED</span></c:when>
                                         <c:otherwise><span class="badge bg-secondary"><c:out value="${c.kycStatus}"/></span></c:otherwise>
                                     </c:choose>

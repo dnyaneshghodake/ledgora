@@ -26,7 +26,17 @@
                             <c:otherwise><span class="badge bg-secondary fs-6"><c:out value="${transaction.transactionType}"/></span></c:otherwise>
                         </c:choose>
                     </td></tr>
-                    <tr><td class="text-muted">Status</td><td><span class="badge bg-success"><c:out value="${transaction.status}"/></span></td></tr>
+                    <tr><td class="text-muted">Status</td><td>
+                        <c:choose>
+                            <c:when test="${transaction.status == 'COMPLETED'}"><span class="badge bg-success">COMPLETED</span></c:when>
+                            <c:when test="${transaction.status == 'PENDING_APPROVAL'}"><span class="badge bg-warning text-dark">PENDING APPROVAL</span></c:when>
+                            <c:when test="${transaction.status == 'APPROVED'}"><span class="badge bg-info">APPROVED</span></c:when>
+                            <c:when test="${transaction.status == 'REJECTED'}"><span class="badge bg-danger">REJECTED</span></c:when>
+                            <c:when test="${transaction.status == 'REVERSED'}"><span class="badge bg-secondary">REVERSED</span></c:when>
+                            <c:when test="${transaction.status == 'FAILED'}"><span class="badge bg-dark">FAILED</span></c:when>
+                            <c:otherwise><span class="badge bg-light text-dark"><c:out value="${transaction.status}"/></span></c:otherwise>
+                        </c:choose>
+                    </td></tr>
                     <tr><td class="text-muted">Amount</td><td><span class="fs-4 fw-bold text-primary"><c:out value="${transaction.amount}"/> <c:out value="${transaction.currency}"/></span></td></tr>
                     <tr><td class="text-muted">Source Account</td><td><c:if test="${transaction.sourceAccount != null}"><code><c:out value="${transaction.sourceAccount.accountNumber}"/></code> - <c:out value="${transaction.sourceAccount.customerName}"/></c:if><c:if test="${transaction.sourceAccount == null}">N/A</c:if></td></tr>
                     <tr><td class="text-muted">Destination Account</td><td><c:if test="${transaction.destinationAccount != null}"><code><c:out value="${transaction.destinationAccount.accountNumber}"/></code> - <c:out value="${transaction.destinationAccount.customerName}"/></c:if><c:if test="${transaction.destinationAccount == null}">N/A</c:if></td></tr>
@@ -76,9 +86,15 @@
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-muted">Maker (Performed By)</td>
+                        <td class="text-muted">Maker</td>
                         <td>
                             <c:choose>
+                                <c:when test="${transaction.maker != null}">
+                                    <i class="bi bi-person-fill text-primary"></i> <c:out value="${transaction.maker.username}"/>
+                                    <c:if test="${transaction.makerTimestamp != null}">
+                                        <br><small class="text-muted"><c:out value="${transaction.makerTimestamp}"/></small>
+                                    </c:if>
+                                </c:when>
                                 <c:when test="${transaction.performedBy != null}">
                                     <i class="bi bi-person"></i> <c:out value="${transaction.performedBy.username}"/>
                                 </c:when>
@@ -87,8 +103,26 @@
                         </td>
                     </tr>
                     <tr>
-                        <td class="text-muted">Checker (Approver)</td>
-                        <td><span class="text-muted">See Approval History</span></td>
+                        <td class="text-muted">Checker</td>
+                        <td>
+                            <c:choose>
+                                <c:when test="${transaction.checker != null}">
+                                    <i class="bi bi-person-check-fill text-success"></i> <c:out value="${transaction.checker.username}"/>
+                                    <c:if test="${transaction.checkerTimestamp != null}">
+                                        <br><small class="text-muted"><c:out value="${transaction.checkerTimestamp}"/></small>
+                                    </c:if>
+                                    <c:if test="${transaction.checkerRemarks != null && !transaction.checkerRemarks.isEmpty()}">
+                                        <br><small class="text-muted">Remarks: <c:out value="${transaction.checkerRemarks}"/></small>
+                                    </c:if>
+                                </c:when>
+                                <c:when test="${transaction.status == 'PENDING_APPROVAL'}">
+                                    <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split"></i> Awaiting Checker</span>
+                                </c:when>
+                                <c:otherwise>
+                                    <span class="text-muted">Auto-authorized</span>
+                                </c:otherwise>
+                            </c:choose>
+                        </td>
                     </tr>
                     <tr>
                         <td class="text-muted">Business Date</td>

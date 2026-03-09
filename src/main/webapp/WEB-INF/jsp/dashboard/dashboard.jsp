@@ -88,6 +88,26 @@
         </div>
     </div>
 </div>
+
+<%-- Pending Approvals Alert Bar --%>
+<c:if test="${dashboard.pendingApprovals > 0}">
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="alert alert-warning d-flex align-items-center shadow-sm mb-0">
+            <i class="bi bi-clipboard-check fs-4 me-3"></i>
+            <div class="flex-grow-1">
+                <strong>${dashboard.pendingApprovals} pending approval(s)</strong>
+                <c:if test="${dashboard.pendingTransactionApprovals > 0}">
+                    &mdash; including <strong>${dashboard.pendingTransactionApprovals} transaction(s)</strong> awaiting checker
+                </c:if>
+            </div>
+            <a href="${pageContext.request.contextPath}/approvals" class="btn btn-warning btn-sm ms-3">
+                <i class="bi bi-arrow-right"></i> Review Queue
+            </a>
+        </div>
+    </div>
+</div>
+</c:if>
 </c:if>
 
 <%-- ═══════════════════════════════════════════════════════════════════════ --%>
@@ -231,6 +251,23 @@
                     </a>
                     <a href="${pageContext.request.contextPath}/transactions/transfer" class="btn btn-outline-info">
                         <i class="bi bi-arrow-left-right"></i> Transfer
+                    </a>
+                    </c:if>
+
+                    <%-- ADMIN & MANAGER: Approval Queue --%>
+                    <c:if test="${isAdmin || isManager}">
+                    <a href="${pageContext.request.contextPath}/approvals" class="btn btn-outline-warning">
+                        <i class="bi bi-clipboard-check"></i> Approval Queue
+                        <c:if test="${dashboard.pendingApprovals > 0}">
+                            <span class="badge bg-danger ms-1">${dashboard.pendingApprovals}</span>
+                        </c:if>
+                    </a>
+                    </c:if>
+
+                    <%-- ADMIN & MANAGER: Day Begin / EOD --%>
+                    <c:if test="${isAdmin || isManager}">
+                    <a href="${pageContext.request.contextPath}/eod/status" class="btn btn-outline-secondary">
+                        <i class="bi bi-calendar-check"></i> Day Status / EOD
                     </a>
                     </c:if>
 
