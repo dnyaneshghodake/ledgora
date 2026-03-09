@@ -30,6 +30,9 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     @Query("SELECT a FROM Account a WHERE a.tenant.id = :tenantId AND LOWER(a.customerName) LIKE LOWER(CONCAT('%', :customerName, '%'))")
     List<Account> findByTenantIdAndCustomerNameContainingIgnoreCase(@Param("tenantId") Long tenantId, @Param("customerName") String customerName);
 
+    @Query("SELECT a FROM Account a WHERE a.tenant.id = :tenantId AND (LOWER(a.accountNumber) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(a.accountName) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(a.customerName) LIKE LOWER(CONCAT('%', :query, '%')))")
+    List<Account> searchByTenantId(@Param("tenantId") Long tenantId, @Param("query") String query);
+
     @Query("SELECT a FROM Account a WHERE a.status = :status AND a.accountType = :type")
     List<Account> findByStatusAndType(@Param("status") AccountStatus status, @Param("type") AccountType type);
 

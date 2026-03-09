@@ -110,6 +110,10 @@ public class AccountService {
         return accountRepository.findByTenantIdAndCustomerNameContainingIgnoreCase(requireTenantId(), name);
     }
 
+    public List<Account> searchAccounts(String query) {
+        return accountRepository.searchByTenantId(requireTenantId(), query);
+    }
+
     public List<Account> getAccountsByCustomerId(Long customerId) {
         return accountRepository.findByTenantIdAndCustomerId(requireTenantId(), customerId);
     }

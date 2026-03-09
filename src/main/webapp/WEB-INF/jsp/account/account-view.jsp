@@ -311,12 +311,12 @@
 </div>
 </div>
 
-<%-- Audit Info Section --%>
-<c:set var="auditCreatedBy" value="${account.createdBy != null ? account.createdBy.username : ''}" scope="request"/>
+<%-- Audit Info Section (uses eagerly-resolved model attributes to avoid LazyInitializationException) --%>
+<c:set var="auditCreatedBy" value="${createdByUsername}" scope="request"/>
 <c:set var="auditCreatedAt" value="${account.createdAt}" scope="request"/>
-<c:set var="auditLastModifiedBy" value="${account.lastModifiedBy}" scope="request"/>
+<c:set var="auditLastModifiedBy" value="" scope="request"/>
 <c:set var="auditUpdatedAt" value="${account.updatedAt}" scope="request"/>
-<c:set var="auditApprovedBy" value="${account.approvedBy != null ? account.approvedBy.username : ''}" scope="request"/>
+<c:set var="auditApprovedBy" value="${approvedByUsername}" scope="request"/>
 <c:set var="auditApprovalStatus" value="${account.approvalStatus}" scope="request"/>
 <c:set var="auditCurrentStatus" value="${account.status}" scope="request"/>
 <c:set var="auditEntityType" value="Account" scope="request"/>
