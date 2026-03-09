@@ -212,11 +212,13 @@ class LedgoraEodValidationTest {
                 .businessDate(LocalDate.now())
                 .status(BatchStatus.CLOSED)
                 .build());
+        closedBatch.setBatchCode("BATCH-" + closedBatch.getId());
+        closedBatch = transactionBatchRepository.save(closedBatch);
 
         var voucher = voucherService.createVoucher(
                 data.tenant, data.branch, data.account, data.gl,
                 VoucherDrCr.CR, new BigDecimal("1000.0000"), new BigDecimal("1000.0000"),
-                "INR", LocalDate.now(), LocalDate.now(), "BATCH-" + closedBatch.getId(), 1,
+                "INR", LocalDate.now(), LocalDate.now(), closedBatch.getBatchCode(), 1,
                 data.maker, "Closed batch should block post");
         voucherService.authorizeVoucher(voucher.getId(), data.checker);
 
@@ -251,7 +253,10 @@ class LedgoraEodValidationTest {
                 .businessDate(businessDate)
                 .status(BatchStatus.OPEN)
                 .build());
-        return "BATCH-" + openBatch.getId();
+        // Set batchCode after save (needs the generated ID), matching BatchService behavior
+        openBatch.setBatchCode("BATCH-" + openBatch.getId());
+        openBatch = transactionBatchRepository.save(openBatch);
+        return openBatch.getBatchCode();
     }
 
     private TestData setupTestData(String suffix) {
