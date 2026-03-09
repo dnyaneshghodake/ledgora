@@ -232,7 +232,7 @@
 </div>
 
 <%-- Audit Info Section --%>
-<c:set var="auditCreatedBy" value="${customer.createdBy}" scope="request"/>
+<c:set var="auditCreatedBy" value="${customer.createdBy != null ? customer.createdBy.username : ''}" scope="request"/>
 <c:set var="auditCreatedAt" value="${customer.createdAt}" scope="request"/>
 <c:set var="auditLastModifiedBy" value="" scope="request"/>
 <c:set var="auditUpdatedAt" value="" scope="request"/>
