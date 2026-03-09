@@ -21,7 +21,7 @@
                         <p class="text-muted">Create New Account</p>
                     </div>
                     <c:if test="${not empty error}">
-                        <div class="alert alert-danger">${error}</div>
+                        <div class="alert alert-danger"><c:out value="${error}"/></div>
                     </c:if>
                     <form:form action="${pageContext.request.contextPath}/register" method="post" modelAttribute="registerRequest">
                         <div class="mb-3">

@@ -51,7 +51,7 @@
         <%-- Environment Badge --%>
         <span class="cbs-env-badge cbs-env-dev">
             <c:choose>
-                <c:when test="${not empty sessionScope.environment}">${sessionScope.environment}</c:when>
+                <c:when test="${not empty sessionScope.environment}"><c:out value="${sessionScope.environment}"/></c:when>
                 <c:otherwise>DEV</c:otherwise>
             </c:choose>
         </span>
@@ -62,7 +62,7 @@
             <span>Business Date:</span>
             <strong>
                 <c:choose>
-                    <c:when test="${not empty sessionScope.businessDate}">${sessionScope.businessDate}</c:when>
+                    <c:when test="${not empty sessionScope.businessDate}"><c:out value="${sessionScope.businessDate}"/></c:when>
                     <c:otherwise><%= new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date()) %></c:otherwise>
                 </c:choose>
             </strong>
@@ -207,10 +207,10 @@
             <c:forEach var="crumb" items="${breadcrumb}">
                 <c:choose>
                     <c:when test="${crumb.active}">
-                        <li class="breadcrumb-item active" aria-current="page">${crumb.label}</li>
+                        <li class="breadcrumb-item active" aria-current="page"><c:out value="${crumb.label}"/></li>
                     </c:when>
                     <c:otherwise>
-                        <li class="breadcrumb-item"><a href="${pageContext.request.contextPath}${crumb.url}">${crumb.label}</a></li>
+                        <li class="breadcrumb-item"><a href="${pageContext.request.contextPath}<c:out value='${crumb.url}'/>"><c:out value="${crumb.label}"/></a></li>
                     </c:otherwise>
                 </c:choose>
             </c:forEach>

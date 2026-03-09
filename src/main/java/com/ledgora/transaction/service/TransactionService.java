@@ -130,7 +130,8 @@ public class TransactionService {
 
         // Pessimistic lock on account
         Account account = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getDestinationAccountNumber(), tenantId)
-                .orElseThrow(() -> new RuntimeException("Account not found: " + dto.getDestinationAccountNumber()));
+                .orElseThrow(() -> new com.ledgora.common.exception.BusinessException("ACCOUNT_NOT_FOUND",
+                        "Account not found: " + dto.getDestinationAccountNumber()));
         validateAccountActive(account);
         // C3: Server-side freeze level enforcement for credit (deposit credits customer account)
         validateAccountFreezeLevel(account, VoucherDrCr.CR);
@@ -218,12 +219,16 @@ public class TransactionService {
 
         // Pessimistic lock on account
         Account account = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getSourceAccountNumber(), tenantId)
-                .orElseThrow(() -> new RuntimeException("Account not found: " + dto.getSourceAccountNumber()));
+                .orElseThrow(() -> new com.ledgora.common.exception.BusinessException("ACCOUNT_NOT_FOUND",
+                        "Account not found: " + dto.getSourceAccountNumber()));
         validateAccountActive(account);
         // C3: Server-side freeze level enforcement for debit (withdrawal debits customer account)
         validateAccountFreezeLevel(account, VoucherDrCr.DR);
         if (account.getBalance().compareTo(dto.getAmount()) < 0) {
-            throw new RuntimeException("Insufficient balance. Available: " + account.getBalance());
+            throw new com.ledgora.common.exception.InsufficientBalanceException(
+                    account.getAccountNumber(),
+                    "Insufficient balance in account " + account.getAccountNumber()
+                            + ". Available: " + account.getBalance());
         }
 
         User currentUser = getCurrentUser();
@@ -309,19 +314,25 @@ public class TransactionService {
 
         // Pessimistic lock on both accounts
         Account sourceAccount = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getSourceAccountNumber(), tenantId)
-                .orElseThrow(() -> new RuntimeException("Source account not found: " + dto.getSourceAccountNumber()));
+                .orElseThrow(() -> new com.ledgora.common.exception.BusinessException("ACCOUNT_NOT_FOUND",
+                        "Source account not found: " + dto.getSourceAccountNumber()));
         Account destAccount = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getDestinationAccountNumber(), tenantId)
-                .orElseThrow(() -> new RuntimeException("Destination account not found: " + dto.getDestinationAccountNumber()));
+                .orElseThrow(() -> new com.ledgora.common.exception.BusinessException("ACCOUNT_NOT_FOUND",
+                        "Destination account not found: " + dto.getDestinationAccountNumber()));
         validateAccountActive(sourceAccount);
         validateAccountActive(destAccount);
         // C3: Server-side freeze level enforcement for both accounts
         validateAccountFreezeLevel(sourceAccount, VoucherDrCr.DR);
         validateAccountFreezeLevel(destAccount, VoucherDrCr.CR);
         if (sourceAccount.getAccountNumber().equals(destAccount.getAccountNumber())) {
-            throw new RuntimeException("Source and destination accounts cannot be the same");
+            throw new com.ledgora.common.exception.BusinessException("SAME_ACCOUNT",
+                    "Source and destination accounts cannot be the same");
         }
         if (sourceAccount.getBalance().compareTo(dto.getAmount()) < 0) {
-            throw new RuntimeException("Insufficient balance. Available: " + sourceAccount.getBalance());
+            throw new com.ledgora.common.exception.InsufficientBalanceException(
+                    sourceAccount.getAccountNumber(),
+                    "Insufficient balance in account " + sourceAccount.getAccountNumber()
+                            + ". Available: " + sourceAccount.getBalance());
         }
 
         User currentUser = getCurrentUser();
@@ -444,7 +455,9 @@ public class TransactionService {
 
     public List<Transaction> getTodayTransactions() {
         Long tenantId = requireTenantId();
-        LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0).withNano(0);
+        // Use tenant's business date instead of system clock for multi-tenant consistency
+        LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
+        LocalDateTime startOfDay = businessDate.atStartOfDay();
         LocalDateTime endOfDay = startOfDay.plusDays(1);
         return transactionRepository.findByTenantIdAndDateRange(tenantId, startOfDay, endOfDay);
     }
@@ -481,17 +494,20 @@ public class TransactionService {
      */
     private void validateAmountPositive(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new RuntimeException("Transaction amount must be positive. Received: " + amount);
+            throw new com.ledgora.common.exception.InvalidTransactionAmountException(
+                    "Transaction amount must be positive. Received: " + amount);
         }
     }
 
     private void validateAccountActive(Account account) {
         if (account.getStatus() != AccountStatus.ACTIVE) {
-            throw new RuntimeException("Account " + account.getAccountNumber() + " is not active. Status: " + account.getStatus());
+            throw new com.ledgora.common.exception.BusinessException("ACCOUNT_INACTIVE",
+                    "Account " + account.getAccountNumber() + " is not active. Status: " + account.getStatus());
         }
         // H2: Ensure account is approved before allowing transactions
         if (account.getApprovalStatus() != null && account.getApprovalStatus() != MakerCheckerStatus.APPROVED) {
-            throw new RuntimeException("Account " + account.getAccountNumber()
+            throw new com.ledgora.common.exception.BusinessException("ACCOUNT_NOT_APPROVED",
+                    "Account " + account.getAccountNumber()
                     + " is not approved. Approval status: " + account.getApprovalStatus());
         }
     }
@@ -508,15 +524,18 @@ public class TransactionService {
             return;
         }
         if (freezeLevel == FreezeLevel.FULL) {
-            throw new RuntimeException("Account " + account.getAccountNumber()
+            throw new com.ledgora.common.exception.BusinessException("ACCOUNT_FROZEN",
+                    "Account " + account.getAccountNumber()
                     + " is fully frozen. Reason: " + account.getFreezeReason());
         }
         if (freezeLevel == FreezeLevel.DEBIT_ONLY && drCr == VoucherDrCr.DR) {
-            throw new RuntimeException("Account " + account.getAccountNumber()
+            throw new com.ledgora.common.exception.BusinessException("ACCOUNT_DEBIT_FROZEN",
+                    "Account " + account.getAccountNumber()
                     + " has debit freeze active. Reason: " + account.getFreezeReason());
         }
         if (freezeLevel == FreezeLevel.CREDIT_ONLY && drCr == VoucherDrCr.CR) {
-            throw new RuntimeException("Account " + account.getAccountNumber()
+            throw new com.ledgora.common.exception.BusinessException("ACCOUNT_CREDIT_FROZEN",
+                    "Account " + account.getAccountNumber()
                     + " has credit freeze active. Reason: " + account.getFreezeReason());
         }
     }
@@ -578,7 +597,8 @@ public class TransactionService {
         if (currentUser != null && currentUser.getBranch() != null) {
             return currentUser.getBranch();
         }
-        throw new RuntimeException("No branch mapping found for account " + account.getAccountNumber());
+        throw new com.ledgora.common.exception.BusinessException("NO_BRANCH_MAPPING",
+                "No branch mapping found for account " + account.getAccountNumber());
     }
 
     private GeneralLedger resolveGlForAccount(Account account) {
@@ -591,7 +611,8 @@ public class TransactionService {
     private Account resolveCashGlAccount(Long tenantId) {
         return accountRepository.findFirstByTenantIdAndGlAccountCode(tenantId, "1100")
                 .or(() -> accountRepository.findByAccountNumberAndTenantId("GL-CASH-001", tenantId))
-                .orElseThrow(() -> new RuntimeException("Cash GL account with code 1100 is required for cash transactions"));
+                .orElseThrow(() -> new com.ledgora.common.exception.BusinessException("GL_ACCOUNT_NOT_FOUND",
+                        "Cash GL account with code 1100 is required for cash transactions"));
     }
 
     /**
@@ -604,7 +625,8 @@ public class TransactionService {
             if (channel != null) {
                 transactionRepository.findByClientReferenceIdAndChannelAndTenantId(dto.getClientReferenceId(), channel, requireTenantId())
                         .ifPresent(existing -> {
-                            throw new RuntimeException("Duplicate transaction detected. Existing ref: "
+                            throw new com.ledgora.common.exception.BusinessException("DUPLICATE_TRANSACTION",
+                                    "Duplicate transaction detected. Existing ref: "
                                     + existing.getTransactionRef() + " for client_reference_id: "
                                     + dto.getClientReferenceId() + " channel: " + dto.getChannel());
                         });
@@ -612,7 +634,8 @@ public class TransactionService {
             // Also register with IdempotencyService for broader deduplication
             String idempotencyKey = dto.getClientReferenceId() + ":" + dto.getChannel();
             idempotencyService.checkExisting(idempotencyKey).ifPresent(existing -> {
-                throw new RuntimeException("Duplicate transaction: idempotency key already completed");
+                throw new com.ledgora.common.exception.BusinessException("DUPLICATE_TRANSACTION",
+                        "Duplicate transaction: idempotency key already completed");
             });
             idempotencyService.registerKey(idempotencyKey, dto.toString());
         }

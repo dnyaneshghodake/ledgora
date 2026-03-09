@@ -238,14 +238,13 @@ public class AdminController {
         try {
             Role role = roleRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Role not found"));
-            // Check if any users still have this role assigned
-            List<User> usersWithRole = userRepository.findAll().stream()
-                    .filter(u -> u.getRoles().contains(role))
-                    .toList();
-            if (!usersWithRole.isEmpty()) {
+            // Check if any users still have this role assigned using a count query
+            // instead of loading all users into memory
+            long usersWithRoleCount = userRepository.countByRolesContaining(role);
+            if (usersWithRoleCount > 0) {
                 redirectAttributes.addFlashAttribute("error",
                         "Cannot delete role " + role.getName() + ": still assigned to "
-                        + usersWithRole.size() + " user(s). Remove the role from all users first.");
+                        + usersWithRoleCount + " user(s). Remove the role from all users first.");
                 return "redirect:/admin/users";
             }
             roleRepository.delete(role);
