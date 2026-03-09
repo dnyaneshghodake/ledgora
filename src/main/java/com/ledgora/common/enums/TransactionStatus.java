@@ -1,5 +1,5 @@
 package com.ledgora.common.enums;
 
 public enum TransactionStatus {
-    PENDING, COMPLETED, FAILED, REVERSED
+    PENDING, PENDING_APPROVAL, APPROVED, COMPLETED, FAILED, REVERSED, REJECTED
 }
