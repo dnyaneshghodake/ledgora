@@ -3,6 +3,7 @@ package com.ledgora.approval.controller;
 import com.ledgora.approval.entity.ApprovalRequest;
 import com.ledgora.approval.service.ApprovalService;
 import com.ledgora.common.enums.ApprovalStatus;
+import com.ledgora.customer.service.CustomerService;
 import com.ledgora.transaction.service.TransactionService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -10,9 +11,11 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * Approval controller for unified maker-checker workflow.
- * Handles approval/rejection of all entity types (CUSTOMER, ACCOUNT, LIEN, CALENDAR, TRANSACTION).
- * For TRANSACTION approvals, delegates to TransactionService to trigger ledger posting.
+ * Unified approval controller for CBS maker-checker workflow.
+ * Handles approval/rejection of all entity types and delegates to the appropriate service:
+ *   - TRANSACTION → TransactionService.approveTransaction() / rejectTransaction()
+ *   - CUSTOMER → CustomerService.approveCustomer() / rejectCustomer()
+ *   - ACCOUNT, LIEN, CALENDAR → handled by their own services (already wired)
  */
 @Controller
 @RequestMapping("/approvals")
@@ -20,11 +23,14 @@ public class ApprovalController {
 
     private final ApprovalService approvalService;
     private final TransactionService transactionService;
+    private final CustomerService customerService;
 
     public ApprovalController(ApprovalService approvalService,
-                              TransactionService transactionService) {
+                              TransactionService transactionService,
+                              CustomerService customerService) {
         this.approvalService = approvalService;
         this.transactionService = transactionService;
+        this.customerService = customerService;
     }
 
     @GetMapping
@@ -68,9 +74,12 @@ public class ApprovalController {
                           RedirectAttributes redirectAttributes) {
         try {
             ApprovalRequest request = approvalService.approve(id, remarks);
-            // If this is a TRANSACTION approval, trigger the actual posting
-            if ("TRANSACTION".equals(request.getEntityType()) && request.getEntityId() != null) {
-                transactionService.approveTransaction(request.getEntityId(), remarks);
+            // Delegate to appropriate service based on entity type
+            if (request.getEntityId() != null) {
+                switch (request.getEntityType()) {
+                    case "TRANSACTION" -> transactionService.approveTransaction(request.getEntityId(), remarks);
+                    case "CUSTOMER" -> customerService.approveCustomer(request.getEntityId());
+                }
             }
             redirectAttributes.addFlashAttribute("message", "Request approved successfully");
         } catch (Exception e) {
@@ -89,9 +98,12 @@ public class ApprovalController {
                          RedirectAttributes redirectAttributes) {
         try {
             ApprovalRequest request = approvalService.reject(id, remarks);
-            // If this is a TRANSACTION rejection, mark the transaction as REJECTED
-            if ("TRANSACTION".equals(request.getEntityType()) && request.getEntityId() != null) {
-                transactionService.rejectTransaction(request.getEntityId(), remarks);
+            // Delegate to appropriate service based on entity type
+            if (request.getEntityId() != null) {
+                switch (request.getEntityType()) {
+                    case "TRANSACTION" -> transactionService.rejectTransaction(request.getEntityId(), remarks);
+                    case "CUSTOMER" -> customerService.rejectCustomer(request.getEntityId());
+                }
             }
             redirectAttributes.addFlashAttribute("message", "Request rejected");
         } catch (Exception e) {

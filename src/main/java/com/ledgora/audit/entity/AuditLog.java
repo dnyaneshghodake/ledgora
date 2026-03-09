@@ -56,6 +56,24 @@ public class AuditLog {
     @Column(name = "request_uri", length = 500)
     private String requestUri;
 
+    // Enhanced audit trail fields (CBS compliance)
+
+    /** Old value before the change (JSON or text snapshot). Null for create operations. */
+    @Column(name = "old_value", length = 4000)
+    private String oldValue;
+
+    /** New value after the change (JSON or text snapshot). */
+    @Column(name = "new_value", length = 4000)
+    private String newValue;
+
+    /** Batch ID linkage for transaction audit traceability. */
+    @Column(name = "batch_id")
+    private Long batchId;
+
+    /** Tenant ID for multi-tenant audit isolation. */
+    @Column(name = "tenant_id")
+    private Long tenantId;
+
     @PrePersist
     protected void onCreate() {
         if (timestamp == null) {

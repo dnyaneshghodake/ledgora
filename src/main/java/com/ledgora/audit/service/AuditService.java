@@ -115,4 +115,44 @@ public class AuditService {
     public List<AuditLog> getByUser(Long userId) {
         return auditLogRepository.findByUserId(userId);
     }
+
+    /**
+     * CBS-grade audit with old/new value tracking and batch linkage.
+     * Used for master data changes (customer, account, config) and financial operations.
+     *
+     * @param userId    the user performing the action
+     * @param action    the action type (CREATE, UPDATE, APPROVE, REJECT, etc.)
+     * @param entity    the entity type (CUSTOMER, ACCOUNT, TRANSACTION, etc.)
+     * @param entityId  the entity ID
+     * @param details   human-readable description
+     * @param ipAddress the IP address of the user
+     * @param oldValue  JSON/text snapshot of entity BEFORE the change (null for creates)
+     * @param newValue  JSON/text snapshot of entity AFTER the change
+     * @param batchId   batch ID for transaction audit linkage (null for non-transaction events)
+     * @param tenantId  tenant ID for multi-tenant audit isolation
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void logChangeEvent(Long userId, String action, String entity, Long entityId,
+                                String details, String ipAddress,
+                                String oldValue, String newValue,
+                                Long batchId, Long tenantId) {
+        AuditLog auditLog = AuditLog.builder()
+                .userId(userId)
+                .action(action)
+                .entity(entity)
+                .entityId(entityId)
+                .details(details)
+                .timestamp(LocalDateTime.now())
+                .ipAddress(ipAddress)
+                .oldValue(oldValue)
+                .newValue(newValue)
+                .batchId(batchId)
+                .tenantId(tenantId)
+                .build();
+        auditLogRepository.save(auditLog);
+        log.debug("Change audit: {} {} {} old={} new={} batch={}", action, entity, entityId,
+                oldValue != null ? oldValue.substring(0, Math.min(50, oldValue.length())) + "..." : "null",
+                newValue != null ? newValue.substring(0, Math.min(50, newValue.length())) + "..." : "null",
+                batchId);
+    }
 }

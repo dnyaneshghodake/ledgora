@@ -3,12 +3,14 @@ package com.ledgora.eod.service;
 import com.ledgora.approval.repository.ApprovalRequestRepository;
 import com.ledgora.account.entity.AccountBalance;
 import com.ledgora.account.repository.AccountBalanceRepository;
+import com.ledgora.batch.service.BatchService;
 import com.ledgora.common.enums.ApprovalStatus;
 import com.ledgora.gl.service.CbsGlBalanceService;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
 import com.ledgora.tenant.service.TenantService;
+import com.ledgora.transaction.repository.TransactionRepository;
 import com.ledgora.voucher.repository.VoucherRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +53,8 @@ public class EodValidationService {
     private final CbsGlBalanceService cbsGlBalanceService;
     private final TenantService tenantService;
     private final TenantRepository tenantRepository;
+    private final BatchService batchService;
+    private final TransactionRepository transactionRepository;
 
     public EodValidationService(VoucherRepository voucherRepository,
                                  LedgerEntryRepository ledgerEntryRepository,
@@ -58,7 +62,9 @@ public class EodValidationService {
                                  ApprovalRequestRepository approvalRequestRepository,
                                  CbsGlBalanceService cbsGlBalanceService,
                                  TenantService tenantService,
-                                 TenantRepository tenantRepository) {
+                                 TenantRepository tenantRepository,
+                                 BatchService batchService,
+                                 TransactionRepository transactionRepository) {
         this.voucherRepository = voucherRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.accountBalanceRepository = accountBalanceRepository;
@@ -66,6 +72,8 @@ public class EodValidationService {
         this.cbsGlBalanceService = cbsGlBalanceService;
         this.tenantService = tenantService;
         this.tenantRepository = tenantRepository;
+        this.batchService = batchService;
+        this.transactionRepository = transactionRepository;
     }
 
     /**

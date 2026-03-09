@@ -1,5 +1,7 @@
 package com.ledgora.customer.service;
 
+import com.ledgora.approval.service.ApprovalService;
+import com.ledgora.audit.service.AuditService;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.customer.dto.CustomerDTO;
@@ -18,7 +20,15 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * PART 1: Customer service for managing customer lifecycle and KYC.
+ * Customer service with CBS-grade maker-checker approval workflow.
+ *
+ * Customer lifecycle:
+ *   1. Maker creates customer → status = PENDING_APPROVAL, kycStatus = PENDING
+ *   2. ApprovalRequest created for CUSTOMER entity
+ *   3. Checker approves → status = ACTIVE, kycStatus = VERIFIED
+ *   4. Checker rejects → status = REJECTED, kycStatus = REJECTED
+ *
+ * Modifications also require approval (master data changes per CBS guidelines).
  */
 @Service
 public class CustomerService {
@@ -27,15 +37,26 @@ public class CustomerService {
     private final CustomerRepository customerRepository;
     private final TenantService tenantService;
     private final UserRepository userRepository;
+    private final ApprovalService approvalService;
+    private final AuditService auditService;
 
     public CustomerService(CustomerRepository customerRepository,
                            TenantService tenantService,
-                           UserRepository userRepository) {
+                           UserRepository userRepository,
+                           ApprovalService approvalService,
+                           AuditService auditService) {
         this.customerRepository = customerRepository;
         this.tenantService = tenantService;
         this.userRepository = userRepository;
+        this.approvalService = approvalService;
+        this.auditService = auditService;
     }
 
+    /**
+     * Create customer (maker step).
+     * Customer starts as PENDING_APPROVAL with kycStatus=PENDING.
+     * An ApprovalRequest is created for checker to approve/reject.
+     */
     @Transactional
     public Customer createCustomer(CustomerDTO dto) {
         if (dto.getNationalId() != null && customerRepository.existsByNationalId(dto.getNationalId())) {
@@ -51,7 +72,7 @@ public class CustomerService {
                 .lastName(dto.getLastName())
                 .dob(dto.getDob())
                 .nationalId(dto.getNationalId())
-                .kycStatus(dto.getKycStatus() != null ? dto.getKycStatus() : "PENDING")
+                .kycStatus("PENDING")
                 .phone(dto.getPhone())
                 .email(dto.getEmail())
                 .address(dto.getAddress())
@@ -60,7 +81,18 @@ public class CustomerService {
                 .build();
 
         Customer saved = customerRepository.save(customer);
-        log.info("Customer created: {} {} (ID: {}) by user {}", saved.getFirstName(), saved.getLastName(),
+
+        // Submit for maker-checker approval (master data change requires dual control)
+        approvalService.submitForApproval("CUSTOMER", saved.getCustomerId(),
+                "Customer create: " + saved.getFirstName() + " " + saved.getLastName()
+                + " NationalID: " + saved.getNationalId());
+
+        Long userId = currentUser != null ? currentUser.getId() : null;
+        auditService.logEvent(userId, "CUSTOMER_CREATE", "CUSTOMER", saved.getCustomerId(),
+                "Customer created (pending approval): " + saved.getFirstName() + " " + saved.getLastName(), null);
+
+        log.info("Customer created (PENDING_APPROVAL): {} {} (ID: {}) by user {}",
+                saved.getFirstName(), saved.getLastName(),
                 saved.getCustomerId(), currentUser != null ? currentUser.getUsername() : "system");
         return saved;
     }
@@ -124,40 +156,60 @@ public class CustomerService {
         return customerRepository.save(customer);
     }
 
+    /**
+     * Approve customer (checker step).
+     * Enforces maker != checker. Sets kycStatus=VERIFIED.
+     */
     @Transactional
     public Customer approveCustomer(Long customerId) {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
 
-        // Maker-checker: approver must be different from creator
         User currentUser = getCurrentUser();
         if (customer.getCreatedBy() != null && currentUser != null
                 && customer.getCreatedBy().getId().equals(currentUser.getId())) {
-            throw new RuntimeException("Cannot approve your own customer record (maker-checker violation)");
+            throw new com.ledgora.common.exception.BusinessException("MAKER_CHECKER_VIOLATION",
+                    "Cannot approve your own customer record (maker-checker violation)");
         }
 
         customer.setKycStatus("VERIFIED");
+        Customer saved = customerRepository.save(customer);
+
+        Long userId = currentUser != null ? currentUser.getId() : null;
+        auditService.logEvent(userId, "CUSTOMER_APPROVE", "CUSTOMER", customerId,
+                "Customer approved: " + customer.getFirstName() + " " + customer.getLastName(), null);
+
         log.info("Customer {} approved by user {}", customerId,
                 currentUser != null ? currentUser.getUsername() : "system");
-        return customerRepository.save(customer);
+        return saved;
     }
 
+    /**
+     * Reject customer (checker step).
+     * Enforces maker != checker. Sets kycStatus=REJECTED.
+     */
     @Transactional
     public Customer rejectCustomer(Long customerId) {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
 
-        // Maker-checker: rejector must be different from creator
         User currentUser = getCurrentUser();
         if (customer.getCreatedBy() != null && currentUser != null
                 && customer.getCreatedBy().getId().equals(currentUser.getId())) {
-            throw new RuntimeException("Cannot reject your own customer record (maker-checker violation)");
+            throw new com.ledgora.common.exception.BusinessException("MAKER_CHECKER_VIOLATION",
+                    "Cannot reject your own customer record (maker-checker violation)");
         }
 
         customer.setKycStatus("REJECTED");
+        Customer saved = customerRepository.save(customer);
+
+        Long userId = currentUser != null ? currentUser.getId() : null;
+        auditService.logEvent(userId, "CUSTOMER_REJECT", "CUSTOMER", customerId,
+                "Customer rejected: " + customer.getFirstName() + " " + customer.getLastName(), null);
+
         log.info("Customer {} rejected by user {}", customerId,
                 currentUser != null ? currentUser.getUsername() : "system");
-        return customerRepository.save(customer);
+        return saved;
     }
 
     private Long requireTenantId() {

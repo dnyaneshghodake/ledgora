@@ -1,5 +1,6 @@
 package com.ledgora.eod.controller;
 
+import com.ledgora.eod.service.DayBeginService;
 import com.ledgora.eod.service.EodValidationService;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
@@ -16,20 +17,60 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Controller for End of Day (EOD) UI screens.
- * Routes: /eod/validate, /eod/run, /eod/status
+ * Controller for CBS Day Lifecycle screens.
+ *
+ * Day Begin:  /eod/day-begin (GET = validate, POST = open day)
+ * EOD:        /eod/validate, /eod/run (GET = form, POST = execute)
+ * Status:     /eod/status
  */
 @Controller
 @RequestMapping("/eod")
 public class EodController {
 
     private final EodValidationService eodValidationService;
+    private final DayBeginService dayBeginService;
     private final TenantService tenantService;
 
-    public EodController(EodValidationService eodValidationService, TenantService tenantService) {
+    public EodController(EodValidationService eodValidationService,
+                         DayBeginService dayBeginService,
+                         TenantService tenantService) {
         this.eodValidationService = eodValidationService;
+        this.dayBeginService = dayBeginService;
         this.tenantService = tenantService;
     }
+
+    // ===== Day Begin Ceremony =====
+
+    @GetMapping("/day-begin")
+    public String dayBeginForm(Model model, HttpSession session) {
+        Tenant tenant = resolveCurrentTenant(session);
+        List<String> validationResults = dayBeginService.validateDayBegin(tenant.getId());
+        model.addAttribute("businessDate", tenant.getCurrentBusinessDate());
+        model.addAttribute("businessDateStatus", tenant.getDayStatus().name());
+        model.addAttribute("tenantName", tenant.getTenantName());
+        model.addAttribute("validationResults", validationResults);
+        model.addAttribute("canOpenDay", dayBeginService.canOpenDay(tenant.getId()));
+        return "eod/day-begin";
+    }
+
+    @PostMapping("/day-begin")
+    public String openDay(HttpSession session, RedirectAttributes redirectAttributes) {
+        try {
+            Tenant tenant = resolveCurrentTenant(session);
+            dayBeginService.openDay(tenant.getId());
+            Tenant refreshed = tenantService.getTenantById(tenant.getId());
+            session.setAttribute("businessDate", String.valueOf(refreshed.getCurrentBusinessDate()));
+            session.setAttribute("businessDateStatus", refreshed.getDayStatus().name());
+            redirectAttributes.addFlashAttribute("message",
+                    "Day Begin successful! Business date " + refreshed.getCurrentBusinessDate() + " is now OPEN.");
+            return "redirect:/eod/status";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Day Begin failed: " + e.getMessage());
+            return "redirect:/eod/day-begin";
+        }
+    }
+
+    // ===== EOD =====
 
     @GetMapping("/validate")
     public String validateEod(Model model, HttpSession session) {
@@ -82,6 +123,7 @@ public class EodController {
         model.addAttribute("businessDateStatus", tenant.getDayStatus().name());
         model.addAttribute("tenantName", tenant.getTenantName());
         model.addAttribute("canRunEod", eodValidationService.canRunEod(tenant.getId()));
+        model.addAttribute("canOpenDay", dayBeginService.canOpenDay(tenant.getId()));
         return "eod/eod-status";
     }
 

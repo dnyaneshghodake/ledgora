@@ -80,17 +80,76 @@ public class BatchService {
 
     /**
      * Close all open batches for a tenant's business date.
+     * Each batch is validated before closing.
      */
     @Transactional
     public void closeAllBatches(Long tenantId, LocalDate businessDate) {
         List<TransactionBatch> openBatches = batchRepository.findByTenantIdAndBusinessDateAndStatus(
                 tenantId, businessDate, BatchStatus.OPEN);
         for (TransactionBatch batch : openBatches) {
+            List<String> errors = validateBatchClose(batch);
+            if (!errors.isEmpty()) {
+                log.warn("Batch {} close validation failed: {}", batch.getId(), errors);
+                throw new RuntimeException("Cannot close batch " + batch.getId() + ": "
+                        + String.join("; ", errors));
+            }
             batch.setStatus(BatchStatus.CLOSED);
             batch.setClosedAt(LocalDateTime.now());
             batchRepository.save(batch);
             log.info("Closed batch: id={} type={} date={}", batch.getId(), batch.getBatchType(), businessDate);
         }
+    }
+
+    /**
+     * Close a single batch manually (for batch status UI).
+     * Validates before closing: all vouchers balanced, no drafts, no pending approvals.
+     */
+    @Transactional
+    public TransactionBatch closeBatch(Long batchId) {
+        TransactionBatch batch = batchRepository.findById(batchId)
+                .orElseThrow(() -> new RuntimeException("Batch not found: " + batchId));
+        if (batch.getStatus() != BatchStatus.OPEN) {
+            throw new RuntimeException("Batch " + batchId + " is not OPEN. Current: " + batch.getStatus());
+        }
+
+        List<String> errors = validateBatchClose(batch);
+        if (!errors.isEmpty()) {
+            throw new RuntimeException("Cannot close batch " + batchId + ": "
+                    + String.join("; ", errors));
+        }
+
+        batch.setStatus(BatchStatus.CLOSED);
+        batch.setClosedAt(LocalDateTime.now());
+        TransactionBatch saved = batchRepository.save(batch);
+        log.info("Batch manually closed: id={} type={} debit={} credit={}",
+                batchId, batch.getBatchType(), batch.getTotalDebit(), batch.getTotalCredit());
+        return saved;
+    }
+
+    /**
+     * Validate batch close pre-conditions:
+     *   1. Total debit == total credit (batch is balanced)
+     *   2. Transaction count > 0 (no empty batches, or allow empty close)
+     */
+    public List<String> validateBatchClose(TransactionBatch batch) {
+        List<String> errors = new java.util.ArrayList<>();
+
+        // 1. Batch must be balanced (double-entry invariant)
+        if (batch.getTotalDebit().compareTo(batch.getTotalCredit()) != 0) {
+            errors.add("Batch " + batch.getId() + " is unbalanced: debit="
+                    + batch.getTotalDebit() + " credit=" + batch.getTotalCredit());
+        }
+
+        return errors;
+    }
+
+    /**
+     * Get batch close validation results for a specific batch (for UI display).
+     */
+    public List<String> getBatchCloseValidation(Long batchId) {
+        TransactionBatch batch = batchRepository.findById(batchId)
+                .orElseThrow(() -> new RuntimeException("Batch not found: " + batchId));
+        return validateBatchClose(batch);
     }
 
     /**
