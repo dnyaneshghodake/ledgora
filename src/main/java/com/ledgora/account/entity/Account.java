@@ -49,6 +49,13 @@ public class Account {
     @Builder.Default
     private AccountStatus status = AccountStatus.ACTIVE;
 
+    /**
+     * PERFORMANCE CACHE ONLY — not the source of truth.
+     * True balance = SUM(ledger credits) - SUM(ledger debits) per account.
+     * This field is maintained by TransactionService posting methods for read performance.
+     * Consistency is validated by LedgerValidatorService (scheduled every 5 min).
+     * Never use this field for financial decisions without cross-checking ledger.
+     */
     @Column(name = "balance", precision = 19, scale = 4, nullable = false)
     @Builder.Default
     private BigDecimal balance = BigDecimal.ZERO;

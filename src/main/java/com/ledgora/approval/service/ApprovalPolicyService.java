@@ -119,6 +119,9 @@ public class ApprovalPolicyService {
     }
 
     private boolean amountInRange(BigDecimal amount, BigDecimal min, BigDecimal max) {
+        if (amount == null) {
+            return false;
+        }
         if (min != null && amount.compareTo(min) < 0) {
             return false;
         }

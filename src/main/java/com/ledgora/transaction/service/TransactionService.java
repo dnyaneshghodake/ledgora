@@ -441,14 +441,12 @@ public class TransactionService {
                     buildDtoFromTransaction(transaction));
         }
 
-        // Update transaction with checker info
+        // Update transaction with checker info (event already published by post*Ledger methods)
         transaction.setStatus(TransactionStatus.COMPLETED);
         transaction.setChecker(checker);
         transaction.setCheckerTimestamp(LocalDateTime.now());
         transaction.setCheckerRemarks(remarks);
         transactionRepository.save(transaction);
-
-        eventPublisher.publishEvent(new TransactionCreatedEvent(this, transaction));
 
         Long userId = checker != null ? checker.getId() : null;
         auditService.logTransaction(userId, transaction.getId(), transaction.getTransactionRef(),
@@ -476,6 +474,12 @@ public class TransactionService {
         }
 
         User checker = getCurrentUser();
+        // Maker-checker enforcement: checker must differ from maker for rejection too
+        if (transaction.getMaker() != null && checker != null
+                && transaction.getMaker().getId().equals(checker.getId())) {
+            throw new com.ledgora.common.exception.BusinessException("MAKER_CHECKER_VIOLATION",
+                    "Cannot reject your own transaction (maker-checker violation)");
+        }
 
         transaction.setStatus(TransactionStatus.REJECTED);
         transaction.setChecker(checker);
