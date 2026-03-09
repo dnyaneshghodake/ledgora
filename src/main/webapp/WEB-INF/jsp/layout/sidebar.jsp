@@ -14,13 +14,6 @@
     SUPER_ADMIN    -> All tenants
 --%>
 <aside class="cbs-sidebar" id="cbsSidebar">
-    <div class="cbs-sidebar-header">
-        <a href="${pageContext.request.contextPath}/dashboard" class="cbs-sidebar-brand">
-            <i class="bi bi-bank2"></i>
-            <span>LEDGORA</span>
-        </a>
-    </div>
-
     <nav class="cbs-sidebar-nav">
         <ul class="cbs-nav-list">
 
