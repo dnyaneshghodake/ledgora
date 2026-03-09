@@ -77,16 +77,18 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
             tenantScopeStr = user.getTenantScope() != null ? user.getTenantScope().name() : TenantScope.SINGLE.name();
             // Set tenant context for the current request
             TenantContextHolder.setTenantId(tenantId);
+            // Fetch tenant eagerly via service to avoid LazyInitializationException (open-in-view=false)
+            Tenant tenant = tenantService.getTenantById(tenantId);
             // Store tenant info in session for JSP access
             session.setAttribute("tenantId", tenantId);
-            session.setAttribute("tenantName", user.getTenant().getTenantName());
+            session.setAttribute("tenantName", tenant.getTenantName());
             session.setAttribute("tenantScope", tenantScopeStr);
             // Store business date and day status in session
-            if (user.getTenant().getCurrentBusinessDate() != null) {
-                session.setAttribute("businessDate", user.getTenant().getCurrentBusinessDate().toString());
+            if (tenant.getCurrentBusinessDate() != null) {
+                session.setAttribute("businessDate", tenant.getCurrentBusinessDate().toString());
             }
-            if (user.getTenant().getDayStatus() != null) {
-                session.setAttribute("businessDateStatus", user.getTenant().getDayStatus().name());
+            if (tenant.getDayStatus() != null) {
+                session.setAttribute("businessDateStatus", tenant.getDayStatus().name());
             }
         }
         // Populate available tenants list for MULTI-scope users (tenant switch dropdown in header.jsp)
@@ -99,13 +101,19 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
             }
         }
 
-        // Store branch info in session
+        // Store branch info in session (use branchCode string field to avoid lazy proxy on Branch entity)
         if (user != null) {
-            if (user.getBranch() != null) {
-                session.setAttribute("branchCode", user.getBranch().getBranchCode());
-                session.setAttribute("branchName", user.getBranch().getName());
-            } else if (user.getBranchCode() != null) {
+            if (user.getBranchCode() != null) {
                 session.setAttribute("branchCode", user.getBranchCode());
+            }
+            // Safely access branch name only if branch proxy is initialized
+            try {
+                if (user.getBranch() != null) {
+                    session.setAttribute("branchCode", user.getBranch().getBranchCode());
+                    session.setAttribute("branchName", user.getBranch().getName());
+                }
+            } catch (org.hibernate.LazyInitializationException e) {
+                // Branch proxy not initialized; branchCode already set from string field above
             }
         }
 

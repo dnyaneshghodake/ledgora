@@ -11,6 +11,11 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
 @Controller
 @RequestMapping("/gl")
 public class GeneralLedgerController {
@@ -19,6 +24,33 @@ public class GeneralLedgerController {
 
     public GeneralLedgerController(GeneralLedgerService glService) {
         this.glService = glService;
+    }
+
+    /** AJAX endpoint for GL account search - used by lookup modals */
+    @GetMapping("/api/search")
+    @ResponseBody
+    public List<Map<String, Object>> searchGlApi(@RequestParam("q") String query,
+                                                  @RequestParam(value = "parentOnly", required = false) Boolean parentOnly) {
+        List<GeneralLedger> allGl = glService.getAllGLAccounts();
+        String q = query.toLowerCase();
+        return allGl.stream()
+                .filter(gl -> {
+                    boolean matches = gl.getGlCode().toLowerCase().contains(q)
+                            || gl.getGlName().toLowerCase().contains(q);
+                    if (Boolean.TRUE.equals(parentOnly)) {
+                        matches = matches && gl.getIsActive();
+                    }
+                    return matches;
+                })
+                .map(gl -> {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("accountCode", gl.getGlCode());
+                    m.put("accountName", gl.getGlName());
+                    m.put("accountType", gl.getAccountType() != null ? gl.getAccountType().name() : "");
+                    m.put("category", gl.getNormalBalance());
+                    return m;
+                })
+                .collect(Collectors.toList());
     }
 
     @GetMapping

@@ -638,6 +638,8 @@ public class DataInitializer implements CommandLineRunner {
                     .phone(phone)
                     .address(address)
                     .kycStatus(kycStatus)
+                    .tenant(defaultTenant)
+                    .createdBy(adminUser)
                     .build();
             return customerRepository.save(c);
         });
@@ -742,6 +744,7 @@ public class DataInitializer implements CommandLineRunner {
                 .narration("Cash deposit at branch counter")
                 .businessDate(businessDate)
                 .performedBy(teller1User)
+                .tenant(defaultTenant)
                 .build();
         dep1 = transactionRepository.save(dep1);
 
@@ -766,6 +769,7 @@ public class DataInitializer implements CommandLineRunner {
                 .narration("Cash deposit at branch counter")
                 .businessDate(businessDate)
                 .performedBy(teller1User)
+                .tenant(defaultTenant)
                 .build();
         dep2 = transactionRepository.save(dep2);
 
@@ -789,6 +793,7 @@ public class DataInitializer implements CommandLineRunner {
                 .narration("Funds transfer via online banking")
                 .businessDate(businessDate)
                 .performedBy(teller1User)
+                .tenant(defaultTenant)
                 .build();
         trf1 = transactionRepository.save(trf1);
 
@@ -813,6 +818,7 @@ public class DataInitializer implements CommandLineRunner {
                 .narration("ATM cash withdrawal")
                 .businessDate(businessDate)
                 .performedBy(teller1User)
+                .tenant(defaultTenant)
                 .build();
         wdr1 = transactionRepository.save(wdr1);
 
@@ -854,6 +860,7 @@ public class DataInitializer implements CommandLineRunner {
         // Create the journal header
         LedgerJournal journal = LedgerJournal.builder()
                 .transaction(transaction)
+                .tenant(defaultTenant)
                 .description(description)
                 .businessDate(businessDate)
                 .build();
@@ -863,6 +870,7 @@ public class DataInitializer implements CommandLineRunner {
         LedgerEntry debitEntry = LedgerEntry.builder()
                 .journal(journal)
                 .transaction(transaction)
+                .tenant(defaultTenant)
                 .account(account)
                 .glAccount(debitGL)
                 .glAccountCode(debitGlCode)
@@ -880,6 +888,7 @@ public class DataInitializer implements CommandLineRunner {
         LedgerEntry creditEntry = LedgerEntry.builder()
                 .journal(journal)
                 .transaction(transaction)
+                .tenant(defaultTenant)
                 .account(account)
                 .glAccount(creditGL)
                 .glAccountCode(creditGlCode)

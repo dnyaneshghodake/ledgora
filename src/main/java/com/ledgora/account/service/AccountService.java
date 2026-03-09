@@ -110,6 +110,10 @@ public class AccountService {
         return accountRepository.findByTenantIdAndCustomerNameContainingIgnoreCase(requireTenantId(), name);
     }
 
+    public List<Account> searchAccounts(String query) {
+        return accountRepository.searchByTenantId(requireTenantId(), query);
+    }
+
     public List<Account> getAccountsByCustomerId(Long customerId) {
         return accountRepository.findByTenantIdAndCustomerId(requireTenantId(), customerId);
     }
@@ -125,6 +129,11 @@ public class AccountService {
         if (dto.getCustomerPhone() != null) account.setCustomerPhone(dto.getCustomerPhone());
         if (dto.getBranchCode() != null) account.setBranchCode(dto.getBranchCode());
         if (dto.getGlAccountCode() != null) account.setGlAccountCode(dto.getGlAccountCode());
+        if (dto.getInterestRate() != null) account.setInterestRate(dto.getInterestRate());
+        if (dto.getOverdraftLimit() != null) account.setOverdraftLimit(dto.getOverdraftLimit());
+        if (dto.getStatus() != null && !dto.getStatus().isEmpty()) {
+            account.setStatus(AccountStatus.valueOf(dto.getStatus()));
+        }
 
         return accountRepository.save(account);
     }
