@@ -219,7 +219,7 @@
     window.cbsSearchAccounts = function(page) {
         var query = document.getElementById('cbsAccountSearchInput').value;
         if (!query || query.length < 2) return;
-        fetch('${pageContext.request.contextPath}/accounts/api/lookup?accountNumber=' + encodeURIComponent(query) + '&page=' + page + '&size=' + CBS_PAGE_SIZE)
+        fetch('${pageContext.request.contextPath}/accounts/api/search?q=' + encodeURIComponent(query) + '&page=' + page + '&size=' + CBS_PAGE_SIZE)
             .then(function(r) { return r.json(); })
             .then(function(response) {
                 var data = response.content || response;

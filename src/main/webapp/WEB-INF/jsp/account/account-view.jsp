@@ -195,7 +195,7 @@
     <div class="card shadow">
         <div class="card-header bg-white d-flex justify-content-between">
             <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Recent Transactions</h5>
-            <a href="${pageContext.request.contextPath}/transactions?accountId=${account.id}" class="btn btn-sm btn-outline-primary">View All</a>
+            <a href="${pageContext.request.contextPath}/transactions?accountNumber=${account.accountNumber}" class="btn btn-sm btn-outline-primary">View All</a>
         </div>
         <div class="card-body">
             <c:choose>
@@ -314,7 +314,7 @@
 <%-- Audit Info Section --%>
 <c:set var="auditCreatedBy" value="${account.createdBy != null ? account.createdBy.username : ''}" scope="request"/>
 <c:set var="auditCreatedAt" value="${account.createdAt}" scope="request"/>
-<c:set var="auditLastModifiedBy" value="${account.lastModifiedBy}" scope="request"/>
+<c:set var="auditLastModifiedBy" value="${account.lastModifiedBy != null ? account.lastModifiedBy.username : ''}" scope="request"/>
 <c:set var="auditUpdatedAt" value="${account.updatedAt}" scope="request"/>
 <c:set var="auditApprovedBy" value="${account.approvedBy != null ? account.approvedBy.username : ''}" scope="request"/>
 <c:set var="auditApprovalStatus" value="${account.approvalStatus}" scope="request"/>

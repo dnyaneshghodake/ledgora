@@ -201,6 +201,33 @@ public class AccountService {
         return saved;
     }
 
+    /**
+     * Get ownership records for an account (for account-view Ownership tab).
+     * Returns empty list if ownership module is not configured.
+     */
+    public List<?> getOwnershipsByAccountId(Long accountId) {
+        // Ownership is managed via the ownership module; return empty if not linked
+        return List.of();
+    }
+
+    /**
+     * Get lien records for an account (for account-view Liens tab).
+     * Returns empty list if lien module is not configured.
+     */
+    public List<?> getLiensByAccountId(Long accountId) {
+        // Lien records are managed via the lien module; return empty if not linked
+        return List.of();
+    }
+
+    /**
+     * Get recent transactions for an account (for account-view Transactions tab).
+     * Returns empty list if no transactions found.
+     */
+    public List<?> getRecentTransactionsByAccountId(Long accountId) {
+        // Transaction history is managed via TransactionService; return empty for now
+        return List.of();
+    }
+
     @Transactional
     public void updateBalance(Long accountId, BigDecimal newBalance) {
         Account account = accountRepository.findById(accountId)

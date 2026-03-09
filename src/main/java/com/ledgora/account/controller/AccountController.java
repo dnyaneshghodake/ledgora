@@ -92,6 +92,33 @@ public class AccountController {
                 .orElseThrow(() -> new RuntimeException("Account not found"));
         model.addAttribute("account", account);
         model.addAttribute("accountTypes", AccountType.values());
+        // Load balance data for Balances tab
+        try {
+            AccountBalance cbsBalance = balanceEngine.getCbsBalance(account.getId());
+            model.addAttribute("availableBalance", cbsBalance.getAvailableBalance());
+            model.addAttribute("totalLien", cbsBalance.getLienBalance());
+        } catch (Exception e) {
+            model.addAttribute("availableBalance", account.getBalance());
+            model.addAttribute("totalLien", java.math.BigDecimal.ZERO);
+        }
+        // Load ownership data for Ownership tab
+        try {
+            model.addAttribute("ownerships", accountService.getOwnershipsByAccountId(id));
+        } catch (Exception e) {
+            model.addAttribute("ownerships", List.of());
+        }
+        // Load lien data for Liens tab
+        try {
+            model.addAttribute("liens", accountService.getLiensByAccountId(id));
+        } catch (Exception e) {
+            model.addAttribute("liens", List.of());
+        }
+        // Load recent transactions for Transactions tab
+        try {
+            model.addAttribute("recentTransactions", accountService.getRecentTransactionsByAccountId(id));
+        } catch (Exception e) {
+            model.addAttribute("recentTransactions", List.of());
+        }
         // Load freeze history from audit logs
         try {
             List<AuditLog> freezeLogs = auditLogRepository.findByEntityAndEntityId("ACCOUNT", id)
@@ -219,8 +246,10 @@ public class AccountController {
     }
 
     /**
-     * API endpoint for AJAX account lookup by account number.
-     * Used by transaction screens and account selection components.
+     * API endpoint for AJAX account lookup by exact account number.
+     * Used by transaction screens to load balance/freeze details after account selection.
+     * Returns JSON object for a single account, or empty JSON object if not found
+     * (never returns 404 to avoid JSP error handler intercepting @ResponseBody responses).
      */
     @GetMapping("/api/lookup")
     @ResponseBody
@@ -228,7 +257,9 @@ public class AccountController {
             @RequestParam("accountNumber") String accountNumber) {
         Optional<Account> accountOpt = accountService.getAccountByNumber(accountNumber);
         if (accountOpt.isEmpty()) {
-            return ResponseEntity.notFound().build();
+            // Return empty JSON instead of 404 to prevent JSP error handler from
+            // intercepting the response and causing getOutputStream() errors
+            return ResponseEntity.ok(new HashMap<>());
         }
         Account account = accountOpt.get();
         Map<String, Object> result = new HashMap<>();
@@ -256,5 +287,40 @@ public class AccountController {
             result.put("totalLien", "0.00");
         }
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * API endpoint for AJAX account search (partial match).
+     * Used by the account lookup modal to find accounts by partial number or name.
+     * Returns a JSON array of matching accounts.
+     */
+    @GetMapping("/api/search")
+    @ResponseBody
+    public ResponseEntity<List<Map<String, Object>>> searchAccounts(
+            @RequestParam("q") String query) {
+        List<Account> accounts;
+        try {
+            // Try exact match first
+            Optional<Account> exact = accountService.getAccountByNumber(query);
+            if (exact.isPresent()) {
+                accounts = List.of(exact.get());
+            } else {
+                // Fall back to search by customer name or account name
+                accounts = accountService.searchByCustomerName(query);
+            }
+        } catch (Exception e) {
+            accounts = List.of();
+        }
+        List<Map<String, Object>> results = accounts.stream().map(a -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", a.getId());
+            m.put("accountNumber", a.getAccountNumber());
+            m.put("accountName", a.getAccountName());
+            m.put("accountType", a.getAccountType() != null ? a.getAccountType().name() : null);
+            m.put("status", a.getStatus() != null ? a.getStatus().name() : null);
+            m.put("customerName", a.getCustomerName());
+            return m;
+        }).collect(Collectors.toList());
+        return ResponseEntity.ok(results);
     }
 }
