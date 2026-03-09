@@ -323,4 +323,25 @@
 <c:set var="auditEntityId" value="${account.accountNumber}" scope="request"/>
 <%@ include file="../layout/audit-info.jsp" %>
 
+<%-- Activate tab from URL hash (e.g., #tab-balances) --%>
+<script>
+(function() {
+    var hash = window.location.hash;
+    if (hash) {
+        var tabLink = document.querySelector('#accountTabs a[href="' + hash + '"]');
+        if (tabLink) {
+            var tab = new bootstrap.Tab(tabLink);
+            tab.show();
+        }
+    }
+    // Update URL hash when tabs are clicked
+    var tabEls = document.querySelectorAll('#accountTabs a[data-bs-toggle="tab"]');
+    tabEls.forEach(function(tabEl) {
+        tabEl.addEventListener('shown.bs.tab', function(e) {
+            history.replaceState(null, null, e.target.getAttribute('href'));
+        });
+    });
+})();
+</script>
+
 <%@ include file="../layout/footer.jsp" %>
