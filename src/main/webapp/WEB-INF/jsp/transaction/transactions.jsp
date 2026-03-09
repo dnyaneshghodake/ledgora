@@ -54,7 +54,17 @@
                                     <c:if test="${tx.destinationAccount != null}"><code><c:out value="${tx.destinationAccount.accountNumber}"/></code></c:if>
                                 </td>
                                 <td class="fw-bold"><c:out value="${tx.amount}"/></td>
-                                <td><span class="badge bg-success"><c:out value="${tx.status}"/></span></td>
+                                <td>
+                                    <c:choose>
+                                        <c:when test="${tx.status == 'COMPLETED'}"><span class="badge bg-success">COMPLETED</span></c:when>
+                                        <c:when test="${tx.status == 'PENDING_APPROVAL'}"><span class="badge bg-warning text-dark">PENDING APPROVAL</span></c:when>
+                                        <c:when test="${tx.status == 'APPROVED'}"><span class="badge bg-info">APPROVED</span></c:when>
+                                        <c:when test="${tx.status == 'REJECTED'}"><span class="badge bg-danger">REJECTED</span></c:when>
+                                        <c:when test="${tx.status == 'REVERSED'}"><span class="badge bg-secondary">REVERSED</span></c:when>
+                                        <c:when test="${tx.status == 'FAILED'}"><span class="badge bg-dark">FAILED</span></c:when>
+                                        <c:otherwise><span class="badge bg-light text-dark"><c:out value="${tx.status}"/></span></c:otherwise>
+                                    </c:choose>
+                                </td>
                                 <td><a href="${pageContext.request.contextPath}/transactions/${tx.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
                             </tr>
                             </c:forEach>

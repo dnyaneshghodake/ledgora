@@ -95,7 +95,7 @@ public class EodValidationService {
             errors.add("EOD blocked: Ledger integrity check failed. Debits=" + debits + ", Credits=" + credits);
         }
 
-        long pendingApprovals = approvalRequestRepository.countByTenantIdAndStatus(tenantId, ApprovalStatus.PENDING);
+        long pendingApprovals = approvalRequestRepository.countByTenant_IdAndStatus(tenantId, ApprovalStatus.PENDING);
         if (pendingApprovals > 0) {
             errors.add("EOD blocked: " + pendingApprovals + " pending approval request(s) exist for tenant " + tenantId);
         }
