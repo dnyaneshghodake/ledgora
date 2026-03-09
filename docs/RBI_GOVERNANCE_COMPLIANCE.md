@@ -369,4 +369,217 @@ HAVING COUNT(*) > 1;
 
 ---
 
-*End of Part 2. Parts 3-5 follow.*
+*End of Part 2.*
+
+---
+
+## PART 3 — SUSPENSE GL + EXCEPTION HANDLING MODEL
+
+### 3.1 Problem Statement
+
+When a financial operation partially fails (e.g., debit succeeds but credit fails due to account freeze, or an inter-system timeout), the system must not silently discard the imbalance. CBS standards require a **Suspense GL** to temporarily park the orphaned leg until manual correction.
+
+Currently Ledgora has `INT-SUSP-001` (Internal Suspense Account) seeded in `DataInitializer` with `AccountType.INTERNAL_ACCOUNT`, but:
+- No posting logic routes failed legs to it
+- No EOD check validates its balance is zero
+- No correction voucher workflow exists
+
+### 3.2 Suspense GL Architecture
+
+```
+Normal Posting:
+  DR Customer Account  ──→  CR Cash GL        (balanced, no suspense)
+
+Failed Posting (credit leg fails):
+  DR Customer Account  ──→  CR SUSPENSE GL    (parked temporarily)
+  [Exception logged with reason code]
+
+Correction (manual adjustment voucher):
+  DR SUSPENSE GL       ──→  CR Cash GL        (clears suspense to zero)
+```
+
+**Key Rule:** EOD MUST NOT proceed if any tenant's Suspense GL balance ≠ 0 (configurable).
+
+### 3.3 Design — Per-Tenant Suspense GL
+
+Each tenant gets its own suspense account. The existing `INT-SUSP-001` serves TENANT-001. For multi-tenant:
+
+| Tenant | Suspense Account | GL Code |
+|---|---|---|
+| TENANT-001 | `SUSP-T001` | `2900` (Other Liabilities → Suspense) |
+| TENANT-002 | `SUSP-T002` | `2900` |
+
+**GL Hierarchy Addition:**
+```
+2000 Liabilities
+  └── 2400 Other Liabilities
+        └── 2900 Suspense GL (NEW)
+```
+
+### 3.4 Posting Engine Modification (Pseudocode)
+
+The change is in `VoucherService.postVoucher()` — wrap the credit/debit posting in a try-catch that routes to suspense on failure:
+
+```java
+// Inside VoucherService.postVoucher() — CONCEPTUAL (not literal code change)
+try {
+    // Normal posting: create LedgerJournal + LedgerEntry
+    // Update actual balance via CbsBalanceEngine
+    // Update GL balance via GlBalanceService
+} catch (PostingException e) {
+    // SUSPENSE ROUTING:
+    // 1. Post the successful leg normally
+    // 2. Post the failed leg against SUSPENSE GL instead of target
+    // 3. Log exception with reason code
+    // 4. Mark voucher with suspense_flag = 'Y' and suspense_reason
+    // 5. Create SuspenseEntry record for tracking
+
+    Account suspenseAccount = resolveSuspenseAccount(tenant.getId());
+    // Create ledger entry: DR/CR suspenseAccount (opposite of failed leg)
+    // This keeps double-entry balanced even though the real target failed
+
+    auditService.logEvent(userId, "VOUCHER_SUSPENSE_ROUTED", "VOUCHER", voucher.getId(),
+        "Routed to suspense: " + e.getMessage(), null);
+}
+```
+
+### 3.5 Entity Changes Required
+
+**Option A (Minimal — recommended first):** Add fields to existing Voucher entity:
+
+```java
+// On Voucher.java — new fields
+@Column(name = "suspense_flag", length = 1, nullable = false)
+@Builder.Default
+private String suspenseFlag = "N";
+
+@Column(name = "suspense_reason", length = 500)
+private String suspenseReason;
+
+@Column(name = "suspense_cleared_at")
+private LocalDateTime suspenseClearedAt;
+
+@ManyToOne(fetch = FetchType.LAZY)
+@JoinColumn(name = "correction_voucher_id")
+private Voucher correctionVoucher;
+```
+
+**Option B (Full — for production):** Create a dedicated `SuspenseEntry` entity:
+
+```java
+@Entity
+@Table(name = "suspense_entries")
+public class SuspenseEntry {
+    @Id @GeneratedValue private Long id;
+    @ManyToOne private Tenant tenant;
+    @ManyToOne private Voucher originalVoucher;
+    @ManyToOne private Account suspenseAccount;
+    @ManyToOne private Account intendedAccount;
+    private BigDecimal amount;
+    private String reasonCode;       // ACCOUNT_FROZEN, TIMEOUT, INSUFFICIENT_GL, etc.
+    private String reasonDetail;
+    private String status;           // OPEN, CLEARED, WRITTEN_OFF
+    @ManyToOne private Voucher correctionVoucher;
+    private LocalDate businessDate;
+    private LocalDateTime createdAt;
+    private LocalDateTime clearedAt;
+}
+```
+
+### 3.6 EOD Validation Enhancement
+
+Add to `EodValidationService.validateEod()`:
+
+```java
+// NEW EOD CHECK: Suspense GL must be zero before day close
+BigDecimal suspenseBalance = accountRepository
+    .sumBalanceByTenantIdAndAccountType(tenantId, AccountType.INTERNAL_ACCOUNT);
+if (suspenseBalance.compareTo(BigDecimal.ZERO) != 0) {
+    errors.add("EOD blocked: Suspense GL balance is " + suspenseBalance
+        + " for tenant " + tenantId
+        + ". All suspense entries must be cleared before EOD.");
+}
+```
+
+This integrates with the existing EOD gate pattern — the check returns an error string, and EOD is blocked if any errors exist.
+
+### 3.7 Correction Workflow
+
+**Step 1 — Identify:** Operations officer reviews suspense entries via `/suspense/pending` screen.
+
+**Step 2 — Create correction voucher:**
+```
+Original (parked):  DR CustomerAccount    CR SuspenseGL    (amount X)
+Correction:         DR SuspenseGL         CR CashGL        (amount X)
+```
+
+The correction voucher:
+- Must go through maker-checker approval
+- Links back to the original via `correctionVoucher` FK
+- Marks the suspense entry as CLEARED
+- Updates `suspenseClearedAt` timestamp
+
+**Step 3 — Verify:** Suspense GL balance returns to zero. EOD can now proceed.
+
+### 3.8 Example Scenario: Transfer Failure → Suspense → Correction
+
+**Scenario:** Rajesh transfers ₹10,000 to Priya. Priya's account has `freezeLevel = CREDIT_ONLY` (credit freeze active).
+
+**Step 1 — Transfer attempt:**
+```
+Transaction TRF-001 initiated by teller1
+  Voucher V1 (DR): Rajesh SAV-1001-0001, amount=10000  → POSTED OK
+  Voucher V2 (CR): Priya SAV-1002-0001, amount=10000   → FAILS (CREDIT_FROZEN)
+```
+
+**Step 2 — Suspense routing (automatic):**
+```
+  Voucher V2-SUSP (CR): SUSP-T001, amount=10000        → POSTED to suspense
+  SuspenseEntry created: reason=ACCOUNT_CREDIT_FROZEN, status=OPEN
+```
+
+Ledger is balanced: DR Rajesh 10000, CR Suspense 10000.
+
+**Step 3 — Correction (next day, after freeze lifted):**
+```
+Operations officer creates correction voucher pair:
+  Voucher V3 (DR): SUSP-T001, amount=10000              → Clears suspense
+  Voucher V4 (CR): Priya SAV-1002-0001, amount=10000    → Posts to intended account
+  SuspenseEntry updated: status=CLEARED, correctionVoucher=V3
+```
+
+Suspense GL returns to zero. EOD can proceed.
+
+### 3.9 SQL — Suspense Monitoring Query
+
+```sql
+-- Suspense entries requiring resolution
+SELECT a.account_number, a.account_name, a.balance AS suspense_balance,
+       a.tenant_id,
+       CASE WHEN a.balance = 0 THEN 'CLEAR' ELSE 'PENDING RESOLUTION' END AS status
+FROM accounts a
+WHERE (a.account_type = 'INTERNAL_ACCOUNT' OR a.account_number LIKE '%SUSP%')
+  AND a.balance != 0
+ORDER BY ABS(a.balance) DESC;
+```
+
+### 3.10 Integration Summary
+
+| Component | Change Required |
+|---|---|
+| `DataInitializer` | Seed `GL 2900` (Suspense) + per-tenant suspense accounts |
+| `VoucherService.postVoucher()` | Try-catch wrapper routing failed legs to suspense |
+| `Voucher` entity | Add `suspenseFlag`, `suspenseReason`, `correctionVoucher` fields |
+| `EodValidationService` | Add suspense GL balance ≠ 0 check |
+| `VoucherController` | Add `/suspense/pending` screen for operations |
+| `AuditService` | Log `VOUCHER_SUSPENSE_ROUTED` and `SUSPENSE_CLEARED` events |
+
+**Invariants preserved:**
+- ✅ Ledger remains balanced (suspense is a real GL, entries are double-entry)
+- ✅ Ledger entries remain immutable (correction creates NEW entries)
+- ✅ EOD still blocks on inconsistency (suspense ≠ 0 is a blocking error)
+- ✅ Batch totals unaffected (suspense posting updates batch like any other)
+
+---
+
+*End of Part 3. Parts 4-5 follow.*
