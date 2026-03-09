@@ -109,14 +109,14 @@
     </div>
     <div class="cbs-header-right">
         <%-- Tenant Context Display --%>
-        <div class="cbs-tenant-info" style="display: flex; align-items: center; gap: 8px; margin-right: 12px; padding: 4px 10px; background: rgba(255,255,255,0.1); border-radius: 6px;">
-            <i class="bi bi-building" style="color: #ffc107;"></i>
+        <div class="cbs-tenant-info">
+            <i class="bi bi-building"></i>
             <c:choose>
                 <c:when test="${not empty sessionScope.tenantName}">
-                    <span style="font-size: 0.85rem; color: #e0e0e0;"><c:out value="${sessionScope.tenantName}"/></span>
+                    <span><c:out value="${sessionScope.tenantName}"/></span>
                 </c:when>
                 <c:otherwise>
-                    <span style="font-size: 0.85rem; color: #e0e0e0;">Default Tenant</span>
+                    <span>Default Tenant</span>
                 </c:otherwise>
             </c:choose>
             <span class="cbs-header-separator"></span>

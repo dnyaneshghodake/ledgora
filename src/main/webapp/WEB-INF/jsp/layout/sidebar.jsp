@@ -263,9 +263,9 @@
             </li>
             </c:if>
 
-                        <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin || sessionScope.isOperations}">
-                        <li class="cbs-nav-group">
-                            <a href="#" class="cbs-nav-group-toggle" data-group="ledger">
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin || sessionScope.isOperations}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="ledger">
                     <i class="bi bi-book"></i>
                     <span>Ledger & GL</span>
                     <i class="bi bi-chevron-down cbs-nav-arrow"></i>
