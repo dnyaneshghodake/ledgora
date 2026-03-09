@@ -209,10 +209,20 @@ public class CustomerController {
         return "redirect:/customers/" + id;
     }
 
-    /** AJAX endpoint for customer lookup - returns JSON */
+    /** AJAX endpoint for customer lookup - returns JSON (safe projection to avoid lazy-loading issues) */
     @GetMapping("/api/search")
     @ResponseBody
-    public List<Customer> searchCustomersApi(@RequestParam("q") String query) {
-        return customerService.searchByName(query);
+    public List<Map<String, Object>> searchCustomersApi(@RequestParam("q") String query) {
+        return customerService.searchByName(query).stream().map(c -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("customerId", c.getCustomerId());
+            m.put("firstName", c.getFirstName());
+            m.put("lastName", c.getLastName());
+            m.put("nationalId", c.getNationalId());
+            m.put("kycStatus", c.getKycStatus());
+            m.put("phone", c.getPhone());
+            m.put("email", c.getEmail());
+            return m;
+        }).collect(Collectors.toList());
     }
 }
