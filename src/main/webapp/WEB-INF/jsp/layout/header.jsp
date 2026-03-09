@@ -120,8 +120,8 @@
             <span class="cbs-header-separator"></span>
             <%-- Tenant Switch Dropdown (for MULTI tenant users) --%>
             <c:if test="${sessionScope.tenantScope == 'MULTI'}">
-                <div class="dropdown" style="display: inline-block;">
-                    <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="font-size: 0.8rem; padding: 2px 8px;">
+                <div class="dropdown d-inline-block">
+                    <button class="btn btn-sm btn-outline-light dropdown-toggle cbs-tenant-switch-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         Switch Tenant
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
@@ -146,9 +146,9 @@
                 <span class="cbs-user-name"><c:out value="${sessionScope.username}"/></span>
                 <span class="cbs-user-role">
                     <c:if test="${sessionScope.isSuperAdmin}"><span class="badge bg-dark">Super Admin</span></c:if>
-                    <c:if test="${sessionScope.isTenantAdmin}"><span class="badge bg-purple" style="background:#7c3aed!important;">Tenant Admin</span></c:if>
+                    <c:if test="${sessionScope.isTenantAdmin}"><span class="badge cbs-badge-tenant-admin">Tenant Admin</span></c:if>
                     <c:if test="${sessionScope.isAdmin}"><span class="badge bg-danger">Admin</span></c:if>
-                    <c:if test="${sessionScope.isBranchManager}"><span class="badge bg-indigo" style="background:#4f46e5!important;">Branch Mgr</span></c:if>
+                    <c:if test="${sessionScope.isBranchManager}"><span class="badge cbs-badge-branch-mgr">Branch Mgr</span></c:if>
                     <c:if test="${sessionScope.isManager}"><span class="badge bg-warning text-dark">Manager</span></c:if>
                     <c:if test="${sessionScope.isFinance}"><span class="badge bg-info">Finance</span></c:if>
                     <c:if test="${sessionScope.isMaker}"><span class="badge bg-success">Maker</span></c:if>
@@ -158,9 +158,9 @@
                 </span>
             </div>
         </div>
-        <form method="post" action="${pageContext.request.contextPath}/logout" style="display:inline; margin:0; padding:0;">
+        <form method="post" action="${pageContext.request.contextPath}/logout" class="d-inline m-0 p-0">
             <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-            <button type="submit" class="cbs-logout-btn" title="Sign Out" style="background:none; border:none; cursor:pointer;">
+            <button type="submit" class="cbs-logout-btn" title="Sign Out">
                 <i class="bi bi-box-arrow-right"></i>
                 <span>Logout</span>
             </button>
@@ -173,10 +173,10 @@
 
 <%-- Holiday System-Wide Red Banner --%>
 <c:if test="${sessionScope.isHoliday == true}">
-<div class="cbs-holiday-banner" id="holidayBanner" style="background: #dc2626; color: #fff; text-align: center; padding: 8px 16px; font-weight: 600; position: relative; z-index: 1030;">
+<div class="cbs-holiday-banner" id="holidayBanner">
     <i class="bi bi-calendar-x-fill"></i>
     <strong>BANK HOLIDAY</strong>
-    <span style="margin: 0 8px;">|</span>
+    <span class="mx-2">|</span>
     <c:choose>
         <c:when test="${not empty sessionScope.holidayName}"><c:out value="${sessionScope.holidayName}"/> &mdash; </c:when>
         <c:otherwise></c:otherwise>

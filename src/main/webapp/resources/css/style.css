@@ -325,6 +325,34 @@ body {
     padding: 0.15em 0.5em;
 }
 
+/* Tenant switch button in header */
+.cbs-tenant-switch-btn {
+    font-size: 0.8rem;
+    padding: 2px 8px;
+}
+
+/* Role badge colors (moved from inline styles) */
+.cbs-badge-tenant-admin {
+    background: #7c3aed !important;
+    color: #fff;
+}
+
+.cbs-badge-branch-mgr {
+    background: #4f46e5 !important;
+    color: #fff;
+}
+
+/* Holiday banner (moved from inline styles) */
+.cbs-holiday-banner {
+    background: #dc2626;
+    color: #fff;
+    text-align: center;
+    padding: 8px 16px;
+    font-weight: 600;
+    position: relative;
+    z-index: 1030;
+}
+
 .cbs-logout-btn {
     display: flex;
     align-items: center;
@@ -337,6 +365,8 @@ body {
     font-weight: 500;
     transition: all 0.2s;
     border: 1px solid #e2e8f0;
+    background: none;
+    cursor: pointer;
 }
 
 .cbs-logout-btn:hover {

@@ -22,7 +22,7 @@
             <input type="hidden" name="transactionType" value="WITHDRAWAL"/>
             <div class="row g-3">
                 <div class="col-md-6">
-                    <label class="form-label cbs-field-required">Account Number</label>
+                    <label for="accountNumber" class="form-label cbs-field-required">Account Number</label>
                     <div class="input-group">
                         <input type="text" name="sourceAccountNumber" id="accountNumber" class="form-control" required readonly
                                value="<c:out value="${param.accountNumber}"/>" placeholder="Use lookup to select account"/>
@@ -33,8 +33,8 @@
                     <div id="acctInlineError" class="cbs-inline-error">Please select an account using the lookup.</div>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Account Name</label>
-                    <input type="text" class="form-control" id="accountNameDisplay" disabled placeholder="Auto-filled on selection"/>
+                    <label for="accountNameDisplay" class="form-label">Account Name</label>
+                    <input type="text" class="form-control" id="accountNameDisplay" disabled aria-disabled="true" placeholder="Auto-filled on selection"/>
                 </div>
 
                 <%-- Holiday Warning --%>
@@ -86,7 +86,7 @@
                 </div>
 
                 <%-- Freeze Warning --%>
-                <div class="col-12" id="freezeWarning" style="display:none;">
+                <div class="col-12 d-none" id="freezeWarning">
                     <div class="cbs-txn-freeze-warning">
                         <i class="bi bi-slash-circle"></i>
                         <strong>FREEZE ACTIVE</strong> &mdash; <span id="freezeMsg"></span>
@@ -94,15 +94,15 @@
                 </div>
 
                 <div class="col-md-6">
-                    <label class="form-label cbs-field-required">Amount</label>
+                    <label for="amountInput" class="form-label cbs-field-required">Amount</label>
                     <input type="number" name="amount" class="form-control" required step="0.01" min="0.01" id="amountInput"/>
                     <small class="text-muted">Cannot exceed available balance.</small>
                     <div id="amtInlineError" class="cbs-inline-error">Amount must be greater than zero.</div>
                     <div id="balanceExceedError" class="cbs-inline-error">Amount exceeds available balance.</div>
                 </div>
                 <div class="col-md-6">
-                    <label class="form-label">Description</label>
-                    <input type="text" name="description" class="form-control" maxlength="255" placeholder="Transaction description"/>
+                    <label for="descriptionInput" class="form-label">Description</label>
+                    <input type="text" name="description" id="descriptionInput" class="form-control" maxlength="255" placeholder="Transaction description"/>
                 </div>
                 <div class="col-12"><hr>
                     <button type="submit" class="btn btn-warning btn-lg" id="submitBtn" ${isHoliday ? 'disabled' : ''}><i class="bi bi-cash-coin"></i> Submit Withdrawal</button>
@@ -128,7 +128,7 @@ function refreshAccountBalance() {
     if (!num) return;
 
     // Reset previous state
-    document.getElementById('freezeWarning').style.display = 'none';
+    document.getElementById('freezeWarning').classList.add('d-none');
     document.getElementById('submitBtn').disabled = false;
 
     fetch('${pageContext.request.contextPath}/accounts/api/lookup?accountNumber=' + encodeURIComponent(num))
@@ -143,13 +143,13 @@ function refreshAccountBalance() {
 
                 // Handle freeze - for withdrawal: block if DEBIT_ONLY or FULL freeze
                 if (data.freezeLevel && data.freezeLevel !== 'NONE') {
-                    document.getElementById('freezeWarning').style.display = 'block';
+                    document.getElementById('freezeWarning').classList.remove('d-none');
                     document.getElementById('freezeMsg').textContent = 'Account freeze level: ' + data.freezeLevel;
                     if (data.freezeLevel === 'DEBIT_ONLY' || data.freezeLevel === 'FULL') {
                         document.getElementById('submitBtn').disabled = true;
                     }
                 } else {
-                    document.getElementById('freezeWarning').style.display = 'none';
+                    document.getElementById('freezeWarning').classList.add('d-none');
                 }
 
                 // Re-check holiday
