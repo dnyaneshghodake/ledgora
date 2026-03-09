@@ -22,20 +22,46 @@
 
     <%-- Batch Actions Bar --%>
     <div class="card shadow mb-4">
-        <div class="card-body d-flex align-items-center gap-3">
-            <strong><i class="bi bi-gear"></i> Batch Operations:</strong>
-            <form method="post" action="${pageContext.request.contextPath}/batches/close-all" class="d-inline">
-                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
-                <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Close ALL open batches for today? This validates balance on each batch.')">
-                    <i class="bi bi-lock"></i> Close All Open Batches
-                </button>
-            </form>
-            <form method="post" action="${pageContext.request.contextPath}/batches/settle-all" class="d-inline">
-                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
-                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Settle ALL closed batches? Each batch must be balanced (debit = credit).')">
-                    <i class="bi bi-check-circle"></i> Settle All Closed Batches
-                </button>
-            </form>
+        <div class="card-body">
+            <div class="d-flex align-items-center flex-wrap gap-3">
+                <strong><i class="bi bi-gear"></i> Batch Operations:</strong>
+
+                <%-- Open New Batch --%>
+                <form method="post" action="${pageContext.request.contextPath}/batches/open" class="d-inline-flex align-items-center gap-2">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                    <select name="channel" class="form-select form-select-sm" style="width: auto;" required>
+                        <option value="TELLER">TELLER</option>
+                        <option value="ATM">ATM</option>
+                        <option value="ONLINE">ONLINE</option>
+                        <option value="MOBILE">MOBILE</option>
+                        <option value="BATCH">BATCH</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle"></i> Open New Batch
+                    </button>
+                </form>
+
+                <span class="text-muted">|</span>
+
+                <%-- Close All --%>
+                <form method="post" action="${pageContext.request.contextPath}/batches/close-all" class="d-inline">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                    <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Close ALL open batches for today? This validates balance on each batch.')">
+                        <i class="bi bi-lock"></i> Close All Open
+                    </button>
+                </form>
+
+                <%-- Settle All --%>
+                <form method="post" action="${pageContext.request.contextPath}/batches/settle-all" class="d-inline">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Settle ALL closed batches? Each batch must be balanced (debit = credit).')">
+                        <i class="bi bi-check-circle"></i> Settle All Closed
+                    </button>
+                </form>
+            </div>
+            <small class="text-muted mt-2 d-block">
+                <i class="bi bi-info-circle"></i> CBS Rule: Closed batches cannot be reopened. Use "Open New Batch" to create a fresh batch for the current business date.
+            </small>
         </div>
     </div>
 

@@ -3,6 +3,7 @@ package com.ledgora.batch.controller;
 import com.ledgora.batch.entity.TransactionBatch;
 import com.ledgora.batch.service.BatchService;
 import com.ledgora.common.enums.BatchStatus;
+import com.ledgora.common.enums.TransactionChannel;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
@@ -98,6 +99,28 @@ public class BatchController {
                     "All closed batches settled for business date " + businessDate);
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Settlement failed: " + e.getMessage());
+        }
+        return "redirect:/batches";
+    }
+
+    /**
+     * Open (create) a new batch for the current business date and selected channel.
+     * CBS Note: Closed batches cannot be reopened. This creates a NEW open batch.
+     * If an open batch already exists for the same channel+date, it will be returned instead.
+     */
+    @PostMapping("/open")
+    public String openBatch(@RequestParam String channel, HttpSession session,
+                            RedirectAttributes redirectAttributes) {
+        try {
+            Long tenantId = resolveTenantId(session);
+            LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
+            TransactionChannel txnChannel = TransactionChannel.valueOf(channel);
+            TransactionBatch batch = batchService.getOrCreateOpenBatch(tenantId, txnChannel, businessDate);
+            redirectAttributes.addFlashAttribute("message",
+                    "Batch " + batch.getBatchCode() + " is now OPEN for " + txnChannel
+                    + " on " + businessDate);
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Open batch failed: " + e.getMessage());
         }
         return "redirect:/batches";
     }
