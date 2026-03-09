@@ -51,12 +51,22 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Transaction service with:
- * - Ledger journal/entry creation (system of record)
- * - Event-driven architecture (publishes TransactionCreatedEvent)
- * - Pessimistic locking for account balance protection
- * - Multi-tenant support with day status enforcement
- * - Transaction batch assignment
+ * Transaction service with CBS-grade maker-checker approval workflow.
+ *
+ * Flow:
+ *   1. Maker initiates transaction (deposit/withdraw/transfer)
+ *   2. ApprovalPolicyService decides: auto-authorize or PENDING_APPROVAL
+ *   3. If auto-authorized: post immediately (vouchers + ledger + balances)
+ *   4. If PENDING_APPROVAL: save transaction, create ApprovalRequest, wait for checker
+ *   5. Checker approves: re-validate, then post
+ *   6. Checker rejects: mark REJECTED, no posting
+ *
+ * Governance overrides (always require approval regardless of policy):
+ *   - Reversals
+ *   - Backdated entries
+ *
+ * System-only (always auto-authorize via BATCH channel):
+ *   - Interest accrual, charges, EOD adjustments
  */
 @Service
 public class TransactionService {
@@ -78,6 +88,8 @@ public class TransactionService {
     private final TenantService tenantService;
     private final BatchService batchService;
     private final BankCalendarService bankCalendarService;
+    private final com.ledgora.approval.service.ApprovalPolicyService approvalPolicyService;
+    private final com.ledgora.approval.service.ApprovalService approvalService;
 
     public TransactionService(TransactionRepository transactionRepository,
                               TransactionLineRepository transactionLineRepository,
@@ -93,7 +105,9 @@ public class TransactionService {
                               IdempotencyService idempotencyService,
                               TenantService tenantService,
                               BatchService batchService,
-                              BankCalendarService bankCalendarService) {
+                              BankCalendarService bankCalendarService,
+                              com.ledgora.approval.service.ApprovalPolicyService approvalPolicyService,
+                              com.ledgora.approval.service.ApprovalService approvalService) {
         this.transactionRepository = transactionRepository;
         this.transactionLineRepository = transactionLineRepository;
         this.accountRepository = accountRepository;
@@ -109,6 +123,8 @@ public class TransactionService {
         this.tenantService = tenantService;
         this.batchService = batchService;
         this.bankCalendarService = bankCalendarService;
+        this.approvalPolicyService = approvalPolicyService;
+        this.approvalService = approvalService;
     }
 
     /**
