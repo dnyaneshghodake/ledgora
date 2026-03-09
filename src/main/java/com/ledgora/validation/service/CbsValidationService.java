@@ -13,7 +13,6 @@ import com.ledgora.common.exception.BusinessException;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
-import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

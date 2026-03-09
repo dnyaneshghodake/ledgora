@@ -1,7 +1,6 @@
 package com.ledgora.eod.service;
 
 import com.ledgora.approval.repository.ApprovalRequestRepository;
-import com.ledgora.account.entity.AccountBalance;
 import com.ledgora.account.repository.AccountBalanceRepository;
 import com.ledgora.batch.service.BatchService;
 import com.ledgora.common.enums.ApprovalStatus;
@@ -109,7 +108,7 @@ public class EodValidationService {
         }
 
         // NEW: Check no PENDING_APPROVAL transactions exist
-        long pendingTxns = transactionRepository.countPendingApprovalByTenantId(tenantId);
+        long pendingTxns = transactionRepository.countByTenantIdAndStatus(tenantId, com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL);
         if (pendingTxns > 0) {
             errors.add("EOD blocked: " + pendingTxns + " transaction(s) pending approval for tenant " + tenantId);
         }

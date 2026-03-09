@@ -102,7 +102,7 @@ public class DayBeginService {
         }
 
         // 5. No PENDING_APPROVAL transactions from previous day
-        long pendingTxns = transactionRepository.countPendingApprovalByTenantId(tenantId);
+        long pendingTxns = transactionRepository.countByTenantIdAndStatus(tenantId, com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL);
         if (pendingTxns > 0) {
             errors.add("Day Begin warning: " + pendingTxns + " transaction(s) pending approval. "
                     + "These should be resolved but do not block Day Begin.");

@@ -44,7 +44,7 @@ public class LedgerJournal {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @OneToMany(mappedBy = "journal", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "journal", fetch = FetchType.LAZY)
     @Builder.Default
     private List<LedgerEntry> entries = new ArrayList<>();
 

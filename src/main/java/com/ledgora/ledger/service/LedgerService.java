@@ -125,7 +125,8 @@ public class LedgerService {
             }
         }
 
-        journal.setEntries(entries);
+        // Entries are saved independently via entryRepository.save() above.
+        // LedgerJournal is @Immutable (no setters) — entries are linked via journal_id FK.
 
         // Publish event
         eventPublisher.publishEvent(new LedgerPostedEvent(this, journal));

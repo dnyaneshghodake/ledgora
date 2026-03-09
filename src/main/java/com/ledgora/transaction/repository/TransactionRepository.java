@@ -60,9 +60,9 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     List<Long> findAllTransactionIds();
 
     // Transaction approval queue queries
-    @Query("SELECT t FROM Transaction t WHERE t.tenant.id = :tenantId AND t.status = com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL ORDER BY t.createdAt DESC")
-    List<Transaction> findPendingApprovalByTenantId(@Param("tenantId") Long tenantId);
+    @Query("SELECT t FROM Transaction t WHERE t.tenant.id = :tenantId AND t.status = :status ORDER BY t.createdAt DESC")
+    List<Transaction> findByTenantIdAndStatus(@Param("tenantId") Long tenantId, @Param("status") TransactionStatus status);
 
-    @Query("SELECT COUNT(t) FROM Transaction t WHERE t.tenant.id = :tenantId AND t.status = com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL")
-    long countPendingApprovalByTenantId(@Param("tenantId") Long tenantId);
+    @Query("SELECT COUNT(t) FROM Transaction t WHERE t.tenant.id = :tenantId AND t.status = :status")
+    long countByTenantIdAndStatus(@Param("tenantId") Long tenantId, @Param("status") TransactionStatus status);
 }

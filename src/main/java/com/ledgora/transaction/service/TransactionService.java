@@ -506,7 +506,7 @@ public class TransactionService {
      */
     public List<Transaction> getPendingApprovalTransactions() {
         Long tenantId = requireTenantId();
-        return transactionRepository.findPendingApprovalByTenantId(tenantId);
+        return transactionRepository.findByTenantIdAndStatus(tenantId, TransactionStatus.PENDING_APPROVAL);
     }
 
     /**
@@ -514,7 +514,7 @@ public class TransactionService {
      */
     public long countPendingApproval() {
         Long tenantId = requireTenantId();
-        return transactionRepository.countPendingApprovalByTenantId(tenantId);
+        return transactionRepository.countByTenantIdAndStatus(tenantId, TransactionStatus.PENDING_APPROVAL);
     }
 
     // ===== Internal posting methods (extracted for reuse by auto-auth and checker-approve) =====
