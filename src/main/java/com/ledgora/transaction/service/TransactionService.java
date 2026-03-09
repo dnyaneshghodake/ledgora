@@ -777,6 +777,7 @@ public class TransactionService {
         GeneralLedger glAccount = resolveGlForAccount(account);
         String batchCode = batch.getBatchCode() != null ? batch.getBatchCode() : "BATCH-" + batch.getId();
 
+        // Target flow: Transaction → Voucher (with FK) → authorize → post → LedgerJournal → LedgerEntry
         Voucher voucher = voucherService.createVoucher(
                 tenant,
                 branch,
@@ -791,7 +792,8 @@ public class TransactionService {
                 batchCode,
                 1,
                 maker,
-                narration
+                narration,
+                transaction  // link voucher to originating transaction
         );
         voucherService.systemAuthorizeVoucher(voucher.getId(), maker);
         return voucherService.postVoucher(voucher.getId(), transaction);

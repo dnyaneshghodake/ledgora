@@ -11,22 +11,24 @@ import com.ledgora.common.enums.TransactionChannel;
 import com.ledgora.common.enums.VoucherDrCr;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
+import com.ledgora.ledger.entity.LedgerEntry;
+import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
 import com.ledgora.voucher.entity.Voucher;
+import com.ledgora.voucher.repository.VoucherRepository;
 import com.ledgora.voucher.service.VoucherService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * Controller for the Voucher lifecycle UI screens.
@@ -41,6 +43,8 @@ import java.time.LocalDate;
 public class VoucherController {
 
     private final VoucherService voucherService;
+    private final VoucherRepository voucherRepository;
+    private final LedgerEntryRepository ledgerEntryRepository;
     private final AccountRepository accountRepository;
     private final GeneralLedgerRepository glRepository;
     private final UserRepository userRepository;
@@ -48,12 +52,16 @@ public class VoucherController {
     private final BatchService batchService;
 
     public VoucherController(VoucherService voucherService,
+                             VoucherRepository voucherRepository,
+                             LedgerEntryRepository ledgerEntryRepository,
                              AccountRepository accountRepository,
                              GeneralLedgerRepository glRepository,
                              UserRepository userRepository,
                              TenantService tenantService,
                              BatchService batchService) {
         this.voucherService = voucherService;
+        this.voucherRepository = voucherRepository;
+        this.ledgerEntryRepository = ledgerEntryRepository;
         this.accountRepository = accountRepository;
         this.glRepository = glRepository;
         this.userRepository = userRepository;
@@ -62,12 +70,60 @@ public class VoucherController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'AUDITOR', 'ADMIN', 'MANAGER', 'TELLER', 'OPERATIONS')")
     public String voucherInquiry(Model model) {
         // Voucher inquiry - search/filter view
         return "voucher/voucher-inquiry";
     }
 
+    /**
+     * Voucher detail view: shows header, linked transaction, ledger entries,
+     * batch reference, maker/checker, and derived status timeline.
+     *
+     * Accessible by MAKER (own vouchers), CHECKER, AUDITOR (read-only), ADMIN, MANAGER.
+     */
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'AUDITOR', 'ADMIN', 'MANAGER', 'TELLER', 'OPERATIONS')")
+    public String viewVoucher(@PathVariable Long id, Model model) {
+        Long tenantId = TenantContextHolder.getRequiredTenantId();
+        Voucher voucher = voucherService.getVoucher(id, tenantId);
+        model.addAttribute("voucher", voucher);
+        model.addAttribute("voucherStatus", voucher.getStatus());
+
+        // Linked transaction
+        if (voucher.getTransaction() != null) {
+            model.addAttribute("transaction", voucher.getTransaction());
+        }
+
+        // Ledger entry linked to this voucher (if posted)
+        if (voucher.getLedgerEntry() != null) {
+            model.addAttribute("ledgerEntry", voucher.getLedgerEntry());
+        }
+
+        // All vouchers for the same transaction (the DR+CR pair)
+        if (voucher.getTransaction() != null) {
+            List<Voucher> relatedVouchers = voucherRepository.findByTransactionId(
+                    voucher.getTransaction().getId());
+            model.addAttribute("relatedVouchers", relatedVouchers);
+        }
+
+        // Maker/Checker usernames (eagerly resolve to avoid LazyInitializationException in JSP)
+        String makerUsername = "";
+        try { if (voucher.getMaker() != null) makerUsername = voucher.getMaker().getUsername(); } catch (Exception e) { /* lazy */ }
+        model.addAttribute("makerUsername", makerUsername);
+
+        String checkerUsername = "";
+        try { if (voucher.getChecker() != null) checkerUsername = voucher.getChecker().getUsername(); } catch (Exception e) { /* lazy */ }
+        model.addAttribute("checkerUsername", checkerUsername);
+
+        // Batch info
+        model.addAttribute("batchCode", voucher.getBatchCode());
+
+        return "voucher/voucher-view";
+    }
+
     @GetMapping("/create")
+    @PreAuthorize("hasAnyRole('MAKER', 'ADMIN', 'MANAGER', 'TELLER')")
     public String createVoucherForm(Model model) {
         return "voucher/voucher-create";
     }
@@ -78,6 +134,7 @@ public class VoucherController {
      * Vouchers must be authorized by a checker before they can be posted.
      */
     @PostMapping("/create")
+    @PreAuthorize("hasAnyRole('MAKER', 'ADMIN', 'MANAGER', 'TELLER')")
     public String createVoucher(@RequestParam String debitAccountNumber,
                                 @RequestParam String creditAccountNumber,
                                 @RequestParam BigDecimal amount,
@@ -155,18 +212,65 @@ public class VoucherController {
     }
 
     @GetMapping("/pending")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
     public String pendingVouchers(Model model) {
         // Show vouchers with PENDING status awaiting authorization
         return "voucher/voucher-pending";
     }
 
+    /**
+     * Authorize a pending voucher (checker action).
+     * Checker must not be the same as maker (enforced by VoucherService).
+     */
+    @PostMapping("/{id}/authorize")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
+    public String authorizeVoucher(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            User checker = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("Current user not found"));
+            Voucher authorized = voucherService.authorizeVoucher(id, checker);
+            redirectAttributes.addFlashAttribute("message",
+                    "Voucher " + authorized.getVoucherNumber() + " authorized by " + username);
+            return "redirect:/vouchers/pending";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Authorization failed: " + e.getMessage());
+            return "redirect:/vouchers/pending";
+        }
+    }
+
+    /**
+     * Reject (cancel) a pending voucher (checker action).
+     * Creates a reversal voucher per CBS cancel pattern.
+     */
+    @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
+    public String rejectVoucher(@PathVariable Long id,
+                                @RequestParam(required = false, defaultValue = "Rejected by checker") String reason,
+                                RedirectAttributes redirectAttributes) {
+        try {
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            User checker = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("Current user not found"));
+            Voucher reversal = voucherService.cancelVoucher(id, checker, reason);
+            redirectAttributes.addFlashAttribute("message",
+                    "Voucher " + id + " rejected. Reversal voucher: " + reversal.getVoucherNumber());
+            return "redirect:/vouchers/pending";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Rejection failed: " + e.getMessage());
+            return "redirect:/vouchers/pending";
+        }
+    }
+
     @GetMapping("/posted")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'AUDITOR', 'ADMIN', 'MANAGER', 'TELLER', 'OPERATIONS')")
     public String postedVouchers(Model model) {
         // Show vouchers with POSTED status
         return "voucher/voucher-posted";
     }
 
     @GetMapping("/cancelled")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'AUDITOR', 'ADMIN', 'MANAGER', 'TELLER', 'OPERATIONS')")
     public String cancelledVouchers(Model model) {
         // Show cancelled/reversed vouchers
         return "voucher/voucher-cancelled";

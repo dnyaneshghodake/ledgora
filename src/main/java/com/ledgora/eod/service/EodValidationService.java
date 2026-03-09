@@ -102,6 +102,21 @@ public class EodValidationService {
             errors.add("EOD blocked: Ledger integrity check failed. Debits=" + debits + ", Credits=" + credits);
         }
 
+        // NEW: Check no vouchers are APPROVED but not yet POSTED (must be posted or cancelled)
+        long approvedUnposted = voucherRepository.countApprovedUnpostedVouchers(tenantId, businessDate);
+        if (approvedUnposted > 0) {
+            errors.add("EOD blocked: " + approvedUnposted + " approved-but-unposted voucher(s) found for " + businessDate
+                    + ". All approved vouchers must be posted or cancelled before EOD.");
+        }
+
+        // NEW: Validate total posted voucher debits == credits for the date
+        java.math.BigDecimal voucherDebits = voucherRepository.sumPostedDebits(tenantId, businessDate);
+        java.math.BigDecimal voucherCredits = voucherRepository.sumPostedCredits(tenantId, businessDate);
+        if (voucherDebits.compareTo(voucherCredits) != 0) {
+            errors.add("EOD blocked: posted voucher totals unbalanced. Debits=" + voucherDebits
+                    + ", Credits=" + voucherCredits + " for " + businessDate);
+        }
+
         long pendingApprovals = approvalRequestRepository.countByTenant_IdAndStatus(tenantId, ApprovalStatus.PENDING);
         if (pendingApprovals > 0) {
             errors.add("EOD blocked: " + pendingApprovals + " pending approval request(s) exist for tenant " + tenantId);

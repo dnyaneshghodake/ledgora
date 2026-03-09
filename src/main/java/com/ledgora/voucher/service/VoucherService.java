@@ -92,6 +92,7 @@ public class VoucherService {
 
     /**
      * Create a new voucher. On create, only shadow balance is updated.
+     * Backward-compatible overload without Transaction FK.
      */
     @Transactional
     public Voucher createVoucher(Tenant tenant, Branch branch, Account account,
@@ -99,8 +100,34 @@ public class VoucherService {
                                   BigDecimal transactionAmount, BigDecimal localCurrencyAmount,
                                   String currency, LocalDate postingDate, LocalDate valueDate,
                                   String batchCode, Integer setNo, User maker, String narration) {
+        return createVoucher(tenant, branch, account, glAccount, drCr,
+                transactionAmount, localCurrencyAmount, currency, postingDate,
+                valueDate, batchCode, setNo, maker, narration, null);
+    }
+
+    /**
+     * Create a new voucher linked to an originating transaction.
+     * On create, only shadow balance is updated.
+     *
+     * Voucher number format: <TENANT_CODE>-<BRANCH_CODE>-<YYYYMMDD>-<6-digit scroll>
+     *
+     * @param linkedTransaction optional FK to the originating Transaction
+     */
+    @Transactional
+    public Voucher createVoucher(Tenant tenant, Branch branch, Account account,
+                                  GeneralLedger glAccount, VoucherDrCr drCr,
+                                  BigDecimal transactionAmount, BigDecimal localCurrencyAmount,
+                                  String currency, LocalDate postingDate, LocalDate valueDate,
+                                  String batchCode, Integer setNo, User maker, String narration,
+                                  com.ledgora.transaction.entity.Transaction linkedTransaction) {
 
         assertTenantContext(tenant.getId());
+
+        // Validate voucher business_date matches tenant current business date
+        if (!postingDate.equals(tenant.getCurrentBusinessDate())) {
+            throw new RuntimeException("Voucher posting date " + postingDate
+                    + " does not match tenant business date " + tenant.getCurrentBusinessDate());
+        }
 
         // Validate customer and account
         customerValidationService.validateAccountForTransaction(
@@ -113,12 +140,18 @@ public class VoucherService {
             cbsBalanceEngine.validateSufficientBalance(account.getId(), transactionAmount);
         }
 
-        // Get next scroll number
+        // Get next scroll number (concurrency-safe via PESSIMISTIC_WRITE)
         Long scrollNo = getNextScrollNo(tenant.getId(), branch.getId(), postingDate);
 
+        // Generate formatted voucher number
+        String voucherNumber = generateVoucherNumber(
+                tenant.getTenantCode(), branch.getBranchCode(), postingDate, scrollNo);
+
         Voucher voucher = Voucher.builder()
+                .voucherNumber(voucherNumber)
                 .tenant(tenant)
                 .branch(branch)
+                .transaction(linkedTransaction)
                 .account(account)
                 .glAccount(glAccount)
                 .drCr(drCr)
@@ -145,10 +178,21 @@ public class VoucherService {
         // Update shadow balance only on create
         cbsBalanceEngine.updateShadowBalance(account.getId(), transactionAmount, drCr);
 
-        log.info("Voucher created: id={}, account={}, dr_cr={}, amount={}, scroll={}",
-                voucher.getId(), account.getAccountNumber(), drCr, transactionAmount, scrollNo);
+        log.info("Voucher created: voucherNo={}, id={}, account={}, dr_cr={}, amount={}, scroll={}, txn={}",
+                voucherNumber, voucher.getId(), account.getAccountNumber(), drCr, transactionAmount, scrollNo,
+                linkedTransaction != null ? linkedTransaction.getTransactionRef() : "N/A");
 
         return voucher;
+    }
+
+    /**
+     * Generate formatted voucher number: <TENANT_CODE>-<BRANCH_CODE>-<YYYYMMDD>-<6-digit scroll>.
+     * Example: TENANT-001-HQ001-20250130-000001
+     */
+    private String generateVoucherNumber(String tenantCode, String branchCode,
+                                          LocalDate postingDate, Long scrollNo) {
+        String dateStr = postingDate.toString().replace("-", "");
+        return String.format("%s-%s-%s-%06d", tenantCode, branchCode, dateStr, scrollNo);
     }
 
     /**
@@ -265,6 +309,7 @@ public class VoucherService {
         EntryType glEntryType = drCr == VoucherDrCr.DR ? EntryType.CREDIT : EntryType.DEBIT;
 
         // Create immutable LedgerEntry for account side
+        // voucherId must be set at build time because LedgerEntry is @Immutable (no updates)
         BigDecimal balanceAfter = calculateBalanceAfter(account.getId(), amount, drCr);
         LedgerEntry accountEntry = LedgerEntry.builder()
                 .journal(journal)
@@ -280,6 +325,7 @@ public class VoucherService {
                 .businessDate(voucher.getPostingDate())
                 .postingTime(LocalDateTime.now())
                 .narration(voucher.getNarration())
+                .voucherId(voucher.getId())
                 .build();
         accountEntry = entryRepository.save(accountEntry);
 
@@ -328,10 +374,18 @@ public class VoucherService {
                 original.getBranch().getId(),
                 original.getPostingDate());
 
+        // Generate formatted voucher number for reversal
+        String reversalVoucherNumber = generateVoucherNumber(
+                original.getTenant().getTenantCode(),
+                original.getBranch().getBranchCode(),
+                original.getPostingDate(), scrollNo);
+
         // Create reversal voucher
         Voucher reversal = Voucher.builder()
+                .voucherNumber(reversalVoucherNumber)
                 .tenant(original.getTenant())
                 .branch(original.getBranch())
+                .transaction(original.getTransaction())
                 .account(original.getAccount())
                 .glAccount(original.getGlAccount())
                 .drCr(reversalDrCr)
@@ -350,7 +404,7 @@ public class VoucherService {
                 .postFlag("N")
                 .cancelFlag("N")
                 .financialEffectFlag("Y")
-                .narration("REVERSAL of voucher " + voucherId + ": " + reason)
+                .narration("REVERSAL of voucher " + voucherId + " (" + original.getVoucherNumber() + "): " + reason)
                 .reversalOfVoucher(original)
                 .build();
         reversal = voucherRepository.save(reversal);

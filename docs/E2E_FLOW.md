@@ -109,17 +109,31 @@ These are **AJAX** helpers (not public banking APIs):
 
 The lookup endpoint also calls the CBS balance engine for available balance and lien totals (`AccountController.java:354-366`).
 
-## 5) Transaction posting flow (Deposit / Withdraw / Transfer)
+## 5) Transaction posting flow (Target: Transaction → Voucher → Ledger)
+
+The target E2E posting flow is:
+
+```
+Transaction (initiated by maker)
+    ↓
+Voucher (DR leg + CR leg, with voucher_number, linked via transaction_id FK)
+    ↓  authorize (maker-checker or system-auto)
+LedgerJournal + LedgerEntry (immutable, created on voucher post)
+    ↓
+Batch (totals updated on post)
+    ↓
+EOD / Settlement
+```
 
 ### 5.1 UI endpoints
 
 From `TransactionController` (`src/main/java/com/ledgora/transaction/controller/TransactionController.java`):
 
-- Deposit: `GET /transactions/deposit`, `POST /transactions/deposit` (`TransactionController.java:52-87`)
-- Withdraw: `GET /transactions/withdraw`, `POST /transactions/withdraw` (`TransactionController.java:89-124`)
-- Transfer: `GET /transactions/transfer`, `POST /transactions/transfer` (`TransactionController.java:126-161`)
-- List: `GET /transactions` (`TransactionController.java:30-40`)
-- View: `GET /transactions/{id}` (includes ledger entries) (`TransactionController.java:42-50`)
+- Deposit: `GET /transactions/deposit`, `POST /transactions/deposit`
+- Withdraw: `GET /transactions/withdraw`, `POST /transactions/withdraw`
+- Transfer: `GET /transactions/transfer`, `POST /transactions/transfer`
+- List: `GET /transactions`
+- View: `GET /transactions/{id}` (includes ledger entries)
 
 ### 5.2 Parameter tamper resistance
 
@@ -131,15 +145,62 @@ Before delegating to service methods, the controller validates:
 
 See `validateFinancialParams(...)` (`TransactionController.java:171-211`).
 
-### 5.3 Service responsibilities (conceptual)
+### 5.3 Internal posting flow (how vouchers are created)
 
-Although implementation details are in `TransactionService` (`src/main/java/com/ledgora/transaction/service/TransactionService.java`), the intended responsibilities (also reflected by entities and other services) are:
+`TransactionService` delegates to `VoucherService` for all ledger posting. The private helper `postVoucher(...)` in `TransactionService` implements the target flow:
 
-1. Validate business rules (business day OPEN, sufficient funds, etc.)
-2. Create a `Transaction` row (`src/main/java/com/ledgora/transaction/entity/Transaction.java`)
-3. Create one `LedgerJournal` and multiple `LedgerEntry` rows (double-entry)
-4. Update Account balance cache (`Account.balance`)
-5. Assign to a `TransactionBatch` and update batch totals
+1. **Validate** business rules (business day OPEN, sufficient funds, freeze level, holiday calendar, idempotency)
+2. **Create Transaction** row (status = COMPLETED or PENDING_APPROVAL based on approval policy)
+3. **Create Voucher pair** (DR leg + CR leg) via `VoucherService.createVoucher(...)`:
+   - Each voucher is linked to the transaction via `transaction_id` FK
+   - `voucherNumber` is generated: `<TENANT_CODE>-<BRANCH_CODE>-<YYYYMMDD>-<6-digit scroll>`
+   - Scroll number is concurrency-safe (PESSIMISTIC_WRITE lock on `scroll_sequences`)
+   - `totalDebit` / `totalCredit` auto-populated from DR/CR direction
+   - Shadow balance updated on create (not actual balance)
+   - Voucher `postingDate` must equal `tenant.currentBusinessDate` (enforced)
+4. **Authorize** voucher (system-auto for STP, or manual checker for approval flow):
+   - `VoucherService.systemAuthorizeVoucher(...)` for auto-authorized transactions
+   - `VoucherService.authorizeVoucher(...)` for checker approval (maker ≠ checker enforced)
+5. **Post** voucher via `VoucherService.postVoucher(...)`:
+   - Creates immutable `LedgerJournal` + `LedgerEntry` (marked `@Immutable`)
+   - Updates actual balance via `CbsBalanceEngine`
+   - Updates GL balance via `GlBalanceService`
+   - Validates batch is OPEN before posting
+   - Marks `postFlag = Y` on voucher
+6. **Update** Account balance cache + batch totals
+
+### 5.4 Voucher lifecycle states
+
+Ground truth is the flag triple `(authFlag, postFlag, cancelFlag)`. A derived `VoucherStatus` enum provides convenience:
+
+| Flags | VoucherStatus | Meaning |
+|---|---|---|
+| auth=N, post=N, cancel=N | `DRAFT` | Created by maker, awaiting authorization |
+| auth=Y, post=N, cancel=N | `APPROVED` | Authorized by checker, awaiting posting |
+| auth=Y, post=Y, cancel=N | `POSTED` | Posted to ledger (immutable entries exist) |
+| cancel=Y | `REVERSED` | Cancelled via compensating reversal voucher |
+
+### 5.5 Voucher number format
+
+Format: `<TENANT_CODE>-<BRANCH_CODE>-<YYYYMMDD>-<6-digit sequence>`
+
+Example: `TENANT-001-HQ001-20250130-000001`
+
+- Sequence resets per branch per business date
+- Concurrency-safe via `PESSIMISTIC_WRITE` lock on `scroll_sequences` table
+
+### 5.6 Reversal flow
+
+Only POSTED vouchers can be reversed. `VoucherService.cancelVoucher(...)`:
+
+1. Creates a new voucher with reversed DR/CR direction
+2. Links to original via `reversalOfVoucher` FK
+3. Carries the same `transaction_id` FK as original
+4. If original was posted → auto-posts reversal (new immutable ledger entries)
+5. If original was unposted → reverses shadow balance only
+6. Marks original `cancelFlag = Y`
+
+**Never** updates existing ledger entries. Corrections are always compensating entries.
 
 ## 6) Batch lifecycle
 
@@ -175,15 +236,17 @@ Ledgora models day lifecycle with per-tenant `dayStatus` (`OPEN`, `DAY_CLOSING`,
 
 ### 7.1 EOD validation (pre-check)
 
-`EodValidationService.validateEod(...)` runs checks and returns error strings (empty list means OK) (`src/main/java/com/ledgora/eod/service/EodValidationService.java:82-135`). It checks:
+`EodValidationService.validateEod(...)` runs checks and returns error strings (empty list means OK). It checks:
 
-- unauthorized vouchers (`EodValidationService.java:85-89`)
-- unposted vouchers (`EodValidationService.java:91-95`)
-- ledger integrity for date (debits == credits) (`EodValidationService.java:97-103`)
-- pending approval requests (`EodValidationService.java:105-108`)
-- transactions pending approval (`EodValidationService.java:110-114`)
-- open batches exist (`EodValidationService.java:116-120`)
-- tenant GL balanced via `CbsGlBalanceService` (`EodValidationService.java:122-126`)
+- unauthorized vouchers (authFlag=N, cancelFlag=N)
+- unposted vouchers (postFlag=N, cancelFlag=N)
+- **NEW: approved-but-unposted vouchers** (authFlag=Y, postFlag=N, cancelFlag=N) — must be posted or cancelled
+- **NEW: posted voucher debit/credit balance** — SUM(totalDebit) must equal SUM(totalCredit) for posted vouchers on the date
+- ledger integrity for date (debits == credits from ledger_entries)
+- pending approval requests
+- transactions pending approval (PENDING_APPROVAL status)
+- open batches exist (must be closed first)
+- tenant GL balanced via `CbsGlBalanceService`
 
 ### 7.2 EOD run
 
@@ -244,7 +307,38 @@ Settlement is a separate operational workflow from EOD screens.
 - `POST /settlements/process` executes settlement (`SettlementController.java:51-65`)
 - `GET /settlement/dashboard` operational dashboard (`src/main/java/com/ledgora/settlement/controller/SettlementDashboardController.java:39-75`)
 
-## 9) Suggested E2E verification checklist
+## 9) Voucher UI endpoints and security
+
+### 9.1 Voucher endpoints
+
+From `VoucherController` (`src/main/java/com/ledgora/voucher/controller/VoucherController.java`):
+
+- `GET /vouchers` — inquiry/search (MAKER, CHECKER, AUDITOR, ADMIN, MANAGER, TELLER, OPERATIONS)
+- `GET /vouchers/{id}` — **detail view** showing header, linked transaction, ledger entries, batch, maker/checker, status timeline (same roles)
+- `GET /vouchers/create` — create form (MAKER, ADMIN, MANAGER, TELLER)
+- `POST /vouchers/create` — create DR+CR voucher pair (same roles)
+- `GET /vouchers/pending` — pending authorization list (CHECKER, ADMIN, MANAGER)
+- `POST /vouchers/{id}/authorize` — authorize a voucher (CHECKER, ADMIN, MANAGER)
+- `POST /vouchers/{id}/reject` — reject/cancel a voucher (CHECKER, ADMIN, MANAGER)
+- `GET /vouchers/posted` — posted vouchers (all operational roles)
+- `GET /vouchers/cancelled` — cancelled/reversed vouchers (all operational roles)
+
+### 9.2 Role-based access control
+
+All voucher endpoints are protected by `@PreAuthorize`:
+
+| Role | Can Create | Can Authorize | Can Reject | Can View |
+|---|---|---|---|---|
+| MAKER | ✅ | ❌ | ❌ | ✅ (own) |
+| CHECKER | ❌ | ✅ | ✅ | ✅ |
+| AUDITOR | ❌ | ❌ | ❌ | ✅ (read-only) |
+| ADMIN | ✅ | ✅ | ✅ | ✅ |
+| MANAGER | ✅ | ✅ | ✅ | ✅ |
+| TELLER | ✅ | ❌ | ❌ | ✅ |
+
+Maker-checker enforcement: a checker cannot authorize their own voucher (enforced in `VoucherService.authorizeVoucher(...)`).
+
+## 10) Suggested E2E verification checklist
 
 A quick manual verification (dev/H2):
 
@@ -254,9 +348,34 @@ A quick manual verification (dev/H2):
 4. Perform:
    - Deposit via `/transactions/deposit`
    - Transfer via `/transactions/transfer`
-5. Go to `/batches` and verify batches exist for your channels
-6. Close/settle batches using UI actions
-7. Validate EOD via `/eod/validate` then run EOD via `/eod/run`
-8. After EOD, use `/eod/day-begin` to open the day
+5. Verify vouchers were created: open H2 console and run:
+   ```sql
+   select id, voucher_number, dr_cr, transaction_amount, total_debit, total_credit,
+          auth_flag, post_flag, cancel_flag, transaction_id
+   from vouchers
+   order by id desc;
+   ```
+6. Verify voucher → ledger link:
+   ```sql
+   select v.voucher_number, v.dr_cr, v.transaction_amount,
+          le.entry_type, le.amount, le.gl_account_code
+   from vouchers v
+   left join ledger_entries le on le.id = v.ledger_entry_id
+   where v.post_flag = 'Y'
+   order by v.id desc;
+   ```
+7. Verify voucher debit/credit balance for the day:
+   ```sql
+   select sum(total_debit) as total_dr, sum(total_credit) as total_cr,
+          case when sum(total_debit) = sum(total_credit) then 'BALANCED' else 'UNBALANCED' end as status
+   from vouchers
+   where post_flag = 'Y' and cancel_flag = 'N'
+     and posting_date = CURRENT_DATE;
+   ```
+8. Go to `/batches` and verify batches exist for your channels
+9. Close/settle batches using UI actions
+10. Validate EOD via `/eod/validate` then run EOD via `/eod/run`
+11. After EOD, use `/eod/day-begin` to open the day
+12. Test voucher detail view: go to `/vouchers/{id}` for any voucher
 
-For data-level checks, use H2 console and the SQL in `README.md`.
+For additional data-level checks, use H2 console and the SQL in `README.md`.

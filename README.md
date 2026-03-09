@@ -130,21 +130,25 @@ See `src/main/java/com/ledgora/config/DataInitializer.java:734-833`.
   - Legacy GET switch is disabled: `/tenant/switch/{tenantId}` (`src/main/java/com/ledgora/tenant/controller/TenantController.java:32-38`)
   - Supported switch: `POST /tenant/switch` (`TenantController.java:40-82`)
 
-### 2) Deposit / Withdrawal / Transfer
+### 2) Deposit / Withdrawal / Transfer (via Voucher layer)
 
-UI endpoints are in `TransactionController` (`src/main/java/com/ledgora/transaction/controller/TransactionController.java`).
+Target posting flow:
 
-Typical flow:
+```
+Transaction → Voucher (DR+CR) → Authorize → Post → LedgerJournal → LedgerEntry (immutable) → Batch
+```
 
-1. User opens a form (GET)
-2. User submits (POST)
-3. Controller validates parameters server-side (tamper checks) (`TransactionController.java:171-211`)
-4. Controller delegates to `TransactionService` (business logic)
-5. Service posts:
-   - creates a `Transaction`
-   - creates a `LedgerJournal` + balanced `LedgerEntry` records
-   - updates the **Account balance cache** (performance only)
-   - assigns the transaction to a batch (by tenant + channel + business date)
+1. User submits form (POST) → `TransactionController` → `TransactionService`
+2. Service validates business rules, creates `Transaction` row
+3. Service creates **Voucher pair** (DR leg + CR leg) via `VoucherService.createVoucher()`:
+   - Each voucher linked to transaction via `transaction_id` FK
+   - `voucherNumber` generated: `<TENANT>-<BRANCH>-<YYYYMMDD>-<6-digit scroll>`
+   - Shadow balance updated (not actual)
+4. Vouchers are **authorized** (system-auto for STP, manual checker for approval flow)
+5. Vouchers are **posted** → creates immutable `LedgerJournal` + `LedgerEntry`, updates actual balance + GL + batch totals
+6. Account balance cache updated
+
+> For the full voucher lifecycle, status mapping, reversal flow, and security controls, see [`docs/E2E_FLOW.md`](docs/E2E_FLOW.md).
 
 ### 3) Batching
 
@@ -259,6 +263,18 @@ Examples:
 - `POST /admin/users/{id}/edit|toggle|delete` (`AdminController.java:137-205`)
 - `GET /admin/audit` (`AdminController.java:265-282`)
 
+### Vouchers (role-gated via @PreAuthorize)
+
+- `GET /vouchers` — inquiry (MAKER, CHECKER, AUDITOR, ADMIN, MANAGER, TELLER, OPERATIONS)
+- `GET /vouchers/{id}` — detail view (same roles)
+- `GET /vouchers/create` — form (MAKER, ADMIN, MANAGER, TELLER)
+- `POST /vouchers/create` — create DR+CR pair (same roles)
+- `GET /vouchers/pending` — pending authorization list (CHECKER, ADMIN, MANAGER)
+- `POST /vouchers/{id}/authorize` — authorize (CHECKER, ADMIN, MANAGER)
+- `POST /vouchers/{id}/reject` — reject/cancel (CHECKER, ADMIN, MANAGER)
+- `GET /vouchers/posted` — posted list (all operational roles)
+- `GET /vouchers/cancelled` — cancelled list (all operational roles)
+
 ### Reports
 
 - `GET /reports` (`src/main/java/com/ledgora/reporting/controller/ReportingController.java:25-29`)
@@ -294,6 +310,8 @@ Important tables (non-exhaustive but core):
 - `transaction_batches` (`src/main/java/com/ledgora/batch/entity/TransactionBatch.java`)
 - `ledger_journals`, `ledger_entries` (`src/main/java/com/ledgora/ledger/entity/*`)
 - `settlements`, `settlement_entries` (`src/main/java/com/ledgora/settlement/entity/*`)
+- `vouchers` (`src/main/java/com/ledgora/voucher/entity/Voucher.java`) — CBS voucher lifecycle (create→authorize→post→cancel)
+- `scroll_sequences` (`src/main/java/com/ledgora/voucher/entity/ScrollSequence.java`) — concurrency-safe scroll number per tenant/branch/date
 - `exchange_rates` (`src/main/java/com/ledgora/currency/entity/ExchangeRate.java`)
 - `idempotency_keys` (`src/main/java/com/ledgora/idempotency/entity/IdempotencyKey.java`)
 - `system_dates` (`src/main/java/com/ledgora/common/entity/SystemDate.java`)
@@ -357,11 +375,31 @@ where t.transaction_ref = 'DEP-SEED-0001'
 order by le.id;
 ```
 
+### Check vouchers and their lifecycle
+
+```sql
+select id, voucher_number, dr_cr, transaction_amount, total_debit, total_credit,
+       auth_flag, post_flag, cancel_flag, transaction_id, batch_code
+from vouchers
+order by id desc;
+```
+
+### Voucher debit/credit balance for today
+
+```sql
+select sum(total_debit) as total_dr, sum(total_credit) as total_cr,
+       case when sum(total_debit) = sum(total_credit) then 'BALANCED' else 'UNBALANCED' end as status
+from vouchers
+where post_flag = 'Y' and cancel_flag = 'N'
+  and posting_date = CURRENT_DATE;
+```
+
 ## Security Notes
 
 - CSRF is enabled using cookie-based tokens; H2 console is excluded (`src/main/java/com/ledgora/config/SecurityConfig.java:59-63`).
 - `/admin/**` is role-gated by both security config and `@PreAuthorize` (`SecurityConfig.java:69`, `AdminController.java:35-36`).
 - Tenant switching is **POST-only** and validates MULTI scope + allowed tenants list (`src/main/java/com/ledgora/tenant/controller/TenantController.java:40-66`).
+- Voucher endpoints are role-gated via `@PreAuthorize`: MAKER can create, CHECKER can authorize/reject, AUDITOR is read-only. Maker-checker enforcement prevents self-approval (`VoucherService.authorizeVoucher`).
 
 ---
 

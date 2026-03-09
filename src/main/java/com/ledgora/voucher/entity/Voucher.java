@@ -4,9 +4,11 @@ import com.ledgora.account.entity.Account;
 import com.ledgora.auth.entity.User;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.common.enums.VoucherDrCr;
+import com.ledgora.common.enums.VoucherStatus;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.tenant.entity.Tenant;
+import com.ledgora.transaction.entity.Transaction;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -23,16 +25,27 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "vouchers", indexes = {
     @Index(name = "idx_voucher_composite", columnList = "tenant_id, branch_id, posting_date, batch_code, scroll_no"),
+    @Index(name = "idx_voucher_number", columnList = "voucher_number", unique = true),
     @Index(name = "idx_voucher_tenant", columnList = "tenant_id"),
+    @Index(name = "idx_voucher_tenant_date", columnList = "tenant_id, posting_date"),
+    @Index(name = "idx_voucher_status_flags", columnList = "auth_flag, post_flag, cancel_flag"),
     @Index(name = "idx_voucher_branch", columnList = "branch_id"),
     @Index(name = "idx_voucher_posting_date", columnList = "posting_date"),
     @Index(name = "idx_voucher_account", columnList = "account_id"),
-    @Index(name = "idx_voucher_batch", columnList = "batch_id")
+    @Index(name = "idx_voucher_batch", columnList = "batch_id"),
+    @Index(name = "idx_voucher_transaction", columnList = "transaction_id")
 })
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Voucher {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /**
+     * Formatted voucher number: <TENANT_CODE>-<BRANCH_CODE>-<YYYYMMDD>-<6-digit scroll>.
+     * Generated on create by VoucherService. Unique, indexed.
+     */
+    @Column(name = "voucher_number", length = 60, unique = true)
+    private String voucherNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tenant_id", nullable = false)
@@ -41,6 +54,13 @@ public class Voucher {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "branch_id", nullable = false)
     private Branch branch;
+
+    /**
+     * FK to the originating transaction. A single transaction produces multiple vouchers (DR + CR legs).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "transaction_id")
+    private Transaction transaction;
 
     // Batch references
     @Column(name = "batch_id")
@@ -134,16 +154,51 @@ public class Voucher {
     @JoinColumn(name = "reversal_of_voucher_id")
     private Voucher reversalOfVoucher;
 
+    /**
+     * Total debit amount for this voucher leg (equals transactionAmount when drCr == DR, else ZERO).
+     * Populated on create for quick batch/EOD aggregation queries.
+     */
+    @Column(name = "total_debit", precision = 19, scale = 4, nullable = false)
+    @Builder.Default
+    private BigDecimal totalDebit = BigDecimal.ZERO;
+
+    /**
+     * Total credit amount for this voucher leg (equals transactionAmount when drCr == CR, else ZERO).
+     * Populated on create for quick batch/EOD aggregation queries.
+     */
+    @Column(name = "total_credit", precision = 19, scale = 4, nullable = false)
+    @Builder.Default
+    private BigDecimal totalCredit = BigDecimal.ZERO;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    /**
+     * Derive VoucherStatus from ground-truth flags.
+     * This is NOT persisted — the triple (authFlag, postFlag, cancelFlag) is the source of truth.
+     */
+    @Transient
+    public VoucherStatus getStatus() {
+        return VoucherStatus.fromFlags(authFlag, postFlag, cancelFlag);
+    }
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        // Auto-populate totalDebit/totalCredit from drCr + transactionAmount
+        if (transactionAmount != null && drCr != null) {
+            if (drCr == VoucherDrCr.DR) {
+                totalDebit = transactionAmount;
+                totalCredit = BigDecimal.ZERO;
+            } else {
+                totalDebit = BigDecimal.ZERO;
+                totalCredit = transactionAmount;
+            }
+        }
     }
 
     @PreUpdate
