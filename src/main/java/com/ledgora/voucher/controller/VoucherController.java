@@ -8,11 +8,8 @@ import com.ledgora.batch.entity.TransactionBatch;
 import com.ledgora.batch.service.BatchService;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.common.enums.TransactionChannel;
-import com.ledgora.common.enums.VoucherDrCr;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
-import com.ledgora.ledger.entity.LedgerEntry;
-import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
@@ -22,6 +19,7 @@ import com.ledgora.voucher.service.VoucherService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -44,7 +42,6 @@ public class VoucherController {
 
     private final VoucherService voucherService;
     private final VoucherRepository voucherRepository;
-    private final LedgerEntryRepository ledgerEntryRepository;
     private final AccountRepository accountRepository;
     private final GeneralLedgerRepository glRepository;
     private final UserRepository userRepository;
@@ -53,7 +50,6 @@ public class VoucherController {
 
     public VoucherController(VoucherService voucherService,
                              VoucherRepository voucherRepository,
-                             LedgerEntryRepository ledgerEntryRepository,
                              AccountRepository accountRepository,
                              GeneralLedgerRepository glRepository,
                              UserRepository userRepository,
@@ -61,7 +57,6 @@ public class VoucherController {
                              BatchService batchService) {
         this.voucherService = voucherService;
         this.voucherRepository = voucherRepository;
-        this.ledgerEntryRepository = ledgerEntryRepository;
         this.accountRepository = accountRepository;
         this.glRepository = glRepository;
         this.userRepository = userRepository;
@@ -84,6 +79,7 @@ public class VoucherController {
      */
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'AUDITOR', 'ADMIN', 'MANAGER', 'TELLER', 'OPERATIONS')")
+    @Transactional(readOnly = true)
     public String viewVoucher(@PathVariable Long id, Model model) {
         Long tenantId = TenantContextHolder.getRequiredTenantId();
         Voucher voucher = voucherService.getVoucher(id, tenantId);
@@ -107,13 +103,12 @@ public class VoucherController {
             model.addAttribute("relatedVouchers", relatedVouchers);
         }
 
-        // Maker/Checker usernames (eagerly resolve to avoid LazyInitializationException in JSP)
-        String makerUsername = "";
-        try { if (voucher.getMaker() != null) makerUsername = voucher.getMaker().getUsername(); } catch (Exception e) { /* lazy */ }
+        // Eagerly resolve maker/checker usernames within this transaction
+        // (@Transactional ensures the Hibernate session is open for lazy loading)
+        String makerUsername = voucher.getMaker() != null ? voucher.getMaker().getUsername() : "";
         model.addAttribute("makerUsername", makerUsername);
 
-        String checkerUsername = "";
-        try { if (voucher.getChecker() != null) checkerUsername = voucher.getChecker().getUsername(); } catch (Exception e) { /* lazy */ }
+        String checkerUsername = voucher.getChecker() != null ? voucher.getChecker().getUsername() : "";
         model.addAttribute("checkerUsername", checkerUsername);
 
         // Batch info
@@ -183,21 +178,20 @@ public class VoucherController {
                     tenantId, TransactionChannel.TELLER, businessDate);
             String batchCode = batch.getBatchCode() != null ? batch.getBatchCode() : "BATCH-" + batch.getId();
 
-            // Create DR voucher (debit leg)
+            // Create DR+CR voucher pair atomically (single transaction — if CR fails, DR rolls back)
             Branch debitBranch = resolveBranch(debitAccount, maker);
-            Voucher drVoucher = voucherService.createVoucher(
-                    tenant, debitBranch, debitAccount, debitGl, VoucherDrCr.DR,
-                    amount, amount, currency, businessDate, businessDate,
-                    batchCode, 1, maker,
-                    narration != null ? narration : "Voucher DR: " + debitAccountNumber);
-
-            // Create CR voucher (credit leg)
             Branch creditBranch = resolveBranch(creditAccount, maker);
-            Voucher crVoucher = voucherService.createVoucher(
-                    tenant, creditBranch, creditAccount, creditGl, VoucherDrCr.CR,
-                    amount, amount, currency, businessDate, businessDate,
-                    batchCode, 1, maker,
-                    narration != null ? narration : "Voucher CR: " + creditAccountNumber);
+            String drNarration = narration != null ? narration : "Voucher DR: " + debitAccountNumber;
+            String crNarration = narration != null ? narration : "Voucher CR: " + creditAccountNumber;
+
+            Voucher[] pair = voucherService.createVoucherPair(
+                    tenant,
+                    debitBranch, debitAccount, debitGl,
+                    creditBranch, creditAccount, creditGl,
+                    amount, currency, businessDate,
+                    batchCode, maker, drNarration, crNarration);
+            Voucher drVoucher = pair[0];
+            Voucher crVoucher = pair[1];
 
             redirectAttributes.addFlashAttribute("message",
                     "Voucher pair created (PENDING authorization). DR scroll #" + drVoucher.getScrollNo()
@@ -240,6 +234,24 @@ public class VoucherController {
     }
 
     /**
+     * Post an authorized voucher (creates immutable ledger entries).
+     * Typically called after authorization to complete the voucher lifecycle.
+     */
+    @PostMapping("/{id}/post")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
+    public String postVoucher(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            Voucher posted = voucherService.postVoucher(id);
+            redirectAttributes.addFlashAttribute("message",
+                    "Voucher " + posted.getVoucherNumber() + " posted to ledger.");
+            return "redirect:/vouchers/posted";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Posting failed: " + e.getMessage());
+            return "redirect:/vouchers/" + id;
+        }
+    }
+
+    /**
      * Reject (cancel) a pending voucher (checker action).
      * Creates a reversal voucher per CBS cancel pattern.
      */
@@ -252,9 +264,16 @@ public class VoucherController {
             String username = SecurityContextHolder.getContext().getAuthentication().getName();
             User checker = userRepository.findByUsername(username)
                     .orElseThrow(() -> new RuntimeException("Current user not found"));
-            Voucher reversal = voucherService.cancelVoucher(id, checker, reason);
-            redirectAttributes.addFlashAttribute("message",
-                    "Voucher " + id + " rejected. Reversal voucher: " + reversal.getVoucherNumber());
+            Voucher result = voucherService.cancelVoucher(id, checker, reason);
+            if (result.getId().equals(id)) {
+                // Non-posted voucher — cancelled directly, no reversal voucher created
+                redirectAttributes.addFlashAttribute("message",
+                        "Voucher " + result.getVoucherNumber() + " rejected and cancelled.");
+            } else {
+                // Posted voucher — reversal voucher created and auto-posted
+                redirectAttributes.addFlashAttribute("message",
+                        "Voucher " + id + " rejected. Reversal voucher: " + result.getVoucherNumber());
+            }
             return "redirect:/vouchers/pending";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Rejection failed: " + e.getMessage());

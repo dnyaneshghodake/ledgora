@@ -197,6 +197,27 @@ public class VoucherService {
     }
 
     /**
+     * Atomically create a DR+CR voucher pair within a single transaction.
+     * If either leg fails, both are rolled back — no orphaned half-pairs.
+     *
+     * @return array of [drVoucher, crVoucher]
+     */
+    @Transactional
+    public Voucher[] createVoucherPair(Tenant tenant,
+                                        Branch debitBranch, Account debitAccount, GeneralLedger debitGl,
+                                        Branch creditBranch, Account creditAccount, GeneralLedger creditGl,
+                                        BigDecimal amount, String currency, LocalDate businessDate,
+                                        String batchCode, User maker, String drNarration, String crNarration) {
+        Voucher drVoucher = createVoucher(tenant, debitBranch, debitAccount, debitGl, VoucherDrCr.DR,
+                amount, amount, currency, businessDate, businessDate,
+                batchCode, 1, maker, drNarration);
+        Voucher crVoucher = createVoucher(tenant, creditBranch, creditAccount, creditGl, VoucherDrCr.CR,
+                amount, amount, currency, businessDate, businessDate,
+                batchCode, 1, maker, crNarration);
+        return new Voucher[]{drVoucher, crVoucher};
+    }
+
+    /**
      * Generate formatted voucher number: <TENANT_CODE>-<BRANCH_CODE>-<YYYYMMDD>-<6-digit scroll>.
      * Example: TENANT-001-HQ001-20250130-000001
      */
@@ -418,57 +439,59 @@ public class VoucherService {
         // Determine reversal direction
         VoucherDrCr reversalDrCr = original.getDrCr() == VoucherDrCr.DR ? VoucherDrCr.CR : VoucherDrCr.DR;
 
-        // Get next scroll number for reversal
-        Long scrollNo = getNextScrollNo(
-                original.getTenant().getId(),
-                original.getBranch().getId(),
-                original.getPostingDate());
+        Voucher reversal;
 
-        // Generate formatted voucher number for reversal
-        String reversalVoucherNumber = generateVoucherNumber(
-                original.getTenant().getTenantCode(),
-                original.getBranch().getBranchCode(),
-                original.getPostingDate(), scrollNo);
-
-        // Create reversal voucher
-        Voucher reversal = Voucher.builder()
-                .voucherNumber(reversalVoucherNumber)
-                .tenant(original.getTenant())
-                .branch(original.getBranch())
-                .transaction(original.getTransaction())
-                .account(original.getAccount())
-                .glAccount(original.getGlAccount())
-                .drCr(reversalDrCr)
-                .transactionAmount(original.getTransactionAmount())
-                .localCurrencyAmount(original.getLocalCurrencyAmount())
-                .currency(original.getCurrency())
-                .entryDate(LocalDate.now())
-                .postingDate(original.getPostingDate())
-                .valueDate(original.getValueDate())
-                .effectiveDate(original.getEffectiveDate())
-                .batchCode(original.getBatchCode())
-                .setNo(original.getSetNo())
-                .scrollNo(scrollNo)
-                .maker(cancelledBy)
-                .authFlag("Y")
-                .postFlag("N")
-                .cancelFlag("N")
-                .financialEffectFlag("Y")
-                .narration("REVERSAL of voucher " + voucherId + " (" + original.getVoucherNumber() + "): " + reason)
-                .reversalOfVoucher(original)
-                .build();
-        reversal = voucherRepository.save(reversal);
-
-        // If original was posted, create reversal ledger entry
         if ("Y".equals(original.getPostFlag())) {
-            // Auto-post the reversal voucher
+            // Original was posted — create a full reversal voucher and auto-post it
+            Long scrollNo = getNextScrollNo(
+                    original.getTenant().getId(),
+                    original.getBranch().getId(),
+                    original.getPostingDate());
+
+            String reversalVoucherNumber = generateVoucherNumber(
+                    original.getTenant().getTenantCode(),
+                    original.getBranch().getBranchCode(),
+                    original.getPostingDate(), scrollNo);
+
+            reversal = Voucher.builder()
+                    .voucherNumber(reversalVoucherNumber)
+                    .tenant(original.getTenant())
+                    .branch(original.getBranch())
+                    .transaction(original.getTransaction())
+                    .account(original.getAccount())
+                    .glAccount(original.getGlAccount())
+                    .drCr(reversalDrCr)
+                    .transactionAmount(original.getTransactionAmount())
+                    .localCurrencyAmount(original.getLocalCurrencyAmount())
+                    .currency(original.getCurrency())
+                    .entryDate(LocalDate.now())
+                    .postingDate(original.getPostingDate())
+                    .valueDate(original.getValueDate())
+                    .effectiveDate(original.getEffectiveDate())
+                    .batchCode(original.getBatchCode())
+                    .setNo(original.getSetNo())
+                    .scrollNo(scrollNo)
+                    .maker(cancelledBy)
+                    .authFlag("Y")
+                    .postFlag("N")
+                    .cancelFlag("N")
+                    .financialEffectFlag("Y")
+                    .narration("REVERSAL of voucher " + voucherId + " (" + original.getVoucherNumber() + "): " + reason)
+                    .reversalOfVoucher(original)
+                    .build();
+            reversal = voucherRepository.save(reversal);
+
+            // Auto-post the reversal voucher (creates reversal ledger entries)
             reversal = postVoucher(reversal.getId());
         } else {
-            // If not posted, just reverse the shadow effect
+            // Original was NOT posted — no ledger entries to reverse.
+            // Just reverse the shadow balance effect; no reversal voucher needed.
             cbsBalanceEngine.updateShadowBalance(
                     original.getAccount().getId(),
                     original.getTransactionAmount(),
                     reversalDrCr);
+            // Use the original as the "reversal" return value since no separate voucher is created
+            reversal = original;
         }
 
         // Mark original as cancelled
@@ -578,17 +601,11 @@ public class VoucherService {
 
     private void ensureBatchIsOpen(Voucher voucher) {
         String batchCode = voucher.getBatchCode();
-        if (batchCode == null || !batchCode.startsWith("BATCH-")) {
+        if (batchCode == null || batchCode.isBlank()) {
             throw new RuntimeException("Voucher posting requires a valid open batch code. Found: " + batchCode);
         }
-        Long batchId;
-        try {
-            batchId = Long.parseLong(batchCode.substring("BATCH-".length()));
-        } catch (NumberFormatException ex) {
-            throw new RuntimeException("Voucher posting requires batch code format BATCH-<id>. Found: " + batchCode);
-        }
 
-        TransactionBatch batch = transactionBatchRepository.findById(batchId)
+        TransactionBatch batch = transactionBatchRepository.findByBatchCode(batchCode)
                 .orElseThrow(() -> new RuntimeException("Batch not found for voucher posting: " + batchCode));
 
         if (batch.getTenant() == null || voucher.getTenant() == null

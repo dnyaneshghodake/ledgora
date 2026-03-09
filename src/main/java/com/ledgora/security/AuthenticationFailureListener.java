@@ -30,7 +30,7 @@ public class AuthenticationFailureListener {
     @EventListener
     @Transactional
     public void onAuthenticationFailure(AuthenticationFailureBadCredentialsEvent event) {
-        String username = (String) event.getAuthentication().getPrincipal();
+        String username = event.getAuthentication().getName();
         userRepository.findByUsername(username).ifPresent(user -> {
             int attempts = (user.getFailedLoginAttempts() != null ? user.getFailedLoginAttempts() : 0) + 1;
             user.setFailedLoginAttempts(attempts);

@@ -82,16 +82,18 @@ public class EodValidationService {
     public List<String> validateEod(Long tenantId, LocalDate businessDate) {
         List<String> errors = new ArrayList<>();
 
-        // 1. Check all vouchers are authorized
+        // 1. Check all vouchers are authorized (authFlag=N, cancelFlag=N)
         long unauthorizedCount = voucherRepository.countUnauthorizedVouchers(tenantId, businessDate);
         if (unauthorizedCount > 0) {
-            errors.add("EOD blocked: " + unauthorizedCount + " unauthorized voucher(s) found for " + businessDate);
+            errors.add("EOD blocked: " + unauthorizedCount + " unauthorized voucher(s) found for " + businessDate
+                    + ". Authorize or cancel them before EOD.");
         }
 
-        // 2 & 6. Check all vouchers are posted (no unposted vouchers)
-        long unpostedCount = voucherRepository.countUnpostedVouchers(tenantId, businessDate);
-        if (unpostedCount > 0) {
-            errors.add("EOD blocked: " + unpostedCount + " unposted voucher(s) found for " + businessDate);
+        // 2. Check no vouchers are APPROVED but not yet POSTED (authFlag=Y, postFlag=N, cancelFlag=N)
+        long approvedUnposted = voucherRepository.countApprovedUnpostedVouchers(tenantId, businessDate);
+        if (approvedUnposted > 0) {
+            errors.add("EOD blocked: " + approvedUnposted + " approved-but-unposted voucher(s) found for " + businessDate
+                    + ". Post or cancel them before EOD.");
         }
 
         // 3. Validate actual_total_balance == SUM(ledger) per account
@@ -100,13 +102,6 @@ public class EodValidationService {
         BigDecimal credits = ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(businessDate, tenantId);
         if (debits.compareTo(credits) != 0) {
             errors.add("EOD blocked: Ledger integrity check failed. Debits=" + debits + ", Credits=" + credits);
-        }
-
-        // NEW: Check no vouchers are APPROVED but not yet POSTED (must be posted or cancelled)
-        long approvedUnposted = voucherRepository.countApprovedUnpostedVouchers(tenantId, businessDate);
-        if (approvedUnposted > 0) {
-            errors.add("EOD blocked: " + approvedUnposted + " approved-but-unposted voucher(s) found for " + businessDate
-                    + ". All approved vouchers must be posted or cancelled before EOD.");
         }
 
         // NEW: Validate total posted voucher debits == credits for the date
@@ -160,14 +155,23 @@ public class EodValidationService {
 
         LocalDate businessDate = tenant.getCurrentBusinessDate();
 
-        // Validate
+        // Pre-flight validation (advisory — may pass but concurrent txn could sneak in)
         List<String> errors = validateEod(tenantId, businessDate);
         if (!errors.isEmpty()) {
             throw new RuntimeException("EOD validation failed: " + String.join("; ", errors));
         }
 
-        // Step 1: Start day closing (blocks new transactions)
+        // Step 1: Start day closing (blocks new transactions via validateBusinessDayOpen)
         tenantService.startDayClosing(tenantId);
+
+        // Step 1b: Re-validate after blocking new transactions to close TOCTOU gap.
+        // Any concurrent transaction that sneaked in between pre-flight and day-closing
+        // will now be detected.
+        List<String> postLockErrors = validateEod(tenantId, businessDate);
+        if (!postLockErrors.isEmpty()) {
+            throw new RuntimeException("EOD validation failed after day-closing lock: "
+                    + String.join("; ", postLockErrors));
+        }
 
         // Step 2: Close all open batches for the business date
         batchService.closeAllBatches(tenantId, businessDate);
