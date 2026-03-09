@@ -13,6 +13,32 @@
     <%-- Operational Status Banner --%>
     <%@ include file="../layout/status-banner.jsp" %>
 
+    <c:if test="${not empty message}">
+        <div class="alert alert-success alert-dismissible fade show"><c:out value="${message}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    </c:if>
+    <c:if test="${not empty error}">
+        <div class="alert alert-danger alert-dismissible fade show"><c:out value="${error}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    </c:if>
+
+    <%-- Batch Actions Bar --%>
+    <div class="card shadow mb-4">
+        <div class="card-body d-flex align-items-center gap-3">
+            <strong><i class="bi bi-gear"></i> Batch Operations:</strong>
+            <form method="post" action="${pageContext.request.contextPath}/batches/close-all" class="d-inline">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Close ALL open batches for today? This validates balance on each batch.')">
+                    <i class="bi bi-lock"></i> Close All Open Batches
+                </button>
+            </form>
+            <form method="post" action="${pageContext.request.contextPath}/batches/settle-all" class="d-inline">
+                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Settle ALL closed batches? Each batch must be balanced (debit = credit).')">
+                    <i class="bi bi-check-circle"></i> Settle All Closed Batches
+                </button>
+            </form>
+        </div>
+    </div>
+
     <%-- Summary Cards --%>
     <div class="row mb-4">
         <div class="col-md-4">
@@ -66,6 +92,7 @@
                                     <th>Balanced?</th>
                                     <th>Status</th>
                                     <th>Created</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -86,6 +113,15 @@
                                         </td>
                                         <td><span class="badge bg-primary">OPEN</span></td>
                                         <td><c:out value="${batch.createdAt}"/></td>
+                                        <td>
+                                            <form method="post" action="${pageContext.request.contextPath}/batches/${batch.id}/close" class="d-inline">
+                                                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                                                <button type="submit" class="btn btn-warning btn-sm"
+                                                        onclick="return confirm('Close batch ${batch.batchCode}? Batch must be balanced.')">
+                                                    <i class="bi bi-lock"></i> Close
+                                                </button>
+                                            </form>
+                                        </td>
                                     </tr>
                                 </c:forEach>
                             </tbody>
