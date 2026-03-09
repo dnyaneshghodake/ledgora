@@ -6,6 +6,7 @@ import com.ledgora.common.enums.ApprovalStatus;
 import com.ledgora.customer.service.CustomerService;
 import com.ledgora.transaction.service.TransactionService;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -66,10 +67,11 @@ public class ApprovalController {
 
     /**
      * Approve a pending request (checker step).
-     * For TRANSACTION entity type: delegates to TransactionService.approveTransaction()
-     * which re-validates conditions and posts vouchers/ledger/balances.
+     * @Transactional ensures atomicity: if entity-specific approval fails,
+     * the ApprovalRequest status change is also rolled back.
      */
     @PostMapping("/{id}/approve")
+    @Transactional
     public String approve(@PathVariable Long id, @RequestParam(required = false) String remarks,
                           RedirectAttributes redirectAttributes) {
         try {
@@ -90,10 +92,11 @@ public class ApprovalController {
 
     /**
      * Reject a pending request (checker step).
-     * For TRANSACTION entity type: delegates to TransactionService.rejectTransaction()
-     * which marks the transaction as REJECTED with no posting.
+     * @Transactional ensures atomicity: if entity-specific rejection fails,
+     * the ApprovalRequest status change is also rolled back.
      */
     @PostMapping("/{id}/reject")
+    @Transactional
     public String reject(@PathVariable Long id, @RequestParam(required = false) String remarks,
                          RedirectAttributes redirectAttributes) {
         try {

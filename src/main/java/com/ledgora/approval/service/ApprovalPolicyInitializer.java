@@ -59,21 +59,27 @@ public class ApprovalPolicyInitializer {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional
     public void seedDefaultPolicies() {
-        if (policyRepository.count() > 0) {
-            log.debug("Approval policies already exist, skipping seed.");
-            return;
-        }
-
         List<Tenant> tenants = tenantRepository.findByStatus("ACTIVE");
         if (tenants.isEmpty()) {
             log.info("No active tenants found, skipping approval policy seed.");
             return;
         }
 
+        int seededCount = 0;
         for (Tenant tenant : tenants) {
-            seedForTenant(tenant);
+            // Per-tenant check: only seed if this specific tenant has no policies
+            List<com.ledgora.approval.entity.ApprovalPolicy> existingPolicies =
+                    policyRepository.findByTenant_Id(tenant.getId());
+            if (existingPolicies.isEmpty()) {
+                seedForTenant(tenant);
+                seededCount++;
+            }
         }
-        log.info("Default approval policies seeded for {} tenant(s).", tenants.size());
+        if (seededCount > 0) {
+            log.info("Default approval policies seeded for {} tenant(s).", seededCount);
+        } else {
+            log.debug("All active tenants already have approval policies, skipping seed.");
+        }
     }
 
     private void seedForTenant(Tenant tenant) {

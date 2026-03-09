@@ -76,6 +76,11 @@ public class CbsValidationService {
         errors.addAll(validateTenantContext());
         errors.addAll(validateBusinessDayOpen(tenantId));
 
+        // If business day validation failed, tenant may not exist — return early
+        if (!errors.isEmpty()) {
+            return errors;
+        }
+
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
         errors.addAll(validateHolidayCalendar(tenantId, businessDate, channel));
         errors.addAll(validateAccountActive(account));
