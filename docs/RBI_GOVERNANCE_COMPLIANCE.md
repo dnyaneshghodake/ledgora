@@ -582,4 +582,230 @@ ORDER BY ABS(a.balance) DESC;
 
 ---
 
-*End of Part 3. Parts 4-5 follow.*
+*End of Part 3.*
+
+---
+
+## PART 4 — INTER-BRANCH CLEARING ARCHITECTURE
+
+### 4.1 Problem Statement
+
+Ledgora supports multi-branch operations (HQ001, BR001, BR002 seeded in `DataInitializer`). When a customer at Branch A transfers funds to a customer at Branch B within the **same tenant**, the current system posts directly between the two customer accounts without creating branch-level clearing entries.
+
+This means:
+- Branch-level GL balancing (`CbsGlBalanceService.isBranchGlBalanced()`) cannot detect inter-branch imbalances
+- No audit trail of inter-branch fund movement exists at the GL level
+- RBI expects branch books to independently balance
+
+### 4.2 Clearing GL Design
+
+**New GL Account:**
+```
+2000 Liabilities
+  └── 2400 Other Liabilities
+        └── 2910 Inter-Branch Clearing GL (NEW)
+```
+
+**Per-Branch Clearing Accounts:**
+
+| Branch | Clearing Account | Type |
+|---|---|---|
+| HQ001 | `CLR-IB-HQ001` | `CLEARING_ACCOUNT` |
+| BR001 | `CLR-IB-BR001` | `CLEARING_ACCOUNT` |
+| BR002 | `CLR-IB-BR002` | `CLEARING_ACCOUNT` |
+
+Each branch gets its own clearing account mapped to GL `2910`. The clearing GL nets to zero across all branches when all inter-branch movements are settled.
+
+### 4.3 Posting Flow — Inter-Branch Transfer
+
+**Scenario:** Rajesh (BR001) transfers ₹5,000 to Priya (BR001 — same branch).
+
+Same-branch transfer — **no clearing needed:**
+```
+Voucher V1 (DR): Rajesh SAV-1001-0001 (BR001)    amount=5000
+Voucher V2 (CR): Priya  SAV-1002-0001 (BR001)    amount=5000
+```
+Both legs are at BR001. Branch GL stays balanced. No clearing entry.
+
+---
+
+**Scenario:** Rajesh (BR001) transfers ₹5,000 to Amit (BR002) — **inter-branch**.
+
+Current (broken): Direct posting between branches — BR001 GL loses 5000, BR002 GL gains 5000.
+
+**Target (with clearing):**
+
+```
+┌─────────── Branch A (BR001) ───────────┐    ┌─────────── Branch B (BR002) ───────────┐
+│                                         │    │                                         │
+│ V1 DR: Rajesh SAV-1001-0001     5000    │    │ V3 DR: CLR-IB-BR002           5000    │
+│ V2 CR: CLR-IB-BR001            5000    │    │ V4 CR: Amit SAV-1003-0001     5000    │
+│                                         │    │                                         │
+│ Branch GL: DR 5000, CR 5000 = BALANCED  │    │ Branch GL: DR 5000, CR 5000 = BALANCED │
+└─────────────────────────────────────────┘    └─────────────────────────────────────────┘
+
+Cross-branch clearing net:
+  CLR-IB-BR001 balance = +5000 (CR)
+  CLR-IB-BR002 balance = -5000 (DR)
+  Net clearing = 0  ✅
+```
+
+**4 vouchers created instead of 2:**
+
+| Voucher | DR/CR | Account | Branch | Amount | Purpose |
+|---|---|---|---|---|---|
+| V1 | DR | Rajesh SAV-1001-0001 | BR001 | 5000 | Debit sender |
+| V2 | CR | CLR-IB-BR001 | BR001 | 5000 | Credit Branch A clearing |
+| V3 | DR | CLR-IB-BR002 | BR002 | 5000 | Debit Branch B clearing |
+| V4 | CR | Amit SAV-1003-0001 | BR002 | 5000 | Credit receiver |
+
+### 4.4 Ledger Entry Examples
+
+All 4 entries are immutable, created via `VoucherService.postVoucher()`:
+
+```
+LedgerEntry 1: journal=J1, account=SAV-1001-0001, type=DEBIT,  amount=5000, gl=2110, branch=BR001
+LedgerEntry 2: journal=J1, account=CLR-IB-BR001,  type=CREDIT, amount=5000, gl=2910, branch=BR001
+LedgerEntry 3: journal=J2, account=CLR-IB-BR002,  type=DEBIT,  amount=5000, gl=2910, branch=BR002
+LedgerEntry 4: journal=J2, account=SAV-1003-0001, type=CREDIT, amount=5000, gl=2110, branch=BR002
+```
+
+**Verification:**
+- Per-branch: BR001 debit=5000, credit=5000 ✅; BR002 debit=5000, credit=5000 ✅
+- Overall: total debit=10000, total credit=10000 ✅
+- Clearing GL 2910 net: DR 5000 + CR 5000 = 0 ✅
+
+### 4.5 Implementation — TransactionService Modification
+
+In `TransactionService.postTransferLedger()`, detect inter-branch and route through clearing:
+
+```java
+// PSEUDOCODE — inside postTransferLedger()
+Branch sourceBranch = resolveBranch(sourceAccount, poster);
+Branch destBranch = resolveBranch(destAccount, poster);
+
+if (sourceBranch.getId().equals(destBranch.getId())) {
+    // SAME BRANCH — direct posting (existing behavior)
+    postVoucher(transaction, tenant, poster, sourceAccount, VoucherDrCr.DR, ...);
+    postVoucher(transaction, tenant, poster, destAccount,   VoucherDrCr.CR, ...);
+} else {
+    // INTER-BRANCH — route through clearing accounts
+    Account sourceClearingAcct = resolveBranchClearingAccount(tenant.getId(), sourceBranch);
+    Account destClearingAcct   = resolveBranchClearingAccount(tenant.getId(), destBranch);
+
+    // Branch A entries (source branch stays balanced)
+    postVoucher(transaction, tenant, poster, sourceAccount,      VoucherDrCr.DR, ...);
+    postVoucher(transaction, tenant, poster, sourceClearingAcct,  VoucherDrCr.CR, ...);
+
+    // Branch B entries (dest branch stays balanced)
+    postVoucher(transaction, tenant, poster, destClearingAcct,    VoucherDrCr.DR, ...);
+    postVoucher(transaction, tenant, poster, destAccount,         VoucherDrCr.CR, ...);
+}
+```
+
+### 4.6 EOD Validation — Clearing GL Check
+
+Add to `EodValidationService.validateEod()`:
+
+```java
+// NEW EOD CHECK: Inter-branch clearing GL must net to zero
+BigDecimal clearingBalance = accountRepository
+    .sumBalanceByTenantIdAndAccountType(tenantId, AccountType.CLEARING_ACCOUNT);
+if (clearingBalance.compareTo(BigDecimal.ZERO) != 0) {
+    errors.add("EOD blocked: Inter-branch clearing GL net balance is "
+        + clearingBalance + " for tenant " + tenantId
+        + ". All inter-branch transfers must be fully cleared.");
+}
+```
+
+### 4.7 SQL — Clearing Reconciliation Query
+
+```sql
+-- CLEARING-01: Per-branch clearing account balances (should net to zero across branches)
+SELECT a.account_number, a.account_name, a.branch_code, a.balance,
+       CASE WHEN a.balance = 0 THEN 'SETTLED' ELSE 'PENDING' END AS status
+FROM accounts a
+WHERE a.account_type = 'CLEARING_ACCOUNT'
+  AND a.account_number LIKE 'CLR-IB-%'
+ORDER BY a.branch_code;
+
+-- CLEARING-02: Net clearing balance per tenant (MUST be zero)
+SELECT a.tenant_id, SUM(a.balance) AS net_clearing,
+       CASE WHEN SUM(a.balance) = 0 THEN 'BALANCED' ELSE 'IMBALANCED' END AS status
+FROM accounts a
+WHERE a.account_type = 'CLEARING_ACCOUNT'
+  AND a.account_number LIKE 'CLR-IB-%'
+GROUP BY a.tenant_id;
+
+-- CLEARING-03: Clearing entries for a specific business date
+SELECT le.business_date, le.entry_type, le.amount, le.gl_account_code,
+       a.account_number, a.branch_code, le.narration
+FROM ledger_entries le
+JOIN accounts a ON a.id = le.account_id
+WHERE a.account_type = 'CLEARING_ACCOUNT'
+  AND le.business_date = CURRENT_DATE
+ORDER BY le.id;
+```
+
+### 4.8 Failure Scenario — Incomplete Clearing
+
+**Scenario:** Inter-branch transfer — Branch A leg posts, Branch B leg fails (e.g., Amit's account frozen).
+
+**Without suspense integration:** Transaction rolls back entirely (safe but user-unfriendly).
+
+**With suspense integration (Part 3 + Part 4 combined):**
+```
+V1 DR: Rajesh SAV-1001-0001 (BR001)     5000  → POSTED
+V2 CR: CLR-IB-BR001 (BR001)             5000  → POSTED
+V3 DR: CLR-IB-BR002 (BR002)             5000  → POSTED
+V4 CR: Amit SAV-1003-0001 (BR002)       5000  → FAILS (FROZEN)
+V4-SUSP CR: SUSP-T001 (BR002)           5000  → POSTED to suspense
+```
+
+State:
+- Clearing GL: CLR-IB-BR001=+5000, CLR-IB-BR002=-5000 → net=0 ✅
+- Suspense GL: +5000 → **blocks EOD** until corrected
+- Rajesh debited, Amit not credited — suspense holds the difference
+
+Correction (after freeze lifted): DR SUSP-T001, CR Amit SAV-1003-0001 → clears suspense.
+
+### 4.9 DataInitializer Seeding
+
+Add to `initCustomersAndAccounts()`:
+
+```java
+// Per-branch inter-branch clearing accounts
+createAccount("CLR-IB-HQ001", "Inter-Branch Clearing - HQ",
+    AccountType.CLEARING_ACCOUNT, LedgerAccountType.CLEARING_ACCOUNT,
+    BigDecimal.ZERO, "INR", hqBranch, null, null, "2910", null);
+
+createAccount("CLR-IB-BR001", "Inter-Branch Clearing - Downtown",
+    AccountType.CLEARING_ACCOUNT, LedgerAccountType.CLEARING_ACCOUNT,
+    BigDecimal.ZERO, "INR", branch1, null, null, "2910", null);
+
+createAccount("CLR-IB-BR002", "Inter-Branch Clearing - Uptown",
+    AccountType.CLEARING_ACCOUNT, LedgerAccountType.CLEARING_ACCOUNT,
+    BigDecimal.ZERO, "INR", branch2, null, null, "2910", null);
+```
+
+### 4.10 Integration Summary
+
+| Component | Change Required |
+|---|---|
+| `DataInitializer` | Seed GL `2910` + per-branch `CLR-IB-*` clearing accounts |
+| `TransactionService.postTransferLedger()` | Detect inter-branch; route through 4-voucher clearing flow |
+| `EodValidationService` | Add clearing GL net ≠ 0 check |
+| `AccountRepository` | Add `sumBalanceByTenantIdAndAccountType()` query |
+| Audit SQL Pack | CLEARING-01/02/03 queries added |
+
+**Invariants preserved:**
+- ✅ Each branch independently balances (DR == CR within branch)
+- ✅ Clearing GL nets to zero across all branches
+- ✅ Ledger entries remain immutable (4 entries instead of 2, all append-only)
+- ✅ EOD blocks if clearing is non-zero
+- ✅ Integrates with suspense (Part 3) for partial failure scenarios
+- ✅ Batch totals updated correctly (4 vouchers = 4 batch total updates)
+
+---
+
+*End of Part 4. Part 5 follows.*
