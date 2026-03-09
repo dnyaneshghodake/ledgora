@@ -83,10 +83,9 @@
                 <div class="col-md-4"><strong>GST:</strong> <span class="text-muted">Not provided</span></div>
             </div>
             <hr>
-            <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Tax Profile management coming soon">
+            <a href="${pageContext.request.contextPath}/tax-profiles/create?customerId=${customer.customerId}" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-pencil"></i> Manage Tax Profile
-            </button>
-            <small class="text-muted ms-2">Feature coming soon</small>
+            </a>
         </div>
     </div>
 </div>
