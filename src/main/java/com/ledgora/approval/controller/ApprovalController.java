@@ -3,22 +3,35 @@ package com.ledgora.approval.controller;
 import com.ledgora.approval.entity.ApprovalRequest;
 import com.ledgora.approval.service.ApprovalService;
 import com.ledgora.common.enums.ApprovalStatus;
+import com.ledgora.customer.service.CustomerService;
+import com.ledgora.transaction.service.TransactionService;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * PART 3: Approval controller for maker-checker workflow.
+ * Unified approval controller for CBS maker-checker workflow.
+ * Handles approval/rejection of all entity types and delegates to the appropriate service:
+ *   - TRANSACTION → TransactionService.approveTransaction() / rejectTransaction()
+ *   - CUSTOMER → CustomerService.approveCustomer() / rejectCustomer()
+ *   - ACCOUNT, LIEN, CALENDAR → handled by their own services (already wired)
  */
 @Controller
 @RequestMapping("/approvals")
 public class ApprovalController {
 
     private final ApprovalService approvalService;
+    private final TransactionService transactionService;
+    private final CustomerService customerService;
 
-    public ApprovalController(ApprovalService approvalService) {
+    public ApprovalController(ApprovalService approvalService,
+                              TransactionService transactionService,
+                              CustomerService customerService) {
         this.approvalService = approvalService;
+        this.transactionService = transactionService;
+        this.customerService = customerService;
     }
 
     @GetMapping
@@ -52,11 +65,24 @@ public class ApprovalController {
         return "approval/approval-view";
     }
 
+    /**
+     * Approve a pending request (checker step).
+     * @Transactional ensures atomicity: if entity-specific approval fails,
+     * the ApprovalRequest status change is also rolled back.
+     */
     @PostMapping("/{id}/approve")
+    @Transactional
     public String approve(@PathVariable Long id, @RequestParam(required = false) String remarks,
                           RedirectAttributes redirectAttributes) {
         try {
-            approvalService.approve(id, remarks);
+            ApprovalRequest request = approvalService.approve(id, remarks);
+            // Delegate to appropriate service based on entity type
+            if (request.getEntityId() != null) {
+                switch (request.getEntityType()) {
+                    case "TRANSACTION" -> transactionService.approveTransaction(request.getEntityId(), remarks);
+                    case "CUSTOMER" -> customerService.approveCustomer(request.getEntityId());
+                }
+            }
             redirectAttributes.addFlashAttribute("message", "Request approved successfully");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -64,11 +90,24 @@ public class ApprovalController {
         return "redirect:/approvals";
     }
 
+    /**
+     * Reject a pending request (checker step).
+     * @Transactional ensures atomicity: if entity-specific rejection fails,
+     * the ApprovalRequest status change is also rolled back.
+     */
     @PostMapping("/{id}/reject")
+    @Transactional
     public String reject(@PathVariable Long id, @RequestParam(required = false) String remarks,
                          RedirectAttributes redirectAttributes) {
         try {
-            approvalService.reject(id, remarks);
+            ApprovalRequest request = approvalService.reject(id, remarks);
+            // Delegate to appropriate service based on entity type
+            if (request.getEntityId() != null) {
+                switch (request.getEntityType()) {
+                    case "TRANSACTION" -> transactionService.rejectTransaction(request.getEntityId(), remarks);
+                    case "CUSTOMER" -> customerService.rejectCustomer(request.getEntityId());
+                }
+            }
             redirectAttributes.addFlashAttribute("message", "Request rejected");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());

@@ -59,8 +59,9 @@
                 </div>
                 <%-- Date of Birth --%>
                 <div class="col-md-4">
-                    <label class="form-label">Date of Birth</label>
-                    <form:input path="dob" type="date" cssClass="form-control"/>
+                    <label for="dob" class="form-label">Date of Birth</label>
+                    <input type="date" name="dob" id="dob" class="form-control"
+                           value="<c:out value='${customerDTO.dob}'/>"/>
                 </div>
                 <%-- National ID --%>
                 <div class="col-md-4">

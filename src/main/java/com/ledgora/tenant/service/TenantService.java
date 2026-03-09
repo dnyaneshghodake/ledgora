@@ -79,6 +79,7 @@ public class TenantService {
 
     /**
      * Close the day and advance to next business date for a tenant.
+     * Sets status to CLOSED (not OPEN). Requires explicit Day Begin to open next day.
      */
     @Transactional
     public void closeDayAndAdvance(Long tenantId) {
@@ -88,10 +89,28 @@ public class TenantService {
                     + ". Must be in DAY_CLOSING status. Current: " + tenant.getDayStatus());
         }
         LocalDate oldDate = tenant.getCurrentBusinessDate();
-        tenant.setDayStatus(DayStatus.OPEN);
+        tenant.setDayStatus(DayStatus.CLOSED);
         tenant.setCurrentBusinessDate(oldDate.plusDays(1));
         tenantRepository.save(tenant);
-        log.info("Tenant {} business date advanced from {} to {}", tenantId, oldDate, tenant.getCurrentBusinessDate());
+        log.info("Tenant {} day CLOSED. Business date advanced from {} to {} (requires Day Begin to open)",
+                tenantId, oldDate, tenant.getCurrentBusinessDate());
+    }
+
+    /**
+     * Open the business day (Day Begin ceremony).
+     * Pre-checks must pass before this is called.
+     * Only allowed when current status is CLOSED.
+     */
+    @Transactional
+    public void openDay(Long tenantId) {
+        Tenant tenant = getTenantById(tenantId);
+        if (tenant.getDayStatus() != DayStatus.CLOSED) {
+            throw new RuntimeException("Cannot open day for tenant " + tenantId
+                    + ". Must be in CLOSED status. Current: " + tenant.getDayStatus());
+        }
+        tenant.setDayStatus(DayStatus.OPEN);
+        tenantRepository.save(tenant);
+        log.info("Tenant {} Day Begin: business date {} is now OPEN", tenantId, tenant.getCurrentBusinessDate());
     }
 
     @Transactional

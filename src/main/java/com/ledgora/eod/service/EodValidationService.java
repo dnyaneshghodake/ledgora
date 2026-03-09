@@ -1,14 +1,15 @@
 package com.ledgora.eod.service;
 
 import com.ledgora.approval.repository.ApprovalRequestRepository;
-import com.ledgora.account.entity.AccountBalance;
 import com.ledgora.account.repository.AccountBalanceRepository;
+import com.ledgora.batch.service.BatchService;
 import com.ledgora.common.enums.ApprovalStatus;
 import com.ledgora.gl.service.CbsGlBalanceService;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
 import com.ledgora.tenant.service.TenantService;
+import com.ledgora.transaction.repository.TransactionRepository;
 import com.ledgora.voucher.repository.VoucherRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +52,8 @@ public class EodValidationService {
     private final CbsGlBalanceService cbsGlBalanceService;
     private final TenantService tenantService;
     private final TenantRepository tenantRepository;
+    private final BatchService batchService;
+    private final TransactionRepository transactionRepository;
 
     public EodValidationService(VoucherRepository voucherRepository,
                                  LedgerEntryRepository ledgerEntryRepository,
@@ -58,7 +61,9 @@ public class EodValidationService {
                                  ApprovalRequestRepository approvalRequestRepository,
                                  CbsGlBalanceService cbsGlBalanceService,
                                  TenantService tenantService,
-                                 TenantRepository tenantRepository) {
+                                 TenantRepository tenantRepository,
+                                 BatchService batchService,
+                                 TransactionRepository transactionRepository) {
         this.voucherRepository = voucherRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.accountBalanceRepository = accountBalanceRepository;
@@ -66,6 +71,8 @@ public class EodValidationService {
         this.cbsGlBalanceService = cbsGlBalanceService;
         this.tenantService = tenantService;
         this.tenantRepository = tenantRepository;
+        this.batchService = batchService;
+        this.transactionRepository = transactionRepository;
     }
 
     /**
@@ -95,14 +102,22 @@ public class EodValidationService {
             errors.add("EOD blocked: Ledger integrity check failed. Debits=" + debits + ", Credits=" + credits);
         }
 
-        long pendingApprovals = approvalRequestRepository.countByTenantIdAndStatus(tenantId, ApprovalStatus.PENDING);
+        long pendingApprovals = approvalRequestRepository.countByTenant_IdAndStatus(tenantId, ApprovalStatus.PENDING);
         if (pendingApprovals > 0) {
             errors.add("EOD blocked: " + pendingApprovals + " pending approval request(s) exist for tenant " + tenantId);
         }
 
-        // 4. Validate shadow_total_balance is correct (should be zero if all vouchers posted)
-        // Shadow balance should equal actual + pending. If all posted, shadow delta should be 0.
-        // This is indirectly validated by unposted voucher check above.
+        // NEW: Check no PENDING_APPROVAL transactions exist
+        long pendingTxns = transactionRepository.countByTenantIdAndStatus(tenantId, com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL);
+        if (pendingTxns > 0) {
+            errors.add("EOD blocked: " + pendingTxns + " transaction(s) pending approval for tenant " + tenantId);
+        }
+
+        // NEW: Check all batches are balanced before EOD
+        if (!batchService.areAllBatchesClosed(tenantId, businessDate)) {
+            errors.add("EOD blocked: open batches exist for business date " + businessDate
+                    + ". Close all batches before running EOD.");
+        }
 
         // 7. Branch GL balanced - checked if CbsGlBalanceService is tracking balances
         // 8. Tenant GL balanced
@@ -136,13 +151,20 @@ public class EodValidationService {
             throw new RuntimeException("EOD validation failed: " + String.join("; ", errors));
         }
 
-        // Start day closing
+        // Step 1: Start day closing (blocks new transactions)
         tenantService.startDayClosing(tenantId);
 
-        // Close day and advance to next business date
+        // Step 2: Close all open batches for the business date
+        batchService.closeAllBatches(tenantId, businessDate);
+
+        // Step 3: Settle all closed batches (validates debit == credit per batch)
+        batchService.settleAllBatches(tenantId, businessDate);
+
+        // Step 4: Close day and advance to next business date (sets CLOSED, requires Day Begin)
         tenantService.closeDayAndAdvance(tenantId);
 
-        log.info("EOD completed for tenant {}: business date advanced from {}", tenantId, businessDate);
+        log.info("EOD completed for tenant {}: business date {} closed. Next date requires Day Begin.",
+                tenantId, businessDate);
     }
 
     /**

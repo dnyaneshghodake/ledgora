@@ -51,12 +51,22 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Transaction service with:
- * - Ledger journal/entry creation (system of record)
- * - Event-driven architecture (publishes TransactionCreatedEvent)
- * - Pessimistic locking for account balance protection
- * - Multi-tenant support with day status enforcement
- * - Transaction batch assignment
+ * Transaction service with CBS-grade maker-checker approval workflow.
+ *
+ * Flow:
+ *   1. Maker initiates transaction (deposit/withdraw/transfer)
+ *   2. ApprovalPolicyService decides: auto-authorize or PENDING_APPROVAL
+ *   3. If auto-authorized: post immediately (vouchers + ledger + balances)
+ *   4. If PENDING_APPROVAL: save transaction, create ApprovalRequest, wait for checker
+ *   5. Checker approves: re-validate, then post
+ *   6. Checker rejects: mark REJECTED, no posting
+ *
+ * Governance overrides (always require approval regardless of policy):
+ *   - Reversals
+ *   - Backdated entries
+ *
+ * System-only (always auto-authorize via BATCH channel):
+ *   - Interest accrual, charges, EOD adjustments
  */
 @Service
 public class TransactionService {
@@ -78,6 +88,8 @@ public class TransactionService {
     private final TenantService tenantService;
     private final BatchService batchService;
     private final BankCalendarService bankCalendarService;
+    private final com.ledgora.approval.service.ApprovalPolicyService approvalPolicyService;
+    private final com.ledgora.approval.service.ApprovalService approvalService;
 
     public TransactionService(TransactionRepository transactionRepository,
                               TransactionLineRepository transactionLineRepository,
@@ -93,7 +105,9 @@ public class TransactionService {
                               IdempotencyService idempotencyService,
                               TenantService tenantService,
                               BatchService batchService,
-                              BankCalendarService bankCalendarService) {
+                              BankCalendarService bankCalendarService,
+                              com.ledgora.approval.service.ApprovalPolicyService approvalPolicyService,
+                              com.ledgora.approval.service.ApprovalService approvalService) {
         this.transactionRepository = transactionRepository;
         this.transactionLineRepository = transactionLineRepository;
         this.accountRepository = accountRepository;
@@ -109,50 +123,50 @@ public class TransactionService {
         this.tenantService = tenantService;
         this.batchService = batchService;
         this.bankCalendarService = bankCalendarService;
+        this.approvalPolicyService = approvalPolicyService;
+        this.approvalService = approvalService;
     }
 
     /**
-     * Deposit with full transaction safety.
-     * Flow: validate tenant day -> lock account -> create transaction -> assign batch -> create journal+entries -> update balances -> publish event
+     * Deposit: Maker step.
+     * Validates, creates transaction record, then consults ApprovalPolicyService:
+     *   - Auto-authorized -> post immediately (vouchers + ledger + balances)
+     *   - Requires approval -> save as PENDING_APPROVAL, create ApprovalRequest
      */
     @Transactional
     public Transaction deposit(TransactionDTO dto) {
-        // CBS: Server-side amount validation - never trust client input
         validateAmountPositive(dto.getAmount());
 
-        // PART 4: Validate tenant business day is OPEN
         Long tenantId = requireTenantId();
         tenantService.validateBusinessDayOpen(tenantId);
         Tenant tenant = tenantService.getTenantById(tenantId);
 
-        // Idempotency check
         checkIdempotency(dto);
 
-        // Pessimistic lock on account
         Account account = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getDestinationAccountNumber(), tenantId)
                 .orElseThrow(() -> new com.ledgora.common.exception.BusinessException("ACCOUNT_NOT_FOUND",
                         "Account not found: " + dto.getDestinationAccountNumber()));
         validateAccountActive(account);
-        // C3: Server-side freeze level enforcement for credit (deposit credits customer account)
         validateAccountFreezeLevel(account, VoucherDrCr.CR);
 
         User currentUser = getCurrentUser();
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
 
-        // H4: Server-side holiday calendar enforcement
         TransactionChannel channel = parseChannel(dto.getChannel());
         validateHolidayCalendar(tenantId, businessDate, channel);
 
         String txnRef = generateTransactionRef("DEP");
-
-        // PART 2: Get or create open batch for this channel/tenant/date
         TransactionBatch batch = batchService.getOrCreateOpenBatch(tenantId, channel, businessDate);
 
-        // Create transaction record with tenant and batch
+        // Consult approval policy engine
+        boolean autoAuth = approvalPolicyService.isAutoAuthorized(
+                tenantId, TransactionType.DEPOSIT, channel, dto.getAmount(), false, false);
+
+        // Create transaction record (maker step)
         Transaction transaction = Transaction.builder()
                 .transactionRef(txnRef)
                 .transactionType(TransactionType.DEPOSIT)
-                .status(TransactionStatus.COMPLETED)
+                .status(autoAuth ? TransactionStatus.COMPLETED : TransactionStatus.PENDING_APPROVAL)
                 .amount(dto.getAmount())
                 .currency(dto.getCurrency() != null ? dto.getCurrency() : "INR")
                 .channel(channel)
@@ -162,67 +176,50 @@ public class TransactionService {
                 .narration(dto.getNarration())
                 .businessDate(businessDate)
                 .performedBy(currentUser)
+                .maker(currentUser)
+                .makerTimestamp(LocalDateTime.now())
                 .tenant(tenant)
                 .batch(batch)
                 .build();
         transaction = transactionRepository.save(transaction);
 
-        // Update batch totals
-        batchService.updateBatchTotals(batch.getId(), dto.getAmount(), dto.getAmount());
-
-        // Step 3: Create transaction lines (debit + credit)
-        createTransactionLine(transaction, account, EntryType.DEBIT, dto.getAmount(),
-                "Cash deposit - debit cash account");
-        createTransactionLine(transaction, account, EntryType.CREDIT, dto.getAmount(),
-                "Cash deposit - credit customer account");
-
-        // PART 1: Create and post balanced vouchers (ledger entries are created only via VoucherService)
-        BigDecimal newBalance = account.getBalance().add(dto.getAmount());
-        Account cashAccount = resolveCashGlAccount(tenantId);
-        String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
-        postVoucher(transaction, tenant, currentUser, cashAccount, VoucherDrCr.DR, dto.getAmount(),
-                currency, businessDate, batch, "Cash deposit - cash ledger leg");
-        postVoucher(transaction, tenant, currentUser, account, VoucherDrCr.CR, dto.getAmount(),
-                currency, businessDate, batch, "Cash deposit - customer ledger leg");
-
-        // Step 5: Update account balance
-        account.setBalance(newBalance);
-        accountRepository.save(account);
-        updateAccountBalanceCache(account, newBalance);
-
-        // PART 3: Publish event
-        eventPublisher.publishEvent(new TransactionCreatedEvent(this, transaction));
-
-        // Audit
         Long userId = currentUser != null ? currentUser.getId() : null;
-        auditService.logTransaction(userId, transaction.getId(), txnRef, "DEPOSIT");
 
-        log.info("Deposit completed: {} amount {} to account {}", txnRef, dto.getAmount(), account.getAccountNumber());
+        if (autoAuth) {
+            // Auto-authorized: post immediately
+            postDepositLedger(transaction, account, tenant, currentUser, businessDate, batch, dto);
+            auditService.logTransaction(userId, transaction.getId(), txnRef, "DEPOSIT");
+            log.info("Deposit auto-authorized and posted: {} amount {} to account {}",
+                    txnRef, dto.getAmount(), account.getAccountNumber());
+        } else {
+            // Requires checker approval: create ApprovalRequest, do NOT post
+            approvalService.submitForApproval("TRANSACTION", transaction.getId(),
+                    "DEPOSIT " + dto.getAmount() + " to " + dto.getDestinationAccountNumber());
+            auditService.logTransaction(userId, transaction.getId(), txnRef, "DEPOSIT_PENDING_APPROVAL");
+            log.info("Deposit pending approval: {} amount {} to account {}",
+                    txnRef, dto.getAmount(), account.getAccountNumber());
+        }
+
         return transaction;
     }
 
     /**
-     * Withdrawal with full transaction safety and tenant/batch support.
+     * Withdrawal: Maker step with approval policy check.
      */
     @Transactional
     public Transaction withdraw(TransactionDTO dto) {
-        // CBS: Server-side amount validation - never trust client input
         validateAmountPositive(dto.getAmount());
 
-        // PART 4: Validate tenant business day is OPEN
         Long tenantId = requireTenantId();
         tenantService.validateBusinessDayOpen(tenantId);
         Tenant tenant = tenantService.getTenantById(tenantId);
 
-        // Idempotency check
         checkIdempotency(dto);
 
-        // Pessimistic lock on account
         Account account = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getSourceAccountNumber(), tenantId)
                 .orElseThrow(() -> new com.ledgora.common.exception.BusinessException("ACCOUNT_NOT_FOUND",
                         "Account not found: " + dto.getSourceAccountNumber()));
         validateAccountActive(account);
-        // C3: Server-side freeze level enforcement for debit (withdrawal debits customer account)
         validateAccountFreezeLevel(account, VoucherDrCr.DR);
         if (account.getBalance().compareTo(dto.getAmount()) < 0) {
             throw new com.ledgora.common.exception.InsufficientBalanceException(
@@ -234,20 +231,19 @@ public class TransactionService {
         User currentUser = getCurrentUser();
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
 
-        // H4: Server-side holiday calendar enforcement
         TransactionChannel channel = parseChannel(dto.getChannel());
         validateHolidayCalendar(tenantId, businessDate, channel);
 
         String txnRef = generateTransactionRef("WDR");
-
-        // PART 2: Get or create open batch
         TransactionBatch batch = batchService.getOrCreateOpenBatch(tenantId, channel, businessDate);
 
-        // Create transaction record with tenant and batch
+        boolean autoAuth = approvalPolicyService.isAutoAuthorized(
+                tenantId, TransactionType.WITHDRAWAL, channel, dto.getAmount(), false, false);
+
         Transaction transaction = Transaction.builder()
                 .transactionRef(txnRef)
                 .transactionType(TransactionType.WITHDRAWAL)
-                .status(TransactionStatus.COMPLETED)
+                .status(autoAuth ? TransactionStatus.COMPLETED : TransactionStatus.PENDING_APPROVAL)
                 .amount(dto.getAmount())
                 .currency(dto.getCurrency() != null ? dto.getCurrency() : "INR")
                 .channel(channel)
@@ -257,62 +253,44 @@ public class TransactionService {
                 .narration(dto.getNarration())
                 .businessDate(businessDate)
                 .performedBy(currentUser)
+                .maker(currentUser)
+                .makerTimestamp(LocalDateTime.now())
                 .tenant(tenant)
                 .batch(batch)
                 .build();
         transaction = transactionRepository.save(transaction);
 
-        // Update batch totals
-        batchService.updateBatchTotals(batch.getId(), dto.getAmount(), dto.getAmount());
-
-        // Step 3: Create transaction lines
-        createTransactionLine(transaction, account, EntryType.DEBIT, dto.getAmount(),
-                "Cash withdrawal - debit customer account");
-        createTransactionLine(transaction, account, EntryType.CREDIT, dto.getAmount(),
-                "Cash withdrawal - credit cash account");
-
-        // PART 1: Create and post balanced vouchers (ledger entries are created only via VoucherService)
-        BigDecimal newBalance = account.getBalance().subtract(dto.getAmount());
-        Account cashAccount = resolveCashGlAccount(tenantId);
-        String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
-        postVoucher(transaction, tenant, currentUser, account, VoucherDrCr.DR, dto.getAmount(),
-                currency, businessDate, batch, "Cash withdrawal - customer ledger leg");
-        postVoucher(transaction, tenant, currentUser, cashAccount, VoucherDrCr.CR, dto.getAmount(),
-                currency, businessDate, batch, "Cash withdrawal - cash ledger leg");
-
-        // Step 5: Update account balance
-        account.setBalance(newBalance);
-        accountRepository.save(account);
-        updateAccountBalanceCache(account, newBalance);
-
-        // PART 3: Publish event
-        eventPublisher.publishEvent(new TransactionCreatedEvent(this, transaction));
-
-        // Audit
         Long userId = currentUser != null ? currentUser.getId() : null;
-        auditService.logTransaction(userId, transaction.getId(), txnRef, "WITHDRAWAL");
 
-        log.info("Withdrawal completed: {} amount {} from account {}", txnRef, dto.getAmount(), account.getAccountNumber());
+        if (autoAuth) {
+            postWithdrawalLedger(transaction, account, tenant, currentUser, businessDate, batch, dto);
+            auditService.logTransaction(userId, transaction.getId(), txnRef, "WITHDRAWAL");
+            log.info("Withdrawal auto-authorized and posted: {} amount {} from account {}",
+                    txnRef, dto.getAmount(), account.getAccountNumber());
+        } else {
+            approvalService.submitForApproval("TRANSACTION", transaction.getId(),
+                    "WITHDRAWAL " + dto.getAmount() + " from " + dto.getSourceAccountNumber());
+            auditService.logTransaction(userId, transaction.getId(), txnRef, "WITHDRAWAL_PENDING_APPROVAL");
+            log.info("Withdrawal pending approval: {} amount {} from account {}",
+                    txnRef, dto.getAmount(), account.getAccountNumber());
+        }
+
         return transaction;
     }
 
     /**
-     * Transfer with full transaction safety and tenant/batch support.
+     * Transfer: Maker step with approval policy check.
      */
     @Transactional
     public Transaction transfer(TransactionDTO dto) {
-        // CBS: Server-side amount validation - never trust client input
         validateAmountPositive(dto.getAmount());
 
-        // PART 4: Validate tenant business day is OPEN
         Long tenantId = requireTenantId();
         tenantService.validateBusinessDayOpen(tenantId);
         Tenant tenant = tenantService.getTenantById(tenantId);
 
-        // Idempotency check
         checkIdempotency(dto);
 
-        // Pessimistic lock on both accounts
         Account sourceAccount = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getSourceAccountNumber(), tenantId)
                 .orElseThrow(() -> new com.ledgora.common.exception.BusinessException("ACCOUNT_NOT_FOUND",
                         "Source account not found: " + dto.getSourceAccountNumber()));
@@ -321,7 +299,6 @@ public class TransactionService {
                         "Destination account not found: " + dto.getDestinationAccountNumber()));
         validateAccountActive(sourceAccount);
         validateAccountActive(destAccount);
-        // C3: Server-side freeze level enforcement for both accounts
         validateAccountFreezeLevel(sourceAccount, VoucherDrCr.DR);
         validateAccountFreezeLevel(destAccount, VoucherDrCr.CR);
         if (sourceAccount.getAccountNumber().equals(destAccount.getAccountNumber())) {
@@ -338,20 +315,19 @@ public class TransactionService {
         User currentUser = getCurrentUser();
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
 
-        // H4: Server-side holiday calendar enforcement
         TransactionChannel channel = parseChannel(dto.getChannel());
         validateHolidayCalendar(tenantId, businessDate, channel);
 
         String txnRef = generateTransactionRef("TRF");
-
-        // PART 2: Get or create open batch
         TransactionBatch batch = batchService.getOrCreateOpenBatch(tenantId, channel, businessDate);
 
-        // Create transaction record with tenant and batch
+        boolean autoAuth = approvalPolicyService.isAutoAuthorized(
+                tenantId, TransactionType.TRANSFER, channel, dto.getAmount(), false, false);
+
         Transaction transaction = Transaction.builder()
                 .transactionRef(txnRef)
                 .transactionType(TransactionType.TRANSFER)
-                .status(TransactionStatus.COMPLETED)
+                .status(autoAuth ? TransactionStatus.COMPLETED : TransactionStatus.PENDING_APPROVAL)
                 .amount(dto.getAmount())
                 .currency(dto.getCurrency() != null ? dto.getCurrency() : "INR")
                 .channel(channel)
@@ -362,30 +338,255 @@ public class TransactionService {
                 .narration(dto.getNarration())
                 .businessDate(businessDate)
                 .performedBy(currentUser)
+                .maker(currentUser)
+                .makerTimestamp(LocalDateTime.now())
                 .tenant(tenant)
                 .batch(batch)
                 .build();
         transaction = transactionRepository.save(transaction);
 
-        // Update batch totals
+        Long userId = currentUser != null ? currentUser.getId() : null;
+
+        if (autoAuth) {
+            postTransferLedger(transaction, sourceAccount, destAccount, tenant, currentUser, businessDate, batch, dto);
+            auditService.logTransaction(userId, transaction.getId(), txnRef, "TRANSFER");
+            log.info("Transfer auto-authorized and posted: {} amount {} from {} to {}",
+                    txnRef, dto.getAmount(), sourceAccount.getAccountNumber(), destAccount.getAccountNumber());
+        } else {
+            approvalService.submitForApproval("TRANSACTION", transaction.getId(),
+                    "TRANSFER " + dto.getAmount() + " from " + dto.getSourceAccountNumber()
+                    + " to " + dto.getDestinationAccountNumber());
+            auditService.logTransaction(userId, transaction.getId(), txnRef, "TRANSFER_PENDING_APPROVAL");
+            log.info("Transfer pending approval: {} amount {} from {} to {}",
+                    txnRef, dto.getAmount(), sourceAccount.getAccountNumber(), destAccount.getAccountNumber());
+        }
+
+        return transaction;
+    }
+
+    // ===== Checker approval / rejection (called by ApprovalService) =====
+
+    /**
+     * Approve a pending transaction (checker step).
+     * Re-validates all conditions, then posts vouchers + ledger + balances.
+     * Enforces maker != checker.
+     */
+    @Transactional
+    public Transaction approveTransaction(Long transactionId, String remarks) {
+        Long tenantId = requireTenantId();
+        Transaction transaction = transactionRepository.findByIdAndTenantId(transactionId, tenantId)
+                .orElseThrow(() -> new com.ledgora.common.exception.BusinessException("TRANSACTION_NOT_FOUND",
+                        "Transaction not found: " + transactionId));
+
+        if (transaction.getStatus() != TransactionStatus.PENDING_APPROVAL) {
+            throw new com.ledgora.common.exception.BusinessException("INVALID_STATUS",
+                    "Transaction " + transactionId + " is not pending approval. Status: " + transaction.getStatus());
+        }
+
+        User checker = getCurrentUser();
+        // Maker-checker enforcement: checker must differ from maker
+        if (transaction.getMaker() != null && checker != null
+                && transaction.getMaker().getId().equals(checker.getId())) {
+            throw new com.ledgora.common.exception.BusinessException("MAKER_CHECKER_VIOLATION",
+                    "Cannot approve your own transaction (maker-checker violation)");
+        }
+
+        // Re-validate business day
+        tenantService.validateBusinessDayOpen(tenantId);
+        Tenant tenant = tenantService.getTenantById(tenantId);
+        LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
+
+        // Re-validate accounts with pessimistic lock
+        TransactionType txnType = transaction.getTransactionType();
+
+        // Get a fresh open batch for the current business date (original batch may be CLOSED)
+        TransactionChannel channel = transaction.getChannel() != null ? transaction.getChannel() : TransactionChannel.TELLER;
+        TransactionBatch batch = batchService.getOrCreateOpenBatch(tenantId, channel, businessDate);
+        transaction.setBatch(batch);
+
+        if (txnType == TransactionType.DEPOSIT) {
+            Account account = accountRepository.findByIdWithLock(transaction.getDestinationAccount().getId())
+                    .orElseThrow(() -> new com.ledgora.common.exception.BusinessException("ACCOUNT_NOT_FOUND",
+                            "Destination account not found"));
+            validateAccountActive(account);
+            validateAccountFreezeLevel(account, VoucherDrCr.CR);
+            postDepositLedger(transaction, account, tenant, checker, businessDate, batch,
+                    buildDtoFromTransaction(transaction));
+        } else if (txnType == TransactionType.WITHDRAWAL) {
+            Account account = accountRepository.findByIdWithLock(transaction.getSourceAccount().getId())
+                    .orElseThrow(() -> new com.ledgora.common.exception.BusinessException("ACCOUNT_NOT_FOUND",
+                            "Source account not found"));
+            validateAccountActive(account);
+            validateAccountFreezeLevel(account, VoucherDrCr.DR);
+            if (account.getBalance().compareTo(transaction.getAmount()) < 0) {
+                throw new com.ledgora.common.exception.InsufficientBalanceException(
+                        account.getAccountNumber(),
+                        "Insufficient balance at approval time. Available: " + account.getBalance());
+            }
+            postWithdrawalLedger(transaction, account, tenant, checker, businessDate, batch,
+                    buildDtoFromTransaction(transaction));
+        } else if (txnType == TransactionType.TRANSFER) {
+            Account sourceAccount = accountRepository.findByIdWithLock(transaction.getSourceAccount().getId())
+                    .orElseThrow(() -> new com.ledgora.common.exception.BusinessException("ACCOUNT_NOT_FOUND",
+                            "Source account not found"));
+            Account destAccount = accountRepository.findByIdWithLock(transaction.getDestinationAccount().getId())
+                    .orElseThrow(() -> new com.ledgora.common.exception.BusinessException("ACCOUNT_NOT_FOUND",
+                            "Destination account not found"));
+            validateAccountActive(sourceAccount);
+            validateAccountActive(destAccount);
+            validateAccountFreezeLevel(sourceAccount, VoucherDrCr.DR);
+            validateAccountFreezeLevel(destAccount, VoucherDrCr.CR);
+            if (sourceAccount.getBalance().compareTo(transaction.getAmount()) < 0) {
+                throw new com.ledgora.common.exception.InsufficientBalanceException(
+                        sourceAccount.getAccountNumber(),
+                        "Insufficient balance at approval time. Available: " + sourceAccount.getBalance());
+            }
+            postTransferLedger(transaction, sourceAccount, destAccount, tenant, checker, businessDate, batch,
+                    buildDtoFromTransaction(transaction));
+        }
+
+        // Update transaction with checker info (event already published by post*Ledger methods)
+        transaction.setStatus(TransactionStatus.COMPLETED);
+        transaction.setChecker(checker);
+        transaction.setCheckerTimestamp(LocalDateTime.now());
+        transaction.setCheckerRemarks(remarks);
+        transactionRepository.save(transaction);
+
+        Long userId = checker != null ? checker.getId() : null;
+        auditService.logTransaction(userId, transaction.getId(), transaction.getTransactionRef(),
+                txnType.name() + "_APPROVED");
+
+        log.info("Transaction {} approved and posted by checker {}", transaction.getTransactionRef(),
+                checker != null ? checker.getUsername() : "system");
+        return transaction;
+    }
+
+    /**
+     * Reject a pending transaction (checker step).
+     * Marks REJECTED, no posting. Enforces maker != checker.
+     */
+    @Transactional
+    public Transaction rejectTransaction(Long transactionId, String remarks) {
+        Long tenantId = requireTenantId();
+        Transaction transaction = transactionRepository.findByIdAndTenantId(transactionId, tenantId)
+                .orElseThrow(() -> new com.ledgora.common.exception.BusinessException("TRANSACTION_NOT_FOUND",
+                        "Transaction not found: " + transactionId));
+
+        if (transaction.getStatus() != TransactionStatus.PENDING_APPROVAL) {
+            throw new com.ledgora.common.exception.BusinessException("INVALID_STATUS",
+                    "Transaction " + transactionId + " is not pending approval. Status: " + transaction.getStatus());
+        }
+
+        User checker = getCurrentUser();
+        // Maker-checker enforcement: checker must differ from maker for rejection too
+        if (transaction.getMaker() != null && checker != null
+                && transaction.getMaker().getId().equals(checker.getId())) {
+            throw new com.ledgora.common.exception.BusinessException("MAKER_CHECKER_VIOLATION",
+                    "Cannot reject your own transaction (maker-checker violation)");
+        }
+
+        transaction.setStatus(TransactionStatus.REJECTED);
+        transaction.setChecker(checker);
+        transaction.setCheckerTimestamp(LocalDateTime.now());
+        transaction.setCheckerRemarks(remarks);
+        transactionRepository.save(transaction);
+
+        Long userId = checker != null ? checker.getId() : null;
+        auditService.logTransaction(userId, transaction.getId(), transaction.getTransactionRef(),
+                transaction.getTransactionType().name() + "_REJECTED");
+
+        log.info("Transaction {} rejected by checker {}: {}",
+                transaction.getTransactionRef(),
+                checker != null ? checker.getUsername() : "system", remarks);
+        return transaction;
+    }
+
+    /**
+     * Get all transactions pending approval for the current tenant.
+     */
+    public List<Transaction> getPendingApprovalTransactions() {
+        Long tenantId = requireTenantId();
+        return transactionRepository.findByTenantIdAndStatus(tenantId, TransactionStatus.PENDING_APPROVAL);
+    }
+
+    /**
+     * Count transactions pending approval for the current tenant.
+     */
+    public long countPendingApproval() {
+        Long tenantId = requireTenantId();
+        return transactionRepository.countByTenantIdAndStatus(tenantId, TransactionStatus.PENDING_APPROVAL);
+    }
+
+    // ===== Internal posting methods (extracted for reuse by auto-auth and checker-approve) =====
+
+    private void postDepositLedger(Transaction transaction, Account account, Tenant tenant,
+                                    User poster, LocalDate businessDate, TransactionBatch batch,
+                                    TransactionDTO dto) {
         batchService.updateBatchTotals(batch.getId(), dto.getAmount(), dto.getAmount());
 
-        // Step 3: Create transaction lines
+        createTransactionLine(transaction, account, EntryType.DEBIT, dto.getAmount(),
+                "Cash deposit - debit cash account");
+        createTransactionLine(transaction, account, EntryType.CREDIT, dto.getAmount(),
+                "Cash deposit - credit customer account");
+
+        BigDecimal newBalance = account.getBalance().add(dto.getAmount());
+        Account cashAccount = resolveCashGlAccount(tenant.getId());
+        String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
+        postVoucher(transaction, tenant, poster, cashAccount, VoucherDrCr.DR, dto.getAmount(),
+                currency, businessDate, batch, "Cash deposit - cash ledger leg");
+        postVoucher(transaction, tenant, poster, account, VoucherDrCr.CR, dto.getAmount(),
+                currency, businessDate, batch, "Cash deposit - customer ledger leg");
+
+        account.setBalance(newBalance);
+        accountRepository.save(account);
+        updateAccountBalanceCache(account, newBalance);
+
+        eventPublisher.publishEvent(new TransactionCreatedEvent(this, transaction));
+    }
+
+    private void postWithdrawalLedger(Transaction transaction, Account account, Tenant tenant,
+                                       User poster, LocalDate businessDate, TransactionBatch batch,
+                                       TransactionDTO dto) {
+        batchService.updateBatchTotals(batch.getId(), dto.getAmount(), dto.getAmount());
+
+        createTransactionLine(transaction, account, EntryType.DEBIT, dto.getAmount(),
+                "Cash withdrawal - debit customer account");
+        createTransactionLine(transaction, account, EntryType.CREDIT, dto.getAmount(),
+                "Cash withdrawal - credit cash account");
+
+        BigDecimal newBalance = account.getBalance().subtract(dto.getAmount());
+        Account cashAccount = resolveCashGlAccount(tenant.getId());
+        String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
+        postVoucher(transaction, tenant, poster, account, VoucherDrCr.DR, dto.getAmount(),
+                currency, businessDate, batch, "Cash withdrawal - customer ledger leg");
+        postVoucher(transaction, tenant, poster, cashAccount, VoucherDrCr.CR, dto.getAmount(),
+                currency, businessDate, batch, "Cash withdrawal - cash ledger leg");
+
+        account.setBalance(newBalance);
+        accountRepository.save(account);
+        updateAccountBalanceCache(account, newBalance);
+
+        eventPublisher.publishEvent(new TransactionCreatedEvent(this, transaction));
+    }
+
+    private void postTransferLedger(Transaction transaction, Account sourceAccount, Account destAccount,
+                                     Tenant tenant, User poster, LocalDate businessDate,
+                                     TransactionBatch batch, TransactionDTO dto) {
+        batchService.updateBatchTotals(batch.getId(), dto.getAmount(), dto.getAmount());
+
         createTransactionLine(transaction, sourceAccount, EntryType.DEBIT, dto.getAmount(),
                 "Transfer to " + destAccount.getAccountNumber());
         createTransactionLine(transaction, destAccount, EntryType.CREDIT, dto.getAmount(),
                 "Transfer from " + sourceAccount.getAccountNumber());
 
-        // PART 1: Create and post balanced vouchers (ledger entries are created only via VoucherService)
         BigDecimal sourceNewBalance = sourceAccount.getBalance().subtract(dto.getAmount());
         BigDecimal destNewBalance = destAccount.getBalance().add(dto.getAmount());
         String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
-        postVoucher(transaction, tenant, currentUser, sourceAccount, VoucherDrCr.DR, dto.getAmount(),
+        postVoucher(transaction, tenant, poster, sourceAccount, VoucherDrCr.DR, dto.getAmount(),
                 currency, businessDate, batch, "Transfer to " + destAccount.getAccountNumber());
-        postVoucher(transaction, tenant, currentUser, destAccount, VoucherDrCr.CR, dto.getAmount(),
+        postVoucher(transaction, tenant, poster, destAccount, VoucherDrCr.CR, dto.getAmount(),
                 currency, businessDate, batch, "Transfer from " + sourceAccount.getAccountNumber());
 
-        // Step 5: Update account balances
         sourceAccount.setBalance(sourceNewBalance);
         accountRepository.save(sourceAccount);
         updateAccountBalanceCache(sourceAccount, sourceNewBalance);
@@ -394,16 +595,25 @@ public class TransactionService {
         accountRepository.save(destAccount);
         updateAccountBalanceCache(destAccount, destNewBalance);
 
-        // PART 3: Publish event
         eventPublisher.publishEvent(new TransactionCreatedEvent(this, transaction));
+    }
 
-        // Audit
-        Long userId = currentUser != null ? currentUser.getId() : null;
-        auditService.logTransaction(userId, transaction.getId(), txnRef, "TRANSFER");
-
-        log.info("Transfer completed: {} amount {} from {} to {}", txnRef, dto.getAmount(),
-                sourceAccount.getAccountNumber(), destAccount.getAccountNumber());
-        return transaction;
+    /**
+     * Build a minimal TransactionDTO from a saved Transaction (for posting after approval).
+     */
+    private TransactionDTO buildDtoFromTransaction(Transaction transaction) {
+        return TransactionDTO.builder()
+                .amount(transaction.getAmount())
+                .currency(transaction.getCurrency())
+                .sourceAccountNumber(transaction.getSourceAccount() != null
+                        ? transaction.getSourceAccount().getAccountNumber() : null)
+                .destinationAccountNumber(transaction.getDestinationAccount() != null
+                        ? transaction.getDestinationAccount().getAccountNumber() : null)
+                .description(transaction.getDescription())
+                .narration(transaction.getNarration())
+                .channel(transaction.getChannel() != null ? transaction.getChannel().name() : null)
+                .clientReferenceId(transaction.getClientReferenceId())
+                .build();
     }
 
     // ===== Query methods (backward compatible) =====

@@ -11,8 +11,64 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Repository for immutable ledger entries.
+ *
+ * CBS Rule: LedgerEntries must NEVER be deleted or updated.
+ * The delete methods inherited from JpaRepository are overridden to throw exceptions.
+ * Corrections must be made via reversal entries (opposite DR/CR postings).
+ */
 @Repository
 public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> {
+
+    /** @deprecated CBS: Ledger entries are immutable. Use reversal entries instead. */
+    @Override
+    default void deleteById(Long id) {
+        throw new UnsupportedOperationException("CBS violation: Ledger entries cannot be deleted. Use reversal entries.");
+    }
+
+    /** @deprecated CBS: Ledger entries are immutable. Use reversal entries instead. */
+    @Override
+    default void delete(LedgerEntry entity) {
+        throw new UnsupportedOperationException("CBS violation: Ledger entries cannot be deleted. Use reversal entries.");
+    }
+
+    /** @deprecated CBS: Ledger entries are immutable. Use reversal entries instead. */
+    @Override
+    default void deleteAll() {
+        throw new UnsupportedOperationException("CBS violation: Ledger entries cannot be deleted. Use reversal entries.");
+    }
+
+    /** @deprecated CBS: Ledger entries are immutable. Use reversal entries instead. */
+    @Override
+    default void deleteAllById(Iterable<? extends Long> ids) {
+        throw new UnsupportedOperationException("CBS violation: Ledger entries cannot be deleted. Use reversal entries.");
+    }
+
+    /** @deprecated CBS: Ledger entries are immutable. Use reversal entries instead. */
+    @Override
+    default void deleteAll(Iterable<? extends LedgerEntry> entities) {
+        throw new UnsupportedOperationException("CBS violation: Ledger entries cannot be deleted. Use reversal entries.");
+    }
+
+    /** @deprecated CBS: Ledger entries are immutable. Use reversal entries instead. */
+    @Override
+    default void deleteAllInBatch() {
+        throw new UnsupportedOperationException("CBS violation: Ledger entries cannot be deleted. Use reversal entries.");
+    }
+
+    /** @deprecated CBS: Ledger entries are immutable. Use reversal entries instead. */
+    @Override
+    default void deleteAllByIdInBatch(Iterable<Long> ids) {
+        throw new UnsupportedOperationException("CBS violation: Ledger entries cannot be deleted. Use reversal entries.");
+    }
+
+    /** @deprecated CBS: Ledger entries are immutable. Use reversal entries instead. */
+    @Override
+    default void deleteAllInBatch(Iterable<LedgerEntry> entities) {
+        throw new UnsupportedOperationException("CBS violation: Ledger entries cannot be deleted. Use reversal entries.");
+    }
+
     List<LedgerEntry> findByTransactionId(Long transactionId);
     List<LedgerEntry> findByTransactionIdAndTenantId(Long transactionId, Long tenantId);
     List<LedgerEntry> findByAccountId(Long accountId);

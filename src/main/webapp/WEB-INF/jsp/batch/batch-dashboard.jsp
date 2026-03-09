@@ -13,6 +13,58 @@
     <%-- Operational Status Banner --%>
     <%@ include file="../layout/status-banner.jsp" %>
 
+    <c:if test="${not empty message}">
+        <div class="alert alert-success alert-dismissible fade show"><c:out value="${message}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    </c:if>
+    <c:if test="${not empty error}">
+        <div class="alert alert-danger alert-dismissible fade show"><c:out value="${error}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    </c:if>
+
+    <%-- Batch Actions Bar --%>
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <div class="d-flex align-items-center flex-wrap gap-3">
+                <strong><i class="bi bi-gear"></i> Batch Operations:</strong>
+
+                <%-- Open New Batch --%>
+                <form method="post" action="${pageContext.request.contextPath}/batches/open" class="d-inline-flex align-items-center gap-2">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                    <select name="channel" class="form-select form-select-sm" style="width: auto;" required>
+                        <option value="TELLER">TELLER</option>
+                        <option value="ATM">ATM</option>
+                        <option value="ONLINE">ONLINE</option>
+                        <option value="MOBILE">MOBILE</option>
+                        <option value="BATCH">BATCH</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-circle"></i> Open New Batch
+                    </button>
+                </form>
+
+                <span class="text-muted">|</span>
+
+                <%-- Close All --%>
+                <form method="post" action="${pageContext.request.contextPath}/batches/close-all" class="d-inline">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                    <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Close ALL open batches for today? This validates balance on each batch.')">
+                        <i class="bi bi-lock"></i> Close All Open
+                    </button>
+                </form>
+
+                <%-- Settle All --%>
+                <form method="post" action="${pageContext.request.contextPath}/batches/settle-all" class="d-inline">
+                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                    <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Settle ALL closed batches? Each batch must be balanced (debit = credit).')">
+                        <i class="bi bi-check-circle"></i> Settle All Closed
+                    </button>
+                </form>
+            </div>
+            <small class="text-muted mt-2 d-block">
+                <i class="bi bi-info-circle"></i> CBS Rule: Closed batches cannot be reopened. Use "Open New Batch" to create a fresh batch for the current business date.
+            </small>
+        </div>
+    </div>
+
     <%-- Summary Cards --%>
     <div class="row mb-4">
         <div class="col-md-4">
@@ -58,7 +110,7 @@
                                 <tr>
                                     <th>Batch Code</th>
                                     <th>Batch Type</th>
-                                    <th>Branch</th>
+                                    <th>Tenant</th>
                                     <th>Business Date</th>
                                     <th>Transactions</th>
                                     <th>Total Debit</th>
@@ -66,6 +118,7 @@
                                     <th>Balanced?</th>
                                     <th>Status</th>
                                     <th>Created</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -73,7 +126,7 @@
                                     <tr>
                                         <td><code><c:out value="${not empty batch.batchCode ? batch.batchCode : batch.id}"/></code></td>
                                         <td><span class="badge bg-info"><c:out value="${batch.batchType}"/></span></td>
-                                        <td><c:out value="${not empty batch.branchCode ? batch.branchCode : '-'}"/></td>
+                                        <td><c:out value="${batch.tenant != null ? batch.tenant.tenantName : '-'}"/></td>
                                         <td><c:out value="${batch.businessDate}"/></td>
                                         <td><c:out value="${batch.transactionCount}"/></td>
                                         <td class="text-end"><c:out value="${batch.totalDebit}"/></td>
@@ -86,6 +139,15 @@
                                         </td>
                                         <td><span class="badge bg-primary">OPEN</span></td>
                                         <td><c:out value="${batch.createdAt}"/></td>
+                                        <td>
+                                            <form method="post" action="${pageContext.request.contextPath}/batches/${batch.id}/close" class="d-inline">
+                                                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                                                <button type="submit" class="btn btn-warning btn-sm"
+                                                        onclick="return confirm('Close batch ${batch.batchCode}? Batch must be balanced.')">
+                                                    <i class="bi bi-lock"></i> Close
+                                                </button>
+                                            </form>
+                                        </td>
                                     </tr>
                                 </c:forEach>
                             </tbody>
@@ -113,7 +175,7 @@
                                 <tr>
                                     <th>Batch Code</th>
                                     <th>Batch Type</th>
-                                    <th>Branch</th>
+                                    <th>Tenant</th>
                                     <th>Business Date</th>
                                     <th>Transactions</th>
                                     <th>Total Debit</th>
@@ -128,7 +190,7 @@
                                     <tr>
                                         <td><code><c:out value="${not empty batch.batchCode ? batch.batchCode : batch.id}"/></code></td>
                                         <td><span class="badge bg-warning text-dark"><c:out value="${batch.batchType}"/></span></td>
-                                        <td><c:out value="${not empty batch.branchCode ? batch.branchCode : '-'}"/></td>
+                                        <td><c:out value="${batch.tenant != null ? batch.tenant.tenantName : '-'}"/></td>
                                         <td><c:out value="${batch.businessDate}"/></td>
                                         <td><c:out value="${batch.transactionCount}"/></td>
                                         <td class="text-end"><c:out value="${batch.totalDebit}"/></td>
@@ -168,7 +230,7 @@
                                 <tr>
                                     <th>Batch Code</th>
                                     <th>Batch Type</th>
-                                    <th>Branch</th>
+                                    <th>Tenant</th>
                                     <th>Business Date</th>
                                     <th>Transactions</th>
                                     <th>Total Debit</th>
@@ -182,7 +244,7 @@
                                     <tr>
                                         <td><code><c:out value="${not empty batch.batchCode ? batch.batchCode : batch.id}"/></code></td>
                                         <td><span class="badge bg-success"><c:out value="${batch.batchType}"/></span></td>
-                                        <td><c:out value="${not empty batch.branchCode ? batch.branchCode : '-'}"/></td>
+                                        <td><c:out value="${batch.tenant != null ? batch.tenant.tenantName : '-'}"/></td>
                                         <td><c:out value="${batch.businessDate}"/></td>
                                         <td><c:out value="${batch.transactionCount}"/></td>
                                         <td class="text-end"><c:out value="${batch.totalDebit}"/></td>

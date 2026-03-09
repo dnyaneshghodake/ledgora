@@ -50,8 +50,9 @@
                 </div>
                 <%-- Date of Birth --%>
                 <div class="col-md-4">
-                    <label class="form-label cbs-field-required" id="dobLabel">Date of Birth</label>
-                    <form:input path="dob" type="date" cssClass="form-control" required="required"/>
+                    <label for="dob" class="form-label cbs-field-required" id="dobLabel">Date of Birth</label>
+                    <input type="date" name="dob" id="dob" class="form-control" required
+                           value="<c:out value='${customerDTO.dob}'/>"/>
                     <small class="text-muted">Must be 18+ years for INDIVIDUAL</small>
                     <form:errors path="dob" cssClass="text-danger small" />
                 </div>

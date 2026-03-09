@@ -76,7 +76,7 @@ class LedgoraTransactionVoucherInvariantIntegrationTest {
                 .destinationAccountNumber(data.destination.getAccountNumber())
                 .amount(new BigDecimal("250.00"))
                 .currency("INR")
-                .channel(TransactionChannel.ONLINE.name())
+                .channel(TransactionChannel.BATCH.name())
                 .clientReferenceId("INV-TRF-REF-1")
                 .description("Invariant transfer")
                 .narration("Invariant transfer test")
@@ -113,14 +113,16 @@ class LedgoraTransactionVoucherInvariantIntegrationTest {
     }
 
     @Test
-    @DisplayName("Ledger repository exposes append-only API (no update/delete methods)")
+    @Transactional
+    @DisplayName("Ledger repository delete methods throw UnsupportedOperationException (CBS immutability)")
     void ledgerRepositoryIsAppendOnlyByContract() {
-        Method[] methods = LedgerEntryRepository.class.getDeclaredMethods();
-        for (Method method : methods) {
-            String name = method.getName().toLowerCase();
-            assertFalse(name.startsWith("delete") || name.startsWith("remove") || name.startsWith("update"),
-                    "LedgerEntryRepository must not expose mutating method: " + method.getName());
-        }
+        // CBS Rule: LedgerEntries must never be deleted. Delete methods exist but throw.
+        assertThrows(UnsupportedOperationException.class,
+                () -> ledgerEntryRepository.deleteById(999L),
+                "deleteById must throw UnsupportedOperationException for CBS immutability");
+        assertThrows(UnsupportedOperationException.class,
+                () -> ledgerEntryRepository.deleteAll(),
+                "deleteAll must throw UnsupportedOperationException for CBS immutability");
     }
 
     private TestData setupTestData(String suffix) {

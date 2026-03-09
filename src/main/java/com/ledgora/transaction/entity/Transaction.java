@@ -92,6 +92,24 @@ public class Transaction {
     @JoinColumn(name = "performed_by")
     private User performedBy;
 
+    // Maker-checker fields for transaction approval workflow
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "maker_id")
+    private User maker;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "checker_id")
+    private User checker;
+
+    @Column(name = "maker_timestamp")
+    private LocalDateTime makerTimestamp;
+
+    @Column(name = "checker_timestamp")
+    private LocalDateTime checkerTimestamp;
+
+    @Column(name = "checker_remarks", length = 500)
+    private String checkerRemarks;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

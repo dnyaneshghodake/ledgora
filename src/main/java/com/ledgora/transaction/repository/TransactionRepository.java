@@ -58,4 +58,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     // PART 6: Validator - get all transaction IDs for validation
     @Query("SELECT t.id FROM Transaction t")
     List<Long> findAllTransactionIds();
+
+    // Transaction approval queue queries
+    @Query("SELECT t FROM Transaction t WHERE t.tenant.id = :tenantId AND t.status = :status ORDER BY t.createdAt DESC")
+    List<Transaction> findByTenantIdAndStatus(@Param("tenantId") Long tenantId, @Param("status") TransactionStatus status);
+
+    @Query("SELECT COUNT(t) FROM Transaction t WHERE t.tenant.id = :tenantId AND t.status = :status")
+    long countByTenantIdAndStatus(@Param("tenantId") Long tenantId, @Param("status") TransactionStatus status);
 }

@@ -754,19 +754,24 @@ class LedgoraRbiGovernanceIntegrationTest {
         // Get existing ledger entry count
         long initialCount = ledgerEntryRepository.count();
 
-        // Create a deposit transaction
+        // Create a deposit transaction using BATCH channel to ensure auto-authorization
+        // (BATCH channel always auto-authorizes per CBS governance rules, regardless of policy table)
         TransactionDTO dto = TransactionDTO.builder()
                 .transactionType("DEPOSIT")
                 .destinationAccountNumber(ctx.source.getAccountNumber())
                 .amount(new BigDecimal("100.00"))
                 .currency("INR")
-                .channel(TransactionChannel.TELLER.name())
+                .channel(TransactionChannel.BATCH.name())
                 .clientReferenceId("IMMUT-REF-001")
                 .description("Immutable ledger test")
                 .narration("Testing append-only ledger")
                 .build();
 
         var txn = transactionService.deposit(dto);
+
+        // Verify transaction was auto-authorized and posted (not PENDING_APPROVAL)
+        assertEquals(com.ledgora.common.enums.TransactionStatus.COMPLETED, txn.getStatus(),
+                "BATCH channel deposit must be auto-authorized and COMPLETED");
 
         // Verify ledger entries were created (appended)
         long newCount = ledgerEntryRepository.count();

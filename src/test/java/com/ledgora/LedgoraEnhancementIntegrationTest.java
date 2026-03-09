@@ -307,13 +307,10 @@ class LedgoraEnhancementIntegrationTest {
         batchService.updateBatchTotals(batch.getId(),
                 new BigDecimal("3000.0000"), new BigDecimal("2000.0000"));
 
-        // Close batches
-        batchService.closeAllBatches(tenant.getId(), today);
-
-        // Settlement should fail for unbalanced batch
+        // Close should fail for unbalanced batch (batch close now validates balance)
         assertThrows(RuntimeException.class, () ->
-                batchService.settleAllBatches(tenant.getId(), today),
-                "Unbalanced batch settlement should throw exception");
+                batchService.closeAllBatches(tenant.getId(), today),
+                "Unbalanced batch close should throw exception");
     }
 
     @Test
@@ -473,10 +470,11 @@ class LedgoraEnhancementIntegrationTest {
         Tenant dayClosing = tenantService.getTenantById(tenant.getId());
         assertEquals(DayStatus.DAY_CLOSING, dayClosing.getDayStatus());
 
-        // Close and advance - should be OPEN again with next date
+        // Close and advance - should be CLOSED (requires Day Begin to re-open)
         tenantService.closeDayAndAdvance(tenant.getId());
         Tenant advanced = tenantService.getTenantById(tenant.getId());
-        assertEquals(DayStatus.OPEN, advanced.getDayStatus());
+        assertEquals(DayStatus.CLOSED, advanced.getDayStatus(),
+                "After closeDayAndAdvance, status must be CLOSED (requires Day Begin to open)");
         assertEquals(LocalDate.now().plusDays(1), advanced.getCurrentBusinessDate());
     }
 

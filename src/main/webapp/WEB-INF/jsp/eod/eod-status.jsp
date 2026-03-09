@@ -5,6 +5,16 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-calendar-check"></i> Business Date Status</h3>
     <div>
+        <c:if test="${businessDateStatus == 'CLOSED' && canOpenDay}">
+            <a href="${pageContext.request.contextPath}/eod/day-begin" class="btn btn-success me-2">
+                <i class="bi bi-sunrise"></i> Day Begin
+            </a>
+        </c:if>
+        <c:if test="${businessDateStatus == 'CLOSED' && !canOpenDay}">
+            <a href="${pageContext.request.contextPath}/eod/day-begin" class="btn btn-outline-warning me-2">
+                <i class="bi bi-sunrise"></i> Day Begin (Pre-checks)
+            </a>
+        </c:if>
         <a href="${pageContext.request.contextPath}/eod/validate" class="btn btn-outline-primary">
             <i class="bi bi-check-circle"></i> EOD Validation
         </a>

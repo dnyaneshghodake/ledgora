@@ -7,6 +7,18 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * Transaction line - BUSINESS INTENT layer (not accounting).
+ *
+ * CBS Layer Separation:
+ *   Transaction      = Business event ("what happened")
+ *   TransactionLine  = Business intent detail ("debit/credit intent per account")
+ *   Voucher          = Accounting instruction (approved before posting)
+ *   LedgerEntry      = Immutable financial truth (system-generated from voucher)
+ *
+ * TransactionLines are created when the transaction is initiated (maker step).
+ * They do NOT affect balances. Only LedgerEntries (created via VoucherService) affect balances.
+ */
 @Entity
 @Table(name = "transaction_lines")
 @Data @NoArgsConstructor @AllArgsConstructor @Builder

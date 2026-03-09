@@ -19,4 +19,12 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
     // Paginated queries for audit log viewer
     Page<AuditLog> findAllByOrderByTimestampDesc(Pageable pageable);
     Page<AuditLog> findByEntityOrderByTimestampDesc(String entity, Pageable pageable);
+
+    // Enhanced audit trail queries (CBS compliance)
+    List<AuditLog> findByTenantIdOrderByTimestampDesc(Long tenantId);
+    Page<AuditLog> findByTenantIdOrderByTimestampDesc(Long tenantId, Pageable pageable);
+    List<AuditLog> findByBatchId(Long batchId);
+    List<AuditLog> findByEntityAndEntityIdOrderByTimestampDesc(String entity, Long entityId);
+    Page<AuditLog> findByTenantIdAndEntityOrderByTimestampDesc(Long tenantId, String entity, Pageable pageable);
+    Page<AuditLog> findByTenantIdAndActionOrderByTimestampDesc(Long tenantId, String action, Pageable pageable);
 }

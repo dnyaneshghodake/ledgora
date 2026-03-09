@@ -6,6 +6,9 @@ import com.ledgora.audit.service.AuditService;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.common.enums.ApprovalStatus;
+import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.tenant.entity.Tenant;
+import com.ledgora.tenant.repository.TenantRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -17,8 +20,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * PART 3: Maker-Checker approval service.
+ * Maker-Checker approval service.
  * Manages the lifecycle of approval requests for high-value operations.
+ * All approval requests are tenant-scoped for multi-tenant isolation.
  */
 @Service
 public class ApprovalService {
@@ -27,13 +31,16 @@ public class ApprovalService {
     private final ApprovalRequestRepository approvalRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final TenantRepository tenantRepository;
 
     public ApprovalService(ApprovalRequestRepository approvalRepository,
                            UserRepository userRepository,
-                           AuditService auditService) {
+                           AuditService auditService,
+                           TenantRepository tenantRepository) {
         this.approvalRepository = approvalRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.tenantRepository = tenantRepository;
     }
 
     /**
@@ -43,11 +50,21 @@ public class ApprovalService {
     public ApprovalRequest submitForApproval(String entityType, Long entityId, String requestData) {
         User currentUser = getCurrentUser();
 
+        // Resolve tenant for multi-tenant approval isolation
+        Tenant tenant = null;
+        try {
+            Long tenantId = TenantContextHolder.getRequiredTenantId();
+            tenant = tenantRepository.findById(tenantId).orElse(null);
+        } catch (IllegalStateException e) {
+            log.warn("No tenant context set for approval request: {} {}", entityType, entityId);
+        }
+
         ApprovalRequest request = ApprovalRequest.builder()
                 .entityType(entityType)
                 .entityId(entityId)
                 .requestData(requestData)
                 .requestedBy(currentUser)
+                .tenant(tenant)
                 .status(ApprovalStatus.PENDING)
                 .build();
 

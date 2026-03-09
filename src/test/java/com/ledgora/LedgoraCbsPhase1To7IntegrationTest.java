@@ -231,7 +231,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 .destinationAccountNumber(data.account.getAccountNumber())
                 .amount(depositAmount)
                 .currency("INR")
-                .channel(TransactionChannel.TELLER.name())
+                .channel(TransactionChannel.BATCH.name())
                 .clientReferenceId("P2-DEP-REF-001")
                 .description("Phase 2 cash deposit test")
                 .narration("Cash deposit test")
@@ -288,7 +288,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 .sourceAccountNumber(data.account.getAccountNumber())
                 .amount(withdrawAmount)
                 .currency("INR")
-                .channel(TransactionChannel.TELLER.name())
+                .channel(TransactionChannel.BATCH.name())
                 .clientReferenceId("P2-WDR-REF-001")
                 .description("Phase 2 withdrawal test")
                 .narration("Cash withdrawal test")
@@ -325,7 +325,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 .destinationAccountNumber(destAccount.getAccountNumber())
                 .amount(transferAmount)
                 .currency("INR")
-                .channel(TransactionChannel.ONLINE.name())
+                .channel(TransactionChannel.BATCH.name())
                 .clientReferenceId("P2-TRF-REF-001")
                 .description("Phase 2 transfer test")
                 .narration("Online transfer test")
@@ -381,7 +381,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 .destinationAccountNumber(data.account.getAccountNumber())
                 .amount(new BigDecimal("1000.00"))
                 .currency("INR")
-                .channel(TransactionChannel.TELLER.name())
+                .channel(TransactionChannel.BATCH.name())
                 .clientReferenceId("P2-APPD-REF-001")
                 .description("Append only test")
                 .narration("Ledger append test")
@@ -751,13 +751,10 @@ class LedgoraCbsPhase1To7IntegrationTest {
         // Create unbalanced batch
         batchService.updateBatchTotals(batch.getId(), new BigDecimal("5000.00"), new BigDecimal("3000.00"));
 
-        // Close batch
-        batchService.closeAllBatches(tenant.getId(), LocalDate.now());
-
-        // Settle should fail due to debit != credit
+        // Close should fail due to debit != credit (batch close now validates balance)
         assertThrows(RuntimeException.class,
-                () -> batchService.settleAllBatches(tenant.getId(), LocalDate.now()),
-                "Unbalanced batch settlement must fail");
+                () -> batchService.closeAllBatches(tenant.getId(), LocalDate.now()),
+                "Unbalanced batch close must fail");
     }
 
     @Test @Order(35) @Transactional
@@ -802,7 +799,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 .destinationAccountNumber(data.account.getAccountNumber())
                 .amount(new BigDecimal("5000.00"))
                 .currency("INR")
-                .channel(TransactionChannel.TELLER.name())
+                .channel(TransactionChannel.BATCH.name())
                 .clientReferenceId("P5-GLDEP-REF-001")
                 .description("GL integrity test deposit")
                 .narration("GL balance check")
@@ -830,7 +827,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 .destinationAccountNumber(data.account.getAccountNumber())
                 .amount(new BigDecimal("10000.00"))
                 .currency("INR")
-                .channel(TransactionChannel.TELLER.name())
+                .channel(TransactionChannel.BATCH.name())
                 .clientReferenceId("P5-TRIAL-DEP-001")
                 .description("Trial balance test")
                 .narration("Trial balance deposit")
@@ -851,7 +848,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 .destinationAccountNumber(data.account.getAccountNumber())
                 .amount(new BigDecimal("1000.00"))
                 .currency("INR")
-                .channel(TransactionChannel.TELLER.name())
+                .channel(TransactionChannel.BATCH.name())
                 .clientReferenceId("P5-ORPH-REF-001")
                 .description("Orphan check")
                 .narration("No orphans")
@@ -871,7 +868,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 .destinationAccountNumber(data.account.getAccountNumber())
                 .amount(new BigDecimal("5000.00"))
                 .currency("INR")
-                .channel(TransactionChannel.TELLER.name())
+                .channel(TransactionChannel.BATCH.name())
                 .clientReferenceId("P5-SHAD-REF-001")
                 .description("Shadow balance test")
                 .narration("Shadow vs actual")
@@ -894,7 +891,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 .destinationAccountNumber(data.account.getAccountNumber())
                 .amount(new BigDecimal("3000.00"))
                 .currency("INR")
-                .channel(TransactionChannel.TELLER.name())
+                .channel(TransactionChannel.BATCH.name())
                 .clientReferenceId("P5-TXBAL-REF-001")
                 .description("Per-txn balance test")
                 .narration("Per txn balanced")
@@ -925,8 +922,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
         Tenant updated = tenantRepository.findById(tenant.getId()).orElseThrow();
         assertEquals(currentDate.plusDays(1), updated.getCurrentBusinessDate(),
                 "Business date must advance after successful EOD");
-        assertEquals(DayStatus.OPEN, updated.getDayStatus(),
-                "Day status must be OPEN after EOD completes");
+        assertEquals(DayStatus.CLOSED, updated.getDayStatus(),
+                "Day status must be CLOSED after EOD (requires explicit Day Begin to re-open)");
     }
 
     @Test @Order(51) @Transactional
@@ -1000,8 +997,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
         // Run EOD (no transactions, so it should pass)
         eodValidationService.runEod(data.tenant.getId());
 
-        // Business date has advanced, but the new day is OPEN
-        // If we simulate day closing, transactions should be blocked
+        // After EOD, day is CLOSED. Open it first, then start day closing to test blocking.
+        tenantService.openDay(data.tenant.getId());
         tenantService.startDayClosing(data.tenant.getId());
 
         TransactionDTO dto = TransactionDTO.builder()
@@ -1173,7 +1170,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 .destinationAccountNumber(data1.account.getAccountNumber())
                 .amount(new BigDecimal("50000.00"))
                 .currency("INR")
-                .channel(TransactionChannel.TELLER.name())
+                .channel(TransactionChannel.BATCH.name())
                 .clientReferenceId("P7-BAL1-REF-001")
                 .description("Tenant 1 deposit")
                 .narration("Balance isolation test")

@@ -316,6 +316,12 @@
                 </a>
                 <ul class="cbs-nav-submenu" id="group-batch">
                     <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/eod/day-begin" class="cbs-nav-link" data-page="eod/day-begin">
+                            <i class="bi bi-sunrise"></i>
+                            <span>Day Begin</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/batches" class="cbs-nav-link" data-page="batches">
                             <i class="bi bi-collection"></i>
                             <span>Batch Management</span>
@@ -331,6 +337,12 @@
                         <a href="${pageContext.request.contextPath}/eod/run" class="cbs-nav-link" data-page="eod/run">
                             <i class="bi bi-play-circle"></i>
                             <span>Execute EOD</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/eod/status" class="cbs-nav-link" data-page="eod/status">
+                            <i class="bi bi-calendar-check"></i>
+                            <span>Day Status</span>
                         </a>
                     </li>
                 </ul>
