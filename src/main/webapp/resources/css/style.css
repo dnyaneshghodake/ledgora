@@ -145,6 +145,26 @@ body {
     border: 1px solid #86efac;
 }
 
+.cbs-branch-info {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: #f1f5f9;
+    padding: 0.35rem 0.85rem;
+    border-radius: 0.5rem;
+    font-size: 0.78rem;
+    color: #475569;
+    white-space: nowrap;
+}
+
+.cbs-branch-info i {
+    color: var(--cbs-accent);
+}
+
+.cbs-branch-info strong {
+    color: var(--cbs-primary);
+}
+
 .cbs-business-date {
     display: flex;
     align-items: center;
