@@ -1,7 +1,8 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-arrow-left-right"></i> Transactions</h3>
     <div>
         <a href="${pageContext.request.contextPath}/transactions/deposit" class="btn btn-success"><i class="bi bi-cash-stack"></i> Deposit</a>
@@ -10,12 +11,16 @@
     </div>
 </div>
 
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
+
 <c:if test="${not empty message}">
     <div class="alert alert-success"><c:out value="${message}"/></div>
 </c:if>
 
-<%-- Search --%>
+<%-- Search / Filter Section --%>
 <div class="card shadow mb-4">
+    <div class="card-header bg-light"><h6 class="mb-0"><i class="bi bi-funnel"></i> Search &amp; Filter</h6></div>
     <div class="card-body">
         <form method="get" action="${pageContext.request.contextPath}/transactions" class="row g-2">
             <div class="col-md-4">
@@ -53,7 +58,12 @@
                     </table>
                 </div>
             </c:when>
-            <c:otherwise><div class="text-center py-4 text-muted"><p>No transactions found.</p></div></c:otherwise>
+            <c:otherwise>
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-arrow-left-right" style="font-size: 3rem;"></i>
+                    <p class="mt-2">No transactions found.</p>
+                </div>
+            </c:otherwise>
         </c:choose>
     </div>
 </div>

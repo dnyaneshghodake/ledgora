@@ -2,15 +2,20 @@
 <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-wallet-fill"></i> Open Account</h3>
     <a href="${pageContext.request.contextPath}/accounts" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
 </div>
+
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
 
 <c:if test="${not empty error}">
     <div class="alert alert-danger"><c:out value="${error}"/></div>
 </c:if>
 
+<%-- Main Content Section --%>
 <div class="card shadow">
     <div class="card-header bg-white">
         <h5 class="mb-0"><i class="bi bi-wallet-fill"></i> Account Information</h5>
@@ -25,10 +30,11 @@
                     <h6><i class="bi bi-person-badge"></i> Customer Selection</h6>
                     <div class="row g-2">
                         <div class="col-md-4">
-                            <label class="form-label">Customer ID *</label>
+                            <label class="form-label cbs-field-required">Customer ID</label>
                             <div class="input-group">
-                                <form:input path="customerId" cssClass="form-control" required="required" id="customerIdInput" type="number"/>
-                                <button type="button" class="btn btn-outline-primary" id="btnLookupCustomer" onclick="lookupCustomer()">
+                                <form:input path="customerId" cssClass="form-control" required="required" id="customerIdInput" type="number" readonly="true"
+                                            placeholder="Use lookup to select"/>
+                                <button type="button" class="btn btn-outline-primary" id="btnLookupCustomer" onclick="openCustomerLookup('customerIdInput','customerNameDisplay','customerKycDisplay')">
                                     <i class="bi bi-search"></i> Lookup
                                 </button>
                             </div>
@@ -49,14 +55,14 @@
             <div class="row g-3">
                 <%-- Account Name --%>
                 <div class="col-md-6">
-                    <label class="form-label">Account Name *</label>
+                    <label class="form-label cbs-field-required">Account Name</label>
                     <form:input path="accountName" cssClass="form-control" required="required" maxlength="100"/>
                     <form:errors path="accountName" cssClass="text-danger small" />
                 </div>
 
                 <%-- Account Type --%>
                 <div class="col-md-6">
-                    <label class="form-label">Account Type *</label>
+                    <label class="form-label cbs-field-required">Account Type</label>
                     <form:select path="accountType" cssClass="form-select" required="required">
                         <option value="">Select Account Type</option>
                         <c:forEach var="at" items="${accountTypes}">
@@ -68,7 +74,7 @@
 
                 <%-- Currency --%>
                 <div class="col-md-4">
-                    <label class="form-label">Currency *</label>
+                    <label class="form-label cbs-field-required">Currency</label>
                     <form:select path="currency" cssClass="form-select" required="required">
                         <option value="INR" ${accountDTO.currency == 'INR' ? 'selected' : ''}>INR</option>
                         <option value="USD" ${accountDTO.currency == 'USD' ? 'selected' : ''}>USD</option>
@@ -93,7 +99,14 @@
                 <%-- GL Account Code --%>
                 <div class="col-md-6">
                     <label class="form-label">GL Account Code</label>
-                    <form:input path="glAccountCode" cssClass="form-control" maxlength="20"/>
+                    <div class="input-group">
+                        <form:input path="glAccountCode" cssClass="form-control" maxlength="20" id="glAccountCode" readonly="true"
+                                    placeholder="Use lookup to select"/>
+                        <button type="button" class="btn btn-outline-primary" onclick="openGlParentLookup('glAccountCode','glAccountCodeName')" title="Search GL Account">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                    <input type="hidden" id="glAccountCodeName"/>
                 </div>
 
                 <%-- Parent Account (lookup) --%>

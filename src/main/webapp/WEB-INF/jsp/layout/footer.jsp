@@ -6,6 +6,9 @@
 <%-- Sidebar overlay for mobile --%>
 <div class="cbs-sidebar-overlay" id="sidebarOverlay"></div>
 
+<%-- PART 1: Include lookup modals globally so openCustomerLookup/openAccountLookup are always available --%>
+<%@ include file="lookup-modal.jsp" %>
+
 <footer class="cbs-footer" id="cbsFooter">
     <div class="cbs-footer-content">
         <span class="cbs-footer-disclaimer">All ledger entries are immutable. System of Record: LedgerEntries.</span>

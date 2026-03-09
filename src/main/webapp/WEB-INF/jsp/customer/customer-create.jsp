@@ -2,17 +2,22 @@
 <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-person-plus"></i> Add Customer</h3>
     <a href="${pageContext.request.contextPath}/customers" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i> Back to Customers
     </a>
 </div>
 
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
+
 <c:if test="${not empty error}">
     <div class="alert alert-danger"><c:out value="${error}"/></div>
 </c:if>
 
+<%-- Main Content Section --%>
 <div class="card shadow">
     <div class="card-header bg-white">
         <h5 class="mb-0"><i class="bi bi-person-badge"></i> Customer Information</h5>
@@ -23,7 +28,7 @@
             <div class="row g-3">
                 <%-- Customer Type --%>
                 <div class="col-md-4">
-                    <label class="form-label">Customer Type *</label>
+                    <label class="form-label cbs-field-required">Customer Type</label>
                     <form:select path="customerType" cssClass="form-select" required="required" id="customerType">
                         <option value="INDIVIDUAL" ${customerDTO.customerType == 'INDIVIDUAL' ? 'selected' : ''}>INDIVIDUAL</option>
                         <option value="CORPORATE" ${customerDTO.customerType == 'CORPORATE' ? 'selected' : ''}>CORPORATE</option>
@@ -31,21 +36,21 @@
                 </div>
                 <%-- First Name --%>
                 <div class="col-md-4">
-                    <label class="form-label">First Name *</label>
+                    <label class="form-label cbs-field-required">First Name</label>
                     <form:input path="firstName" cssClass="form-control" required="required"
                                 pattern="[A-Za-z .]+" title="Alphabets, spaces, and dots only" maxlength="50"/>
                     <form:errors path="firstName" cssClass="text-danger small" />
                 </div>
                 <%-- Last Name --%>
                 <div class="col-md-4">
-                    <label class="form-label">Last Name *</label>
+                    <label class="form-label cbs-field-required">Last Name</label>
                     <form:input path="lastName" cssClass="form-control" required="required"
                                 pattern="[A-Za-z .]+" title="Alphabets, spaces, and dots only" maxlength="50"/>
                     <form:errors path="lastName" cssClass="text-danger small" />
                 </div>
                 <%-- Date of Birth --%>
                 <div class="col-md-4">
-                    <label class="form-label" id="dobLabel">Date of Birth *</label>
+                    <label class="form-label cbs-field-required" id="dobLabel">Date of Birth</label>
                     <form:input path="dob" type="date" cssClass="form-control" required="required"/>
                     <small class="text-muted">Must be 18+ years for INDIVIDUAL</small>
                     <form:errors path="dob" cssClass="text-danger small" />
@@ -90,14 +95,14 @@
                 </div>
                 <%-- Mobile --%>
                 <div class="col-md-4">
-                    <label class="form-label">Mobile *</label>
+                    <label class="form-label cbs-field-required">Mobile</label>
                     <form:input path="phone" cssClass="form-control" required="required"
                                 pattern="[0-9]{10}" title="10 digit mobile number" maxlength="10" type="tel"/>
                     <form:errors path="phone" cssClass="text-danger small" />
                 </div>
                 <%-- Email --%>
                 <div class="col-md-4">
-                    <label class="form-label">Email *</label>
+                    <label class="form-label cbs-field-required">Email</label>
                     <form:input path="email" type="email" cssClass="form-control" required="required"/>
                     <form:errors path="email" cssClass="text-danger small" />
                 </div>

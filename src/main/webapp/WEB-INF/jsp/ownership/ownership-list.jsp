@@ -2,9 +2,13 @@
 <%@ taglib prefix="fmt" uri="jakarta.tags.fmt" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-people"></i> Account Ownership Management</h3>
 </div>
+
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
 
 <c:if test="${not empty success}">
     <div class="alert alert-success alert-dismissible fade show"><c:out value="${success}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
@@ -13,7 +17,7 @@
     <div class="alert alert-danger alert-dismissible fade show"><c:out value="${error}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 </c:if>
 
-<!-- Create Ownership Form -->
+<%-- Create Ownership Form --%>
 <div class="card shadow mb-4">
     <div class="card-header"><h5 class="mb-0"><i class="bi bi-plus-circle"></i> Create Ownership Link</h5></div>
     <div class="card-body">
@@ -48,7 +52,7 @@
     </div>
 </div>
 
-<!-- Pending Approvals -->
+<%-- Pending Approvals --%>
 <c:if test="${not empty pendingOwnerships}">
 <div class="card shadow mb-4">
     <div class="card-header bg-warning text-dark"><h5 class="mb-0"><i class="bi bi-hourglass-split"></i> Pending Ownership Approvals</h5></div>
@@ -64,7 +68,7 @@
                         <td><c:out value="${o.customerMaster.customerNumber}"/></td>
                         <td><span class="badge bg-info"><c:out value="${o.ownershipType}"/></span></td>
                         <td><c:out value="${o.ownershipPercentage}"/>%</td>
-                        <td>${o.isOperational ? 'Yes' : 'No'}</td>
+                        <td><c:choose><c:when test="${o.isOperational}"><span class="badge bg-success">Yes</span></c:when><c:otherwise><span class="badge bg-secondary">No</span></c:otherwise></c:choose></td>
                         <td>
                             <form method="post" action="${pageContext.request.contextPath}/ownership/approve/${o.id}" style="display:inline;">
                                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>

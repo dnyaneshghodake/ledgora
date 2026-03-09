@@ -10,6 +10,7 @@ import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
+import com.ledgora.common.enums.MakerCheckerStatus;
 import com.ledgora.tenant.context.TenantContextHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,6 +62,8 @@ public class AccountService {
                 .customerPhone(dto.getCustomerPhone())
                 .glAccountCode(dto.getGlAccountCode())
                 .createdBy(currentUser)
+                // H2: Account starts PENDING approval; requires checker to approve
+                .approvalStatus(MakerCheckerStatus.PENDING)
                 .build();
 
         Account saved = accountRepository.save(account);
@@ -108,7 +111,7 @@ public class AccountService {
     }
 
     public List<Account> getAccountsByCustomerId(Long customerId) {
-        return accountRepository.findByCustomerId(customerId);
+        return accountRepository.findByTenantIdAndCustomerId(requireTenantId(), customerId);
     }
 
     @Transactional
@@ -133,6 +136,69 @@ public class AccountService {
         account.setStatus(status);
         log.info("Account {} status changed to {}", account.getAccountNumber(), status);
         return accountRepository.save(account);
+    }
+
+    /**
+     * H2: Approve an account (checker step). Enforces maker-checker.
+     */
+    @Transactional
+    public Account approveAccount(Long id) {
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Account not found with id: " + id));
+
+        if (account.getApprovalStatus() != MakerCheckerStatus.PENDING) {
+            throw new RuntimeException("Account is not pending approval. Current status: " + account.getApprovalStatus());
+        }
+
+        User currentUser = getCurrentUser();
+        // Maker-checker: approver must differ from creator
+        if (account.getCreatedBy() != null && currentUser != null
+                && account.getCreatedBy().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("Cannot approve your own account (maker-checker violation)");
+        }
+
+        account.setApprovalStatus(MakerCheckerStatus.APPROVED);
+        account.setApprovedBy(currentUser);
+        Account saved = accountRepository.save(account);
+
+        Long userId = currentUser != null ? currentUser.getId() : null;
+        auditService.logEvent(userId, "ACCOUNT_APPROVE", "ACCOUNT", saved.getId(),
+                "Account approved: " + saved.getAccountNumber(), null);
+
+        log.info("Account {} approved by user {}", saved.getAccountNumber(),
+                currentUser != null ? currentUser.getUsername() : "system");
+        return saved;
+    }
+
+    /**
+     * H2: Reject an account (checker step). Enforces maker-checker.
+     */
+    @Transactional
+    public Account rejectAccount(Long id) {
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Account not found with id: " + id));
+
+        if (account.getApprovalStatus() != MakerCheckerStatus.PENDING) {
+            throw new RuntimeException("Account is not pending approval. Current status: " + account.getApprovalStatus());
+        }
+
+        User currentUser = getCurrentUser();
+        // Maker-checker: rejector must differ from creator
+        if (account.getCreatedBy() != null && currentUser != null
+                && account.getCreatedBy().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("Cannot reject your own account (maker-checker violation)");
+        }
+
+        account.setApprovalStatus(MakerCheckerStatus.REJECTED);
+        Account saved = accountRepository.save(account);
+
+        Long userId = currentUser != null ? currentUser.getId() : null;
+        auditService.logEvent(userId, "ACCOUNT_REJECT", "ACCOUNT", saved.getId(),
+                "Account rejected: " + saved.getAccountNumber(), null);
+
+        log.info("Account {} rejected by user {}", saved.getAccountNumber(),
+                currentUser != null ? currentUser.getUsername() : "system");
+        return saved;
     }
 
     @Transactional

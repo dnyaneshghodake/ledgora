@@ -35,6 +35,19 @@
         <span class="cbs-header-subtitle">Core Banking System</span>
     </div>
     <div class="cbs-header-center">
+        <%-- Branch Name --%>
+        <div class="cbs-branch-info">
+            <i class="bi bi-geo-alt"></i>
+            <span>Branch:</span>
+            <strong>
+                <c:choose>
+                    <c:when test="${not empty sessionScope.branchName}"><c:out value="${sessionScope.branchName}"/></c:when>
+                    <c:when test="${not empty sessionScope.branchCode}"><c:out value="${sessionScope.branchCode}"/></c:when>
+                    <c:otherwise>HQ</c:otherwise>
+                </c:choose>
+            </strong>
+        </div>
+        <span class="cbs-header-separator"></span>
         <%-- Environment Badge --%>
         <span class="cbs-env-badge cbs-env-dev">
             <c:choose>
@@ -160,6 +173,20 @@
 <%-- CBS Sidebar --%>
 <%@ include file="sidebar.jsp" %>
 
+<%-- Holiday System-Wide Red Banner --%>
+<c:if test="${sessionScope.isHoliday == true}">
+<div class="cbs-holiday-banner" id="holidayBanner" style="background: #dc2626; color: #fff; text-align: center; padding: 8px 16px; font-weight: 600; position: relative; z-index: 1030;">
+    <i class="bi bi-calendar-x-fill"></i>
+    <strong>BANK HOLIDAY</strong>
+    <span style="margin: 0 8px;">|</span>
+    <c:choose>
+        <c:when test="${not empty sessionScope.holidayName}"><c:out value="${sessionScope.holidayName}"/> &mdash; </c:when>
+        <c:otherwise></c:otherwise>
+    </c:choose>
+    Financial transactions are restricted today.
+</div>
+</c:if>
+
 <%-- Business Day Closed Banner --%>
 <c:if test="${sessionScope.businessDateStatus == 'CLOSED'}">
 <div class="cbs-eod-banner" id="eodBanner">
@@ -191,17 +218,21 @@
     </nav>
     </c:if>
     <div class="cbs-content">
+        <%-- PART 7: Single alert mechanism only. Render flash/model messages once,
+             then clear to prevent duplicate display on re-render. --%>
         <c:if test="${not empty message}">
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                <c:out value="${message}"/>
+            <div class="alert alert-success alert-dismissible fade show cbs-flash-alert" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i><c:out value="${message}"/>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
+            <c:remove var="message" scope="request"/>
         </c:if>
         <c:if test="${not empty error}">
-            <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                <c:out value="${error}"/>
+            <div class="alert alert-danger alert-dismissible fade show cbs-flash-alert" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i><c:out value="${error}"/>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
+            <c:remove var="error" scope="request"/>
         </c:if>
 </c:if>
 <c:if test="${empty sessionScope.username}">

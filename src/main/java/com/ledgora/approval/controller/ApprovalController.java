@@ -28,7 +28,13 @@ public class ApprovalController {
         } else {
             model.addAttribute("approvals", approvalService.getAllRequests());
         }
+        // Populate categorized pending data for unified approval queue tabs
         model.addAttribute("pendingCount", approvalService.getPendingRequests().size());
+        model.addAttribute("pendingCustomers", approvalService.getByEntityType("CUSTOMER", ApprovalStatus.PENDING));
+        model.addAttribute("pendingAccounts", approvalService.getByEntityType("ACCOUNT", ApprovalStatus.PENDING));
+        model.addAttribute("pendingLiens", approvalService.getByEntityType("LIEN", ApprovalStatus.PENDING));
+        model.addAttribute("pendingCalendar", approvalService.getByEntityType("CALENDAR", ApprovalStatus.PENDING));
+        model.addAttribute("pendingTransactions", approvalService.getByEntityType("TRANSACTION", ApprovalStatus.PENDING));
         return "approval/approvals";
     }
 

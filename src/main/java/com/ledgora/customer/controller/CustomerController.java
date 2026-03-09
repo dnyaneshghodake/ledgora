@@ -1,6 +1,8 @@
 package com.ledgora.customer.controller;
 
 import com.ledgora.account.service.AccountService;
+import com.ledgora.audit.entity.AuditLog;
+import com.ledgora.audit.repository.AuditLogRepository;
 import com.ledgora.common.enums.FreezeLevel;
 import com.ledgora.common.enums.MakerCheckerStatus;
 import com.ledgora.customer.dto.CustomerDTO;
@@ -14,6 +16,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.stream.Collectors;
 
 /**
  * Customer controller for JSP-based customer management.
@@ -25,10 +30,13 @@ public class CustomerController {
 
     private final CustomerService customerService;
     private final AccountService accountService;
+    private final AuditLogRepository auditLogRepository;
 
-    public CustomerController(CustomerService customerService, AccountService accountService) {
+    public CustomerController(CustomerService customerService, AccountService accountService,
+                              AuditLogRepository auditLogRepository) {
         this.customerService = customerService;
         this.accountService = accountService;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @GetMapping
@@ -92,6 +100,25 @@ public class CustomerController {
             model.addAttribute("linkedAccounts", List.of());
         }
         model.addAttribute("freezeLevels", FreezeLevel.values());
+        // Load freeze history from audit logs
+        try {
+            List<AuditLog> freezeLogs = auditLogRepository.findByEntityAndEntityId("CUSTOMER", id)
+                    .stream()
+                    .filter(log -> log.getAction() != null && log.getAction().contains("FREEZE"))
+                    .collect(Collectors.toList());
+            List<Map<String, Object>> freezeHistory = freezeLogs.stream().map(log -> {
+                Map<String, Object> entry = new HashMap<>();
+                entry.put("timestamp", log.getTimestamp());
+                entry.put("action", log.getAction());
+                entry.put("username", log.getUsername() != null ? log.getUsername() : "System");
+                entry.put("checker", "--");
+                entry.put("details", log.getDetails());
+                return entry;
+            }).collect(Collectors.toList());
+            model.addAttribute("freezeHistory", freezeHistory);
+        } catch (Exception e) {
+            model.addAttribute("freezeHistory", List.of());
+        }
         return "customer/customer-view";
     }
 

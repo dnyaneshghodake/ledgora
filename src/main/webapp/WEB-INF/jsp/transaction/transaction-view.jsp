@@ -1,11 +1,16 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-receipt"></i> Transaction Details</h3>
-    <a href="${pageContext.request.contextPath}/transactions" class="btn btn-secondary">Back</a>
+    <a href="${pageContext.request.contextPath}/transactions" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
 </div>
 
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
+
+<%-- Main Content Section --%>
 <div class="row">
     <div class="col-md-8">
         <div class="card shadow">
@@ -21,14 +26,14 @@
                             <c:otherwise><span class="badge bg-secondary fs-6"><c:out value="${transaction.transactionType}"/></span></c:otherwise>
                         </c:choose>
                     </td></tr>
-                    <tr><td class="text-muted">Status</td><td><span class="badge bg-success">${transaction.status}</span></td></tr>
-                    <tr><td class="text-muted">Amount</td><td><span class="fs-4 fw-bold text-primary">${transaction.amount} ${transaction.currency}</span></td></tr>
+                    <tr><td class="text-muted">Status</td><td><span class="badge bg-success"><c:out value="${transaction.status}"/></span></td></tr>
+                    <tr><td class="text-muted">Amount</td><td><span class="fs-4 fw-bold text-primary"><c:out value="${transaction.amount}"/> <c:out value="${transaction.currency}"/></span></td></tr>
                     <tr><td class="text-muted">Source Account</td><td><c:if test="${transaction.sourceAccount != null}"><code><c:out value="${transaction.sourceAccount.accountNumber}"/></code> - <c:out value="${transaction.sourceAccount.customerName}"/></c:if><c:if test="${transaction.sourceAccount == null}">N/A</c:if></td></tr>
                     <tr><td class="text-muted">Destination Account</td><td><c:if test="${transaction.destinationAccount != null}"><code><c:out value="${transaction.destinationAccount.accountNumber}"/></code> - <c:out value="${transaction.destinationAccount.customerName}"/></c:if><c:if test="${transaction.destinationAccount == null}">N/A</c:if></td></tr>
                     <tr><td class="text-muted">Description</td><td><c:out value="${transaction.description}"/></td></tr>
                     <tr><td class="text-muted">Narration</td><td><c:out value="${transaction.narration}"/></td></tr>
                     <tr><td class="text-muted">Performed By</td><td><c:if test="${transaction.performedBy != null}"><c:out value="${transaction.performedBy.username}"/></c:if></td></tr>
-                    <tr><td class="text-muted">Date</td><td>${transaction.createdAt}</td></tr>
+                    <tr><td class="text-muted">Date</td><td><c:out value="${transaction.createdAt}"/></td></tr>
                 </table>
             </div>
         </div>
@@ -87,19 +92,19 @@
                     </tr>
                     <tr>
                         <td class="text-muted">Business Date</td>
-                        <td>${transaction.businessDate}</td>
+                        <td><c:out value="${transaction.businessDate}"/></td>
                     </tr>
                     <tr>
                         <td class="text-muted">Created At</td>
-                        <td>${transaction.createdAt}</td>
+                        <td><c:out value="${transaction.createdAt}"/></td>
                     </tr>
                     <tr>
                         <td class="text-muted">Updated At</td>
-                        <td>${transaction.updatedAt}</td>
+                        <td><c:out value="${transaction.updatedAt}"/></td>
                     </tr>
                     <tr>
                         <td class="text-muted">Value Date</td>
-                        <td>${transaction.valueDate}</td>
+                        <td><c:out value="${transaction.valueDate}"/></td>
                     </tr>
                     <tr>
                         <td class="text-muted">Journal Entries</td>
@@ -133,13 +138,13 @@
             <div class="card-body">
                 <c:forEach var="entry" items="${ledgerEntries}">
                     <div class="border rounded p-2 mb-2">
-                        <div class="d-flex justify-content-between">
-                            <span class="badge ${entry.entryType == 'DEBIT' ? 'bg-danger' : 'bg-success'}">${entry.entryType}</span>
-                            <strong>${entry.amount}</strong>
+                            <div class="d-flex justify-content-between">
+                                <span class="badge ${entry.entryType == 'DEBIT' ? 'bg-danger' : 'bg-success'}"><c:out value="${entry.entryType}"/></span>
+                                <strong><c:out value="${entry.amount}"/></strong>
                         </div>
                         <small class="text-muted">GL: <c:out value="${entry.glAccountCode}"/></small><br>
                         <small><c:out value="${entry.narration}"/></small><br>
-                        <small class="text-muted">Balance After: ${entry.balanceAfter}</small>
+                        <small class="text-muted">Balance After: <c:out value="${entry.balanceAfter}"/></small>
                     </div>
                 </c:forEach>
                 <c:if test="${empty ledgerEntries}">
@@ -149,6 +154,16 @@
         </div>
     </div>
 </div>
+
+<%-- Audit Info Section --%>
+<c:set var="auditCreatedBy" value="${transaction.performedBy != null ? transaction.performedBy.username : 'System'}" scope="request"/>
+<c:set var="auditCreatedAt" value="${transaction.createdAt}" scope="request"/>
+<c:set var="auditUpdatedAt" value="${transaction.updatedAt}" scope="request"/>
+<c:set var="auditApprovalStatus" value="${transaction.status}" scope="request"/>
+<c:set var="auditCurrentStatus" value="${transaction.status}" scope="request"/>
+<c:set var="auditEntityType" value="Transaction" scope="request"/>
+<c:set var="auditEntityId" value="${transaction.transactionRef}" scope="request"/>
+<%@ include file="../layout/audit-info.jsp" %>
 
 <%-- Audit Disclaimer --%>
 <div class="audit-disclaimer mt-3">

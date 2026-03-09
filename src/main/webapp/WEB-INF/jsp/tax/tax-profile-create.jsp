@@ -1,10 +1,14 @@
 <%@ taglib prefix="c" uri="jakarta.tags.core" %>
 <%@ include file="../layout/header.jsp" %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<%-- Page Title --%>
+<div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-receipt"></i> Tax Profile</h3>
     <a href="${pageContext.request.contextPath}/customers" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
 </div>
+
+<%-- Operational Status Banner --%>
+<%@ include file="../layout/status-banner.jsp" %>
 
 <c:if test="${not empty error}">
     <div class="alert alert-danger"><c:out value="${error}"/></div>
@@ -13,6 +17,7 @@
     <div class="alert alert-success"><c:out value="${message}"/></div>
 </c:if>
 
+<%-- Main Content Section --%>
 <div class="card shadow">
     <div class="card-header bg-white">
         <h5 class="mb-0"><i class="bi bi-receipt"></i> Tax Compliance Details</h5>

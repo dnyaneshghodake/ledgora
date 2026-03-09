@@ -10,8 +10,11 @@ import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.batch.entity.TransactionBatch;
 import com.ledgora.batch.service.BatchService;
 import com.ledgora.branch.entity.Branch;
+import com.ledgora.calendar.service.BankCalendarService;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.EntryType;
+import com.ledgora.common.enums.FreezeLevel;
+import com.ledgora.common.enums.MakerCheckerStatus;
 import com.ledgora.common.enums.TransactionChannel;
 import com.ledgora.common.enums.TransactionStatus;
 import com.ledgora.common.enums.TransactionType;
@@ -74,6 +77,7 @@ public class TransactionService {
     private final IdempotencyService idempotencyService;
     private final TenantService tenantService;
     private final BatchService batchService;
+    private final BankCalendarService bankCalendarService;
 
     public TransactionService(TransactionRepository transactionRepository,
                               TransactionLineRepository transactionLineRepository,
@@ -88,7 +92,8 @@ public class TransactionService {
                               ApplicationEventPublisher eventPublisher,
                               IdempotencyService idempotencyService,
                               TenantService tenantService,
-                              BatchService batchService) {
+                              BatchService batchService,
+                              BankCalendarService bankCalendarService) {
         this.transactionRepository = transactionRepository;
         this.transactionLineRepository = transactionLineRepository;
         this.accountRepository = accountRepository;
@@ -103,6 +108,7 @@ public class TransactionService {
         this.idempotencyService = idempotencyService;
         this.tenantService = tenantService;
         this.batchService = batchService;
+        this.bankCalendarService = bankCalendarService;
     }
 
     /**
@@ -126,13 +132,19 @@ public class TransactionService {
         Account account = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getDestinationAccountNumber(), tenantId)
                 .orElseThrow(() -> new RuntimeException("Account not found: " + dto.getDestinationAccountNumber()));
         validateAccountActive(account);
+        // C3: Server-side freeze level enforcement for credit (deposit credits customer account)
+        validateAccountFreezeLevel(account, VoucherDrCr.CR);
 
         User currentUser = getCurrentUser();
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
+
+        // H4: Server-side holiday calendar enforcement
+        TransactionChannel channel = parseChannel(dto.getChannel());
+        validateHolidayCalendar(tenantId, businessDate, channel);
+
         String txnRef = generateTransactionRef("DEP");
 
         // PART 2: Get or create open batch for this channel/tenant/date
-        TransactionChannel channel = parseChannel(dto.getChannel());
         TransactionBatch batch = batchService.getOrCreateOpenBatch(tenantId, channel, businessDate);
 
         // Create transaction record with tenant and batch
@@ -208,16 +220,22 @@ public class TransactionService {
         Account account = accountRepository.findByAccountNumberWithLockAndTenantId(dto.getSourceAccountNumber(), tenantId)
                 .orElseThrow(() -> new RuntimeException("Account not found: " + dto.getSourceAccountNumber()));
         validateAccountActive(account);
+        // C3: Server-side freeze level enforcement for debit (withdrawal debits customer account)
+        validateAccountFreezeLevel(account, VoucherDrCr.DR);
         if (account.getBalance().compareTo(dto.getAmount()) < 0) {
             throw new RuntimeException("Insufficient balance. Available: " + account.getBalance());
         }
 
         User currentUser = getCurrentUser();
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
+
+        // H4: Server-side holiday calendar enforcement
+        TransactionChannel channel = parseChannel(dto.getChannel());
+        validateHolidayCalendar(tenantId, businessDate, channel);
+
         String txnRef = generateTransactionRef("WDR");
 
         // PART 2: Get or create open batch
-        TransactionChannel channel = parseChannel(dto.getChannel());
         TransactionBatch batch = batchService.getOrCreateOpenBatch(tenantId, channel, businessDate);
 
         // Create transaction record with tenant and batch
@@ -296,6 +314,9 @@ public class TransactionService {
                 .orElseThrow(() -> new RuntimeException("Destination account not found: " + dto.getDestinationAccountNumber()));
         validateAccountActive(sourceAccount);
         validateAccountActive(destAccount);
+        // C3: Server-side freeze level enforcement for both accounts
+        validateAccountFreezeLevel(sourceAccount, VoucherDrCr.DR);
+        validateAccountFreezeLevel(destAccount, VoucherDrCr.CR);
         if (sourceAccount.getAccountNumber().equals(destAccount.getAccountNumber())) {
             throw new RuntimeException("Source and destination accounts cannot be the same");
         }
@@ -305,10 +326,14 @@ public class TransactionService {
 
         User currentUser = getCurrentUser();
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
+
+        // H4: Server-side holiday calendar enforcement
+        TransactionChannel channel = parseChannel(dto.getChannel());
+        validateHolidayCalendar(tenantId, businessDate, channel);
+
         String txnRef = generateTransactionRef("TRF");
 
         // PART 2: Get or create open batch
-        TransactionChannel channel = parseChannel(dto.getChannel());
         TransactionBatch batch = batchService.getOrCreateOpenBatch(tenantId, channel, businessDate);
 
         // Create transaction record with tenant and batch
@@ -464,6 +489,46 @@ public class TransactionService {
         if (account.getStatus() != AccountStatus.ACTIVE) {
             throw new RuntimeException("Account " + account.getAccountNumber() + " is not active. Status: " + account.getStatus());
         }
+        // H2: Ensure account is approved before allowing transactions
+        if (account.getApprovalStatus() != null && account.getApprovalStatus() != MakerCheckerStatus.APPROVED) {
+            throw new RuntimeException("Account " + account.getAccountNumber()
+                    + " is not approved. Approval status: " + account.getApprovalStatus());
+        }
+    }
+
+    /**
+     * C3: Validate account-level freeze controls server-side.
+     * FreezeLevel.DEBIT_ONLY blocks debit operations.
+     * FreezeLevel.CREDIT_ONLY blocks credit operations.
+     * FreezeLevel.FULL blocks all operations.
+     */
+    private void validateAccountFreezeLevel(Account account, VoucherDrCr drCr) {
+        FreezeLevel freezeLevel = account.getFreezeLevel();
+        if (freezeLevel == null || freezeLevel == FreezeLevel.NONE) {
+            return;
+        }
+        if (freezeLevel == FreezeLevel.FULL) {
+            throw new RuntimeException("Account " + account.getAccountNumber()
+                    + " is fully frozen. Reason: " + account.getFreezeReason());
+        }
+        if (freezeLevel == FreezeLevel.DEBIT_ONLY && drCr == VoucherDrCr.DR) {
+            throw new RuntimeException("Account " + account.getAccountNumber()
+                    + " has debit freeze active. Reason: " + account.getFreezeReason());
+        }
+        if (freezeLevel == FreezeLevel.CREDIT_ONLY && drCr == VoucherDrCr.CR) {
+            throw new RuntimeException("Account " + account.getAccountNumber()
+                    + " has credit freeze active. Reason: " + account.getFreezeReason());
+        }
+    }
+
+    /**
+     * H4: Validate that the transaction is allowed on the current business date per holiday calendar.
+     */
+    private void validateHolidayCalendar(Long tenantId, LocalDate businessDate, TransactionChannel channel) {
+        if (channel == null) {
+            channel = TransactionChannel.TELLER;
+        }
+        bankCalendarService.validateTransactionAllowed(tenantId, businessDate, channel);
     }
 
     private User getCurrentUser() {
@@ -499,7 +564,7 @@ public class TransactionService {
                 maker,
                 narration
         );
-        voucherService.authorizeVoucher(voucher.getId(), null);
+        voucherService.systemAuthorizeVoucher(voucher.getId(), maker);
         return voucherService.postVoucher(voucher.getId(), transaction);
     }
 
