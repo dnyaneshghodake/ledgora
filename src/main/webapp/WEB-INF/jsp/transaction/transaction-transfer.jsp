@@ -17,7 +17,9 @@
 <%-- Main Content Section --%>
 <div class="card shadow">
     <div class="card-body">
-        <form method="post" action="${pageContext.request.contextPath}/transactions/transfer" id="transferForm">
+        <form method="post" action="${pageContext.request.contextPath}/transactions/transfer" id="transferForm"
+              data-context-path="${pageContext.request.contextPath}"
+              data-is-holiday="${isHoliday}" data-txn-type="TRANSFER">
             <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
             <input type="hidden" name="transactionType" value="TRANSFER"/>
             <div class="row g-3">
@@ -144,121 +146,5 @@
     </div>
 </div>
 
-<script>
-var _fromAvailBal = null;
-var _fromFrozen = false;
-var _toFrozen = false;
-
-function formatCurrency(val) {
-    var num = parseFloat(val);
-    return isNaN(num) ? '0.00' : num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-// Auto-refresh balance when from/to accounts are selected via lookup modal
-document.getElementById('fromAccount').addEventListener('change', function() {
-    refreshBalance('fromAccount', 'fromInfo', 'fromBalanceRow', 'fromAvailBalance', 'fromLien', 'fromFreezeWarning', 'fromFreezeMsg', 'from');
-});
-document.getElementById('toAccount').addEventListener('change', function() {
-    refreshBalance('toAccount', 'toInfo', 'toBalanceRow', 'toAvailBalance', 'toLien', 'toFreezeWarning', 'toFreezeMsg', 'to');
-});
-
-function refreshBalance(inputId, infoId, balRowId, availId, lienId, freezeWarnId, freezeMsgId, side) {
-    var num = document.getElementById(inputId).value;
-    if (!num) return;
-
-    fetch('${pageContext.request.contextPath}/accounts/api/lookup?accountNumber=' + encodeURIComponent(num))
-        .then(function(r) { return r.json(); })
-        .then(function(d) {
-            if (d) {
-                // Show info
-                var html = '<small><strong>' + (d.accountName||'') + '</strong> | Type: ' + (d.accountType||'') + ' | Status: ' + (d.status||'') + '</small>';
-                document.getElementById(infoId).innerHTML = html;
-
-                // Show balance cards
-                document.getElementById(balRowId).style.display = 'flex';
-                var avail = parseFloat(d.availableBalance || d.balance) || 0;
-                document.getElementById(availId).textContent = formatCurrency(avail);
-                document.getElementById(lienId).textContent = formatCurrency(d.totalLien);
-
-                if (side === 'from') _fromAvailBal = avail;
-
-                // Freeze checks
-                var freezeEl = document.getElementById(freezeWarnId);
-                if (d.freezeLevel && d.freezeLevel !== 'NONE') {
-                    freezeEl.style.display = 'flex';
-                    document.getElementById(freezeMsgId).textContent = 'Freeze: ' + d.freezeLevel;
-                    // From: block if DEBIT_ONLY or FULL; To: block if CREDIT_ONLY or FULL
-                    if (side === 'from' && (d.freezeLevel === 'DEBIT_ONLY' || d.freezeLevel === 'FULL')) {
-                        _fromFrozen = true;
-                    } else if (side === 'to' && (d.freezeLevel === 'CREDIT_ONLY' || d.freezeLevel === 'FULL')) {
-                        _toFrozen = true;
-                    }
-                } else {
-                    freezeEl.style.display = 'none';
-                    if (side === 'from') _fromFrozen = false;
-                    if (side === 'to') _toFrozen = false;
-                }
-                updateSubmitState();
-            }
-        }).catch(function(e) { console.error('Balance lookup failed:', e); });
-}
-
-function updateSubmitState() {
-    var btn = document.getElementById('submitBtn');
-    <c:if test="${isHoliday}">
-    btn.disabled = true;
-    return;
-    </c:if>
-    btn.disabled = _fromFrozen || _toFrozen;
-}
-
-// Inline validation for amount
-document.getElementById('amountInput').addEventListener('input', function() {
-    var amt = parseFloat(this.value);
-    var errEl = document.getElementById('amtInlineError');
-    var balErr = document.getElementById('balanceExceedError');
-    if (this.value && (isNaN(amt) || amt <= 0)) {
-        errEl.classList.add('visible');
-        balErr.classList.remove('visible');
-    } else if (_fromAvailBal !== null && amt > _fromAvailBal) {
-        errEl.classList.remove('visible');
-        balErr.classList.add('visible');
-    } else {
-        errEl.classList.remove('visible');
-        balErr.classList.remove('visible');
-    }
-});
-
-// Form submission validation
-document.getElementById('transferForm').addEventListener('submit', function(e) {
-    var source = document.getElementById('fromAccount').value;
-    var dest = document.getElementById('toAccount').value;
-    if (!source || !dest) {
-        e.preventDefault();
-        showAlert('Please select both source and destination accounts.', 'danger');
-        return;
-    }
-    if (source === dest) {
-        e.preventDefault();
-        showAlert('Source and destination accounts cannot be the same.', 'danger');
-        return;
-    }
-    var amt = parseFloat(document.getElementById('amountInput').value);
-    if (isNaN(amt) || amt <= 0) {
-        e.preventDefault();
-        document.getElementById('amtInlineError').classList.add('visible');
-        return;
-    }
-    if (_fromAvailBal !== null && amt > _fromAvailBal) {
-        e.preventDefault();
-        document.getElementById('balanceExceedError').classList.add('visible');
-        return;
-    }
-    if (_fromFrozen || _toFrozen) {
-        e.preventDefault();
-        showAlert('Transfer blocked due to account freeze.', 'danger');
-    }
-});
-</script>
-
+<script src="${pageContext.request.contextPath}/resources/js/transaction.js"></script>
 <%@ include file="../layout/footer.jsp" %>
