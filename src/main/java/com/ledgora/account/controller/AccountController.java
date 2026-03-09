@@ -235,6 +235,8 @@ public class AccountController {
         dto.setCustomerEmail(account.getCustomerEmail());
         dto.setCustomerPhone(account.getCustomerPhone());
         dto.setGlAccountCode(account.getGlAccountCode());
+        dto.setInterestRate(account.getInterestRate());
+        dto.setOverdraftLimit(account.getOverdraftLimit());
         dto.setStatus(account.getStatus() != null ? account.getStatus().name() : null);
         dto.setFreezeLevel(account.getFreezeLevel() != null ? account.getFreezeLevel().name() : null);
         dto.setApprovalStatus(account.getApprovalStatus() != null ? account.getApprovalStatus().name() : null);
