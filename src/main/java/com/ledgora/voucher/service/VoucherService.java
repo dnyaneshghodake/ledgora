@@ -2,6 +2,7 @@ package com.ledgora.voucher.service;
 
 import com.ledgora.account.entity.Account;
 import com.ledgora.account.repository.AccountRepository;
+import com.ledgora.audit.service.AuditService;
 import com.ledgora.auth.entity.User;
 import com.ledgora.batch.entity.TransactionBatch;
 import com.ledgora.batch.repository.TransactionBatchRepository;
@@ -65,6 +66,7 @@ public class VoucherService {
     private final TransactionBatchRepository transactionBatchRepository;
     private final CbsCustomerValidationService customerValidationService;
     private final GlBalanceService glBalanceService;
+    private final AuditService auditService;
 
     public VoucherService(VoucherRepository voucherRepository,
                           ScrollSequenceRepository scrollSequenceRepository,
@@ -76,7 +78,8 @@ public class VoucherService {
                           CbsBalanceEngine cbsBalanceEngine,
                           TransactionBatchRepository transactionBatchRepository,
                           CbsCustomerValidationService customerValidationService,
-                          GlBalanceService glBalanceService) {
+                          GlBalanceService glBalanceService,
+                          AuditService auditService) {
         this.voucherRepository = voucherRepository;
         this.scrollSequenceRepository = scrollSequenceRepository;
         this.accountRepository = accountRepository;
@@ -88,6 +91,7 @@ public class VoucherService {
         this.transactionBatchRepository = transactionBatchRepository;
         this.customerValidationService = customerValidationService;
         this.glBalanceService = glBalanceService;
+        this.auditService = auditService;
     }
 
     /**
@@ -182,6 +186,13 @@ public class VoucherService {
                 voucherNumber, voucher.getId(), account.getAccountNumber(), drCr, transactionAmount, scrollNo,
                 linkedTransaction != null ? linkedTransaction.getTransactionRef() : "N/A");
 
+        // RBI-F7: Persistent audit trail for voucher creation
+        Long makerId = maker != null ? maker.getId() : null;
+        auditService.logEvent(makerId, "VOUCHER_CREATED", "VOUCHER", voucher.getId(),
+                "Voucher " + voucherNumber + " created: " + drCr + " " + currency + " " + transactionAmount
+                + " account=" + account.getAccountNumber() + " maker=" + (maker != null ? maker.getUsername() : "N/A"),
+                null);
+
         return voucher;
     }
 
@@ -225,13 +236,23 @@ public class VoucherService {
 
         log.info("Voucher authorized: id={}, checker={}", voucherId, checker.getUsername());
 
+        // RBI-F7: Audit trail for authorization
+        auditService.logEvent(checker.getId(), "VOUCHER_AUTHORIZED", "VOUCHER", voucher.getId(),
+                "Voucher " + voucher.getVoucherNumber() + " authorized by checker=" + checker.getUsername()
+                + " (maker=" + (voucher.getMaker() != null ? voucher.getMaker().getUsername() : "N/A") + ")",
+                null);
+
         return voucher;
     }
 
     /**
-     * System auto-authorize a voucher for straight-through processing (e.g. teller deposits).
-     * Records the maker as the initiator and marks authorization as SYSTEM_AUTO.
-     * This maintains audit trail while allowing single-user transaction flows.
+     * RBI-F4/F9: System auto-authorize a voucher for straight-through processing (e.g. teller deposits).
+     *
+     * Records the maker as checker (STP = no separate human checker) but uses the
+     * authorizationRemarks field to tag this as system-auto — never mutates narration.
+     *
+     * NOTE: RBI recommends a dedicated SYSTEM_AUTO pseudo-user as checker.
+     * If one is seeded in DataInitializer, pass that user instead of `maker`.
      */
     @Transactional
     public Voucher systemAuthorizeVoucher(Long voucherId, User maker) {
@@ -247,10 +268,12 @@ public class VoucherService {
         }
 
         voucher.setAuthFlag("Y");
-        // Record maker as checker with SYSTEM_AUTO narration for audit trail
+        // RBI-F4: Record maker as checker for STP; tag via authorizationRemarks (not narration)
         voucher.setChecker(maker);
-        String existingNarration = voucher.getNarration() != null ? voucher.getNarration() : "";
-        voucher.setNarration(existingNarration + " [SYSTEM_AUTO_AUTHORIZED]");
+        // RBI-F9: Authorization metadata goes to dedicated field, narration stays immutable
+        voucher.setAuthorizationRemarks("SYSTEM_AUTO_AUTHORIZED by "
+                + (maker != null ? maker.getUsername() : "SYSTEM")
+                + " at " + LocalDateTime.now());
         voucher = voucherRepository.save(voucher);
 
         log.info("Voucher system-auto-authorized: id={}, maker={}", voucherId,
@@ -348,12 +371,24 @@ public class VoucherService {
                 voucherId, journal.getId(), accountEntry.getId(),
                 account.getAccountNumber(), amount);
 
+        // RBI-F7: Audit trail for posting
+        Long checkerId = voucher.getChecker() != null ? voucher.getChecker().getId() : null;
+        auditService.logEvent(checkerId, "VOUCHER_POSTED", "VOUCHER", voucher.getId(),
+                "Voucher " + voucher.getVoucherNumber() + " posted: journal=" + journal.getId()
+                + " ledgerEntry=" + accountEntry.getId() + " " + drCr + " " + amount
+                + " account=" + account.getAccountNumber(),
+                null);
+
         return voucher;
     }
 
     /**
      * Cancel a voucher. Creates a reversal voucher and reversal ledger entry.
      * Marks original cancel_flag = Y.
+     *
+     * RBI-F6: Validates that tenant business day is OPEN and that the voucher's
+     * posting date matches the current business date (no backdated reversals
+     * without a separate back-value workflow).
      */
     @Transactional
     public Voucher cancelVoucher(Long voucherId, User cancelledBy, String reason) {
@@ -363,6 +398,21 @@ public class VoucherService {
 
         if ("Y".equals(original.getCancelFlag())) {
             throw new RuntimeException("Voucher already cancelled: " + voucherId);
+        }
+
+        // RBI-F6: Block cancellation if business day is not OPEN
+        com.ledgora.tenant.entity.Tenant tenant = original.getTenant();
+        if (tenant.getDayStatus() != com.ledgora.common.enums.DayStatus.OPEN) {
+            throw new RuntimeException("Cannot cancel voucher " + voucherId
+                    + ": tenant business day is " + tenant.getDayStatus()
+                    + ". Cancellations only allowed when day status is OPEN.");
+        }
+        // RBI-F6: Block backdated reversal — voucher posting date must equal current business date
+        if (!original.getPostingDate().equals(tenant.getCurrentBusinessDate())) {
+            throw new RuntimeException("Cannot cancel voucher " + voucherId
+                    + ": posting date " + original.getPostingDate()
+                    + " does not match current business date " + tenant.getCurrentBusinessDate()
+                    + ". Backdated reversals require a separate back-value workflow.");
         }
 
         // Determine reversal direction
@@ -427,6 +477,14 @@ public class VoucherService {
 
         log.info("Voucher cancelled: original={}, reversal={}, reason={}",
                 voucherId, reversal.getId(), reason);
+
+        // RBI-F7: Audit trail for cancellation/reversal
+        Long cancelUserId = cancelledBy != null ? cancelledBy.getId() : null;
+        auditService.logEvent(cancelUserId, "VOUCHER_CANCELLED", "VOUCHER", voucherId,
+                "Voucher " + original.getVoucherNumber() + " cancelled. Reversal voucher="
+                + reversal.getVoucherNumber() + " reason=" + reason
+                + " cancelledBy=" + (cancelledBy != null ? cancelledBy.getUsername() : "N/A"),
+                null);
 
         return reversal;
     }

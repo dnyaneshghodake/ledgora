@@ -35,7 +35,7 @@ import java.time.LocalDateTime;
     @Index(name = "idx_voucher_batch", columnList = "batch_id"),
     @Index(name = "idx_voucher_transaction", columnList = "transaction_id")
 })
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter @NoArgsConstructor @AllArgsConstructor @Builder
 public class Voucher {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -170,6 +170,19 @@ public class Voucher {
     @Builder.Default
     private BigDecimal totalCredit = BigDecimal.ZERO;
 
+    /**
+     * RBI-F9: Separate field for authorization remarks (do NOT mutate narration after creation).
+     */
+    @Column(name = "authorization_remarks", length = 500)
+    private String authorizationRemarks;
+
+    /**
+     * RBI-F11: Optimistic locking — prevents concurrent authorize/post race conditions.
+     */
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -184,6 +197,18 @@ public class Voucher {
     public VoucherStatus getStatus() {
         return VoucherStatus.fromFlags(authFlag, postFlag, cancelFlag);
     }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // RBI-F3: Controlled setters — only fields that may change post-creation.
+    // Financial fields (amount, drCr, account, postingDate, etc.) have NO setters.
+    // ──────────────────────────────────────────────────────────────────────
+
+    public void setAuthFlag(String authFlag) { this.authFlag = authFlag; }
+    public void setPostFlag(String postFlag) { this.postFlag = postFlag; }
+    public void setCancelFlag(String cancelFlag) { this.cancelFlag = cancelFlag; }
+    public void setChecker(User checker) { this.checker = checker; }
+    public void setLedgerEntry(LedgerEntry ledgerEntry) { this.ledgerEntry = ledgerEntry; }
+    public void setAuthorizationRemarks(String authorizationRemarks) { this.authorizationRemarks = authorizationRemarks; }
 
     @PrePersist
     protected void onCreate() {
@@ -201,6 +226,10 @@ public class Voucher {
         }
     }
 
+    /**
+     * RBI-F3: Guard against mutation of POSTED vouchers.
+     * After posting, only cancelFlag may transition (to 'Y' via reversal).
+     */
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
