@@ -809,3 +809,291 @@ createAccount("CLR-IB-BR002", "Inter-Branch Clearing - Uptown",
 ---
 
 *End of Part 4. Part 5 follows.*
+
+---
+
+## PART 5 — FRAUD CONTROL & RISK MATRIX (STRICT RBI INSPECTION VIEW)
+
+This section is written as an **internal RBI inspection team** review. It assumes the system will undergo regulatory audit and that **control failures will be treated as audit observations**.
+
+**Legend**
+- **Likelihood:** L/M/H (probability of occurrence)
+- **Impact:** L/M/H (financial + reputational + regulatory impact)
+- **Risk rating:** derived (guidance only) — RBI inspection focuses on evidence and enforceability.
+
+### 5.1 Fraud & Abuse Risk Matrix (10 items)
+
+| Risk ID | Risk / Abuse Scenario | Likelihood | Impact | Existing Controls (Evidence in Code) | Gaps / Audit Observations (Strict) | Mandatory Remediation / Recommendation |
+|---|---|---:|---:|---|---|---|
+| FR-01 | **Brute-force / credential stuffing** against privileged roles (ADMIN, CHECKER) | H | H | Account lockout after 5 failures (`src/main/java/com/ledgora/security/AuthenticationFailureListener.java:30-46`, `src/main/java/com/ledgora/security/CustomUserDetailsService.java`) | Lockout is permanent until admin unlock (policy-dependent). No IP throttling, CAPTCHA, or adaptive MFA. | Add rate limiting (per-IP + per-username), CAPTCHA after N attempts, and MFA for privileged roles. Produce evidence logs (SIEM). |
+| FR-02 | **Session hijack / replay** (shared terminals, teller machines) | M | H | Session fixation protection + single session per user (`src/main/java/com/ledgora/config/SecurityConfig.java:136-142`); session timeout configured (`src/main/resources/application.properties:33-34`, `src/main/resources/application-prod.properties:22-23`) | No device binding. No forced re-auth for high-risk actions (authorize/cancel/EOD). | Add step-up authentication for: voucher authorize/post/cancel, EOD run, tenant switch. Consider short idle timeout for teller roles. |
+| FR-03 | **CSRF / forced transaction submission** | M | H | CSRF enabled with cookie token repository (`src/main/java/com/ledgora/config/SecurityConfig.java:90-94`) | H2 console is excluded from CSRF and must never be enabled in prod. No explicit CSRF validation evidence for custom AJAX calls (if any). | Ensure prod profile disables H2. Verify all state-changing endpoints are POST with CSRF token in JSP forms. Add security tests. |
+| FR-04 | **Maker–checker bypass** (maker approves own transaction) | M | H | Enforced in transaction approval (`src/main/java/com/ledgora/transaction/service/TransactionService.java:386-392`, `480-486`) and voucher authorization (`src/main/java/com/ledgora/voucher/service/VoucherService.java:228-231`) | STP flow explicitly sets checker = maker (`src/main/java/com/ledgora/voucher/service/VoucherService.java:270-277`). This is acceptable only if policy + audit tagging is unambiguous. | Seed a dedicated `SYSTEM_AUTO` pseudo-user and set checker to SYSTEM_AUTO for STP flows. Treat same-user approvals as violations unless SYSTEM_AUTO is used. |
+| FR-05 | **High-value transactions executed without checker due to misconfigured policies** | M | H | Approval policy engine is fail-safe: missing policy => requires approval (`src/main/java/com/ledgora/approval/service/ApprovalPolicyService.java:76-81`) | If policies are configured incorrectly (wide ranges with autoAuthorize=true), very high-value transfers could be auto-approved. No “hard ceiling” per role/channel. | Implement hard caps: per-role/per-channel absolute limits enforced in service layer (not only policy table). Require dual authorization above threshold. |
+| FR-06 | **Velocity / rapid-fire fraud** (multiple withdrawals/transfers quickly) | H | H | None observed in code; only idempotency for exact client references (`src/main/java/com/ledgora/transaction/service/TransactionService.java:834-854`) | No per-account/per-user velocity controls. RBI audit will flag absence of fraud monitoring controls as a gap. | Add velocity rules (e.g., max N txns / time-window, max cumulative amount) and alerting + auto-block. Store decisions in audit logs. |
+| FR-07 | **Duplicate / replay transactions** due to client retries or channel faults | M | M/H | Idempotency checks via `clientReferenceId:channel` + IdempotencyService (`src/main/java/com/ledgora/transaction/service/TransactionService.java:834-854`) | If clientReferenceId is missing, there is no deduplication. Near-duplicate detection is only via SQL audit pack (Part 2). | Make client reference mandatory for external channels (ONLINE/MOBILE/ATM). Add server-generated idempotency keys per request. |
+| FR-08 | **Unauthorized account access (IDOR)** — customer views another customer’s account history | M | H | Tenant isolation enforced in service methods (`src/main/java/com/ledgora/transaction/service/TransactionService.java:636-659`), controller validates account format (`src/main/java/com/ledgora/transaction/controller/TransactionController.java:175-185`) | Controller itself notes missing ownership validation for CUSTOMER users (`src/main/java/com/ledgora/transaction/controller/TransactionController.java:163-173`). This is a direct RBI observation (privacy + fraud). | Enforce account ownership for CUSTOMER role: accountNumber must map to the authenticated customer only. Add negative tests. |
+| FR-09 | **Reversal misuse** (fraudulent cancellation to conceal theft) | M | H | Cancellation restricted to OPEN day + no backdated reversal (`src/main/java/com/ledgora/voucher/service/VoucherService.java:403-416`) | Cancel action currently sets reversal.maker = cancelledBy and auto-posts reversal if original posted (`src/main/java/com/ledgora/voucher/service/VoucherService.java:452-466`). This is effectively “single-person reversal” unless further gated in controller/security. | Require maker-checker for cancellations above threshold and for all reversals in production. Add separate REVERSAL approval workflow and audit evidence. |
+| FR-10 | **Audit trail integrity break** — ledger entries not traceable to originating transaction | M | H | Voucher linked to transaction at creation (`src/main/java/com/ledgora/transaction/service/TransactionService.java:772-800`; `src/main/java/com/ledgora/voucher/service/VoucherService.java:154-160`) | Posting logic can create a synthetic transaction when `postVoucher(voucherId)` is called without explicitly passing a linked transaction (`src/main/java/com/ledgora/voucher/service/VoucherService.java:550-571`). In reversal auto-post, `postVoucher(reversal.getId())` is used (`src/main/java/com/ledgora/voucher/service/VoucherService.java:463-466`), risking mismatch between `voucher.transaction_id` and `ledger_entries.transaction_id`. This is a severe audit observation. | Fix `findOrCreateTransaction(...)` to first use `voucher.getTransaction()` before creating any synthetic transaction. Add an audit SQL check (Part 2) to detect mismatched transaction linkage. |
+
+### 5.2 Risk Acceptance / Exception Register Template
+
+RBI inspectors will ask: "Where is the risk acceptance record for each known gap?"
+
+The bank's CISO / CRO must maintain a signed register for every open item. Template:
+
+| Reg # | Risk ID | Gap Description | Compensating Control (if any) | Risk Owner | Accepted By (Name + Designation) | Acceptance Date | Review-By Date | Status |
+|---|---|---|---|---|---|---|---|---|
+| RAR-001 | FR-06 | Velocity monitoring absent | Manual EOD review of high-frequency accounts | Head — Operations | *(CISO signature)* | *(date)* | *(date + 90d)* | OPEN |
+| RAR-002 | FR-05 | No hard ceiling per role | Approval policy table with ranges configured | Head — Compliance | *(CRO signature)* | *(date)* | *(date + 60d)* | OPEN |
+| RAR-003 | FR-04 | STP checker = maker | `authorizationRemarks` tags SYSTEM_AUTO; AUDIT-08 query detects violations | Head — IT | *(CISO signature)* | *(date)* | *(date + 30d)* | OPEN |
+| RAR-004 | FR-08 | IDOR — CUSTOMER account history | Tenant isolation blocks cross-tenant; UI hides links; ownership check pending | Head — IT Security | *(CRO signature)* | *(date)* | *(date + 30d)* | OPEN |
+| RAR-005 | FR-10 | Reversal audit trail linkage gap | `findOrCreateTransaction` fix scheduled; FRAUD-08 query detects orphans | Head — IT | *(CTO signature)* | *(date)* | *(date + 14d)* | OPEN |
+
+**Rules:**
+- Every OPEN item must have a review-by date ≤ 90 days.
+- Items not remediated by review-by date escalate to the Board's IT Sub-Committee.
+- Closed items remain in the register for 3 years (RBI IS Audit evidence retention).
+
+### 5.3 Fraud Monitoring SQL Pack (10 queries)
+
+All queries are read-only, safe for production, and compatible with H2 (dev) and SQL Server (prod).
+These are **fraud-focused** — distinct from the ledger integrity pack in Part 2.
+Recommended execution: daily by Operations + weekly by Internal Audit.
+
+#### FRAUD-01: High-value transactions above policy ceiling
+
+```sql
+-- FRAUD-01: Transactions above a configurable threshold (adjust 500000 per bank policy)
+-- Expected: all rows should have checker_id IS NOT NULL (dual authorization)
+SELECT t.id, t.transaction_ref, t.transaction_type, t.amount, t.currency,
+       t.channel, t.status, t.business_date,
+       m.username AS maker, c.username AS checker,
+       CASE
+           WHEN t.checker_id IS NULL AND t.status = 'COMPLETED'
+           THEN 'ALERT — HIGH VALUE WITHOUT CHECKER'
+           ELSE 'OK'
+       END AS fraud_flag
+FROM transactions t
+LEFT JOIN users m ON m.id = t.maker_id
+LEFT JOIN users c ON c.id = t.checker_id
+WHERE t.amount >= 500000
+  AND t.status != 'REJECTED'
+ORDER BY t.amount DESC, t.business_date DESC;
+```
+
+#### FRAUD-02: Velocity — accounts with excessive transaction count in single day
+
+```sql
+-- FRAUD-02: Accounts with > 10 transactions on same business date
+-- Expected: review each match; flag accounts with unusual spikes
+SELECT a.account_number, a.account_name, t.business_date,
+       COUNT(*) AS txn_count,
+       SUM(t.amount) AS total_amount,
+       CASE WHEN COUNT(*) > 20 THEN 'HIGH ALERT' ELSE 'REVIEW' END AS severity
+FROM transactions t
+JOIN accounts a ON (a.id = t.source_account_id OR a.id = t.destination_account_id)
+WHERE t.status != 'REJECTED'
+GROUP BY a.account_number, a.account_name, t.business_date
+HAVING COUNT(*) > 10
+ORDER BY txn_count DESC, t.business_date DESC;
+```
+
+#### FRAUD-03: Velocity — users with excessive transaction creation in single day
+
+```sql
+-- FRAUD-03: Users initiating > 20 transactions on same business date
+-- Expected: teller volume varies; flag outliers vs. peer average
+SELECT u.username, u.branch_code, t.business_date,
+       COUNT(*) AS txn_count,
+       SUM(t.amount) AS total_amount
+FROM transactions t
+JOIN users u ON u.id = t.maker_id
+WHERE t.status != 'REJECTED'
+GROUP BY u.username, u.branch_code, t.business_date
+HAVING COUNT(*) > 20
+ORDER BY txn_count DESC;
+```
+
+#### FRAUD-04: Reversal frequency by user (potential cancellation abuse)
+
+```sql
+-- FRAUD-04: Users with high reversal/cancellation counts
+-- Expected: reversals should be rare; investigate patterns
+SELECT u.username, u.branch_code,
+       COUNT(*) AS reversal_count,
+       SUM(v.transaction_amount) AS total_reversed_amount,
+       MIN(v.posting_date) AS first_reversal,
+       MAX(v.posting_date) AS last_reversal
+FROM vouchers v
+JOIN users u ON u.id = v.maker_id
+WHERE v.cancel_flag = 'Y'
+   OR v.narration LIKE 'REVERSAL%'
+GROUP BY u.username, u.branch_code
+HAVING COUNT(*) > 3
+ORDER BY reversal_count DESC;
+```
+
+#### FRAUD-05: Same-day create-and-cancel pattern (round-tripping)
+
+```sql
+-- FRAUD-05: Vouchers created and cancelled on the same day by the same user
+-- Expected: 0 rows outside normal correction workflows
+SELECT v.id AS voucher_id, v.voucher_number,
+       v.dr_cr, v.transaction_amount, v.posting_date,
+       m.username AS maker,
+       v.narration,
+       rv.id AS reversal_voucher_id, rv.voucher_number AS reversal_number
+FROM vouchers v
+JOIN vouchers rv ON rv.reversal_of_voucher_id = v.id
+JOIN users m ON m.id = v.maker_id
+WHERE v.cancel_flag = 'Y'
+  AND v.posting_date = rv.posting_date
+  AND v.maker_id = rv.maker_id
+ORDER BY v.posting_date DESC, v.transaction_amount DESC;
+```
+
+#### FRAUD-06: Transactions on frozen / inactive accounts (bypass detection)
+
+```sql
+-- FRAUD-06: Completed transactions against non-ACTIVE or frozen accounts
+-- Expected: 0 rows (should have been blocked by service-layer validation)
+SELECT t.id, t.transaction_ref, t.transaction_type, t.amount,
+       t.status, t.business_date,
+       a.account_number, a.status AS account_status, a.freeze_level,
+       CASE
+           WHEN a.status != 'ACTIVE' THEN 'INACTIVE ACCOUNT'
+           WHEN a.freeze_level != 'NONE' THEN 'FROZEN ACCOUNT'
+       END AS violation_type
+FROM transactions t
+JOIN accounts a ON (a.id = t.source_account_id OR a.id = t.destination_account_id)
+WHERE t.status = 'COMPLETED'
+  AND (a.status != 'ACTIVE' OR a.freeze_level != 'NONE')
+ORDER BY t.business_date DESC;
+```
+
+#### FRAUD-07: Off-hours transaction detection (outside business day window)
+
+```sql
+-- FRAUD-07: Transactions created outside normal business day OPEN window
+-- Expected: 0 rows for TELLER channel; system/batch channels may have entries
+SELECT t.id, t.transaction_ref, t.transaction_type,
+       t.amount, t.channel, t.created_at,
+       t.business_date, ten.day_status,
+       m.username AS maker
+FROM transactions t
+JOIN tenants ten ON ten.id = t.tenant_id
+JOIN users m ON m.id = t.maker_id
+WHERE t.status = 'COMPLETED'
+  AND t.channel IN ('TELLER', 'ONLINE', 'MOBILE')
+  AND ten.day_status != 'OPEN'
+ORDER BY t.created_at DESC;
+```
+
+#### FRAUD-08: Voucher–transaction linkage mismatch (audit trail break)
+
+```sql
+-- FRAUD-08: Vouchers where voucher.transaction_id differs from ledger_entry.transaction_id
+-- Expected: 0 rows — any mismatch is a severe audit observation (see FR-10)
+SELECT v.id AS voucher_id, v.voucher_number,
+       v.transaction_id AS voucher_txn_id,
+       le.transaction_id AS ledger_txn_id,
+       vt.transaction_ref AS voucher_txn_ref,
+       lt.transaction_ref AS ledger_txn_ref,
+       v.transaction_amount, v.dr_cr, v.posting_date
+FROM vouchers v
+JOIN ledger_entries le ON le.id = v.ledger_entry_id
+LEFT JOIN transactions vt ON vt.id = v.transaction_id
+LEFT JOIN transactions lt ON lt.id = le.transaction_id
+WHERE v.post_flag = 'Y'
+  AND v.cancel_flag = 'N'
+  AND (v.transaction_id IS NULL
+       OR le.transaction_id IS NULL
+       OR v.transaction_id != le.transaction_id)
+ORDER BY v.posting_date DESC;
+```
+
+#### FRAUD-09: Privileged role login anomalies (lockouts + rapid attempts)
+
+```sql
+-- FRAUD-09: Users with high failed login attempts or currently locked
+-- Expected: review each locked account; investigate patterns
+SELECT u.id, u.username, u.branch_code, u.is_locked,
+       u.failed_login_attempts, u.last_login,
+       u.is_active,
+       CASE
+           WHEN u.is_locked = TRUE THEN 'LOCKED — INVESTIGATE'
+           WHEN u.failed_login_attempts >= 3 THEN 'NEAR THRESHOLD'
+           ELSE 'OK'
+       END AS status
+FROM users u
+WHERE u.failed_login_attempts > 0
+   OR u.is_locked = TRUE
+ORDER BY u.failed_login_attempts DESC, u.is_locked DESC;
+```
+
+#### FRAUD-10: Dormant account reactivation with immediate high-value transaction
+
+```sql
+-- FRAUD-10: Accounts with no transactions for 90+ days followed by a high-value transaction
+-- Expected: review each match; potential money laundering pattern
+SELECT a.account_number, a.account_name, a.status,
+       MAX(t_old.business_date) AS last_activity_before,
+       t_new.business_date AS reactivation_date,
+       t_new.transaction_ref, t_new.amount, t_new.transaction_type,
+       DATEDIFF(DAY, MAX(t_old.business_date), t_new.business_date) AS dormancy_days
+FROM accounts a
+JOIN transactions t_new ON (t_new.source_account_id = a.id OR t_new.destination_account_id = a.id)
+LEFT JOIN transactions t_old ON (t_old.source_account_id = a.id OR t_old.destination_account_id = a.id)
+                              AND t_old.id != t_new.id
+                              AND t_old.business_date < t_new.business_date
+WHERE t_new.status = 'COMPLETED'
+  AND t_new.amount >= 100000
+GROUP BY a.account_number, a.account_name, a.status,
+         t_new.business_date, t_new.transaction_ref, t_new.amount, t_new.transaction_type
+HAVING DATEDIFF(DAY, MAX(t_old.business_date), t_new.business_date) >= 90
+ORDER BY dormancy_days DESC, t_new.amount DESC;
+```
+
+### 5.4 Fraud Monitoring SQL Execution Checklist
+
+| # | Query | Run Frequency | Acceptable Result | Action on Alert |
+|---|---|---|---|---|
+| FRAUD-01 | High-value without checker | Daily | 0 rows without checker | Escalate to Compliance; block account if unauthorized |
+| FRAUD-02 | Account velocity spike | Daily | < threshold per policy | Flag account for review; consider temporary freeze |
+| FRAUD-03 | User velocity spike | Daily | Within peer norms | Review user activity; check for collusion |
+| FRAUD-04 | Reversal frequency by user | Weekly | < 3 per user per month | Investigate maker; check for kickback schemes |
+| FRAUD-05 | Same-day round-tripping | Daily | 0 rows | Immediate investigation; potential embezzlement |
+| FRAUD-06 | Frozen/inactive account txn | Daily | 0 rows | Root cause analysis; service-layer bug if found |
+| FRAUD-07 | Off-hours transactions | Daily | 0 for TELLER/ONLINE/MOBILE | Check for after-hours access; policy violation |
+| FRAUD-08 | Voucher–txn linkage break | Daily | 0 rows | **Severe** — fix `findOrCreateTransaction`; data remediation |
+| FRAUD-09 | Login anomalies | Daily | Review each locked account | Investigate credential compromise; reset + MFA |
+| FRAUD-10 | Dormant reactivation | Weekly | Review all matches | KYC re-verification; STR filing if warranted |
+
+### 5.5 Minimum Fraud Control Evidence Pack (What auditors will ask for)
+
+1. **Maker-checker evidence:**
+   - Extract of transactions/vouchers showing maker != checker for manual approvals.
+   - Evidence that same-user approval is either blocked or explicitly SYSTEM_AUTO.
+   - SQL: AUDIT-08 (Part 2) + FRAUD-01 (this section).
+
+2. **Velocity + high-value enforcement evidence (currently missing in code):**
+   - Policies and service-layer hard limits.
+   - Alert logs for breaches.
+   - SQL: FRAUD-01, FRAUD-02, FRAUD-03.
+
+3. **Customer privacy evidence:**
+   - Proof that CUSTOMER cannot access other customer accounts (server-side ownership checks).
+   - Negative test results (attempted IDOR returns 403/404).
+
+4. **Reversal governance evidence:**
+   - Proof that reversals require independent authorization (recommended change).
+   - SQL: FRAUD-04, FRAUD-05.
+
+5. **Risk acceptance register:**
+   - Signed RAR per §5.2 template for all open gaps.
+   - Board IT Sub-Committee minutes acknowledging residual risk.
+
+---
+
+*End of Part 5.*
