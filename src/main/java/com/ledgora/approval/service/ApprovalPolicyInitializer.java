@@ -21,13 +21,13 @@ import java.util.List;
  *
  * | Type       | Channel        | Max Amount  | Auto? | Description                                  |
  * |------------|----------------|-------------|-------|----------------------------------------------|
- * | DEPOSIT    | TELLER         | 200,000     | YES   | Low-value teller deposit                     |
- * | DEPOSIT    | TELLER         | null        | NO    | High-value teller deposit needs approval     |
- * | DEPOSIT    | ATM            | null        | YES   | ATM deposit auto-authorized                  |
- * | DEPOSIT    | ONLINE         | null        | YES   | Online deposit auto-authorized               |
- * | DEPOSIT    | MOBILE         | null        | YES   | Mobile deposit auto-authorized               |
- * | WITHDRAWAL | TELLER         | 200,000     | YES   | Low-value teller withdrawal                  |
- * | WITHDRAWAL | TELLER         | null        | NO    | High-value teller withdrawal needs approval  |
+ * | DEPOSIT    | TELLER         | 200,000     | YES   | Low-value teller deposit (low risk, cash in)  |
+ * | DEPOSIT    | TELLER         | null        | NO    | High-value teller deposit needs approval      |
+ * | DEPOSIT    | ATM            | null        | YES   | ATM deposit auto-authorized                   |
+ * | DEPOSIT    | ONLINE         | null        | YES   | Online deposit auto-authorized                |
+ * | DEPOSIT    | MOBILE         | null        | YES   | Mobile deposit auto-authorized                |
+ * | WITHDRAWAL | TELLER         | 100,000     | YES   | Low-value teller withdrawal (higher risk)     |
+ * | WITHDRAWAL | TELLER         | null        | NO    | High-value teller withdrawal needs approval   |
  * | WITHDRAWAL | ATM            | null        | YES   | ATM withdrawal auto-authorized               |
  * | WITHDRAWAL | ONLINE         | null        | YES   | Online withdrawal auto-authorized            |
  * | WITHDRAWAL | MOBILE         | null        | YES   | Mobile withdrawal auto-authorized            |
@@ -77,13 +77,14 @@ public class ApprovalPolicyInitializer {
     }
 
     private void seedForTenant(Tenant tenant) {
-        BigDecimal tellerLimit = new BigDecimal("200000.0000");
-        BigDecimal transferLimit = new BigDecimal("500000.0000");
+        BigDecimal depositLimit = new BigDecimal("200000.0000");   // ₹2L - low risk (cash in), AML-monitored
+        BigDecimal withdrawalLimit = new BigDecimal("100000.0000"); // ₹1L - higher risk (cash out)
+        BigDecimal transferLimit = new BigDecimal("500000.0000");   // ₹5L - internal movement
 
-        // --- DEPOSIT ---
-        createPolicy(tenant, "DEPOSIT", "TELLER", null, tellerLimit, true,
-                "Low-value teller deposit (auto-authorized up to " + tellerLimit + ")");
-        createPolicy(tenant, "DEPOSIT", "TELLER", tellerLimit.add(BigDecimal.ONE), null, false,
+        // --- DEPOSIT (low risk: cash coming into bank, AML monitoring) ---
+        createPolicy(tenant, "DEPOSIT", "TELLER", null, depositLimit, true,
+                "Low-value teller deposit (auto-authorized up to " + depositLimit + ")");
+        createPolicy(tenant, "DEPOSIT", "TELLER", depositLimit.add(new BigDecimal("0.0001")), null, false,
                 "High-value teller deposit (requires checker approval)");
         createPolicy(tenant, "DEPOSIT", "ATM", null, null, true,
                 "ATM deposit (auto-authorized, channel-limited)");
@@ -92,10 +93,10 @@ public class ApprovalPolicyInitializer {
         createPolicy(tenant, "DEPOSIT", "MOBILE", null, null, true,
                 "Mobile deposit (auto-authorized)");
 
-        // --- WITHDRAWAL ---
-        createPolicy(tenant, "WITHDRAWAL", "TELLER", null, tellerLimit, true,
-                "Low-value teller withdrawal (auto-authorized up to " + tellerLimit + ")");
-        createPolicy(tenant, "WITHDRAWAL", "TELLER", tellerLimit.add(BigDecimal.ONE), null, false,
+        // --- WITHDRAWAL (higher risk: cash leaving bank) ---
+        createPolicy(tenant, "WITHDRAWAL", "TELLER", null, withdrawalLimit, true,
+                "Low-value teller withdrawal (auto-authorized up to " + withdrawalLimit + ")");
+        createPolicy(tenant, "WITHDRAWAL", "TELLER", withdrawalLimit.add(new BigDecimal("0.0001")), null, false,
                 "High-value teller withdrawal (requires checker approval)");
         createPolicy(tenant, "WITHDRAWAL", "ATM", null, null, true,
                 "ATM withdrawal (auto-authorized, channel-limited)");
@@ -107,7 +108,7 @@ public class ApprovalPolicyInitializer {
         // --- TRANSFER ---
         createPolicy(tenant, "TRANSFER", "TELLER", null, transferLimit, true,
                 "Low-value teller transfer (auto-authorized up to " + transferLimit + ")");
-        createPolicy(tenant, "TRANSFER", "TELLER", transferLimit.add(BigDecimal.ONE), null, false,
+        createPolicy(tenant, "TRANSFER", "TELLER", transferLimit.add(new BigDecimal("0.0001")), null, false,
                 "High-value teller transfer (requires checker approval)");
         createPolicy(tenant, "TRANSFER", "ATM", null, null, true,
                 "ATM transfer (auto-authorized)");
