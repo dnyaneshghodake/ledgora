@@ -19,12 +19,7 @@
 </c:if>
 <%@ include file="../layout/status-banner.jsp" %>
 
-<c:if test="${not empty message}">
-    <div class="alert alert-success alert-dismissible fade show"><c:out value="${message}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-</c:if>
-<c:if test="${not empty error}">
-    <div class="alert alert-danger alert-dismissible fade show"><c:out value="${error}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-</c:if>
+<%-- Flash alerts already rendered and cleared by header.jsp (PART 7) --%>
 
 <ul class="nav nav-tabs mb-4" id="customerTabs">
     <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-basic">Basic Details</a></li>
@@ -97,11 +92,12 @@
     <div class="card shadow">
         <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-snow"></i> Freeze Control</h5></div>
         <div class="card-body">
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
             <h6>Update Freeze Level</h6>
             <form method="post" action="${pageContext.request.contextPath}/customers/${customer.customerId}/freeze" class="row g-2">
                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
                 <div class="col-md-3">
-                    <label class="form-label">Freeze Level *</label>
+                    <label class="form-label cbs-field-required">Freeze Level</label>
                     <select name="freezeLevel" class="form-select" required>
                         <c:forEach var="fl" items="${freezeLevels}">
                             <option value="${fl}"><c:out value="${fl}"/></option>
@@ -109,13 +105,20 @@
                     </select>
                 </div>
                 <div class="col-md-5">
-                    <label class="form-label">Freeze Reason *</label>
+                    <label class="form-label cbs-field-required">Freeze Reason</label>
                     <input type="text" name="freezeReason" class="form-control" required maxlength="255" placeholder="Reason for freeze/unfreeze"/>
                 </div>
                 <div class="col-md-4 d-flex align-items-end">
                     <button type="submit" class="btn btn-warning"><i class="bi bi-snow"></i> Update Freeze</button>
                 </div>
             </form>
+            </c:if>
+            <c:if test="${!sessionScope.isAdmin && !sessionScope.isManager && !sessionScope.isBranchManager && !sessionScope.isTenantAdmin && !sessionScope.isSuperAdmin}">
+            <div class="text-center py-3 text-muted">
+                <i class="bi bi-lock" style="font-size: 2rem;"></i>
+                <p class="mt-2">You do not have permission to modify freeze controls.</p>
+            </div>
+            </c:if>
         </div>
     </div>
 </div>
@@ -231,9 +234,9 @@
 <%-- Audit Info Section --%>
 <c:set var="auditCreatedBy" value="${customer.createdBy}" scope="request"/>
 <c:set var="auditCreatedAt" value="${customer.createdAt}" scope="request"/>
-<c:set var="auditLastModifiedBy" value="${customer.lastModifiedBy}" scope="request"/>
-<c:set var="auditUpdatedAt" value="${customer.updatedAt}" scope="request"/>
-<c:set var="auditApprovedBy" value="${customer.approvedBy}" scope="request"/>
+<c:set var="auditLastModifiedBy" value="" scope="request"/>
+<c:set var="auditUpdatedAt" value="" scope="request"/>
+<c:set var="auditApprovedBy" value="" scope="request"/>
 <c:set var="auditApprovalStatus" value="${customer.kycStatus}" scope="request"/>
 <c:set var="auditCurrentStatus" value="${customer.kycStatus}" scope="request"/>
 <c:set var="auditEntityType" value="Customer" scope="request"/>

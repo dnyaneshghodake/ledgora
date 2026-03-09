@@ -32,8 +32,34 @@
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Description</label>
-                    <input type="text" name="description" class="form-control" maxlength="255"/>
+                    <label class="form-label">Holiday Name</label>
+                    <input type="text" name="holidayName" class="form-control" maxlength="100" placeholder="e.g. Republic Day"/>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Holiday Type</label>
+                    <select name="holidayType" class="form-select">
+                        <option value="">Select Type</option>
+                        <option value="NATIONAL">National Holiday</option>
+                        <option value="REGIONAL">Regional Holiday</option>
+                        <option value="BANK_SPECIFIC">Bank Specific</option>
+                        <option value="WEEKEND">Weekend</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Remarks</label>
+                    <input type="text" name="remarks" class="form-control" maxlength="500" placeholder="Additional remarks"/>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-4">
+                        <input type="checkbox" name="atmAllowed" value="true" class="form-check-input" id="atmAllowed"/>
+                        <label class="form-check-label" for="atmAllowed">ATM Allowed</label>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="form-check mt-4">
+                        <input type="checkbox" name="systemTxnAllowed" value="true" class="form-check-input" id="systemTxnAllowed"/>
+                        <label class="form-check-label" for="systemTxnAllowed">System Transactions Allowed</label>
+                    </div>
                 </div>
                 <div class="col-12"><hr>
                     <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Create (Pending Approval)</button>

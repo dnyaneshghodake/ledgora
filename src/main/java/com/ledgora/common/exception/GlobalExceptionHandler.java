@@ -1,6 +1,7 @@
 package com.ledgora.common.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +11,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -23,6 +25,48 @@ import java.util.UUID;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    /**
+     * PART 5: Handle static resource 404s (e.g., .map files) without ERROR logging.
+     * Browser requests for source maps should not pollute application logs.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public String handleStaticResourceNotFound(NoResourceFoundException ex, Model model,
+                                                HttpServletRequest request, HttpServletResponse response) {
+        String uri = request.getRequestURI();
+        // PART 10: Guard against response already committed
+        if (response.isCommitted()) {
+            log.debug("Response already committed for: {}", uri);
+            return null;
+        }
+        // Silently handle .map file requests at DEBUG level
+        if (uri.endsWith(".map") || uri.startsWith("/resources/")) {
+            log.debug("Static resource not found (ignored): {}", uri);
+        } else {
+            log.warn("Resource not found: {}", uri);
+        }
+        populateErrorModel(model, request, "Page Not Found",
+                "The requested resource was not found.", "404");
+        return "error/error";
+    }
+
+    /**
+     * PART 11: Handle TransactionNotFoundException with friendly 404 page.
+     */
+    @ExceptionHandler(TransactionNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public String handleTransactionNotFound(TransactionNotFoundException ex, Model model,
+                                             HttpServletRequest request, HttpServletResponse response) {
+        if (response.isCommitted()) {
+            log.debug("Response already committed, cannot forward for TransactionNotFoundException");
+            return null;
+        }
+        populateErrorModel(model, request, "Transaction Not Found",
+                ex.getMessage(), "TXN_NOT_FOUND");
+        log.warn("Transaction not found: {}", ex.getMessage());
+        return "error/error";
+    }
 
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
@@ -100,9 +144,18 @@ public class GlobalExceptionHandler {
         return "error/error";
     }
 
+    /**
+     * PART 10: Generic error handler with response.isCommitted() guard
+     * to prevent "Cannot forward to error page after response has been committed".
+     */
     @ExceptionHandler(Throwable.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public String handleGenericError(Throwable ex, Model model, HttpServletRequest request) {
+    public String handleGenericError(Throwable ex, Model model, HttpServletRequest request,
+                                      HttpServletResponse response) {
+        if (response.isCommitted()) {
+            log.error("Response already committed at {}: {}", request.getRequestURI(), ex.getMessage());
+            return null;
+        }
         populateErrorModel(model, request, "Unexpected Error",
                 "An unexpected error occurred. Please try again or contact support if the problem persists.",
                 "INTERNAL_ERROR");

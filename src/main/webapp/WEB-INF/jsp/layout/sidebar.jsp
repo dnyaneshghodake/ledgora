@@ -3,8 +3,8 @@
   CBS Sidebar Navigation - Domain-Aligned Collapsible Menu Structure
   Role flags set by CustomAuthenticationSuccessHandler:
     sessionScope.isAdmin, sessionScope.isManager, sessionScope.isTeller, sessionScope.isCustomer,
-    sessionScope.isFinance, sessionScope.isMaker, sessionScope.isChecker,
-    sessionScope.isBranchManager, sessionScope.isTenantAdmin, sessionScope.isSuperAdmin
+    sessionScope.isOperations, sessionScope.isMaker, sessionScope.isChecker,
+    sessionScope.isBranchManager, sessionScope.isTenantAdmin, sessionScope.isSuperAdmin, sessionScope.isAuditor
 
   CBS Role Mapping:
     MAKER          -> Create Voucher, Customer Create
@@ -270,9 +270,9 @@
             </li>
             </c:if>
 
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin || sessionScope.isFinance}">
-            <li class="cbs-nav-group">
-                <a href="#" class="cbs-nav-group-toggle" data-group="ledger">
+                        <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin || sessionScope.isOperations}">
+                        <li class="cbs-nav-group">
+                            <a href="#" class="cbs-nav-group-toggle" data-group="ledger">
                     <i class="bi bi-book"></i>
                     <span>Ledger & GL</span>
                     <i class="bi bi-chevron-down cbs-nav-arrow"></i>
@@ -344,7 +344,7 @@
             </li>
             </c:if>
 
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isFinance || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="reports">
                     <i class="bi bi-file-earmark-bar-graph"></i>
@@ -358,7 +358,7 @@
                             <span>Financial Reports</span>
                         </a>
                     </li>
-                    <c:if test="${sessionScope.isAdmin || sessionScope.isFinance}">
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isOperations}">
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/admin/ledger/view/validate" class="cbs-nav-link" data-page="admin/ledger">
                             <i class="bi bi-shield-check"></i>
