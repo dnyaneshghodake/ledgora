@@ -250,9 +250,10 @@ public class DataInitializer implements CommandLineRunner {
         Role customerRole = roleRepository.findByName(RoleName.ROLE_CUSTOMER)
                 .orElseThrow(() -> new RuntimeException("ROLE_CUSTOMER not found"));
 
-        // ── ADMIN user (HQ) ──
+        // ── ADMIN user (HQ) — MULTI tenant scope so admin can switch tenants ──
         adminUser = createUserIfMissing("admin", "admin123", "System Administrator",
-                "admin@ledgora.com", "+91-9000000001", hqBranch, Set.of(adminRole));
+                "admin@ledgora.com", "+91-9000000001", hqBranch, Set.of(adminRole),
+                defaultTenant, TenantScope.MULTI);
 
         // ── MANAGER user (HQ) ──
         managerUser = createUserIfMissing("manager", "manager123", "Branch Manager",
@@ -302,15 +303,50 @@ public class DataInitializer implements CommandLineRunner {
         createUserIfMissing("auditor1", "auditor123", "Auditor One",
                 "auditor1@ledgora.com", "+91-9000000013", hqBranch, Set.of(auditorRole));
 
-        log.info("  [Users] 12 users ready (admin, manager, teller1-2, customer1-4, maker1, checker1, ops1, auditor1)");
+        // ── SUPER_ADMIN, TENANT_ADMIN, BRANCH_MANAGER users for full role coverage ──
+        Role superAdminRole = roleRepository.findByName(RoleName.ROLE_SUPER_ADMIN)
+                .orElseThrow(() -> new RuntimeException("ROLE_SUPER_ADMIN not found"));
+        Role tenantAdminRole = roleRepository.findByName(RoleName.ROLE_TENANT_ADMIN)
+                .orElseThrow(() -> new RuntimeException("ROLE_TENANT_ADMIN not found"));
+        Role branchMgrRole = roleRepository.findByName(RoleName.ROLE_BRANCH_MANAGER)
+                .orElseThrow(() -> new RuntimeException("ROLE_BRANCH_MANAGER not found"));
+
+        createUserIfMissing("superadmin", "super123", "Super Administrator",
+                "superadmin@ledgora.com", "+91-9000000020", hqBranch,
+                Set.of(superAdminRole, adminRole), defaultTenant, TenantScope.MULTI);
+
+        createUserIfMissing("tenantadmin", "tenant123", "Tenant Administrator",
+                "tenantadmin@ledgora.com", "+91-9000000021", hqBranch,
+                Set.of(tenantAdminRole), defaultTenant, TenantScope.MULTI);
+
+        createUserIfMissing("branchmgr1", "branch123", "Branch Manager One",
+                "branchmgr1@ledgora.com", "+91-9000000022", branch1, Set.of(branchMgrRole));
+
+        // ── Second tenant user — teller on TENANT-002 for cross-tenant testing ──
+        createUserIfMissing("teller3", "teller123", "Teller Three (Partner Bank)",
+                "teller3@ledgora.com", "+91-9000000030", branch2, Set.of(tellerRole),
+                secondTenant, TenantScope.SINGLE);
+
+        log.info("  [Users] 16 users ready (admin, superadmin, tenantadmin, branchmgr1, manager, teller1-3, customer1-4, maker1, checker1, ops1, auditor1)");
     }
 
     /**
      * Helper — creates a user only if the username does not already exist.
      * Returns the persisted (or existing) User entity.
+     * Uses default tenant with SINGLE scope.
      */
     private User createUserIfMissing(String username, String rawPassword, String fullName,
                                      String email, String phone, Branch branch, Set<Role> roles) {
+        return createUserIfMissing(username, rawPassword, fullName, email, phone, branch, roles,
+                defaultTenant, TenantScope.SINGLE);
+    }
+
+    /**
+     * Helper — creates a user with explicit tenant and tenant scope.
+     */
+    private User createUserIfMissing(String username, String rawPassword, String fullName,
+                                     String email, String phone, Branch branch, Set<Role> roles,
+                                     Tenant tenant, TenantScope tenantScope) {
         return userRepository.findByUsername(username).orElseGet(() -> {
             User user = User.builder()
                     .username(username)
@@ -320,6 +356,8 @@ public class DataInitializer implements CommandLineRunner {
                     .phone(phone)
                     .branch(branch)
                     .branchCode(branch.getBranchCode())
+                    .tenant(tenant)
+                    .tenantScope(tenantScope)
                     .isActive(true)
                     .isLocked(false)
                     .failedLoginAttempts(0)
