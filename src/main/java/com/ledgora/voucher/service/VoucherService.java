@@ -551,8 +551,14 @@ public class VoucherService {
         if (linkedTransaction != null) {
             return linkedTransaction;
         }
-        // Look for existing transactions linked to this account on the same date
-        // Create a minimal transaction record for the voucher posting
+        // FR-10 fix: Use the voucher's own transaction FK before creating a synthetic one.
+        // This is critical for reversal auto-posting — cancelVoucher sets
+        // reversal.transaction = original.transaction, but calls postVoucher(id)
+        // without passing the transaction explicitly.
+        if (voucher.getTransaction() != null) {
+            return voucher.getTransaction();
+        }
+        // Last resort: create a minimal synthetic transaction for standalone voucher posting
         String txRef = "VCH-" + voucher.getId() + "-" + System.currentTimeMillis();
         Transaction transaction = Transaction.builder()
                 .tenant(voucher.getTenant())
