@@ -19,6 +19,7 @@
     <div class="card-body">
         <form method="post" action="${pageContext.request.contextPath}/transactions/transfer" id="transferForm">
             <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+            <input type="hidden" name="transactionType" value="TRANSFER"/>
             <div class="row g-3">
                 <%-- Holiday Warning --%>
                 <c:if test="${isHoliday}">
@@ -36,7 +37,7 @@
                         <div class="card-body">
                             <label class="form-label cbs-field-required">Account Number</label>
                             <div class="input-group">
-                                <input type="text" name="fromAccountNumber" id="fromAccount" class="form-control" required readonly
+                                <input type="text" name="sourceAccountNumber" id="fromAccount" class="form-control" required readonly
                                        placeholder="Use lookup to select"/>
                                 <button type="button" class="btn btn-outline-primary" onclick="openAccountLookup('fromAccount','fromAccountName')" title="Search Account">
                                     <i class="bi bi-search"></i>
@@ -75,7 +76,7 @@
                         <div class="card-body">
                             <label class="form-label cbs-field-required">Account Number</label>
                             <div class="input-group">
-                                <input type="text" name="toAccountNumber" id="toAccount" class="form-control" required readonly
+                                <input type="text" name="destinationAccountNumber" id="toAccount" class="form-control" required readonly
                                        placeholder="Use lookup to select"/>
                                 <button type="button" class="btn btn-outline-primary" onclick="openAccountLookup('toAccount','toAccountName')" title="Search Account">
                                     <i class="bi bi-search"></i>

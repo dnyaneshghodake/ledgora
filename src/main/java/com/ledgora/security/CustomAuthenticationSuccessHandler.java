@@ -4,6 +4,8 @@ import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.common.enums.TenantScope;
 import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.tenant.entity.Tenant;
+import com.ledgora.tenant.service.TenantService;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,11 +25,14 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
+    private final TenantService tenantService;
 
     public CustomAuthenticationSuccessHandler(JwtTokenProvider jwtTokenProvider,
-                                              UserRepository userRepository) {
+                                              UserRepository userRepository,
+                                              TenantService tenantService) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.userRepository = userRepository;
+        this.tenantService = tenantService;
         setDefaultTargetUrl("/dashboard");
         setAlwaysUseDefaultTargetUrl(true);
     }
@@ -84,6 +89,16 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
                 session.setAttribute("businessDateStatus", user.getTenant().getDayStatus().name());
             }
         }
+        // Populate available tenants list for MULTI-scope users (tenant switch dropdown in header.jsp)
+        if (TenantScope.MULTI.name().equals(tenantScopeStr)) {
+            try {
+                List<Tenant> activeTenants = tenantService.getAllActiveTenants();
+                session.setAttribute("availableTenants", activeTenants);
+            } catch (Exception e) {
+                // Non-critical — dropdown just won't show
+            }
+        }
+
         // Store branch info in session
         if (user != null) {
             if (user.getBranch() != null) {

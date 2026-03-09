@@ -14,4 +14,5 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Boolean existsByEmail(String email);
     List<User> findByIsActive(Boolean isActive);
     List<User> findByBranchCode(String branchCode);
+    long countByRolesContaining(com.ledgora.auth.entity.Role role);
 }

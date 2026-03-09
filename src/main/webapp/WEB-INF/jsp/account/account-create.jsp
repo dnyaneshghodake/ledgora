@@ -42,6 +42,7 @@
                         <div class="col-md-4">
                             <label class="form-label">Customer Name</label>
                             <input type="text" class="form-control" id="customerNameDisplay" disabled placeholder="Auto-filled on lookup"/>
+                            <form:hidden path="customerName" id="customerNameHidden"/>
                         </div>
                         <div class="col-md-4">
                             <label class="form-label">KYC Status</label>
@@ -158,7 +159,9 @@ function lookupCustomer() {
         .then(function(data) {
             if (data && data.length > 0) {
                 var c = data[0];
-                document.getElementById('customerNameDisplay').value = c.firstName + ' ' + c.lastName;
+                var fullName = c.firstName + ' ' + c.lastName;
+                document.getElementById('customerNameDisplay').value = fullName;
+                document.getElementById('customerNameHidden').value = fullName;
                 document.getElementById('customerKycDisplay').value = c.kycStatus || 'N/A';
                 if (c.kycStatus !== 'VERIFIED') {
                     var w = document.getElementById('customerWarning');
@@ -170,6 +173,13 @@ function lookupCustomer() {
         .catch(function(err) { console.error('Lookup failed:', err); });
 }
 
+function escapeHtml(str) {
+    if (!str) return '';
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+}
+
 function searchCustomers() {
     var query = document.getElementById('customerSearchInput').value;
     if (!query || query.length < 2) return;
@@ -179,8 +189,11 @@ function searchCustomers() {
             var html = '<table class="table table-hover table-sm"><thead><tr><th>ID</th><th>Name</th><th>KYC</th><th></th></tr></thead><tbody>';
             if (data && data.length > 0) {
                 data.forEach(function(c) {
-                    html += '<tr><td>' + c.customerId + '</td><td>' + c.firstName + ' ' + c.lastName + '</td><td>' + (c.kycStatus||'') + '</td>';
-                    html += '<td><button class="btn btn-sm btn-primary" onclick="selectCustomer(' + c.customerId + ',\'' + c.firstName + ' ' + c.lastName + '\',\'' + (c.kycStatus||'') + '\')">Select</button></td></tr>';
+                    var safeName = escapeHtml(c.firstName + ' ' + c.lastName);
+                    var safeKyc = escapeHtml(c.kycStatus || '');
+                    var safeId = parseInt(c.customerId, 10);
+                    html += '<tr><td>' + safeId + '</td><td>' + safeName + '</td><td>' + safeKyc + '</td>';
+                    html += '<td><button class="btn btn-sm btn-primary" onclick="selectCustomer(' + safeId + ',\'' + safeName.replace(/'/g, "\\'") + '\',\'' + safeKyc.replace(/'/g, "\\'") + '\')">Select</button></td></tr>';
                 });
             } else {
                 html += '<tr><td colspan="4" class="text-center">No customers found</td></tr>';
@@ -193,6 +206,7 @@ function searchCustomers() {
 function selectCustomer(id, name, kyc) {
     document.getElementById('customerIdInput').value = id;
     document.getElementById('customerNameDisplay').value = name;
+    document.getElementById('customerNameHidden').value = name;
     document.getElementById('customerKycDisplay').value = kyc;
     bootstrap.Modal.getInstance(document.getElementById('customerLookupModal')).hide();
     if (kyc !== 'VERIFIED') {
