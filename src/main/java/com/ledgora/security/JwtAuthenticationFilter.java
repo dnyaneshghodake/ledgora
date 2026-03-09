@@ -58,7 +58,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             logger.error("Could not set user authentication in security context", ex);
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            // Clear tenant context after request to prevent ThreadLocal leakage
+            // across pooled threads (CWE-212: Improper Cross-boundary Removal of Data)
+            TenantContextHolder.clear();
+        }
     }
 
     private String getJwtFromRequest(HttpServletRequest request) {

@@ -223,7 +223,10 @@ public class TransactionService {
         // C3: Server-side freeze level enforcement for debit (withdrawal debits customer account)
         validateAccountFreezeLevel(account, VoucherDrCr.DR);
         if (account.getBalance().compareTo(dto.getAmount()) < 0) {
-            throw new RuntimeException("Insufficient balance. Available: " + account.getBalance());
+            throw new com.ledgora.common.exception.InsufficientBalanceException(
+                    account.getAccountNumber(),
+                    "Insufficient balance in account " + account.getAccountNumber()
+                            + ". Available: " + account.getBalance());
         }
 
         User currentUser = getCurrentUser();
@@ -481,7 +484,8 @@ public class TransactionService {
      */
     private void validateAmountPositive(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new RuntimeException("Transaction amount must be positive. Received: " + amount);
+            throw new com.ledgora.common.exception.InvalidTransactionAmountException(
+                    "Transaction amount must be positive. Received: " + amount);
         }
     }
 
