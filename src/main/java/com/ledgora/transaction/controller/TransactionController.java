@@ -1,5 +1,7 @@
 package com.ledgora.transaction.controller;
 
+import com.ledgora.account.repository.AccountRepository;
+import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.common.enums.TransactionType;
 import com.ledgora.common.exception.TransactionNotFoundException;
 import com.ledgora.transaction.dto.TransactionDTO;
@@ -7,6 +9,8 @@ import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.account.service.AccountService;
 import com.ledgora.transaction.service.TransactionService;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -21,10 +25,15 @@ public class TransactionController {
 
     private final TransactionService transactionService;
     private final AccountService accountService;
+    private final AccountRepository accountRepository;
+    private final UserRepository userRepository;
 
-    public TransactionController(TransactionService transactionService, AccountService accountService) {
+    public TransactionController(TransactionService transactionService, AccountService accountService,
+                                 AccountRepository accountRepository, UserRepository userRepository) {
         this.transactionService = transactionService;
         this.accountService = accountService;
+        this.accountRepository = accountRepository;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
@@ -160,6 +169,60 @@ public class TransactionController {
         }
     }
 
+    // ===== Maker-Checker Approval Workflow (UI-1 fix) =====
+
+    /**
+     * Pending transactions awaiting checker approval.
+     * Only CHECKER, ADMIN, MANAGER can see this queue.
+     */
+    @GetMapping("/pending")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
+    public String pendingTransactions(Model model) {
+        model.addAttribute("pendingTransactions", transactionService.getPendingApprovalTransactions());
+        model.addAttribute("pendingCount", transactionService.countPendingApproval());
+        return "transaction/transaction-pending";
+    }
+
+    /**
+     * Approve a pending transaction (checker action).
+     * Maker-checker enforcement: checker must differ from maker (enforced by TransactionService).
+     */
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
+    public String approveTransaction(@PathVariable Long id,
+                                     @RequestParam(required = false, defaultValue = "Approved") String remarks,
+                                     RedirectAttributes redirectAttributes) {
+        try {
+            Transaction approved = transactionService.approveTransaction(id, remarks);
+            redirectAttributes.addFlashAttribute("message",
+                    "Transaction " + approved.getTransactionRef() + " approved and posted.");
+            return "redirect:/transactions/pending";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Approval failed: " + e.getMessage());
+            return "redirect:/transactions/pending";
+        }
+    }
+
+    /**
+     * Reject a pending transaction (checker action).
+     * Maker-checker enforcement: checker must differ from maker (enforced by TransactionService).
+     */
+    @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
+    public String rejectTransaction(@PathVariable Long id,
+                                    @RequestParam(required = false, defaultValue = "Rejected by checker") String remarks,
+                                    RedirectAttributes redirectAttributes) {
+        try {
+            Transaction rejected = transactionService.rejectTransaction(id, remarks);
+            redirectAttributes.addFlashAttribute("message",
+                    "Transaction " + rejected.getTransactionRef() + " rejected.");
+            return "redirect:/transactions/pending";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Rejection failed: " + e.getMessage());
+            return "redirect:/transactions/pending";
+        }
+    }
+
     /**
      * RBI-F8: Transaction history endpoint.
      *
@@ -179,6 +242,40 @@ public class TransactionController {
             throw new com.ledgora.common.exception.BusinessException("INVALID_ACCOUNT",
                     "Invalid account number format");
         }
+
+        // UI-2: IDOR prevention for CUSTOMER role.
+        // Tenant isolation blocks cross-tenant access, but within a tenant
+        // a CUSTOMER could access another customer's account by URL manipulation.
+        // Validate that the requested account belongs to the authenticated user.
+        org.springframework.security.core.Authentication auth =
+                SecurityContextHolder.getContext().getAuthentication();
+        boolean isCustomerRole = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CUSTOMER"));
+        if (isCustomerRole) {
+            // For CUSTOMER users, verify account ownership via the user's linked accounts
+            String username = auth.getName();
+            Long tenantId = com.ledgora.tenant.context.TenantContextHolder.getRequiredTenantId();
+            com.ledgora.account.entity.Account account = accountRepository
+                    .findByAccountNumberAndTenantId(accountNumber, tenantId)
+                    .orElseThrow(() -> new com.ledgora.common.exception.BusinessException(
+                            "ACCOUNT_NOT_FOUND", "Account not found: " + accountNumber));
+            // Check if the account's customer is linked to the authenticated user
+            if (account.getCustomerName() == null || account.getCustomer() == null) {
+                throw new com.ledgora.common.exception.BusinessException("ACCESS_DENIED",
+                        "Account " + accountNumber + " is not a customer account.");
+            }
+            com.ledgora.auth.entity.User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new com.ledgora.common.exception.BusinessException(
+                            "USER_NOT_FOUND", "Current user not found"));
+            // Match by comparing the user's full name with the account's customer name
+            // In production, this should use a direct User→Customer FK relationship
+            if (user.getFullName() == null
+                    || !user.getFullName().equalsIgnoreCase(account.getCustomerName())) {
+                throw new com.ledgora.common.exception.BusinessException("ACCESS_DENIED",
+                        "You do not have access to account " + accountNumber);
+            }
+        }
+
         model.addAttribute("transactions", transactionService.getTransactionsByAccountNumber(accountNumber));
         model.addAttribute("ledgerEntries", transactionService.getLedgerEntriesByAccount(accountNumber));
         model.addAttribute("accountNumber", accountNumber);

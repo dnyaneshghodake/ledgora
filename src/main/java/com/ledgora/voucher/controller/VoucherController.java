@@ -114,6 +114,14 @@ public class VoucherController {
         // Batch info
         model.addAttribute("batchCode", voucher.getBatchCode());
 
+        // UI-3: Pass flag so JSP can hide Authorize/Reject/Post buttons on maker's own voucher.
+        // Backend enforces maker != checker regardless, but hiding the buttons prevents
+        // confusing error messages when the maker tries to authorize their own voucher.
+        String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+        boolean isOwnVoucher = makerUsername.equals(currentUsername);
+        model.addAttribute("isOwnVoucher", isOwnVoucher);
+        model.addAttribute("currentUsername", currentUsername);
+
         return "voucher/voucher-view";
     }
 
