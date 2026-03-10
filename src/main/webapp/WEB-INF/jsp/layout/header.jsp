@@ -48,6 +48,7 @@
                 </c:choose>
             </strong>
         </div>
+        <span class="cbs-header-separator"></span>
         <%-- Environment Badge --%>
         <span class="cbs-env-badge cbs-env-${not empty sessionScope.environment ? sessionScope.environment.toLowerCase() : 'dev'}">
             <c:choose>
