@@ -152,35 +152,29 @@ public class EodValidationService {
         }
 
         // Inter-branch clearing validation: all IBC transfers must be SETTLED or FAILED
-        if (interBranchClearingService != null) {
-            String ibcError =
-                    interBranchClearingService.validateClearingBalance(tenantId, businessDate);
-            if (ibcError != null) {
-                errors.add(ibcError);
-            }
+        String ibcError =
+                interBranchClearingService.validateClearingBalance(tenantId, businessDate);
+        if (ibcError != null) {
+            errors.add(ibcError);
         }
 
         // CBS Standard (Step 3): Clearing GL net balance must be zero at EOD
-        if (ibtService != null) {
-            String clearingGlError = ibtService.validateClearingGlNetZero(tenantId);
-            if (clearingGlError != null) {
-                errors.add(clearingGlError);
-            }
+        String clearingGlError = ibtService.validateClearingGlNetZero(tenantId);
+        if (clearingGlError != null) {
+            errors.add(clearingGlError);
         }
 
         // Suspense GL validation: suspense balance must be within tolerance (default: 0)
-        if (suspenseResolutionService != null) {
-            String suspenseBalanceError =
-                    suspenseResolutionService.validateSuspenseAccountBalance(tenantId);
-            if (suspenseBalanceError != null) {
-                errors.add(suspenseBalanceError);
-            }
-            String suspenseCaseError =
-                    suspenseResolutionService.validateSuspenseForEod(
-                            tenantId, java.math.BigDecimal.ZERO);
-            if (suspenseCaseError != null) {
-                errors.add(suspenseCaseError);
-            }
+        String suspenseBalanceError =
+                suspenseResolutionService.validateSuspenseAccountBalance(tenantId);
+        if (suspenseBalanceError != null) {
+            errors.add(suspenseBalanceError);
+        }
+        String suspenseCaseError =
+                suspenseResolutionService.validateSuspenseForEod(
+                        tenantId, java.math.BigDecimal.ZERO);
+        if (suspenseCaseError != null) {
+            errors.add(suspenseCaseError);
         }
 
         // 7. Branch GL balanced - checked if CbsGlBalanceService is tracking balances

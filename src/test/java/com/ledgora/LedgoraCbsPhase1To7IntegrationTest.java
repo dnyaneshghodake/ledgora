@@ -1279,6 +1279,9 @@ class LedgoraCbsPhase1To7IntegrationTest {
             tenantService.openDay(tenant.getId());
             tenantService.startDayClosing(tenant.getId());
 
+            // Set tenant context required by TransactionService
+            TenantContextHolder.setTenantId(tenant.getId());
+
             TransactionDTO dto =
                     TransactionDTO.builder()
                             .transactionType("DEPOSIT")
