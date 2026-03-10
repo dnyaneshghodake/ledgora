@@ -94,4 +94,8 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
             "SELECT a FROM Account a WHERE a.tenant.id = :tenantId "
                     + "AND (a.accountNumber LIKE 'IBC-OUT-%' OR a.accountNumber LIKE 'IBC-IN-%')")
     List<Account> findIbcClearingAccountsByTenantId(@Param("tenantId") Long tenantId);
+
+    /** Paginated account list for reconciliation (scales with large account counts). */
+    org.springframework.data.domain.Page<Account> findByTenantId(
+            Long tenantId, org.springframework.data.domain.Pageable pageable);
 }

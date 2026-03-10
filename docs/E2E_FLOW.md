@@ -575,4 +575,4 @@ A quick manual verification (dev/H2):
 12. After EOD, use `/eod/day-begin` to open the day
 13. Test voucher detail view: go to `/vouchers/{id}` for any voucher
 
-For additional data-level checks, use H2 console and the SQL in `README.md`, `docs/ibt-audit-sql-pack.sql`, `docs/suspense-audit-sql-pack.sql`, `docs/hard-ceiling-audit-sql-pack.sql`, `docs/velocity-fraud-audit-sql-pack.sql`, and `docs/eod-state-machine-audit-sql-pack.sql`.
+For additional data-level checks, use H2 console and the SQL in `README.md`, `docs/ibt-audit-sql-pack.sql`, `docs/suspense-audit-sql-pack.sql`, `docs/hard-ceiling-audit-sql-pack.sql`, `docs/velocity-fraud-audit-sql-pack.sql`, `docs/eod-state-machine-audit-sql-pack.sql`, and `docs/balance-reconciliation-audit-sql-pack.sql`.
