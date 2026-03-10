@@ -7,40 +7,51 @@
    1) Root variables (bank palette + surfaces + status colors)
    ----------------------------------------------------------------------- */
 :root {
-    --bank-primary: #003a70;
-    --bank-bg: #eef2f6;
-    --bank-border: #cfd7e3;
+    /* Finacle-style conservative palette */
+    --bank-primary: #002147;
+    --bank-secondary: #004080;
+    --bank-accent: #0a8f08;
+
+    --bank-bg: #f5f5f5;
+    --bank-border: #d6dbe3;
     --bank-surface: #ffffff;
     --bank-text: #1f2937;
 
-    --status-success: #1f7a3f;
+    /* Status colors (high contrast, banking-safe) */
+    --status-success: var(--bank-accent);
     --status-warning: #b45309;
     --status-danger: #b42318;
     --status-info: #1e40af;
 
-    /* Density knobs */
-    --ent-font-size: 13px;
+    /* Typography + density knobs */
+    --ent-font-size: 14px;
+    --ent-line-height: 1.35;
     --ent-radius: 4px;
-    --ent-pad-y: 0.25rem;
-    --ent-pad-x: 0.5rem;
+    --ent-pad-y: 0.28rem;
+    --ent-pad-x: 0.6rem;
+
+    /* Shadows */
+    --ent-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+    --ent-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 /* Map existing CBS variables to enterprise palette (keeps layout intact) */
 :root {
+    /* Bridge existing CBS variables to the enterprise palette */
     --cbs-primary: var(--bank-primary);
-    --cbs-primary-light: #1e4f85;
-    --cbs-primary-dark: #00284d;
+    --cbs-primary-light: var(--bank-secondary);
+    --cbs-primary-dark: #001633;
 
-    --cbs-accent: #0b5ed7;
-    --cbs-accent-hover: #0a58ca;
+    --cbs-accent: var(--bank-accent);
+    --cbs-accent-hover: #087a08;
 
-    --cbs-sidebar-width: 240px;
-    --cbs-header-height: 46px;
-    --cbs-footer-height: 36px;
+    --cbs-sidebar-width: 260px;
+    --cbs-header-height: 54px;
+    --cbs-footer-height: 40px;
 
-    --cbs-sidebar-bg: #0b2f55;
+    --cbs-sidebar-bg: var(--bank-primary);
     --cbs-sidebar-hover-bg: rgba(255, 255, 255, 0.08);
-    --cbs-sidebar-text: rgba(255, 255, 255, 0.72);
+    --cbs-sidebar-text: rgba(255, 255, 255, 0.78);
     --cbs-sidebar-active: #ffffff;
     --cbs-sidebar-section: rgba(255, 255, 255, 0.55);
 
@@ -48,6 +59,10 @@
     --cbs-header-border: var(--bank-border);
     --cbs-content-bg: var(--bank-bg);
     --cbs-footer-bg: #f7f9fc;
+
+    /* Enterprise layout constraints */
+    --ent-min-width: 1024px;
+    --ent-content-max: 1600px;
 }
 
 /* -----------------------------------------------------------------------
@@ -55,8 +70,11 @@
    ----------------------------------------------------------------------- */
 body {
     font-size: var(--ent-font-size);
+    line-height: var(--ent-line-height);
     color: var(--bank-text);
     background-color: var(--bank-bg);
+    font-family: Inter, Roboto, Helvetica, Arial, sans-serif;
+    min-width: var(--ent-min-width);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -95,12 +113,23 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .badge {
-    font-size: 0.78rem;
-    font-weight: 600;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+}
+
+/* High-contrast notification badge for approvals/alerts */
+.cbs-badge {
+    background: #b42318;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 .dropdown-menu {
     border-radius: var(--ent-radius);
+    box-shadow: var(--ent-shadow-md);
+    border: 1px solid var(--bank-border);
 }
 
 .dropdown-item {
@@ -111,6 +140,8 @@ h1, h2, h3, h4, h5, h6 {
 /* Cards */
 .card {
     border-radius: var(--ent-radius);
+    box-shadow: var(--ent-shadow-sm);
+    border: 1px solid var(--bank-border);
 }
 
 .card-header {
@@ -126,12 +157,16 @@ h1, h2, h3, h4, h5, h6 {
    ----------------------------------------------------------------------- */
 .cbs-header {
     height: var(--cbs-header-height);
-    padding: 0 0.75rem;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+    padding: 0 0.9rem;
+    box-shadow: var(--ent-shadow-sm);
 }
 
 .cbs-header-brand {
-    font-size: 1.05rem;
+    letter-spacing: 0.08em;
+}
+
+.cbs-header-brand i {
+    color: var(--bank-secondary);
 }
 
 .cbs-header-left {
@@ -166,13 +201,50 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .cbs-logout-btn {
-    padding: 0.25rem 0.6rem;
+    padding: 0.3rem 0.7rem;
     border-radius: var(--ent-radius);
-    font-size: 0.9rem;
+    font-size: 0.92rem;
+    border: 1px solid var(--bank-border);
+}
+
+.cbs-logout-btn:hover {
+    border-color: rgba(180, 35, 24, 0.45);
 }
 
 .cbs-sidebar {
     width: var(--cbs-sidebar-width);
+    background: linear-gradient(180deg, var(--bank-primary) 0%, #001a3a 100%);
+}
+
+/* Responsive: collapse sidebar to mini-icons under 1024px */
+@media (max-width: 1023.98px) {
+    :root {
+        --cbs-sidebar-width: 72px;
+    }
+
+    .cbs-nav-group-toggle > span,
+    .cbs-nav-link > span {
+        display: none;
+    }
+
+    .cbs-nav-arrow {
+        display: none;
+    }
+
+    .cbs-nav-link,
+    .cbs-nav-group-toggle {
+        justify-content: center;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .cbs-nav-submenu .cbs-nav-link {
+        padding-left: 0.75rem;
+    }
+
+    .cbs-sidebar-footer {
+        display: none;
+    }
 }
 
 .cbs-sidebar-nav {
@@ -185,15 +257,34 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .cbs-nav-link {
-    padding: 0.4rem 0.7rem;
-    font-size: 0.9rem;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.92rem;
     border-radius: var(--ent-radius);
-    min-height: 1.95rem;
+    min-height: 2.1rem;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cbs-nav-link:hover {
+    background: rgba(255, 255, 255, 0.09);
+}
+
+.cbs-nav-link.active {
+    background: var(--bank-secondary);
 }
 
 .cbs-nav-group-toggle {
-    padding: 0.45rem 1rem;
-    font-size: 0.9rem;
+    padding: 0.55rem 1rem;
+    font-size: 0.92rem;
+    cursor: pointer;
+}
+
+.cbs-nav-arrow {
+    transition: transform 0.2s ease;
+}
+
+.cbs-nav-group.open > .cbs-nav-group-toggle .cbs-nav-arrow {
+    transform: rotate(180deg);
 }
 
 .cbs-nav-submenu .cbs-nav-link {
@@ -204,10 +295,12 @@ h1, h2, h3, h4, h5, h6 {
     margin-left: var(--cbs-sidebar-width);
     margin-top: var(--cbs-header-height);
     min-height: calc(100vh - var(--cbs-header-height) - var(--cbs-footer-height));
+    overflow-y: auto;
 }
 
 .cbs-content {
-    padding: 1rem;
+    padding: 1.25rem;
+    max-width: var(--ent-content-max);
 }
 
 .cbs-footer {
@@ -232,17 +325,21 @@ h1, h2, h3, h4, h5, h6 {
 .table thead th {
     font-size: 0.72rem;
     letter-spacing: 0.06em;
-    background: var(--bank-surface);
-    border-bottom: 1px solid var(--bank-border);
-    color: #334155;
+    background: var(--bank-bg);
+    border-bottom: 2px solid var(--bank-border);
+    color: var(--bank-primary);
+    font-weight: 700;
+    text-transform: uppercase;
 }
 
 .table tbody td {
-    border-color: rgba(207, 215, 227, 0.8);
+    border-color: rgba(214, 219, 227, 0.8);
+    vertical-align: middle;
 }
 
 .table-hover tbody tr:hover {
-    background-color: rgba(11, 94, 215, 0.035);
+    background-color: rgba(0, 64, 128, 0.04);
+    cursor: pointer;
 }
 
 /* Utility: use class="cbs-numeric" on numeric headers/cells */
@@ -260,10 +357,10 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* -----------------------------------------------------------------------
-   Status colors wired to existing header badges
+   5) Status colors wired to existing header badges
    ----------------------------------------------------------------------- */
 .cbs-status-open {
-    background: rgba(31, 122, 63, 0.12);
+    background: rgba(10, 143, 8, 0.12);
     color: var(--status-success);
 }
 
@@ -278,7 +375,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .cbs-health-healthy {
-    background: rgba(31, 122, 63, 0.12);
+    background: rgba(10, 143, 8, 0.12);
     color: var(--status-success);
 }
 
@@ -290,4 +387,67 @@ h1, h2, h3, h4, h5, h6 {
 .cbs-health-corrupted {
     background: rgba(180, 35, 24, 0.12);
     color: var(--status-danger);
+}
+
+/* -----------------------------------------------------------------------
+   6) Utility classes — spacing, borders, shadows
+   Consistent across header/sidebar/content for Finacle-style dashboards.
+   ----------------------------------------------------------------------- */
+
+/* Spacing */
+.ent-p-0  { padding: 0 !important; }
+.ent-p-1  { padding: 0.25rem !important; }
+.ent-p-2  { padding: 0.5rem !important; }
+.ent-p-3  { padding: 0.75rem !important; }
+.ent-p-4  { padding: 1rem !important; }
+.ent-p-5  { padding: 1.25rem !important; }
+
+.ent-m-0  { margin: 0 !important; }
+.ent-m-1  { margin: 0.25rem !important; }
+.ent-m-2  { margin: 0.5rem !important; }
+.ent-m-3  { margin: 0.75rem !important; }
+.ent-m-4  { margin: 1rem !important; }
+.ent-m-5  { margin: 1.25rem !important; }
+
+.ent-mt-0 { margin-top: 0 !important; }
+.ent-mt-2 { margin-top: 0.5rem !important; }
+.ent-mt-3 { margin-top: 0.75rem !important; }
+.ent-mb-0 { margin-bottom: 0 !important; }
+.ent-mb-2 { margin-bottom: 0.5rem !important; }
+.ent-mb-3 { margin-bottom: 0.75rem !important; }
+
+/* Borders */
+.ent-border      { border: 1px solid var(--bank-border) !important; }
+.ent-border-top  { border-top: 1px solid var(--bank-border) !important; }
+.ent-border-btm  { border-bottom: 1px solid var(--bank-border) !important; }
+.ent-border-none { border: none !important; }
+
+/* Shadows */
+.ent-shadow-sm   { box-shadow: var(--ent-shadow-sm) !important; }
+.ent-shadow-md   { box-shadow: var(--ent-shadow-md) !important; }
+.ent-shadow-none { box-shadow: none !important; }
+
+/* Surface helpers */
+.ent-surface  { background: var(--bank-surface); }
+.ent-bg       { background: var(--bank-bg); }
+.ent-bg-primary { background: var(--bank-primary); color: #fff; }
+
+/* Text */
+.ent-text-muted   { color: #64748b; }
+.ent-text-primary { color: var(--bank-primary); }
+.ent-text-success { color: var(--status-success); }
+.ent-text-danger  { color: var(--status-danger); }
+.ent-text-warning { color: var(--status-warning); }
+
+/* Radius */
+.ent-rounded { border-radius: var(--ent-radius) !important; }
+
+/* Focus ring for accessibility */
+.cbs-nav-link:focus-visible,
+.cbs-nav-group-toggle:focus-visible,
+.btn:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible {
+    outline: 2px solid var(--bank-secondary);
+    outline-offset: 2px;
 }
