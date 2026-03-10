@@ -28,6 +28,8 @@ This is a classic layered monolith:
 - **Security filter chain** handles authn/authz + CSRF
 - **Tenant context** is propagated through session + ThreadLocal (`TenantContextHolder`)
 
+For the Finacle-grade CBS header layout, session attributes, keyboard shortcuts, and responsive rules, see [`docs/CBS_HEADER_ARCHITECTURE.md`](docs/CBS_HEADER_ARCHITECTURE.md).
+
 Key domain invariants are enforced by design:
 
 - **Ledger immutability:** `LedgerJournal` and `LedgerEntry` are marked `@Immutable` (no updates) (`src/main/java/com/ledgora/ledger/entity/LedgerJournal.java:21`, `src/main/java/com/ledgora/ledger/entity/LedgerEntry.java:31`).

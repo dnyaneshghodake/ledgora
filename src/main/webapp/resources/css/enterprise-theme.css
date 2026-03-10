@@ -47,6 +47,7 @@
 
     --cbs-sidebar-width: 260px;
     --cbs-header-height: 54px;
+    --cbs-shortcut-bar-height: 24px;
     --cbs-footer-height: 40px;
 
     --cbs-sidebar-bg: var(--bank-primary);
@@ -210,6 +211,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .cbs-header-left {
     gap: 0.5rem;
+    flex-shrink: 0;
 }
 
 .cbs-sidebar-toggle {
@@ -227,7 +229,8 @@ h1, h2, h3, h4, h5, h6 {
 .cbs-branch-info,
 .cbs-business-date,
 .cbs-tenant-info,
-.cbs-realtime-clock {
+.cbs-currency-info,
+.cbs-session-timer {
     padding: 0.22rem 0.6rem;
     border-radius: var(--ent-radius);
     background: rgba(255, 255, 255, 0.08);
@@ -235,11 +238,64 @@ h1, h2, h3, h4, h5, h6 {
     color: #fff;
 }
 
-.cbs-realtime-clock {
+/* SOL name secondary label on dark header */
+.cbs-header .cbs-sol-name {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Currency info on dark header */
+.cbs-currency-info strong {
+    color: #fff;
+}
+
+/* Session timer dark header overrides */
+.cbs-session-timer.cbs-session-warning {
+    background: rgba(180, 83, 9, 0.25);
+    border-color: rgba(180, 83, 9, 0.5);
+    color: #fcd34d;
+}
+
+.cbs-session-timer.cbs-session-warning i {
+    color: #fcd34d;
+}
+
+.cbs-session-timer.cbs-session-critical {
+    background: rgba(180, 35, 24, 0.3);
+    border-color: rgba(180, 35, 24, 0.6);
+    color: #fca5a5;
+}
+
+.cbs-session-timer.cbs-session-critical i {
+    color: #fca5a5;
+}
+
+/* Maker/Checker mode indicator on dark header */
+.cbs-mode-indicator {
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.cbs-mode-maker {
+    background: rgba(10, 143, 8, 0.2);
+    color: #86efac;
+}
+
+.cbs-mode-checker {
+    background: rgba(30, 64, 175, 0.25);
+    color: #93c5fd;
+}
+
+.cbs-mode-dual {
+    background: rgba(107, 33, 168, 0.25);
+    color: #c4b5fd;
+}
+
+/* Logo fallback on dark header — visible state */
+.cbs-header-brand .cbs-logo-fallback {
+    display: none;
+}
+
+.cbs-header-brand .cbs-logo-fallback.cbs-logo-visible {
     display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-variant-numeric: tabular-nums;
 }
 
 .cbs-business-date strong {
@@ -258,6 +314,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Header right section spacing for dark header */
 .cbs-header-right {
     gap: 0.65rem;
+    flex-shrink: 0;
 }
 
 .cbs-user-avatar i {
@@ -344,6 +401,20 @@ h1, h2, h3, h4, h5, h6 {
     .cbs-tenant-info span {
         display: none;
     }
+
+    .cbs-shortcut-bar {
+        display: none;
+    }
+
+    .cbs-mode-indicator {
+        display: none;
+    }
+
+    /* Reset margins when shortcut bar is hidden */
+    .cbs-main {
+        margin-top: var(--cbs-header-height);
+        min-height: calc(100vh - var(--cbs-header-height) - var(--cbs-footer-height));
+    }
 }
 
 .cbs-sidebar {
@@ -428,8 +499,8 @@ h1, h2, h3, h4, h5, h6 {
 
 .cbs-main {
     margin-left: var(--cbs-sidebar-width);
-    margin-top: var(--cbs-header-height);
-    min-height: calc(100vh - var(--cbs-header-height) - var(--cbs-footer-height));
+    margin-top: calc(var(--cbs-header-height) + var(--cbs-shortcut-bar-height));
+    min-height: calc(100vh - var(--cbs-header-height) - var(--cbs-shortcut-bar-height) - var(--cbs-footer-height));
     overflow-y: auto;
 }
 

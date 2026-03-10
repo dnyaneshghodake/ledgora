@@ -14,7 +14,7 @@
     <meta name="_csrf" content="${_csrf.token}"/>
     <meta name="_csrf_header" content="${_csrf.headerName}"/>
 </head>
-<body>
+<body data-context-path="${pageContext.request.contextPath}">
 <c:if test="${not empty sessionScope.username}">
 <%--
   CBS Layout: Fixed Header + Fixed Sidebar + Scrollable Main Content
@@ -31,16 +31,15 @@
             <i class="bi bi-list" aria-hidden="true"></i>
         </button>
         <a href="${pageContext.request.contextPath}/dashboard" class="cbs-header-brand" aria-label="Go to dashboard">
-            <img class="cbs-bank-logo" src="${pageContext.request.contextPath}/resources/img/bank-logo.png" width="40" height="40" alt="Bank logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
-            <span class="cbs-logo-fallback" style="display:none;" aria-hidden="true"><i class="bi bi-bank2"></i></span>
+            <img class="cbs-bank-logo" src="${pageContext.request.contextPath}/resources/img/bank-logo.png" width="40" height="40" alt="Bank logo" onerror="this.classList.add('cbs-logo-hidden'); this.nextElementSibling.classList.add('cbs-logo-visible');">
+            <span class="cbs-logo-fallback" aria-hidden="true"><i class="bi bi-bank2"></i></span>
             <span class="cbs-header-brand-text">LEDGORA</span>
         </a>
     </div>
     <div class="cbs-header-center">
-        <%-- Branch Name --%>
+        <%-- Branch --%>
         <div class="cbs-branch-info" aria-label="Branch information">
             <i class="bi bi-geo-alt" aria-hidden="true"></i>
-            <span>Branch:</span>
             <strong>
                 <c:choose>
                     <c:when test="${not empty sessionScope.branchName}"><c:out value="${sessionScope.branchName}"/></c:when>
@@ -51,138 +50,109 @@
         </div>
         <span class="cbs-header-separator"></span>
         <%-- Environment Badge --%>
-        <span class="cbs-env-badge cbs-env-${not empty sessionScope.environment ? sessionScope.environment.toLowerCase() : 'dev'}" aria-label="Environment">
+        <span class="cbs-env-badge cbs-env-${not empty sessionScope.environment ? sessionScope.environment.toLowerCase() : 'dev'}">
             <c:choose>
                 <c:when test="${not empty sessionScope.environment}"><c:out value="${sessionScope.environment}"/></c:when>
                 <c:otherwise>DEV</c:otherwise>
             </c:choose>
         </span>
         <span class="cbs-header-separator"></span>
-        <%-- Business Date + Clock --%>
+        <%-- Business Date + Day Status (combined) --%>
         <div class="cbs-business-date" aria-label="Business date">
             <i class="bi bi-calendar3" aria-hidden="true"></i>
-            <span>Business Date:</span>
             <strong>
                 <c:choose>
                     <c:when test="${not empty sessionScope.businessDate}"><c:out value="${sessionScope.businessDate}"/></c:when>
                     <c:otherwise><%= new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date()) %></c:otherwise>
                 </c:choose>
             </strong>
-        </div>
-        <div class="cbs-realtime-clock" aria-label="Current time">
-            <i class="bi bi-clock" aria-hidden="true"></i>
-            <time id="cbsClock" datetime="" aria-live="polite">--:--:--</time>
-        </div>
-        <span class="cbs-header-separator"></span>
-        <%-- Business Date Status --%>
-        <div class="cbs-date-status" aria-label="Business day status">
             <c:choose>
                 <c:when test="${sessionScope.businessDateStatus == 'OPEN'}">
-                    <span class="cbs-status-indicator cbs-status-open" role="status" aria-label="Business day is open"><i class="bi bi-circle-fill" aria-hidden="true"></i> OPEN</span>
+                    <span class="cbs-status-indicator cbs-status-open"><i class="bi bi-circle-fill" aria-hidden="true"></i> OPEN</span>
                 </c:when>
                 <c:when test="${sessionScope.businessDateStatus == 'DAY_CLOSING'}">
-                    <span class="cbs-status-indicator cbs-status-closing" role="status" aria-label="Business day is closing"><i class="bi bi-circle-fill" aria-hidden="true"></i> DAY_CLOSING</span>
+                    <span class="cbs-status-indicator cbs-status-closing"><i class="bi bi-circle-fill" aria-hidden="true"></i> CLOSING</span>
                 </c:when>
                 <c:when test="${sessionScope.businessDateStatus == 'CLOSED'}">
-                    <span class="cbs-status-indicator cbs-status-closed" role="status" aria-label="Business day is closed"><i class="bi bi-circle-fill" aria-hidden="true"></i> CLOSED</span>
+                    <span class="cbs-status-indicator cbs-status-closed"><i class="bi bi-circle-fill" aria-hidden="true"></i> CLOSED</span>
                 </c:when>
                 <c:otherwise>
-                    <span class="cbs-status-indicator cbs-status-open" role="status" aria-label="Business day is open"><i class="bi bi-circle-fill" aria-hidden="true"></i> OPEN</span>
-                </c:otherwise>
-            </c:choose>
-        </div>
-        <span class="cbs-header-separator"></span>
-        <%-- Ledger Health Indicator --%>
-        <div class="cbs-ledger-health">
-            <c:choose>
-                <c:when test="${sessionScope.ledgerHealth == 'WARNING'}">
-                    <span class="cbs-health-badge cbs-health-warning" role="status" aria-label="Ledger health warning" title="Ledger Health: WARNING">
-                        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> WARNING
-                    </span>
-                </c:when>
-                <c:when test="${sessionScope.ledgerHealth == 'CORRUPTED'}">
-                    <span class="cbs-health-badge cbs-health-corrupted" role="alert" aria-label="Ledger corrupted" title="Ledger Health: CORRUPTED">
-                        <i class="bi bi-x-octagon-fill" aria-hidden="true"></i> CORRUPTED
-                    </span>
-                </c:when>
-                <c:otherwise>
-                    <span class="cbs-health-badge cbs-health-healthy" role="status" aria-label="Ledger healthy" title="Ledger Health: HEALTHY">
-                        <i class="bi bi-shield-check" aria-hidden="true"></i> HEALTHY
-                    </span>
+                    <span class="cbs-status-indicator cbs-status-open"><i class="bi bi-circle-fill" aria-hidden="true"></i> OPEN</span>
                 </c:otherwise>
             </c:choose>
         </div>
     </div>
     <div class="cbs-header-right">
-        <%-- Tenant Context Display --%>
-        <div class="cbs-tenant-info" aria-label="Tenant context">
-            <i class="bi bi-building" aria-hidden="true"></i>
-            <c:choose>
-                <c:when test="${not empty sessionScope.tenantName}">
-                    <span><c:out value="${sessionScope.tenantName}"/></span>
-                </c:when>
-                <c:otherwise>
-                    <span>Default Tenant</span>
-                </c:otherwise>
-            </c:choose>
-            <span class="cbs-header-separator"></span>
-            <%-- Tenant Switch Dropdown (for MULTI tenant users) --%>
-            <c:if test="${sessionScope.tenantScope == 'MULTI'}">
-                <div class="dropdown d-inline-block">
-                    <button class="btn btn-sm btn-outline-light dropdown-toggle cbs-tenant-switch-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="Switch tenant">
-                        Switch Tenant
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <c:forEach var="t" items="${sessionScope.availableTenants}">
-                            <li>
-                                <form method="post" action="${pageContext.request.contextPath}/tenant/switch" class="m-0">
-                                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-                                    <input type="hidden" name="tenantId" value="${t.id}">
-                                    <button type="submit" class="dropdown-item"><c:out value="${t.tenantName}"/> (<c:out value="${t.tenantCode}"/>)</button>
-                                </form>
-                            </li>
-                        </c:forEach>
-                    </ul>
-                </div>
-            </c:if>
-        </div>
-        <%-- Notifications / Pending Approvals --%>
+        <%-- Tenant Switch (MULTI scope only) --%>
+        <c:if test="${sessionScope.tenantScope == 'MULTI'}">
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-light dropdown-toggle cbs-tenant-switch-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Switch tenant">
+                    <i class="bi bi-building" aria-hidden="true"></i>
+                    <c:choose>
+                        <c:when test="${not empty sessionScope.tenantName}"><c:out value="${sessionScope.tenantName}"/></c:when>
+                        <c:otherwise>Tenant</c:otherwise>
+                    </c:choose>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <c:forEach var="t" items="${sessionScope.availableTenants}">
+                        <li>
+                            <form method="post" action="${pageContext.request.contextPath}/tenant/switch" class="m-0">
+                                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                                <input type="hidden" name="tenantId" value="${t.id}">
+                                <button type="submit" class="dropdown-item"><c:out value="${t.tenantName}"/> (<c:out value="${t.tenantCode}"/>)</button>
+                            </form>
+                        </li>
+                    </c:forEach>
+                </ul>
+            </div>
+        </c:if>
+        <%-- Pending Approvals --%>
         <c:if test="${sessionScope.pendingApprovals != null && sessionScope.pendingApprovals > 0 && (sessionScope.isAdmin || sessionScope.isManager || sessionScope.isChecker)}">
             <a href="${pageContext.request.contextPath}/approvals" class="cbs-notifications" aria-label="Pending approvals">
                 <i class="bi bi-bell" aria-hidden="true"></i>
-                <span class="cbs-badge" aria-label="Pending approvals count">${sessionScope.pendingApprovals}</span>
+                <span class="cbs-badge">${sessionScope.pendingApprovals}</span>
             </a>
         </c:if>
-
-        <div class="cbs-user-info">
-            <div class="cbs-user-avatar" aria-hidden="true">
-                <i class="bi bi-person-circle"></i>
-            </div>
-            <div class="cbs-user-details">
-                <span class="cbs-user-name"><c:out value="${sessionScope.username}"/></span>
-                <span class="cbs-user-role">
-                    <c:if test="${sessionScope.isSuperAdmin}"><span class="badge bg-dark">Super Admin</span></c:if>
-                    <c:if test="${sessionScope.isTenantAdmin}"><span class="badge cbs-badge-tenant-admin">Tenant Admin</span></c:if>
-                    <c:if test="${sessionScope.isAdmin}"><span class="badge bg-danger">Admin</span></c:if>
-                    <c:if test="${sessionScope.isBranchManager}"><span class="badge cbs-badge-branch-mgr">Branch Mgr</span></c:if>
-                    <c:if test="${sessionScope.isManager}"><span class="badge bg-warning text-dark">Manager</span></c:if>
-                    <c:if test="${sessionScope.isFinance}"><span class="badge bg-info">Finance</span></c:if>
-                    <c:if test="${sessionScope.isMaker}"><span class="badge bg-success">Maker</span></c:if>
-                    <c:if test="${sessionScope.isChecker}"><span class="badge bg-primary">Checker</span></c:if>
-                    <c:if test="${sessionScope.isTeller}"><span class="badge bg-info">Teller</span></c:if>
-                    <c:if test="${sessionScope.isCustomer && !sessionScope.isAdmin && !sessionScope.isManager && !sessionScope.isTeller}"><span class="badge bg-secondary">Customer</span></c:if>
-                </span>
-            </div>
+        <%-- Session Timer --%>
+        <div class="cbs-session-timer" id="cbsSessionTimer" aria-label="Session timeout" title="Session time remaining">
+            <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+            <span id="cbsSessionCountdown">30:00</span>
         </div>
+        <%-- Maker/Checker Mode --%>
+        <c:choose>
+            <c:when test="${sessionScope.isMaker && !sessionScope.isChecker}">
+                <span class="cbs-mode-indicator cbs-mode-maker" title="Maker Session">MAKER</span>
+            </c:when>
+            <c:when test="${sessionScope.isChecker && !sessionScope.isMaker}">
+                <span class="cbs-mode-indicator cbs-mode-checker" title="Checker Session">CHECKER</span>
+            </c:when>
+            <c:when test="${sessionScope.isMaker && sessionScope.isChecker}">
+                <span class="cbs-mode-indicator cbs-mode-dual" title="Dual Mode">DUAL</span>
+            </c:when>
+        </c:choose>
+        <%-- User --%>
+        <div class="cbs-user-info">
+            <i class="bi bi-person-circle" aria-hidden="true"></i>
+            <span class="cbs-user-name"><c:out value="${sessionScope.username}"/></span>
+        </div>
+        <%-- Logout --%>
         <form method="post" action="${pageContext.request.contextPath}/logout" class="d-inline m-0 p-0">
             <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
             <button type="submit" class="cbs-logout-btn" title="Sign Out" aria-label="Logout">
                 <i class="bi bi-box-arrow-right"></i>
-                <span>Logout</span>
             </button>
         </form>
     </div>
 </header>
+
+<%-- Shortcut Bar --%>
+<div class="cbs-shortcut-bar" id="cbsShortcutBar" role="toolbar" aria-label="Keyboard shortcuts">
+    <span class="cbs-shortcut-hint"><kbd>Alt+D</kbd> Dashboard</span>
+    <span class="cbs-shortcut-hint"><kbd>Alt+T</kbd> Txn</span>
+    <span class="cbs-shortcut-hint"><kbd>Alt+C</kbd> Customer</span>
+    <span class="cbs-shortcut-hint"><kbd>Alt+A</kbd> Account</span>
+    <span class="cbs-shortcut-hint"><kbd>Alt+S</kbd> Sidebar</span>
+</div>
 
 <%-- CBS Sidebar --%>
 <%@ include file="sidebar.jsp" %>

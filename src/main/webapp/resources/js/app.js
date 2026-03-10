@@ -117,25 +117,107 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // ── Header real-time clock ──
-    // Updates every second. aria-live is set to "off" on the visible element
-    // to prevent screen readers from announcing every tick. A separate
-    // sr-only span could be updated every 60s if audible time is needed.
-    var clockEl = document.getElementById('cbsClock');
-    if (clockEl) {
-        clockEl.setAttribute('aria-live', 'off');
+    // ── CBS Session Timeout Countdown ──
+    // Must match server.servlet.session.timeout=15m in application.properties
+    var sessionTimerEl = document.getElementById('cbsSessionTimer');
+    var sessionCountdownEl = document.getElementById('cbsSessionCountdown');
+    if (sessionTimerEl && sessionCountdownEl) {
+        var SESSION_TIMEOUT = 15 * 60; // 15 minutes — synced with server
+        var SESSION_WARN = 3 * 60;     // warn at 3 minutes
+        var SESSION_CRITICAL = 1 * 60; // critical at 1 minute
+        var sessionSecondsLeft = SESSION_TIMEOUT;
         var pad2 = function(n) { return String(n).padStart(2, '0'); };
-        var tick = function() {
-            var now = new Date();
-            var hh = pad2(now.getHours());
-            var mm = pad2(now.getMinutes());
-            var ss = pad2(now.getSeconds());
-            clockEl.textContent = hh + ':' + mm + ':' + ss;
-            clockEl.setAttribute('datetime', now.toISOString());
+
+        var updateSessionDisplay = function() {
+            var mins = Math.floor(sessionSecondsLeft / 60);
+            var secs = sessionSecondsLeft % 60;
+            sessionCountdownEl.textContent = pad2(mins) + ':' + pad2(secs);
+            sessionTimerEl.classList.remove('cbs-session-warning', 'cbs-session-critical');
+            if (sessionSecondsLeft <= SESSION_CRITICAL) {
+                sessionTimerEl.classList.add('cbs-session-critical');
+            } else if (sessionSecondsLeft <= SESSION_WARN) {
+                sessionTimerEl.classList.add('cbs-session-warning');
+            }
         };
-        tick();
-        setInterval(tick, 1000);
+
+        var sessionTick = function() {
+            if (sessionSecondsLeft > 0) {
+                sessionSecondsLeft--;
+                updateSessionDisplay();
+            } else {
+                var ctxPath = document.body.getAttribute('data-context-path') || '';
+                window.location.href = ctxPath + '/login?expired=true';
+            }
+        };
+
+        // Ping server to keep server-side session alive on user activity
+        var pingServer = function() {
+            var ctxPath = document.body.getAttribute('data-context-path') || '';
+            fetch(ctxPath + '/actuator/health', { method: 'HEAD', credentials: 'same-origin' }).catch(function() {});
+        };
+
+        var resetSessionTimer = function() {
+            sessionSecondsLeft = SESSION_TIMEOUT;
+            updateSessionDisplay();
+            pingServer();
+        };
+
+        updateSessionDisplay();
+        setInterval(sessionTick, 1000);
+
+        var lastResetTime = Date.now();
+        ['click', 'keypress', 'scroll', 'mousemove'].forEach(function(evt) {
+            document.addEventListener(evt, function() {
+                var now = Date.now();
+                if (now - lastResetTime > 5000) {
+                    lastResetTime = now;
+                    resetSessionTimer();
+                }
+            }, { passive: true });
+        });
     }
+
+    // ── CBS Keyboard Shortcuts (Finacle-style Alt+Key navigation) ──
+    document.addEventListener('keydown', function(e) {
+        // Only handle Alt+Key combinations
+        if (!e.altKey || e.ctrlKey || e.metaKey) return;
+
+        var ctx = (document.body.getAttribute('data-context-path') || '') + '/';
+        var handled = false;
+
+        switch (e.key.toLowerCase()) {
+            case 'd': // Dashboard
+                window.location.href = ctx + 'dashboard';
+                handled = true;
+                break;
+            case 't': // New Transaction (deposit as default)
+                window.location.href = ctx + 'transactions/deposit';
+                handled = true;
+                break;
+            case 'c': // Customer list
+                window.location.href = ctx + 'customers';
+                handled = true;
+                break;
+            case 'a': // Account list
+                window.location.href = ctx + 'accounts';
+                handled = true;
+                break;
+            case 's': // Toggle sidebar
+                var toggleBtn = document.getElementById('sidebarToggle');
+                if (toggleBtn) toggleBtn.click();
+                handled = true;
+                break;
+            case 'p': // Approvals
+                window.location.href = ctx + 'approvals';
+                handled = true;
+                break;
+        }
+
+        if (handled) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+    });
 
     // ── Keyboard accessibility: Escape closes open dropdowns ──
     document.addEventListener('keydown', function(e) {

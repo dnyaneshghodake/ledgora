@@ -18,10 +18,18 @@
 <nav aria-label="Page navigation" class="mt-4 cbs-pagination">
     <div class="d-flex justify-content-between align-items-center">
         <small class="text-muted">
-            Showing page <strong><c:out value="${currentPage + 1}"/></strong> of <strong><c:out value="${totalPages}"/></strong>
-            <c:if test="${not empty totalElements}">
-                (<c:out value="${totalElements}"/> total records)
-            </c:if>
+            <c:set var="pgStart" value="${currentPage * pageSize + 1}"/>
+            <c:set var="pgEnd" value="${(currentPage + 1) * pageSize}"/>
+            <c:if test="${not empty totalElements && pgEnd > totalElements}"><c:set var="pgEnd" value="${totalElements}"/></c:if>
+            <c:choose>
+                <c:when test="${not empty totalElements}">
+                    Showing <strong><c:out value="${pgStart}"/>&ndash;<c:out value="${pgEnd}"/></strong> of <strong><c:out value="${totalElements}"/></strong> records
+                    (page <c:out value="${currentPage + 1}"/> of <c:out value="${totalPages}"/>)
+                </c:when>
+                <c:otherwise>
+                    Page <strong><c:out value="${currentPage + 1}"/></strong> of <strong><c:out value="${totalPages}"/></strong>
+                </c:otherwise>
+            </c:choose>
         </small>
         <ul class="pagination pagination-sm mb-0">
             <%-- First Page --%>
