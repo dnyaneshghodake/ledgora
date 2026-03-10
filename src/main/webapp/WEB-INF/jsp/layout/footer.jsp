@@ -9,12 +9,14 @@
 <%-- PART 1: Include lookup modals globally so openCustomerLookup/openAccountLookup are always available --%>
 <%@ include file="lookup-modal.jsp" %>
 
-<footer class="cbs-footer" id="cbsFooter">
+<footer class="cbs-footer" id="cbsFooter" role="contentinfo">
     <div class="cbs-footer-content">
+        <span class="cbs-footer-version" aria-label="System version">CBS v2.7</span>
+        <span class="cbs-footer-separator" aria-hidden="true">|</span>
         <span class="cbs-footer-disclaimer">All ledger entries are immutable. System of Record: LedgerEntries.</span>
-        <span class="cbs-footer-separator">|</span>
+        <span class="cbs-footer-separator" aria-hidden="true">|</span>
         <span>Ledgora Core Banking Platform &copy; 2026</span>
-        <span class="cbs-footer-separator">|</span>
+        <span class="cbs-footer-separator" aria-hidden="true">|</span>
         <span>Powered by Spring Boot</span>
     </div>
 </footer>

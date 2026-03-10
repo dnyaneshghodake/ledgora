@@ -210,7 +210,7 @@
 </c:if>
 
 <%-- CBS Main Content Area --%>
-<main class="cbs-main" id="cbsMain">
+<main class="cbs-main" id="cbsMain" role="main">
     <%-- Breadcrumb Navigation --%>
     <c:if test="${not empty breadcrumb}">
     <nav aria-label="breadcrumb" class="cbs-breadcrumb-nav">

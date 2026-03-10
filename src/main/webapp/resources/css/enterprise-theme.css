@@ -440,6 +440,12 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 0.85rem;
 }
 
+.cbs-footer-version {
+    font-weight: 700;
+    color: var(--bank-primary);
+    letter-spacing: 0.04em;
+}
+
 /* -----------------------------------------------------------------------
    4) Table styling: compact + enterprise grid + numeric alignment utility
    ----------------------------------------------------------------------- */
