@@ -285,6 +285,14 @@ From `IbtController` (`src/main/java/com/ledgora/ibt/controller/IbtController.ja
 - `GET /ibt/{id}` — detail view: IBT header, branch-grouped voucher breakdown, ledger entries, clearing GL (MAKER, CHECKER, OPERATIONS, ADMIN, MANAGER, AUDITOR)
 - `GET /ibt/reconciliation` — CBS reconciliation dashboard: KPIs, clearing GL net, aging table (OPERATIONS, ADMIN, MANAGER, AUDITOR)
 
+### Governance Dashboards
+
+- `GET /suspense/dashboard` — Suspense GL governance: open cases, GL net balance, aging table (OPERATIONS, ADMIN, MANAGER, AUDITOR)
+- `GET /clearing/engine` — Clearing settlement readiness: unsettled IBTs, clearing GL net, settlement gate (OPERATIONS, ADMIN, MANAGER)
+- `GET /risk/hard-ceiling` — Hard transaction ceiling violations: today's count, last 20 violations (OPERATIONS, ADMIN, MANAGER, AUDITOR)
+- `GET /risk/velocity` — Velocity fraud monitoring: open alerts, frozen accounts, pressure level (OPERATIONS, ADMIN, MANAGER, AUDITOR)
+- `GET /audit/explorer` — Enterprise audit log: searchable/filterable with date range, action, username, entity (ADMIN, AUDITOR)
+
 ### Reports
 
 - `GET /reports` (`src/main/java/com/ledgora/reporting/controller/ReportingController.java:25-29`)
