@@ -28,9 +28,10 @@ public class AuthController {
     }
 
     @GetMapping("/login")
-    public String loginPage(@RequestParam(value = "error", required = false) String error,
-                            @RequestParam(value = "logout", required = false) String logout,
-                            Model model) {
+    public String loginPage(
+            @RequestParam(value = "error", required = false) String error,
+            @RequestParam(value = "logout", required = false) String logout,
+            Model model) {
         if (error != null) {
             model.addAttribute("error", "Invalid username or password");
         }
@@ -48,14 +49,18 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public String register(@Valid @ModelAttribute("registerRequest") RegisterRequest registerRequest,
-                           BindingResult result, Model model, RedirectAttributes redirectAttributes) {
+    public String register(
+            @Valid @ModelAttribute("registerRequest") RegisterRequest registerRequest,
+            BindingResult result,
+            Model model,
+            RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
             return "auth/register";
         }
         try {
             authService.register(registerRequest);
-            redirectAttributes.addFlashAttribute("message", "Registration successful! Please login.");
+            redirectAttributes.addFlashAttribute(
+                    "message", "Registration successful! Please login.");
             return "redirect:/login";
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());

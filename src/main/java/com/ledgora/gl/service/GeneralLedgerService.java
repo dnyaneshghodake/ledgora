@@ -1,17 +1,16 @@
 package com.ledgora.gl.service;
 
+import com.ledgora.common.enums.GLAccountType;
 import com.ledgora.gl.dto.GeneralLedgerDTO;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
-import com.ledgora.common.enums.GLAccountType;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
 
 @Service
 public class GeneralLedgerService {
@@ -31,21 +30,28 @@ public class GeneralLedgerService {
         GeneralLedger parent = null;
         int level = 0;
         if (dto.getParentId() != null) {
-            parent = glRepository.findById(dto.getParentId())
-                    .orElseThrow(() -> new RuntimeException("Parent GL not found: " + dto.getParentId()));
+            parent =
+                    glRepository
+                            .findById(dto.getParentId())
+                            .orElseThrow(
+                                    () ->
+                                            new RuntimeException(
+                                                    "Parent GL not found: " + dto.getParentId()));
             level = parent.getLevel() + 1;
         }
-        GeneralLedger gl = GeneralLedger.builder()
-                .glCode(dto.getGlCode())
-                .glName(dto.getGlName())
-                .description(dto.getDescription())
-                .accountType(GLAccountType.valueOf(dto.getAccountType()))
-                .parent(parent)
-                .level(level)
-                .isActive(true)
-                .balance(BigDecimal.ZERO)
-                .normalBalance(dto.getNormalBalance() != null ? dto.getNormalBalance() : "DEBIT")
-                .build();
+        GeneralLedger gl =
+                GeneralLedger.builder()
+                        .glCode(dto.getGlCode())
+                        .glName(dto.getGlName())
+                        .description(dto.getDescription())
+                        .accountType(GLAccountType.valueOf(dto.getAccountType()))
+                        .parent(parent)
+                        .level(level)
+                        .isActive(true)
+                        .balance(BigDecimal.ZERO)
+                        .normalBalance(
+                                dto.getNormalBalance() != null ? dto.getNormalBalance() : "DEBIT")
+                        .build();
         GeneralLedger saved = glRepository.save(gl);
         log.info("GL Account created: {} - {}", saved.getGlCode(), saved.getGlName());
         return saved;
@@ -77,8 +83,10 @@ public class GeneralLedgerService {
 
     @Transactional
     public GeneralLedger updateGLAccount(Long id, GeneralLedgerDTO dto) {
-        GeneralLedger gl = glRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("GL Account not found: " + id));
+        GeneralLedger gl =
+                glRepository
+                        .findById(id)
+                        .orElseThrow(() -> new RuntimeException("GL Account not found: " + id));
         gl.setGlName(dto.getGlName());
         if (dto.getDescription() != null) {
             gl.setDescription(dto.getDescription());
@@ -94,8 +102,10 @@ public class GeneralLedgerService {
 
     @Transactional
     public void toggleGLStatus(Long id) {
-        GeneralLedger gl = glRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("GL Account not found: " + id));
+        GeneralLedger gl =
+                glRepository
+                        .findById(id)
+                        .orElseThrow(() -> new RuntimeException("GL Account not found: " + id));
         gl.setIsActive(!gl.getIsActive());
         glRepository.save(gl);
     }

@@ -1,14 +1,15 @@
 package com.ledgora.reporting.dto;
 
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import lombok.*;
 
-/**
- * PART 10: Trial Balance report DTO.
- */
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+/** PART 10: Trial Balance report DTO. */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class TrialBalanceReport {
     private LocalDate reportDate;
     private List<TrialBalanceLine> lines;
@@ -16,7 +17,10 @@ public class TrialBalanceReport {
     private BigDecimal totalCredits;
     private boolean balanced;
 
-    @Data @NoArgsConstructor @AllArgsConstructor @Builder
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     public static class TrialBalanceLine {
         private String glCode;
         private String glName;

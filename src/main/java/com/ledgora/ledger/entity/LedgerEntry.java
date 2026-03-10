@@ -6,37 +6,43 @@ import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.transaction.entity.Transaction;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 /**
  * Immutable ledger entry - the ultimate source of financial truth.
  *
- * CBS Golden Rules enforced:
- *   - NEVER updated (Hibernate @Immutable prevents any UPDATE SQL)
- *   - NEVER deleted (corrections via reversal entries only)
- *   - Each entry references a LedgerJournal for grouped double-entry posting
- *   - Each entry references the originating Voucher for audit trail
- *   - Multi-tenant aware
+ * <p>CBS Golden Rules enforced: - NEVER updated (Hibernate @Immutable prevents any UPDATE SQL) -
+ * NEVER deleted (corrections via reversal entries only) - Each entry references a LedgerJournal for
+ * grouped double-entry posting - Each entry references the originating Voucher for audit trail -
+ * Multi-tenant aware
  *
- * Balance derivation: SUM(credits) - SUM(debits) per account = true balance.
- * The account.balance field is a PERFORMANCE CACHE only, validated by LedgerValidatorService.
+ * <p>Balance derivation: SUM(credits) - SUM(debits) per account = true balance. The account.balance
+ * field is a PERFORMANCE CACHE only, validated by LedgerValidatorService.
  */
 @Entity
 @org.hibernate.annotations.Immutable
-@Table(name = "ledger_entries", indexes = {
-    @Index(name = "idx_ledger_entry_account_created", columnList = "account_id, created_at"),
-    @Index(name = "idx_ledger_entry_journal", columnList = "journal_id"),
-    @Index(name = "idx_ledger_entry_tenant", columnList = "tenant_id")
-})
-@Getter @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "ledger_entries",
+        indexes = {
+            @Index(
+                    name = "idx_ledger_entry_account_created",
+                    columnList = "account_id, created_at"),
+            @Index(name = "idx_ledger_entry_journal", columnList = "journal_id"),
+            @Index(name = "idx_ledger_entry_tenant", columnList = "tenant_id")
+        })
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class LedgerEntry {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

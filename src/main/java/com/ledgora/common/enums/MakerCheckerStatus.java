@@ -1,8 +1,8 @@
 package com.ledgora.common.enums;
 
-/**
- * Maker-checker approval status for CBS operations.
- */
+/** Maker-checker approval status for CBS operations. */
 public enum MakerCheckerStatus {
-    PENDING, APPROVED, REJECTED
+    PENDING,
+    APPROVED,
+    REJECTED
 }

@@ -7,24 +7,29 @@ import com.ledgora.common.enums.OwnershipType;
 import com.ledgora.customer.entity.CustomerMaster;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * AccountOwnership entity for Customer-Account ownership model.
- * Replaces direct customerId link with proper ownership tracking.
- * Supports PRIMARY, JOINT, GUARANTOR, NOMINEE ownership types.
+ * AccountOwnership entity for Customer-Account ownership model. Replaces direct customerId link
+ * with proper ownership tracking. Supports PRIMARY, JOINT, GUARANTOR, NOMINEE ownership types.
  */
 @Entity
-@Table(name = "account_ownership", indexes = {
-    @Index(name = "idx_ao_account", columnList = "account_id"),
-    @Index(name = "idx_ao_customer", columnList = "customer_master_id"),
-    @Index(name = "idx_ao_tenant", columnList = "tenant_id")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "account_ownership",
+        indexes = {
+            @Index(name = "idx_ao_account", columnList = "account_id"),
+            @Index(name = "idx_ao_customer", columnList = "customer_master_id"),
+            @Index(name = "idx_ao_tenant", columnList = "tenant_id")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class AccountOwnership {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -3,22 +3,28 @@ package com.ledgora.customer.entity;
 import com.ledgora.common.enums.RelationshipType;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
-import lombok.*;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * CBS-grade Customer Relationship entity.
- * Tracks relationships between customers (joint holders, nominees, guarantors, etc.).
+ * CBS-grade Customer Relationship entity. Tracks relationships between customers (joint holders,
+ * nominees, guarantors, etc.).
  */
 @Entity
-@Table(name = "customer_relationship", indexes = {
-    @Index(name = "idx_cr_primary_customer", columnList = "primary_customer_id"),
-    @Index(name = "idx_cr_related_customer", columnList = "related_customer_id"),
-    @Index(name = "idx_cr_tenant", columnList = "tenant_id")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "customer_relationship",
+        indexes = {
+            @Index(name = "idx_cr_primary_customer", columnList = "primary_customer_id"),
+            @Index(name = "idx_cr_related_customer", columnList = "related_customer_id"),
+            @Index(name = "idx_cr_tenant", columnList = "tenant_id")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class CustomerRelationship {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

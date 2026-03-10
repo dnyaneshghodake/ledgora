@@ -3,17 +3,16 @@ package com.ledgora.calendar.controller;
 import com.ledgora.calendar.entity.BankCalendar;
 import com.ledgora.calendar.service.BankCalendarService;
 import com.ledgora.tenant.context.TenantContextHolder;
+import java.time.LocalDate;
+import java.util.List;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.time.LocalDate;
-import java.util.List;
-
 /**
- * Controller for Bank Calendar management.
- * Supports holiday/working day management with maker-checker.
+ * Controller for Bank Calendar management. Supports holiday/working day management with
+ * maker-checker.
  */
 @Controller
 @RequestMapping("/calendar")
@@ -43,20 +42,30 @@ public class BankCalendarController {
     }
 
     @PostMapping("/create")
-    public String createCalendarEntry(@RequestParam("calendarDate") String dateStr,
-                                       @RequestParam("dayType") String dayType,
-                                       @RequestParam(value = "holidayName", required = false) String holidayName,
-                                       @RequestParam(value = "holidayType", required = false) String holidayType,
-                                       @RequestParam(value = "atmAllowed", defaultValue = "false") boolean atmAllowed,
-                                       @RequestParam(value = "systemTxnAllowed", defaultValue = "false") boolean systemTxnAllowed,
-                                       @RequestParam(value = "remarks", required = false) String remarks,
-                                       RedirectAttributes redirectAttributes) {
+    public String createCalendarEntry(
+            @RequestParam("calendarDate") String dateStr,
+            @RequestParam("dayType") String dayType,
+            @RequestParam(value = "holidayName", required = false) String holidayName,
+            @RequestParam(value = "holidayType", required = false) String holidayType,
+            @RequestParam(value = "atmAllowed", defaultValue = "false") boolean atmAllowed,
+            @RequestParam(value = "systemTxnAllowed", defaultValue = "false")
+                    boolean systemTxnAllowed,
+            @RequestParam(value = "remarks", required = false) String remarks,
+            RedirectAttributes redirectAttributes) {
         try {
             Long tenantId = TenantContextHolder.getRequiredTenantId();
             LocalDate date = LocalDate.parse(dateStr);
-            calendarService.createCalendarEntry(tenantId, date, dayType, holidayName,
-                    holidayType, atmAllowed, systemTxnAllowed, remarks);
-            redirectAttributes.addFlashAttribute("success", "Calendar entry submitted for approval.");
+            calendarService.createCalendarEntry(
+                    tenantId,
+                    date,
+                    dayType,
+                    holidayName,
+                    holidayType,
+                    atmAllowed,
+                    systemTxnAllowed,
+                    remarks);
+            redirectAttributes.addFlashAttribute(
+                    "success", "Calendar entry submitted for approval.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -75,9 +84,10 @@ public class BankCalendarController {
     }
 
     @PostMapping("/reject/{id}")
-    public String rejectEntry(@PathVariable Long id,
-                               @RequestParam(value = "reason", required = false) String reason,
-                               RedirectAttributes redirectAttributes) {
+    public String rejectEntry(
+            @PathVariable Long id,
+            @RequestParam(value = "reason", required = false) String reason,
+            RedirectAttributes redirectAttributes) {
         try {
             calendarService.rejectCalendarEntry(id, reason);
             redirectAttributes.addFlashAttribute("success", "Calendar entry rejected.");

@@ -14,6 +14,10 @@ import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.service.TenantService;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -21,24 +25,14 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
 /**
- * Centralized CBS Validation Service.
- * Provides universal pre-checks for all CBS operations:
- * - Business day is OPEN
- * - Batch is available for the channel/date
- * - User has required role
- * - Account freeze level allows the operation
- * - Tenant context is set
- * - GL account exists and is active
- * - Holiday calendar allows the operation
+ * Centralized CBS Validation Service. Provides universal pre-checks for all CBS operations: -
+ * Business day is OPEN - Batch is available for the channel/date - User has required role - Account
+ * freeze level allows the operation - Tenant context is set - GL account exists and is active -
+ * Holiday calendar allows the operation
  *
- * Returns a list of validation errors (empty = all passed).
- * Also provides throwing variants for use in transactional flows.
+ * <p>Returns a list of validation errors (empty = all passed). Also provides throwing variants for
+ * use in transactional flows.
  */
 @Service
 public class CbsValidationService {
@@ -51,11 +45,12 @@ public class CbsValidationService {
     private final AccountRepository accountRepository;
     private final GeneralLedgerRepository glRepository;
 
-    public CbsValidationService(TenantService tenantService,
-                                 BankCalendarService bankCalendarService,
-                                 BatchService batchService,
-                                 AccountRepository accountRepository,
-                                 GeneralLedgerRepository glRepository) {
+    public CbsValidationService(
+            TenantService tenantService,
+            BankCalendarService bankCalendarService,
+            BatchService batchService,
+            AccountRepository accountRepository,
+            GeneralLedgerRepository glRepository) {
         this.tenantService = tenantService;
         this.bankCalendarService = bankCalendarService;
         this.batchService = batchService;
@@ -65,12 +60,9 @@ public class CbsValidationService {
 
     // ===== Composite validation =====
 
-    /**
-     * Run all standard pre-transaction validations.
-     * Returns empty list if all checks pass.
-     */
-    public List<String> validatePreTransaction(Long tenantId, Account account,
-                                                VoucherDrCr drCr, TransactionChannel channel) {
+    /** Run all standard pre-transaction validations. Returns empty list if all checks pass. */
+    public List<String> validatePreTransaction(
+            Long tenantId, Account account, VoucherDrCr drCr, TransactionChannel channel) {
         List<String> errors = new ArrayList<>();
         errors.addAll(validateTenantContext());
         errors.addAll(validateBusinessDayOpen(tenantId));
@@ -88,23 +80,19 @@ public class CbsValidationService {
         return errors;
     }
 
-    /**
-     * Throwing variant: throws BusinessException if any pre-transaction check fails.
-     */
-    public void requirePreTransaction(Long tenantId, Account account,
-                                       VoucherDrCr drCr, TransactionChannel channel) {
+    /** Throwing variant: throws BusinessException if any pre-transaction check fails. */
+    public void requirePreTransaction(
+            Long tenantId, Account account, VoucherDrCr drCr, TransactionChannel channel) {
         List<String> errors = validatePreTransaction(tenantId, account, drCr, channel);
         if (!errors.isEmpty()) {
-            throw new BusinessException("PRE_TRANSACTION_VALIDATION_FAILED",
-                    String.join("; ", errors));
+            throw new BusinessException(
+                    "PRE_TRANSACTION_VALIDATION_FAILED", String.join("; ", errors));
         }
     }
 
     // ===== Individual validations =====
 
-    /**
-     * Validate that tenant context is set.
-     */
+    /** Validate that tenant context is set. */
     public List<String> validateTenantContext() {
         List<String> errors = new ArrayList<>();
         try {
@@ -115,9 +103,7 @@ public class CbsValidationService {
         return errors;
     }
 
-    /**
-     * Validate that the tenant's business day is OPEN.
-     */
+    /** Validate that the tenant's business day is OPEN. */
     public List<String> validateBusinessDayOpen(Long tenantId) {
         List<String> errors = new ArrayList<>();
         try {
@@ -128,18 +114,14 @@ public class CbsValidationService {
         return errors;
     }
 
-    /**
-     * Throwing variant for business day check.
-     */
+    /** Throwing variant for business day check. */
     public void requireBusinessDayOpen(Long tenantId) {
         tenantService.validateBusinessDayOpen(tenantId);
     }
 
-    /**
-     * Validate that the holiday calendar allows operations on the given date/channel.
-     */
-    public List<String> validateHolidayCalendar(Long tenantId, LocalDate businessDate,
-                                                 TransactionChannel channel) {
+    /** Validate that the holiday calendar allows operations on the given date/channel. */
+    public List<String> validateHolidayCalendar(
+            Long tenantId, LocalDate businessDate, TransactionChannel channel) {
         List<String> errors = new ArrayList<>();
         try {
             if (channel == null) {
@@ -152,11 +134,9 @@ public class CbsValidationService {
         return errors;
     }
 
-    /**
-     * Validate that an open batch exists for the tenant/channel/date.
-     */
-    public List<String> validateBatchAvailable(Long tenantId, TransactionChannel channel,
-                                                LocalDate businessDate) {
+    /** Validate that an open batch exists for the tenant/channel/date. */
+    public List<String> validateBatchAvailable(
+            Long tenantId, TransactionChannel channel, LocalDate businessDate) {
         List<String> errors = new ArrayList<>();
         try {
             batchService.getOrCreateOpenBatch(tenantId, channel, businessDate);
@@ -166,9 +146,7 @@ public class CbsValidationService {
         return errors;
     }
 
-    /**
-     * Validate that the account is ACTIVE.
-     */
+    /** Validate that the account is ACTIVE. */
     public List<String> validateAccountActive(Account account) {
         List<String> errors = new ArrayList<>();
         if (account == null) {
@@ -176,15 +154,16 @@ public class CbsValidationService {
             return errors;
         }
         if (account.getStatus() != AccountStatus.ACTIVE) {
-            errors.add("Account " + account.getAccountNumber()
-                    + " is not active. Status: " + account.getStatus());
+            errors.add(
+                    "Account "
+                            + account.getAccountNumber()
+                            + " is not active. Status: "
+                            + account.getStatus());
         }
         return errors;
     }
 
-    /**
-     * Validate that the account is approved (maker-checker).
-     */
+    /** Validate that the account is approved (maker-checker). */
     public List<String> validateAccountApproved(Account account) {
         List<String> errors = new ArrayList<>();
         if (account == null) {
@@ -193,15 +172,16 @@ public class CbsValidationService {
         }
         if (account.getApprovalStatus() != null
                 && account.getApprovalStatus() != MakerCheckerStatus.APPROVED) {
-            errors.add("Account " + account.getAccountNumber()
-                    + " is not approved. Approval status: " + account.getApprovalStatus());
+            errors.add(
+                    "Account "
+                            + account.getAccountNumber()
+                            + " is not approved. Approval status: "
+                            + account.getApprovalStatus());
         }
         return errors;
     }
 
-    /**
-     * Validate account freeze level allows the requested operation direction.
-     */
+    /** Validate account freeze level allows the requested operation direction. */
     public List<String> validateAccountFreezeLevel(Account account, VoucherDrCr drCr) {
         List<String> errors = new ArrayList<>();
         if (account == null) {
@@ -213,23 +193,30 @@ public class CbsValidationService {
             return errors;
         }
         if (freezeLevel == FreezeLevel.FULL) {
-            errors.add("Account " + account.getAccountNumber()
-                    + " is fully frozen. Reason: " + account.getFreezeReason());
+            errors.add(
+                    "Account "
+                            + account.getAccountNumber()
+                            + " is fully frozen. Reason: "
+                            + account.getFreezeReason());
         }
         if (freezeLevel == FreezeLevel.DEBIT_ONLY && drCr == VoucherDrCr.DR) {
-            errors.add("Account " + account.getAccountNumber()
-                    + " has debit freeze active. Reason: " + account.getFreezeReason());
+            errors.add(
+                    "Account "
+                            + account.getAccountNumber()
+                            + " has debit freeze active. Reason: "
+                            + account.getFreezeReason());
         }
         if (freezeLevel == FreezeLevel.CREDIT_ONLY && drCr == VoucherDrCr.CR) {
-            errors.add("Account " + account.getAccountNumber()
-                    + " has credit freeze active. Reason: " + account.getFreezeReason());
+            errors.add(
+                    "Account "
+                            + account.getAccountNumber()
+                            + " has credit freeze active. Reason: "
+                            + account.getFreezeReason());
         }
         return errors;
     }
 
-    /**
-     * Validate that the current user has at least one of the required roles.
-     */
+    /** Validate that the current user has at least one of the required roles. */
     public List<String> validateUserRole(String... requiredRoles) {
         List<String> errors = new ArrayList<>();
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -237,30 +224,29 @@ public class CbsValidationService {
             errors.add("User is not authenticated");
             return errors;
         }
-        boolean hasRole = auth.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch(authority -> Arrays.asList(requiredRoles).contains(authority));
+        boolean hasRole =
+                auth.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .anyMatch(authority -> Arrays.asList(requiredRoles).contains(authority));
         if (!hasRole) {
-            errors.add("User " + auth.getName() + " does not have any of the required roles: "
-                    + String.join(", ", requiredRoles));
+            errors.add(
+                    "User "
+                            + auth.getName()
+                            + " does not have any of the required roles: "
+                            + String.join(", ", requiredRoles));
         }
         return errors;
     }
 
-    /**
-     * Throwing variant for role check.
-     */
+    /** Throwing variant for role check. */
     public void requireUserRole(String... requiredRoles) {
         List<String> errors = validateUserRole(requiredRoles);
         if (!errors.isEmpty()) {
-            throw new BusinessException("INSUFFICIENT_ROLE",
-                    String.join("; ", errors));
+            throw new BusinessException("INSUFFICIENT_ROLE", String.join("; ", errors));
         }
     }
 
-    /**
-     * Validate that a GL account code exists and is active.
-     */
+    /** Validate that a GL account code exists and is active. */
     public List<String> validateGlAccountActive(String glAccountCode) {
         List<String> errors = new ArrayList<>();
         if (glAccountCode == null || glAccountCode.isBlank()) {
@@ -276,9 +262,7 @@ public class CbsValidationService {
         return errors;
     }
 
-    /**
-     * Validate that the maker and checker are different users (maker-checker enforcement).
-     */
+    /** Validate that the maker and checker are different users (maker-checker enforcement). */
     public List<String> validateMakerCheckerDifferent(Long makerId, Long checkerId) {
         List<String> errors = new ArrayList<>();
         if (makerId != null && checkerId != null && makerId.equals(checkerId)) {
@@ -287,14 +271,11 @@ public class CbsValidationService {
         return errors;
     }
 
-    /**
-     * Throwing variant for maker-checker check.
-     */
+    /** Throwing variant for maker-checker check. */
     public void requireMakerCheckerDifferent(Long makerId, Long checkerId) {
         List<String> errors = validateMakerCheckerDifferent(makerId, checkerId);
         if (!errors.isEmpty()) {
-            throw new BusinessException("MAKER_CHECKER_VIOLATION",
-                    String.join("; ", errors));
+            throw new BusinessException("MAKER_CHECKER_VIOLATION", String.join("; ", errors));
         }
     }
 }

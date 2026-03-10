@@ -3,12 +3,11 @@ package com.ledgora.common.service;
 import com.ledgora.common.entity.SystemDate;
 import com.ledgora.common.enums.BusinessDateStatus;
 import com.ledgora.common.repository.SystemDateRepository;
+import java.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.LocalDate;
 
 @Service
 public class BusinessDateService {
@@ -21,24 +20,29 @@ public class BusinessDateService {
     }
 
     public LocalDate getCurrentBusinessDate() {
-        return systemDateRepository.findByStatus(BusinessDateStatus.OPEN)
+        return systemDateRepository
+                .findByStatus(BusinessDateStatus.OPEN)
                 .map(SystemDate::getBusinessDate)
-                .orElseGet(() -> {
-                    log.warn("No open business date found, using system date");
-                    return LocalDate.now();
-                });
+                .orElseGet(
+                        () -> {
+                            log.warn("No open business date found, using system date");
+                            return LocalDate.now();
+                        });
     }
 
     public SystemDate getCurrentSystemDate() {
-        return systemDateRepository.findByStatus(BusinessDateStatus.OPEN)
-                .orElseGet(() -> {
-                    log.info("Initializing business date to today");
-                    SystemDate sd = SystemDate.builder()
-                            .businessDate(LocalDate.now())
-                            .status(BusinessDateStatus.OPEN)
-                            .build();
-                    return systemDateRepository.save(sd);
-                });
+        return systemDateRepository
+                .findByStatus(BusinessDateStatus.OPEN)
+                .orElseGet(
+                        () -> {
+                            log.info("Initializing business date to today");
+                            SystemDate sd =
+                                    SystemDate.builder()
+                                            .businessDate(LocalDate.now())
+                                            .status(BusinessDateStatus.OPEN)
+                                            .build();
+                            return systemDateRepository.save(sd);
+                        });
     }
 
     public boolean isBusinessDateOpen() {
@@ -55,16 +59,25 @@ public class BusinessDateService {
 
     @Transactional
     public void closeDayAndAdvance() {
-        SystemDate current = systemDateRepository.findByStatus(BusinessDateStatus.DAY_CLOSING)
-                .orElseThrow(() -> new RuntimeException("No business date in DAY_CLOSING status"));
+        SystemDate current =
+                systemDateRepository
+                        .findByStatus(BusinessDateStatus.DAY_CLOSING)
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "No business date in DAY_CLOSING status"));
         current.setStatus(BusinessDateStatus.CLOSED);
         systemDateRepository.save(current);
 
-        SystemDate nextDay = SystemDate.builder()
-                .businessDate(current.getBusinessDate().plusDays(1))
-                .status(BusinessDateStatus.OPEN)
-                .build();
+        SystemDate nextDay =
+                SystemDate.builder()
+                        .businessDate(current.getBusinessDate().plusDays(1))
+                        .status(BusinessDateStatus.OPEN)
+                        .build();
         systemDateRepository.save(nextDay);
-        log.info("Business date advanced from {} to {}", current.getBusinessDate(), nextDay.getBusinessDate());
+        log.info(
+                "Business date advanced from {} to {}",
+                current.getBusinessDate(),
+                nextDay.getBusinessDate());
     }
 }

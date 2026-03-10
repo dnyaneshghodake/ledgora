@@ -1,9 +1,12 @@
 package com.ledgora.dashboard.dto;
 
-import lombok.*;
 import java.math.BigDecimal;
+import lombok.*;
 
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class DashboardDTO {
     private long totalAccounts;
     private long activeAccounts;

@@ -4,8 +4,8 @@ import com.ledgora.ledger.entity.LedgerJournal;
 import org.springframework.context.ApplicationEvent;
 
 /**
- * PART 3: Domain event published when ledger entries are posted.
- * Triggers balance cache update via BalanceEventListener.
+ * PART 3: Domain event published when ledger entries are posted. Triggers balance cache update via
+ * BalanceEventListener.
  */
 public class LedgerPostedEvent extends ApplicationEvent {
     private final LedgerJournal journal;

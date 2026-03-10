@@ -1,8 +1,6 @@
 package com.ledgora.common.exception;
 
-/**
- * Thrown when an account has insufficient balance for a transaction.
- */
+/** Thrown when an account has insufficient balance for a transaction. */
 public class InsufficientBalanceException extends BusinessException {
 
     private final String accountNumber;

@@ -6,6 +6,8 @@ import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
 import jakarta.servlet.http.HttpSession;
+import java.time.LocalDate;
+import java.util.List;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,15 +15,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.time.LocalDate;
-import java.util.List;
-
 /**
  * Controller for CBS Day Lifecycle screens.
  *
- * Day Begin:  /eod/day-begin (GET = validate, POST = open day)
- * EOD:        /eod/validate, /eod/run (GET = form, POST = execute)
- * Status:     /eod/status
+ * <p>Day Begin: /eod/day-begin (GET = validate, POST = open day) EOD: /eod/validate, /eod/run (GET
+ * = form, POST = execute) Status: /eod/status
  */
 @Controller
 @RequestMapping("/eod")
@@ -31,9 +29,10 @@ public class EodController {
     private final DayBeginService dayBeginService;
     private final TenantService tenantService;
 
-    public EodController(EodValidationService eodValidationService,
-                         DayBeginService dayBeginService,
-                         TenantService tenantService) {
+    public EodController(
+            EodValidationService eodValidationService,
+            DayBeginService dayBeginService,
+            TenantService tenantService) {
         this.eodValidationService = eodValidationService;
         this.dayBeginService = dayBeginService;
         this.tenantService = tenantService;
@@ -59,10 +58,14 @@ public class EodController {
             Tenant tenant = resolveCurrentTenant(session);
             dayBeginService.openDay(tenant.getId());
             Tenant refreshed = tenantService.getTenantById(tenant.getId());
-            session.setAttribute("businessDate", String.valueOf(refreshed.getCurrentBusinessDate()));
+            session.setAttribute(
+                    "businessDate", String.valueOf(refreshed.getCurrentBusinessDate()));
             session.setAttribute("businessDateStatus", refreshed.getDayStatus().name());
-            redirectAttributes.addFlashAttribute("message",
-                    "Day Begin successful! Business date " + refreshed.getCurrentBusinessDate() + " is now OPEN.");
+            redirectAttributes.addFlashAttribute(
+                    "message",
+                    "Day Begin successful! Business date "
+                            + refreshed.getCurrentBusinessDate()
+                            + " is now OPEN.");
             return "redirect:/eod/status";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Day Begin failed: " + e.getMessage());
@@ -75,17 +78,26 @@ public class EodController {
     @GetMapping("/validate")
     public String validateEod(Model model, HttpSession session) {
         Tenant tenant = resolveCurrentTenant(session);
-        List<String> errors = eodValidationService.validateEod(tenant.getId(), tenant.getCurrentBusinessDate());
+        List<String> errors =
+                eodValidationService.validateEod(tenant.getId(), tenant.getCurrentBusinessDate());
         model.addAttribute("businessDate", tenant.getCurrentBusinessDate());
         model.addAttribute("businessDateStatus", tenant.getDayStatus().name());
         model.addAttribute("tenantName", tenant.getTenantName());
         model.addAttribute("validationErrors", errors);
 
         // Backward-compatible flags used by existing JSP
-        model.addAttribute("allVouchersPosted", errors.stream().noneMatch(e -> e.toLowerCase().contains("voucher")));
-        model.addAttribute("branchBalanced", errors.stream().noneMatch(e -> e.toLowerCase().contains("branch")));
-        model.addAttribute("clearingGlZero", errors.stream().noneMatch(e -> e.toLowerCase().contains("clearing")));
-        model.addAttribute("noPendingAuth", errors.stream().noneMatch(e -> e.toLowerCase().contains("pending")));
+        model.addAttribute(
+                "allVouchersPosted",
+                errors.stream().noneMatch(e -> e.toLowerCase().contains("voucher")));
+        model.addAttribute(
+                "branchBalanced",
+                errors.stream().noneMatch(e -> e.toLowerCase().contains("branch")));
+        model.addAttribute(
+                "clearingGlZero",
+                errors.stream().noneMatch(e -> e.toLowerCase().contains("clearing")));
+        model.addAttribute(
+                "noPendingAuth",
+                errors.stream().noneMatch(e -> e.toLowerCase().contains("pending")));
         return "eod/eod-validate";
     }
 
@@ -104,10 +116,13 @@ public class EodController {
             Tenant tenant = resolveCurrentTenant(session);
             eodValidationService.runEod(tenant.getId());
             Tenant refreshed = tenantService.getTenantById(tenant.getId());
-            session.setAttribute("businessDate", String.valueOf(refreshed.getCurrentBusinessDate()));
+            session.setAttribute(
+                    "businessDate", String.valueOf(refreshed.getCurrentBusinessDate()));
             session.setAttribute("businessDateStatus", refreshed.getDayStatus().name());
-            redirectAttributes.addFlashAttribute("message",
-                    "EOD completed successfully. New business date: " + refreshed.getCurrentBusinessDate());
+            redirectAttributes.addFlashAttribute(
+                    "message",
+                    "EOD completed successfully. New business date: "
+                            + refreshed.getCurrentBusinessDate());
             return "redirect:/eod/status";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "EOD failed: " + e.getMessage());

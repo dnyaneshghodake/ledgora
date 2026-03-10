@@ -1,13 +1,14 @@
 package com.ledgora.reporting.dto;
 
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import lombok.*;
 
-/**
- * PART 10: Daily Transaction Summary report DTO.
- */
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+/** PART 10: Daily Transaction Summary report DTO. */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class DailyTransactionSummary {
     private LocalDate date;
     private long totalTransactions;

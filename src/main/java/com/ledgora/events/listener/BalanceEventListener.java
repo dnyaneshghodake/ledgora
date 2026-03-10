@@ -5,17 +5,16 @@ import com.ledgora.events.AccountCreatedEvent;
 import com.ledgora.events.LedgerPostedEvent;
 import com.ledgora.events.SettlementCompletedEvent;
 import com.ledgora.ledger.entity.LedgerEntry;
+import java.util.HashSet;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import java.util.HashSet;
-import java.util.Set;
-
 /**
- * PART 3 + PART 9: Event listener for balance updates.
- * Listens to LedgerPostedEvent and refreshes balance cache.
+ * PART 3 + PART 9: Event listener for balance updates. Listens to LedgerPostedEvent and refreshes
+ * balance cache.
  */
 @Component
 public class BalanceEventListener {
@@ -29,7 +28,8 @@ public class BalanceEventListener {
 
     @EventListener
     public void onLedgerPosted(LedgerPostedEvent event) {
-        log.info("BalanceEventListener: Refreshing balances for journal {}",
+        log.info(
+                "BalanceEventListener: Refreshing balances for journal {}",
                 event.getJournal().getId());
 
         // Collect unique account IDs from journal entries
@@ -48,13 +48,15 @@ public class BalanceEventListener {
 
     @EventListener
     public void onAccountCreated(AccountCreatedEvent event) {
-        log.info("BalanceEventListener: Account created event for {}",
+        log.info(
+                "BalanceEventListener: Account created event for {}",
                 event.getAccount().getAccountNumber());
     }
 
     @EventListener
     public void onSettlementCompleted(SettlementCompletedEvent event) {
-        log.info("BalanceEventListener: Settlement completed event for {}",
+        log.info(
+                "BalanceEventListener: Settlement completed event for {}",
                 event.getSettlement().getSettlementRef());
     }
 }

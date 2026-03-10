@@ -4,21 +4,18 @@ import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
 import jakarta.servlet.http.HttpSession;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
-/**
- * Controller for tenant switching (for MULTI tenant users).
- */
+/** Controller for tenant switching (for MULTI tenant users). */
 @Controller
 @RequestMapping("/tenant")
 public class TenantController {
@@ -30,37 +27,48 @@ public class TenantController {
     }
 
     @GetMapping("/switch/{tenantId}")
-    public String switchTenantLegacy(@PathVariable Long tenantId,
-                                     RedirectAttributes redirectAttributes) {
-        redirectAttributes.addFlashAttribute("error",
+    public String switchTenantLegacy(
+            @PathVariable Long tenantId, RedirectAttributes redirectAttributes) {
+        redirectAttributes.addFlashAttribute(
+                "error",
                 "Direct tenant switch URL is disabled. Please use the tenant switch menu.");
         return "redirect:/dashboard";
     }
 
     @PostMapping("/switch")
-    public String switchTenant(@RequestParam Long tenantId, HttpSession session,
-                               RedirectAttributes redirectAttributes) {
+    public String switchTenant(
+            @RequestParam Long tenantId,
+            HttpSession session,
+            RedirectAttributes redirectAttributes) {
         try {
             Object tenantScope = session.getAttribute("tenantScope");
             if (!"MULTI".equals(tenantScope)) {
-                redirectAttributes.addFlashAttribute("error", "Tenant switch is not allowed for this user.");
+                redirectAttributes.addFlashAttribute(
+                        "error", "Tenant switch is not allowed for this user.");
                 return "redirect:/dashboard";
             }
 
             Object availableTenantsObj = session.getAttribute("availableTenants");
             if (availableTenantsObj instanceof List<?> availableTenants) {
-                boolean allowed = availableTenants.stream().anyMatch(t -> {
-                    if (t instanceof Tenant tenant) {
-                        return Objects.equals(tenant.getId(), tenantId);
-                    }
-                    if (t instanceof Map<?, ?> tenantMap) {
-                        Object id = tenantMap.get("id");
-                        return id != null && Objects.equals(String.valueOf(id), String.valueOf(tenantId));
-                    }
-                    return false;
-                });
+                boolean allowed =
+                        availableTenants.stream()
+                                .anyMatch(
+                                        t -> {
+                                            if (t instanceof Tenant tenant) {
+                                                return Objects.equals(tenant.getId(), tenantId);
+                                            }
+                                            if (t instanceof Map<?, ?> tenantMap) {
+                                                Object id = tenantMap.get("id");
+                                                return id != null
+                                                        && Objects.equals(
+                                                                String.valueOf(id),
+                                                                String.valueOf(tenantId));
+                                            }
+                                            return false;
+                                        });
                 if (!allowed) {
-                    redirectAttributes.addFlashAttribute("error", "You are not authorized to switch to this tenant.");
+                    redirectAttributes.addFlashAttribute(
+                            "error", "You are not authorized to switch to this tenant.");
                     return "redirect:/dashboard";
                 }
             }
@@ -74,9 +82,11 @@ public class TenantController {
             session.setAttribute("businessDateStatus", tenant.getDayStatus().name());
             // Update ThreadLocal context
             TenantContextHolder.setTenantId(tenant.getId());
-            redirectAttributes.addFlashAttribute("message", "Switched to tenant: " + tenant.getTenantName());
+            redirectAttributes.addFlashAttribute(
+                    "message", "Switched to tenant: " + tenant.getTenantName());
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Failed to switch tenant: " + e.getMessage());
+            redirectAttributes.addFlashAttribute(
+                    "error", "Failed to switch tenant: " + e.getMessage());
         }
         return "redirect:/dashboard";
     }

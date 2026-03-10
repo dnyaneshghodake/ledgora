@@ -5,9 +5,13 @@ import lombok.*;
 
 @Entity
 @Table(name = "branches")
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Branch {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "branch_code", length = 10, nullable = false, unique = true)

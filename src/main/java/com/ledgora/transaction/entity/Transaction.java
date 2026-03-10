@@ -8,24 +8,32 @@ import com.ledgora.common.enums.TransactionStatus;
 import com.ledgora.common.enums.TransactionType;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * Transaction entity - multi-tenant aware with batch support.
- * Composite index on (client_reference_id, channel, tenant_id) for tenant-aware idempotency.
+ * Transaction entity - multi-tenant aware with batch support. Composite index on
+ * (client_reference_id, channel, tenant_id) for tenant-aware idempotency.
  */
 @Entity
-@Table(name = "transactions", indexes = {
-    @Index(name = "idx_transaction_ref", columnList = "transaction_ref"),
-    @Index(name = "idx_txn_client_ref_channel_tenant", columnList = "client_reference_id, channel, tenant_id"),
-    @Index(name = "idx_txn_tenant", columnList = "tenant_id")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "transactions",
+        indexes = {
+            @Index(name = "idx_transaction_ref", columnList = "transaction_ref"),
+            @Index(
+                    name = "idx_txn_client_ref_channel_tenant",
+                    columnList = "client_reference_id, channel, tenant_id"),
+            @Index(name = "idx_txn_tenant", columnList = "tenant_id")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Transaction {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

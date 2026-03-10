@@ -1,18 +1,22 @@
 package com.ledgora.audit.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * PART 11: Extended audit log with full financial traceability.
- * Each transaction stores request payload, response payload, user id, ip address, and timestamp.
+ * PART 11: Extended audit log with full financial traceability. Each transaction stores request
+ * payload, response payload, user id, ip address, and timestamp.
  */
 @Entity
 @Table(name = "audit_logs")
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class AuditLog {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "user_id")

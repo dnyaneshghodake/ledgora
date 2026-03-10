@@ -1,20 +1,29 @@
 package com.ledgora.voucher.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
 import java.time.LocalDate;
+import lombok.*;
 
 /**
- * Scroll number sequence tracker per (tenant_id, branch_id, posting_date).
- * Auto-increments scroll numbers for voucher batching.
+ * Scroll number sequence tracker per (tenant_id, branch_id, posting_date). Auto-increments scroll
+ * numbers for voucher batching.
  */
 @Entity
-@Table(name = "scroll_sequences", indexes = {
-    @Index(name = "idx_scroll_seq_composite", columnList = "tenant_id, branch_id, posting_date", unique = true)
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "scroll_sequences",
+        indexes = {
+            @Index(
+                    name = "idx_scroll_seq_composite",
+                    columnList = "tenant_id, branch_id, posting_date",
+                    unique = true)
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ScrollSequence {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "tenant_id", nullable = false)

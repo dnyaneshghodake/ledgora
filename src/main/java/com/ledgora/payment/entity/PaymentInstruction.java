@@ -4,18 +4,20 @@ import com.ledgora.account.entity.Account;
 import com.ledgora.common.enums.PaymentStatus;
 import com.ledgora.transaction.entity.Transaction;
 import jakarta.persistence.*;
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import lombok.*;
 
-/**
- * PART 7: Payment instruction entity for the payment engine.
- */
+/** PART 7: Payment instruction entity for the payment engine. */
 @Entity
 @Table(name = "payment_instructions")
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class PaymentInstruction {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -9,7 +9,6 @@ import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.batch.service.BatchService;
 import com.ledgora.common.enums.AccountStatus;
-import com.ledgora.common.enums.BusinessDateStatus;
 import com.ledgora.common.enums.SettlementStatus;
 import com.ledgora.common.enums.TransactionStatus;
 import com.ledgora.common.service.BusinessDateService;
@@ -25,19 +24,18 @@ import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.service.TenantService;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.repository.TransactionRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class SettlementService {
@@ -57,19 +55,20 @@ public class SettlementService {
     private final TenantService tenantService;
     private final BatchService batchService;
 
-    public SettlementService(SettlementRepository settlementRepository,
-                             SettlementEntryRepository settlementEntryRepository,
-                             TransactionRepository transactionRepository,
-                             AccountRepository accountRepository,
-                             AccountBalanceRepository accountBalanceRepository,
-                             LedgerEntryRepository ledgerEntryRepository,
-                             UserRepository userRepository,
-                             BusinessDateService businessDateService,
-                             AuditService auditService,
-                             ReportingService reportingService,
-                             ApplicationEventPublisher eventPublisher,
-                             TenantService tenantService,
-                             BatchService batchService) {
+    public SettlementService(
+            SettlementRepository settlementRepository,
+            SettlementEntryRepository settlementEntryRepository,
+            TransactionRepository transactionRepository,
+            AccountRepository accountRepository,
+            AccountBalanceRepository accountBalanceRepository,
+            LedgerEntryRepository ledgerEntryRepository,
+            UserRepository userRepository,
+            BusinessDateService businessDateService,
+            AuditService auditService,
+            ReportingService reportingService,
+            ApplicationEventPublisher eventPublisher,
+            TenantService tenantService,
+            BatchService batchService) {
         this.settlementRepository = settlementRepository;
         this.settlementEntryRepository = settlementEntryRepository;
         this.transactionRepository = transactionRepository;
@@ -86,15 +85,11 @@ public class SettlementService {
     }
 
     /**
-     * Per-tenant EOD Settlement - enhanced with batch validation.
-     * 1. Set tenant day_status = DAY_CLOSING (stop intake)
-     * 2. Flush pending events (complete pending transactions)
-     * 3. Validate ledger integrity (SUM debit = SUM credit)
-     * 4. Generate trial balance report
-     * 5. Close and validate all batches
-     * 6. Settle all batches (validate debit == credit)
-     * 7. Generate settlement reports
-     * 8. Advance business date per tenant
+     * Per-tenant EOD Settlement - enhanced with batch validation. 1. Set tenant day_status =
+     * DAY_CLOSING (stop intake) 2. Flush pending events (complete pending transactions) 3. Validate
+     * ledger integrity (SUM debit = SUM credit) 4. Generate trial balance report 5. Close and
+     * validate all batches 6. Settle all batches (validate debit == credit) 7. Generate settlement
+     * reports 8. Advance business date per tenant
      */
     @Transactional
     public Settlement processSettlement(LocalDate date) {
@@ -104,13 +99,14 @@ public class SettlementService {
         User currentUser = getCurrentUser();
         String ref = "SET-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
 
-        Settlement settlement = Settlement.builder()
-                .settlementRef(ref)
-                .businessDate(date)
-                .status(SettlementStatus.IN_PROGRESS)
-                .startTime(LocalDateTime.now())
-                .processedBy(currentUser)
-                .build();
+        Settlement settlement =
+                Settlement.builder()
+                        .settlementRef(ref)
+                        .businessDate(date)
+                        .status(SettlementStatus.IN_PROGRESS)
+                        .startTime(LocalDateTime.now())
+                        .processedBy(currentUser)
+                        .build();
         settlement = settlementRepository.save(settlement);
 
         try {
@@ -122,37 +118,60 @@ public class SettlementService {
 
             // Step 2: Flush pending events (complete pending transactions)
             log.info("Settlement [{}] Step 2: Flushing pending transactions", ref);
-            List<Transaction> pendingTxns = transactionRepository.findByTenantIdAndStatusAndBusinessDate(
-                    tenantId, TransactionStatus.PENDING, date);
+            List<Transaction> pendingTxns =
+                    transactionRepository.findByTenantIdAndStatusAndBusinessDate(
+                            tenantId, TransactionStatus.PENDING, date);
             for (Transaction txn : pendingTxns) {
                 txn.setStatus(TransactionStatus.COMPLETED);
                 transactionRepository.save(txn);
             }
-            log.info("Settlement [{}] Step 2: Flushed {} pending transactions", ref, pendingTxns.size());
+            log.info(
+                    "Settlement [{}] Step 2: Flushed {} pending transactions",
+                    ref,
+                    pendingTxns.size());
 
             // Step 3: Validate ledger integrity (system invariant)
             log.info("Settlement [{}] Step 3: Validating ledger integrity", ref);
-            BigDecimal totalDebits = ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(date, tenantId);
-            BigDecimal totalCredits = ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(date, tenantId);
+            BigDecimal totalDebits =
+                    ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(date, tenantId);
+            BigDecimal totalCredits =
+                    ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(date, tenantId);
             if (totalDebits.compareTo(totalCredits) != 0) {
-                throw new RuntimeException("SETTLEMENT INVARIANT VIOLATION: Total Debits ("
-                        + totalDebits + ") != Total Credits (" + totalCredits + ") for date " + date);
+                throw new RuntimeException(
+                        "SETTLEMENT INVARIANT VIOLATION: Total Debits ("
+                                + totalDebits
+                                + ") != Total Credits ("
+                                + totalCredits
+                                + ") for date "
+                                + date);
             }
-            log.info("Settlement [{}] Step 3: Ledger integrity validated - debits={} credits={}", ref, totalDebits, totalCredits);
+            log.info(
+                    "Settlement [{}] Step 3: Ledger integrity validated - debits={} credits={}",
+                    ref,
+                    totalDebits,
+                    totalCredits);
 
             // Step 4: Generate trial balance report
             log.info("Settlement [{}] Step 4: Generating trial balance", ref);
             TrialBalanceReport trialBalance = reportingService.generateTrialBalance(date);
             if (!trialBalance.isBalanced()) {
-                log.warn("Settlement [{}] Step 4: Trial balance is NOT balanced - debits={} credits={}",
-                        ref, trialBalance.getTotalDebits(), trialBalance.getTotalCredits());
+                log.warn(
+                        "Settlement [{}] Step 4: Trial balance is NOT balanced - debits={} credits={}",
+                        ref,
+                        trialBalance.getTotalDebits(),
+                        trialBalance.getTotalCredits());
             } else {
-                log.info("Settlement [{}] Step 4: Trial balance verified - {} GL accounts balanced",
-                        ref, trialBalance.getLines().size());
+                log.info(
+                        "Settlement [{}] Step 4: Trial balance verified - {} GL accounts balanced",
+                        ref,
+                        trialBalance.getLines().size());
             }
 
             // Step 5: Close and validate all batches for this tenant
-            log.info("Settlement [{}] Step 5: Closing and validating batches for tenant {}", ref, tenantId);
+            log.info(
+                    "Settlement [{}] Step 5: Closing and validating batches for tenant {}",
+                    ref,
+                    tenantId);
             batchService.closeAllBatches(tenantId, date);
 
             // Step 6: Settle all batches (validates debit == credit)
@@ -161,17 +180,24 @@ public class SettlementService {
             log.info("Settlement [{}] Step 6: All batches settled for tenant {}", ref, tenantId);
 
             // Recalculate balances for all active accounts
-            List<Account> activeAccounts = accountRepository.findByTenantIdAndStatus(tenantId, AccountStatus.ACTIVE);
+            List<Account> activeAccounts =
+                    accountRepository.findByTenantIdAndStatus(tenantId, AccountStatus.ACTIVE);
             for (Account account : activeAccounts) {
-                BigDecimal accountDebits = ledgerEntryRepository.sumDebitsByAccountId(account.getId());
-                BigDecimal accountCredits = ledgerEntryRepository.sumCreditsByAccountId(account.getId());
+                BigDecimal accountDebits =
+                        ledgerEntryRepository.sumDebitsByAccountId(account.getId());
+                BigDecimal accountCredits =
+                        ledgerEntryRepository.sumCreditsByAccountId(account.getId());
                 BigDecimal ledgerBalance = accountCredits.subtract(accountDebits);
 
-                AccountBalance bal = accountBalanceRepository.findByAccountId(account.getId())
-                        .orElseGet(() -> AccountBalance.builder()
-                                .account(account)
-                                .holdAmount(BigDecimal.ZERO)
-                                .build());
+                AccountBalance bal =
+                        accountBalanceRepository
+                                .findByAccountId(account.getId())
+                                .orElseGet(
+                                        () ->
+                                                AccountBalance.builder()
+                                                        .account(account)
+                                                        .holdAmount(BigDecimal.ZERO)
+                                                        .build());
                 bal.setLedgerBalance(ledgerBalance);
                 bal.setAvailableBalance(ledgerBalance.subtract(bal.getHoldAmount()));
                 accountBalanceRepository.save(bal);
@@ -179,35 +205,47 @@ public class SettlementService {
 
             // Step 7: Generate settlement reports (entries per account)
             log.info("Settlement [{}] Step 7: Generating settlement reports", ref);
-            List<Transaction> completedTxns = transactionRepository.findByTenantIdAndStatusAndBusinessDate(
-                    tenantId, TransactionStatus.COMPLETED, date);
+            List<Transaction> completedTxns =
+                    transactionRepository.findByTenantIdAndStatusAndBusinessDate(
+                            tenantId, TransactionStatus.COMPLETED, date);
             int txnCount = completedTxns.size();
 
             for (Account account : activeAccounts) {
-                BigDecimal accountDebits = ledgerEntryRepository.sumDebitsByAccountId(account.getId());
-                BigDecimal accountCredits = ledgerEntryRepository.sumCreditsByAccountId(account.getId());
-                BigDecimal openingBalance = account.getBalance().subtract(accountCredits).add(accountDebits);
+                BigDecimal accountDebits =
+                        ledgerEntryRepository.sumDebitsByAccountId(account.getId());
+                BigDecimal accountCredits =
+                        ledgerEntryRepository.sumCreditsByAccountId(account.getId());
+                BigDecimal openingBalance =
+                        account.getBalance().subtract(accountCredits).add(accountDebits);
 
-                SettlementEntry entry = SettlementEntry.builder()
-                        .settlement(settlement)
-                        .account(account)
-                        .openingBalance(openingBalance)
-                        .totalDebits(accountDebits)
-                        .totalCredits(accountCredits)
-                        .closingBalance(account.getBalance())
-                        .build();
+                SettlementEntry entry =
+                        SettlementEntry.builder()
+                                .settlement(settlement)
+                                .account(account)
+                                .openingBalance(openingBalance)
+                                .totalDebits(accountDebits)
+                                .totalCredits(accountCredits)
+                                .closingBalance(account.getBalance())
+                                .build();
                 settlementEntryRepository.save(entry);
             }
 
             settlement.setStatus(SettlementStatus.COMPLETED);
             settlement.setTransactionCount(txnCount);
             settlement.setEndTime(LocalDateTime.now());
-            settlement.setRemarks("EOD Settlement for " + date + " - " + txnCount + " transactions processed. "
-                    + "Ledger integrity: VERIFIED. Trial balance: " + (trialBalance.isBalanced() ? "BALANCED" : "UNBALANCED"));
+            settlement.setRemarks(
+                    "EOD Settlement for "
+                            + date
+                            + " - "
+                            + txnCount
+                            + " transactions processed. "
+                            + "Ledger integrity: VERIFIED. Trial balance: "
+                            + (trialBalance.isBalanced() ? "BALANCED" : "UNBALANCED"));
             settlement = settlementRepository.save(settlement);
 
             // Step 8: Advance business date per tenant
-            log.info("Settlement [{}] Step 8: Advancing business date for tenant {}", ref, tenantId);
+            log.info(
+                    "Settlement [{}] Step 8: Advancing business date for tenant {}", ref, tenantId);
             tenantService.closeDayAndAdvance(tenantId);
             // Also advance system-level business date
             businessDateService.closeDayAndAdvance();
@@ -219,7 +257,11 @@ public class SettlementService {
             Long userId = currentUser != null ? currentUser.getId() : null;
             auditService.logSettlement(userId, settlement.getId(), ref);
 
-            log.info("Settlement completed: {} for date {} with {} transactions", ref, date, txnCount);
+            log.info(
+                    "Settlement completed: {} for date {} with {} transactions",
+                    ref,
+                    date,
+                    txnCount);
             return settlement;
 
         } catch (Exception e) {

@@ -1,5 +1,7 @@
 package com.ledgora;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.ledgora.account.entity.Account;
 import com.ledgora.account.entity.AccountBalance;
 import com.ledgora.account.repository.AccountBalanceRepository;
@@ -19,7 +21,6 @@ import com.ledgora.common.validation.InputSanitizer;
 import com.ledgora.common.validation.RbiFieldValidator;
 import com.ledgora.customer.entity.CustomerMaster;
 import com.ledgora.customer.repository.CustomerMasterRepository;
-import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.lien.entity.AccountLien;
 import com.ledgora.lien.repository.AccountLienRepository;
@@ -32,6 +33,9 @@ import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
 import com.ledgora.transaction.dto.TransactionDTO;
 import com.ledgora.transaction.service.TransactionService;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -41,17 +45,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
-
 /**
- * PART 12: RBI-grade Governance Integration Tests.
- * Tests field validation, freeze enforcement, lien balance impact,
- * maker-checker governance, ownership validation, holiday restriction,
- * immutable ledger enforcement, and script injection rejection.
+ * PART 12: RBI-grade Governance Integration Tests. Tests field validation, freeze enforcement, lien
+ * balance impact, maker-checker governance, ownership validation, holiday restriction, immutable
+ * ledger enforcement, and script injection rejection.
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -88,7 +85,8 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(1)
     @DisplayName("Transaction amount zero must be rejected")
     void testTransactionAmountZeroRejected() {
-        assertThrows(InvalidTransactionAmountException.class,
+        assertThrows(
+                InvalidTransactionAmountException.class,
                 () -> RbiFieldValidator.validateTransactionAmount(BigDecimal.ZERO),
                 "Zero amount must be rejected");
     }
@@ -97,7 +95,8 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(2)
     @DisplayName("Transaction amount negative must be rejected")
     void testTransactionAmountNegativeRejected() {
-        assertThrows(InvalidTransactionAmountException.class,
+        assertThrows(
+                InvalidTransactionAmountException.class,
                 () -> RbiFieldValidator.validateTransactionAmount(new BigDecimal("-100.00")),
                 "Negative amount must be rejected");
     }
@@ -106,7 +105,8 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(3)
     @DisplayName("Transaction amount with more than 2 decimal places must be rejected")
     void testTransactionAmountScaleRejected() {
-        assertThrows(InvalidTransactionAmountException.class,
+        assertThrows(
+                InvalidTransactionAmountException.class,
                 () -> RbiFieldValidator.validateTransactionAmount(new BigDecimal("100.123")),
                 "Amount with >2 decimal places must be rejected");
     }
@@ -116,8 +116,11 @@ class LedgoraRbiGovernanceIntegrationTest {
     @DisplayName("Transaction amount exceeding max limit must be rejected")
     void testTransactionAmountExceedsMaxLimit() {
         BigDecimal maxLimit = new BigDecimal("50000.00");
-        assertThrows(InvalidTransactionAmountException.class,
-                () -> RbiFieldValidator.validateTransactionAmount(new BigDecimal("100000.00"), maxLimit),
+        assertThrows(
+                InvalidTransactionAmountException.class,
+                () ->
+                        RbiFieldValidator.validateTransactionAmount(
+                                new BigDecimal("100000.00"), maxLimit),
                 "Amount exceeding max limit must be rejected");
     }
 
@@ -125,7 +128,8 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(5)
     @DisplayName("Valid transaction amount must pass validation")
     void testTransactionAmountValidPasses() {
-        assertDoesNotThrow(() -> RbiFieldValidator.validateTransactionAmount(new BigDecimal("500.00")),
+        assertDoesNotThrow(
+                () -> RbiFieldValidator.validateTransactionAmount(new BigDecimal("500.00")),
                 "Valid amount must pass");
     }
 
@@ -133,7 +137,8 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(6)
     @DisplayName("Name with special characters must be rejected")
     void testNameValidationRejectsSpecialChars() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> InputSanitizer.validateName("Rajesh123", "Name"),
                 "Name with digits must be rejected");
     }
@@ -142,7 +147,8 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(7)
     @DisplayName("Valid name with alphabets, space, and dot must pass")
     void testNameValidationPassesValid() {
-        assertDoesNotThrow(() -> InputSanitizer.validateName("Dr. Rajesh Kumar", "Name"),
+        assertDoesNotThrow(
+                () -> InputSanitizer.validateName("Dr. Rajesh Kumar", "Name"),
                 "Valid name must pass");
     }
 
@@ -150,13 +156,16 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(8)
     @DisplayName("Mobile number must be exactly 10 digits")
     void testMobileValidation() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> InputSanitizer.validateMobile("12345", "Mobile"),
                 "Short mobile must be rejected");
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> InputSanitizer.validateMobile("12345678901", "Mobile"),
                 "Long mobile must be rejected");
-        assertDoesNotThrow(() -> InputSanitizer.validateMobile("9876543210", "Mobile"),
+        assertDoesNotThrow(
+                () -> InputSanitizer.validateMobile("9876543210", "Mobile"),
                 "Valid 10-digit mobile must pass");
     }
 
@@ -164,21 +173,24 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(9)
     @DisplayName("PAN format must be ABCDE1234F")
     void testPanValidation() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> InputSanitizer.validatePAN("INVALID", "PAN"),
                 "Invalid PAN must be rejected");
-        assertDoesNotThrow(() -> InputSanitizer.validatePAN("ABCDE1234F", "PAN"),
-                "Valid PAN must pass");
+        assertDoesNotThrow(
+                () -> InputSanitizer.validatePAN("ABCDE1234F", "PAN"), "Valid PAN must pass");
     }
 
     @Test
     @Order(10)
     @DisplayName("Aadhaar must be exactly 12 digits")
     void testAadhaarValidation() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> InputSanitizer.validateAadhaar("12345", "Aadhaar"),
                 "Short Aadhaar must be rejected");
-        assertDoesNotThrow(() -> InputSanitizer.validateAadhaar("123456789012", "Aadhaar"),
+        assertDoesNotThrow(
+                () -> InputSanitizer.validateAadhaar("123456789012", "Aadhaar"),
                 "Valid 12-digit Aadhaar must pass");
     }
 
@@ -186,10 +198,12 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(11)
     @DisplayName("Email format must be valid")
     void testEmailValidation() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> InputSanitizer.validateEmail("not-an-email", "Email"),
                 "Invalid email must be rejected");
-        assertDoesNotThrow(() -> InputSanitizer.validateEmail("user@example.com", "Email"),
+        assertDoesNotThrow(
+                () -> InputSanitizer.validateEmail("user@example.com", "Email"),
                 "Valid email must pass");
     }
 
@@ -197,13 +211,20 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(12)
     @DisplayName("Interest rate must be between 0 and 100")
     void testInterestRateValidation() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> RbiFieldValidator.validateInterestRate(new BigDecimal("-1"), "Interest Rate"),
                 "Negative rate must be rejected");
-        assertThrows(IllegalArgumentException.class,
-                () -> RbiFieldValidator.validateInterestRate(new BigDecimal("101"), "Interest Rate"),
+        assertThrows(
+                IllegalArgumentException.class,
+                () ->
+                        RbiFieldValidator.validateInterestRate(
+                                new BigDecimal("101"), "Interest Rate"),
                 "Rate above 100 must be rejected");
-        assertDoesNotThrow(() -> RbiFieldValidator.validateInterestRate(new BigDecimal("7.5"), "Interest Rate"),
+        assertDoesNotThrow(
+                () ->
+                        RbiFieldValidator.validateInterestRate(
+                                new BigDecimal("7.5"), "Interest Rate"),
                 "Valid rate must pass");
     }
 
@@ -211,10 +232,12 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(13)
     @DisplayName("Overdraft must be >= 0")
     void testOverdraftValidation() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> RbiFieldValidator.validateOverdraft(new BigDecimal("-100"), "Overdraft"),
                 "Negative overdraft must be rejected");
-        assertDoesNotThrow(() -> RbiFieldValidator.validateOverdraft(BigDecimal.ZERO, "Overdraft"),
+        assertDoesNotThrow(
+                () -> RbiFieldValidator.validateOverdraft(BigDecimal.ZERO, "Overdraft"),
                 "Zero overdraft must pass");
     }
 
@@ -222,13 +245,16 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(14)
     @DisplayName("Ownership percentage must be between 0 and 100")
     void testOwnershipPercentageValidation() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> RbiFieldValidator.validateOwnershipPercentage(BigDecimal.ZERO),
                 "Zero ownership must be rejected");
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> RbiFieldValidator.validateOwnershipPercentage(new BigDecimal("101")),
                 "Ownership above 100 must be rejected");
-        assertDoesNotThrow(() -> RbiFieldValidator.validateOwnershipPercentage(new BigDecimal("50")),
+        assertDoesNotThrow(
+                () -> RbiFieldValidator.validateOwnershipPercentage(new BigDecimal("50")),
                 "Valid ownership must pass");
     }
 
@@ -237,22 +263,24 @@ class LedgoraRbiGovernanceIntegrationTest {
     @DisplayName("DOB must indicate customer is at least 18 years old")
     void testDobValidation() {
         LocalDate minorDob = LocalDate.now().minusYears(10);
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> RbiFieldValidator.validateDob(minorDob),
                 "Minor DOB must be rejected");
         LocalDate adultDob = LocalDate.now().minusYears(25);
-        assertDoesNotThrow(() -> RbiFieldValidator.validateDob(adultDob),
-                "Adult DOB must pass");
+        assertDoesNotThrow(() -> RbiFieldValidator.validateDob(adultDob), "Adult DOB must pass");
     }
 
     @Test
     @Order(16)
     @DisplayName("PAN is mandatory for INDIVIDUAL customers")
     void testPanMandatoryForIndividual() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> RbiFieldValidator.validatePanForIndividual("INDIVIDUAL", null),
                 "Missing PAN for INDIVIDUAL must be rejected");
-        assertDoesNotThrow(() -> RbiFieldValidator.validatePanForIndividual("CORPORATE", null),
+        assertDoesNotThrow(
+                () -> RbiFieldValidator.validatePanForIndividual("CORPORATE", null),
                 "Missing PAN for CORPORATE is allowed");
     }
 
@@ -260,10 +288,12 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(17)
     @DisplayName("GST is mandatory for CORPORATE customers")
     void testGstMandatoryForCorporate() {
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> RbiFieldValidator.validateGstForCorporate("CORPORATE", null),
                 "Missing GST for CORPORATE must be rejected");
-        assertDoesNotThrow(() -> RbiFieldValidator.validateGstForCorporate("INDIVIDUAL", null),
+        assertDoesNotThrow(
+                () -> RbiFieldValidator.validateGstForCorporate("INDIVIDUAL", null),
                 "Missing GST for INDIVIDUAL is allowed");
     }
 
@@ -301,8 +331,10 @@ class LedgoraRbiGovernanceIntegrationTest {
         accountRepository.save(account);
 
         Account frozen = accountRepository.findById(account.getId()).orElseThrow();
-        assertEquals(FreezeLevel.FULL, frozen.getFreezeLevel(), "Account freeze level must be FULL");
-        assertEquals("Court order", frozen.getFreezeReason(), "Account freeze reason must be preserved");
+        assertEquals(
+                FreezeLevel.FULL, frozen.getFreezeLevel(), "Account freeze level must be FULL");
+        assertEquals(
+                "Court order", frozen.getFreezeReason(), "Account freeze reason must be preserved");
     }
 
     @Test
@@ -316,13 +348,15 @@ class LedgoraRbiGovernanceIntegrationTest {
         customer.setFreezeLevel(FreezeLevel.DEBIT_ONLY);
         customerMasterRepository.save(customer);
 
-        CustomerMaster debitFrozen = customerMasterRepository.findById(customer.getId()).orElseThrow();
+        CustomerMaster debitFrozen =
+                customerMasterRepository.findById(customer.getId()).orElseThrow();
         assertEquals(FreezeLevel.DEBIT_ONLY, debitFrozen.getFreezeLevel());
 
         customer.setFreezeLevel(FreezeLevel.CREDIT_ONLY);
         customerMasterRepository.save(customer);
 
-        CustomerMaster creditFrozen = customerMasterRepository.findById(customer.getId()).orElseThrow();
+        CustomerMaster creditFrozen =
+                customerMasterRepository.findById(customer.getId()).orElseThrow();
         assertEquals(FreezeLevel.CREDIT_ONLY, creditFrozen.getFreezeLevel());
     }
 
@@ -338,18 +372,26 @@ class LedgoraRbiGovernanceIntegrationTest {
         TestContext ctx = createTestContext("LIEN");
 
         Account account = ctx.source;
-        BigDecimal initialAvailable = accountBalanceRepository.findByAccountId(account.getId())
-                .orElseThrow().getAvailableBalance();
+        BigDecimal initialAvailable =
+                accountBalanceRepository
+                        .findByAccountId(account.getId())
+                        .orElseThrow()
+                        .getAvailableBalance();
 
         // Apply lien
         BigDecimal lienAmount = new BigDecimal("1000.00");
         balanceEngine.applyLien(account.getId(), lienAmount);
 
-        AccountBalance balance = accountBalanceRepository.findByAccountId(account.getId()).orElseThrow();
+        AccountBalance balance =
+                accountBalanceRepository.findByAccountId(account.getId()).orElseThrow();
         BigDecimal expectedAvailable = initialAvailable.subtract(lienAmount);
-        assertEquals(0, expectedAvailable.compareTo(balance.getAvailableBalance()),
+        assertEquals(
+                0,
+                expectedAvailable.compareTo(balance.getAvailableBalance()),
                 "Available balance must decrease by lien amount");
-        assertEquals(0, lienAmount.compareTo(balance.getLienBalance()),
+        assertEquals(
+                0,
+                lienAmount.compareTo(balance.getLienBalance()),
                 "Lien balance must equal the applied lien amount");
     }
 
@@ -365,17 +407,29 @@ class LedgoraRbiGovernanceIntegrationTest {
 
         // Apply then release lien
         balanceEngine.applyLien(account.getId(), lienAmount);
-        BigDecimal afterLien = accountBalanceRepository.findByAccountId(account.getId())
-                .orElseThrow().getAvailableBalance();
+        BigDecimal afterLien =
+                accountBalanceRepository
+                        .findByAccountId(account.getId())
+                        .orElseThrow()
+                        .getAvailableBalance();
 
         balanceEngine.releaseLien(account.getId(), lienAmount);
-        BigDecimal afterRelease = accountBalanceRepository.findByAccountId(account.getId())
-                .orElseThrow().getAvailableBalance();
+        BigDecimal afterRelease =
+                accountBalanceRepository
+                        .findByAccountId(account.getId())
+                        .orElseThrow()
+                        .getAvailableBalance();
 
-        assertTrue(afterRelease.compareTo(afterLien) > 0,
+        assertTrue(
+                afterRelease.compareTo(afterLien) > 0,
                 "Available balance must increase after lien release");
-        assertEquals(0, BigDecimal.ZERO.compareTo(
-                accountBalanceRepository.findByAccountId(account.getId()).orElseThrow().getLienBalance()),
+        assertEquals(
+                0,
+                BigDecimal.ZERO.compareTo(
+                        accountBalanceRepository
+                                .findByAccountId(account.getId())
+                                .orElseThrow()
+                                .getLienBalance()),
                 "Lien balance must be zero after full release");
     }
 
@@ -391,10 +445,18 @@ class LedgoraRbiGovernanceIntegrationTest {
 
         // Try to create a lien that exceeds ledger balance
         BigDecimal excessiveLien = new BigDecimal("999999.00");
-        assertThrows(RuntimeException.class,
-                () -> lienService.createLien(ctx.tenant.getId(), account.getId(),
-                        excessiveLien, LienType.COURT_ORDER, LocalDate.now(),
-                        LocalDate.now().plusDays(30), "REF-EXCESS", "Test excess lien"),
+        assertThrows(
+                RuntimeException.class,
+                () ->
+                        lienService.createLien(
+                                ctx.tenant.getId(),
+                                account.getId(),
+                                excessiveLien,
+                                LienType.COURT_ORDER,
+                                LocalDate.now(),
+                                LocalDate.now().plusDays(30),
+                                "REF-EXCESS",
+                                "Test excess lien"),
                 "Lien exceeding ledger balance must be rejected");
     }
 
@@ -406,10 +468,18 @@ class LedgoraRbiGovernanceIntegrationTest {
         TestContext ctx = createTestContext("LPOS");
 
         TenantContextHolder.setTenantId(ctx.tenant.getId());
-        assertThrows(RuntimeException.class,
-                () -> lienService.createLien(ctx.tenant.getId(), ctx.source.getId(),
-                        new BigDecimal("-100.00"), LienType.COURT_ORDER, LocalDate.now(),
-                        LocalDate.now().plusDays(30), "REF-NEG", "Negative lien test"),
+        assertThrows(
+                RuntimeException.class,
+                () ->
+                        lienService.createLien(
+                                ctx.tenant.getId(),
+                                ctx.source.getId(),
+                                new BigDecimal("-100.00"),
+                                LienType.COURT_ORDER,
+                                LocalDate.now(),
+                                LocalDate.now().plusDays(30),
+                                "REF-NEG",
+                                "Negative lien test"),
                 "Negative lien amount must be rejected");
     }
 
@@ -428,14 +498,20 @@ class LedgoraRbiGovernanceIntegrationTest {
         setSecurityContext(ctx.maker);
         TenantContextHolder.setTenantId(ctx.tenant.getId());
 
-        BankCalendar calendar = calendarService.createCalendarEntry(
-                ctx.tenant.getId(),
-                LocalDate.now().plusDays(30),
-                "HOLIDAY", "Test Holiday", "NATIONAL",
-                false, false, "Test maker-checker");
+        BankCalendar calendar =
+                calendarService.createCalendarEntry(
+                        ctx.tenant.getId(),
+                        LocalDate.now().plusDays(30),
+                        "HOLIDAY",
+                        "Test Holiday",
+                        "NATIONAL",
+                        false,
+                        false,
+                        "Test maker-checker");
 
         // Try to approve as the same user (maker1)
-        assertThrows(RuntimeException.class,
+        assertThrows(
+                RuntimeException.class,
                 () -> calendarService.approveCalendarEntry(calendar.getId()),
                 "Maker must not be able to approve own calendar entry");
     }
@@ -451,17 +527,24 @@ class LedgoraRbiGovernanceIntegrationTest {
         setSecurityContext(ctx.maker);
         TenantContextHolder.setTenantId(ctx.tenant.getId());
 
-        BankCalendar calendar = calendarService.createCalendarEntry(
-                ctx.tenant.getId(),
-                LocalDate.now().plusDays(31),
-                "HOLIDAY", "Checker Test Holiday", "NATIONAL",
-                false, false, "Checker approval test");
+        BankCalendar calendar =
+                calendarService.createCalendarEntry(
+                        ctx.tenant.getId(),
+                        LocalDate.now().plusDays(31),
+                        "HOLIDAY",
+                        "Checker Test Holiday",
+                        "NATIONAL",
+                        false,
+                        false,
+                        "Checker approval test");
 
         // Approve as checker (different user)
         setSecurityContext(ctx.checker);
 
         BankCalendar approved = calendarService.approveCalendarEntry(calendar.getId());
-        assertEquals(MakerCheckerStatus.APPROVED, approved.getApprovalStatus(),
+        assertEquals(
+                MakerCheckerStatus.APPROVED,
+                approved.getApprovalStatus(),
                 "Calendar entry must be approved by different checker");
     }
 
@@ -476,12 +559,18 @@ class LedgoraRbiGovernanceIntegrationTest {
         setSecurityContext(ctx.maker);
         TenantContextHolder.setTenantId(ctx.tenant.getId());
 
-        AccountOwnership ownership = ownershipService.createOwnership(
-                ctx.tenant.getId(), ctx.source.getId(), customer.getId(),
-                OwnershipType.PRIMARY, new BigDecimal("100"), true);
+        AccountOwnership ownership =
+                ownershipService.createOwnership(
+                        ctx.tenant.getId(),
+                        ctx.source.getId(),
+                        customer.getId(),
+                        OwnershipType.PRIMARY,
+                        new BigDecimal("100"),
+                        true);
 
         // Same user tries to approve
-        assertThrows(RuntimeException.class,
+        assertThrows(
+                RuntimeException.class,
                 () -> ownershipService.approveOwnership(ownership.getId()),
                 "Maker must not be able to approve own ownership request");
     }
@@ -496,12 +585,20 @@ class LedgoraRbiGovernanceIntegrationTest {
         setSecurityContext(ctx.maker);
         TenantContextHolder.setTenantId(ctx.tenant.getId());
 
-        AccountLien lien = lienService.createLien(ctx.tenant.getId(), ctx.source.getId(),
-                new BigDecimal("500.00"), LienType.COURT_ORDER, LocalDate.now(),
-                LocalDate.now().plusDays(30), "REF-MKR", "Maker-checker test");
+        AccountLien lien =
+                lienService.createLien(
+                        ctx.tenant.getId(),
+                        ctx.source.getId(),
+                        new BigDecimal("500.00"),
+                        LienType.COURT_ORDER,
+                        LocalDate.now(),
+                        LocalDate.now().plusDays(30),
+                        "REF-MKR",
+                        "Maker-checker test");
 
         // Same user tries to approve
-        assertThrows(RuntimeException.class,
+        assertThrows(
+                RuntimeException.class,
                 () -> lienService.approveLien(lien.getId()),
                 "Maker must not be able to approve own lien request");
     }
@@ -522,17 +619,29 @@ class LedgoraRbiGovernanceIntegrationTest {
         TenantContextHolder.setTenantId(ctx.tenant.getId());
 
         // Zero percentage should fail
-        assertThrows(RuntimeException.class,
-                () -> ownershipService.createOwnership(
-                        ctx.tenant.getId(), ctx.source.getId(), customer.getId(),
-                        OwnershipType.PRIMARY, BigDecimal.ZERO, true),
+        assertThrows(
+                RuntimeException.class,
+                () ->
+                        ownershipService.createOwnership(
+                                ctx.tenant.getId(),
+                                ctx.source.getId(),
+                                customer.getId(),
+                                OwnershipType.PRIMARY,
+                                BigDecimal.ZERO,
+                                true),
                 "Zero ownership percentage must be rejected");
 
         // Above 100% should fail
-        assertThrows(RuntimeException.class,
-                () -> ownershipService.createOwnership(
-                        ctx.tenant.getId(), ctx.source.getId(), customer.getId(),
-                        OwnershipType.PRIMARY, new BigDecimal("150"), true),
+        assertThrows(
+                RuntimeException.class,
+                () ->
+                        ownershipService.createOwnership(
+                                ctx.tenant.getId(),
+                                ctx.source.getId(),
+                                customer.getId(),
+                                OwnershipType.PRIMARY,
+                                new BigDecimal("150"),
+                                true),
                 "Ownership above 100% must be rejected");
     }
 
@@ -550,9 +659,14 @@ class LedgoraRbiGovernanceIntegrationTest {
         TenantContextHolder.setTenantId(ctx.tenant.getId());
 
         // Create first ownership at 60%
-        AccountOwnership o1 = ownershipService.createOwnership(
-                ctx.tenant.getId(), ctx.source.getId(), cust1.getId(),
-                OwnershipType.PRIMARY, new BigDecimal("60"), true);
+        AccountOwnership o1 =
+                ownershipService.createOwnership(
+                        ctx.tenant.getId(),
+                        ctx.source.getId(),
+                        cust1.getId(),
+                        OwnershipType.PRIMARY,
+                        new BigDecimal("60"),
+                        true);
 
         // Approve it (as checker)
         setSecurityContext(ctx.checker);
@@ -560,10 +674,16 @@ class LedgoraRbiGovernanceIntegrationTest {
 
         // Try to add another ownership at 50% (total would be 110%)
         setSecurityContext(ctx.maker);
-        assertThrows(RuntimeException.class,
-                () -> ownershipService.createOwnership(
-                        ctx.tenant.getId(), ctx.source.getId(), cust2.getId(),
-                        OwnershipType.JOINT, new BigDecimal("50"), true),
+        assertThrows(
+                RuntimeException.class,
+                () ->
+                        ownershipService.createOwnership(
+                                ctx.tenant.getId(),
+                                ctx.source.getId(),
+                                cust2.getId(),
+                                OwnershipType.JOINT,
+                                new BigDecimal("50"),
+                                true),
                 "Total ownership exceeding 100% must be rejected");
     }
 
@@ -575,27 +695,35 @@ class LedgoraRbiGovernanceIntegrationTest {
         TestContext ctx = createTestContext("GLNK");
 
         // Create a GL account
-        Account glAccount = accountRepository.save(Account.builder()
-                .tenant(ctx.tenant)
-                .branch(ctx.branch)
-                .homeBranch(ctx.branch)
-                .accountNumber("GL-NL-" + "GLNK")
-                .accountName("GL No Link")
-                .accountType(AccountType.GL_ACCOUNT)
-                .status(AccountStatus.ACTIVE)
-                .balance(BigDecimal.ZERO)
-                .currency("INR")
-                .glAccountCode("9999")
-                .build());
+        Account glAccount =
+                accountRepository.save(
+                        Account.builder()
+                                .tenant(ctx.tenant)
+                                .branch(ctx.branch)
+                                .homeBranch(ctx.branch)
+                                .accountNumber("GL-NL-" + "GLNK")
+                                .accountName("GL No Link")
+                                .accountType(AccountType.GL_ACCOUNT)
+                                .status(AccountStatus.ACTIVE)
+                                .balance(BigDecimal.ZERO)
+                                .currency("INR")
+                                .glAccountCode("9999")
+                                .build());
 
         CustomerMaster customer = createCustomerMaster(ctx, "GLNK-001");
         setSecurityContext(ctx.maker);
         TenantContextHolder.setTenantId(ctx.tenant.getId());
 
-        assertThrows(RuntimeException.class,
-                () -> ownershipService.createOwnership(
-                        ctx.tenant.getId(), glAccount.getId(), customer.getId(),
-                        OwnershipType.PRIMARY, new BigDecimal("100"), true),
+        assertThrows(
+                RuntimeException.class,
+                () ->
+                        ownershipService.createOwnership(
+                                ctx.tenant.getId(),
+                                glAccount.getId(),
+                                customer.getId(),
+                                OwnershipType.PRIMARY,
+                                new BigDecimal("100"),
+                                true),
                 "GL_ACCOUNT cannot be linked to customers");
     }
 
@@ -607,30 +735,40 @@ class LedgoraRbiGovernanceIntegrationTest {
         TestContext ctx = createTestContext("XTEN");
 
         // Create a different tenant
-        Tenant otherTenant = tenantRepository.save(Tenant.builder()
-                .tenantCode("TEN-XTEN-OTH")
-                .tenantName("Other Tenant")
-                .status("ACTIVE")
-                .currentBusinessDate(LocalDate.now())
-                .dayStatus(DayStatus.OPEN)
-                .build());
+        Tenant otherTenant =
+                tenantRepository.save(
+                        Tenant.builder()
+                                .tenantCode("TEN-XTEN-OTH")
+                                .tenantName("Other Tenant")
+                                .status("ACTIVE")
+                                .currentBusinessDate(LocalDate.now())
+                                .dayStatus(DayStatus.OPEN)
+                                .build());
 
         // Create customer under different tenant
-        CustomerMaster otherCustomer = customerMasterRepository.save(CustomerMaster.builder()
-                .tenant(otherTenant)
-                .customerNumber("XTEN-OTH-001")
-                .firstName("Other")
-                .lastName("Customer")
-                .kycStatus("VERIFIED")
-                .build());
+        CustomerMaster otherCustomer =
+                customerMasterRepository.save(
+                        CustomerMaster.builder()
+                                .tenant(otherTenant)
+                                .customerNumber("XTEN-OTH-001")
+                                .firstName("Other")
+                                .lastName("Customer")
+                                .kycStatus("VERIFIED")
+                                .build());
 
         setSecurityContext(ctx.maker);
         TenantContextHolder.setTenantId(ctx.tenant.getId());
 
-        assertThrows(RuntimeException.class,
-                () -> ownershipService.createOwnership(
-                        ctx.tenant.getId(), ctx.source.getId(), otherCustomer.getId(),
-                        OwnershipType.PRIMARY, new BigDecimal("100"), true),
+        assertThrows(
+                RuntimeException.class,
+                () ->
+                        ownershipService.createOwnership(
+                                ctx.tenant.getId(),
+                                ctx.source.getId(),
+                                otherCustomer.getId(),
+                                OwnershipType.PRIMARY,
+                                new BigDecimal("100"),
+                                true),
                 "Cross-tenant linking must be blocked");
     }
 
@@ -650,18 +788,26 @@ class LedgoraRbiGovernanceIntegrationTest {
         // Create and approve a holiday entry
         setSecurityContext(ctx.maker);
         LocalDate holidayDate = LocalDate.now().plusDays(15);
-        BankCalendar holiday = calendarService.createCalendarEntry(
-                ctx.tenant.getId(), holidayDate,
-                "HOLIDAY", "Republic Day", "NATIONAL",
-                false, false, "Holiday test");
+        BankCalendar holiday =
+                calendarService.createCalendarEntry(
+                        ctx.tenant.getId(),
+                        holidayDate,
+                        "HOLIDAY",
+                        "Republic Day",
+                        "NATIONAL",
+                        false,
+                        false,
+                        "Holiday test");
 
         setSecurityContext(ctx.checker);
         calendarService.approveCalendarEntry(holiday.getId());
 
         // Validate TELLER channel is blocked
-        assertThrows(RuntimeException.class,
-                () -> calendarService.validateTransactionAllowed(
-                        ctx.tenant.getId(), holidayDate, TransactionChannel.TELLER),
+        assertThrows(
+                RuntimeException.class,
+                () ->
+                        calendarService.validateTransactionAllowed(
+                                ctx.tenant.getId(), holidayDate, TransactionChannel.TELLER),
                 "TELLER transactions must be blocked on holidays");
     }
 
@@ -677,17 +823,25 @@ class LedgoraRbiGovernanceIntegrationTest {
         // Create holiday with ATM NOT allowed
         setSecurityContext(ctx.maker);
         LocalDate holidayDate = LocalDate.now().plusDays(16);
-        BankCalendar holiday = calendarService.createCalendarEntry(
-                ctx.tenant.getId(), holidayDate,
-                "HOLIDAY", "ATM Test Holiday", "REGIONAL",
-                false, false, "ATM blocked holiday test");
+        BankCalendar holiday =
+                calendarService.createCalendarEntry(
+                        ctx.tenant.getId(),
+                        holidayDate,
+                        "HOLIDAY",
+                        "ATM Test Holiday",
+                        "REGIONAL",
+                        false,
+                        false,
+                        "ATM blocked holiday test");
 
         setSecurityContext(ctx.checker);
         calendarService.approveCalendarEntry(holiday.getId());
 
-        assertThrows(RuntimeException.class,
-                () -> calendarService.validateTransactionAllowed(
-                        ctx.tenant.getId(), holidayDate, TransactionChannel.ATM),
+        assertThrows(
+                RuntimeException.class,
+                () ->
+                        calendarService.validateTransactionAllowed(
+                                ctx.tenant.getId(), holidayDate, TransactionChannel.ATM),
                 "ATM transactions must be blocked when not configured on holiday");
     }
 
@@ -703,17 +857,24 @@ class LedgoraRbiGovernanceIntegrationTest {
         // Create a working day entry
         setSecurityContext(ctx.maker);
         LocalDate workingDate = LocalDate.now().plusDays(17);
-        BankCalendar workingDay = calendarService.createCalendarEntry(
-                ctx.tenant.getId(), workingDate,
-                "WORKING_DAY", null, null,
-                true, true, "Working day test");
+        BankCalendar workingDay =
+                calendarService.createCalendarEntry(
+                        ctx.tenant.getId(),
+                        workingDate,
+                        "WORKING_DAY",
+                        null,
+                        null,
+                        true,
+                        true,
+                        "Working day test");
 
         setSecurityContext(ctx.checker);
         calendarService.approveCalendarEntry(workingDay.getId());
 
         assertDoesNotThrow(
-                () -> calendarService.validateTransactionAllowed(
-                        ctx.tenant.getId(), workingDate, TransactionChannel.TELLER),
+                () ->
+                        calendarService.validateTransactionAllowed(
+                                ctx.tenant.getId(), workingDate, TransactionChannel.TELLER),
                 "All transactions must be allowed on working days");
     }
 
@@ -729,11 +890,18 @@ class LedgoraRbiGovernanceIntegrationTest {
 
         // Try to create calendar entry for past date
         LocalDate pastDate = LocalDate.now().minusDays(5);
-        assertThrows(RuntimeException.class,
-                () -> calendarService.createCalendarEntry(
-                        ctx.tenant.getId(), pastDate,
-                        "HOLIDAY", "Past Holiday", "NATIONAL",
-                        false, false, "Backdated test"),
+        assertThrows(
+                RuntimeException.class,
+                () ->
+                        calendarService.createCalendarEntry(
+                                ctx.tenant.getId(),
+                                pastDate,
+                                "HOLIDAY",
+                                "Past Holiday",
+                                "NATIONAL",
+                                false,
+                                false,
+                                "Backdated test"),
                 "Calendar entry for past date must be rejected");
     }
 
@@ -755,36 +923,39 @@ class LedgoraRbiGovernanceIntegrationTest {
         long initialCount = ledgerEntryRepository.count();
 
         // Create a deposit transaction using BATCH channel to ensure auto-authorization
-        // (BATCH channel always auto-authorizes per CBS governance rules, regardless of policy table)
-        TransactionDTO dto = TransactionDTO.builder()
-                .transactionType("DEPOSIT")
-                .destinationAccountNumber(ctx.source.getAccountNumber())
-                .amount(new BigDecimal("100.00"))
-                .currency("INR")
-                .channel(TransactionChannel.BATCH.name())
-                .clientReferenceId("IMMUT-REF-001")
-                .description("Immutable ledger test")
-                .narration("Testing append-only ledger")
-                .build();
+        // (BATCH channel always auto-authorizes per CBS governance rules, regardless of policy
+        // table)
+        TransactionDTO dto =
+                TransactionDTO.builder()
+                        .transactionType("DEPOSIT")
+                        .destinationAccountNumber(ctx.source.getAccountNumber())
+                        .amount(new BigDecimal("100.00"))
+                        .currency("INR")
+                        .channel(TransactionChannel.BATCH.name())
+                        .clientReferenceId("IMMUT-REF-001")
+                        .description("Immutable ledger test")
+                        .narration("Testing append-only ledger")
+                        .build();
 
         var txn = transactionService.deposit(dto);
 
         // Verify transaction was auto-authorized and posted (not PENDING_APPROVAL)
-        assertEquals(com.ledgora.common.enums.TransactionStatus.COMPLETED, txn.getStatus(),
+        assertEquals(
+                com.ledgora.common.enums.TransactionStatus.COMPLETED,
+                txn.getStatus(),
                 "BATCH channel deposit must be auto-authorized and COMPLETED");
 
         // Verify ledger entries were created (appended)
         long newCount = ledgerEntryRepository.count();
-        assertTrue(newCount > initialCount,
-                "Ledger entries must be appended (not modified)");
+        assertTrue(newCount > initialCount, "Ledger entries must be appended (not modified)");
 
         // Verify double-entry is maintained
         BigDecimal debits = ledgerEntryRepository.sumDebitsByTransactionId(txn.getId());
         BigDecimal credits = ledgerEntryRepository.sumCreditsByTransactionId(txn.getId());
         assertNotNull(debits, "Debits must exist");
         assertNotNull(credits, "Credits must exist");
-        assertEquals(0, debits.compareTo(credits),
-                "Double-entry invariant: debits must equal credits");
+        assertEquals(
+                0, debits.compareTo(credits), "Double-entry invariant: debits must equal credits");
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -795,7 +966,8 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(80)
     @DisplayName("Script tag injection must be rejected")
     void testScriptTagInjectionRejected() {
-        assertThrows(ScriptInjectionException.class,
+        assertThrows(
+                ScriptInjectionException.class,
                 () -> InputSanitizer.sanitize("<script>alert('XSS')</script>", "name"),
                 "Script tags must be rejected");
     }
@@ -804,7 +976,8 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(81)
     @DisplayName("JavaScript URI injection must be rejected")
     void testJavascriptUriInjectionRejected() {
-        assertThrows(ScriptInjectionException.class,
+        assertThrows(
+                ScriptInjectionException.class,
                 () -> InputSanitizer.sanitize("javascript:alert(1)", "field"),
                 "javascript: URI must be rejected");
     }
@@ -813,7 +986,8 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(82)
     @DisplayName("HTML angle brackets must be rejected")
     void testHtmlAngleBracketsRejected() {
-        assertThrows(ScriptInjectionException.class,
+        assertThrows(
+                ScriptInjectionException.class,
                 () -> InputSanitizer.sanitize("<div>test</div>", "field"),
                 "HTML tags (angle brackets) must be rejected");
     }
@@ -822,7 +996,8 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(83)
     @DisplayName("Event handler injection must be rejected")
     void testEventHandlerInjectionRejected() {
-        assertThrows(ScriptInjectionException.class,
+        assertThrows(
+                ScriptInjectionException.class,
                 () -> InputSanitizer.sanitize("<img onerror=alert(1)>", "field"),
                 "Event handler injection must be rejected");
     }
@@ -831,7 +1006,8 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(84)
     @DisplayName("iframe injection must be rejected")
     void testIframeInjectionRejected() {
-        assertThrows(ScriptInjectionException.class,
+        assertThrows(
+                ScriptInjectionException.class,
                 () -> InputSanitizer.sanitize("<iframe src='evil.com'>", "field"),
                 "iframe injection must be rejected");
     }
@@ -840,8 +1016,7 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Order(85)
     @DisplayName("Sanitize null input returns null")
     void testSanitizeNullReturnsNull() {
-        assertNull(InputSanitizer.sanitize(null, "field"),
-                "Null input must return null");
+        assertNull(InputSanitizer.sanitize(null, "field"), "Null input must return null");
     }
 
     @Test
@@ -849,8 +1024,7 @@ class LedgoraRbiGovernanceIntegrationTest {
     @DisplayName("Clean input passes sanitization")
     void testCleanInputPassesSanitization() {
         String result = InputSanitizer.sanitize("Normal text with spaces", "field");
-        assertEquals("Normal text with spaces", result,
-                "Clean input must pass through unchanged");
+        assertEquals("Normal text with spaces", result, "Clean input must pass through unchanged");
     }
 
     @Test
@@ -858,8 +1032,7 @@ class LedgoraRbiGovernanceIntegrationTest {
     @DisplayName("Aadhaar masking shows only last 4 digits")
     void testAadhaarMasking() {
         String masked = InputSanitizer.maskAadhaar("123456789012");
-        assertEquals("XXXX-XXXX-9012", masked,
-                "Aadhaar must be masked showing only last 4 digits");
+        assertEquals("XXXX-XXXX-9012", masked, "Aadhaar must be masked showing only last 4 digits");
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -874,7 +1047,9 @@ class LedgoraRbiGovernanceIntegrationTest {
         TestContext ctx = createTestContext("CAPP");
 
         CustomerMaster customer = createCustomerMaster(ctx, "CAPP-001");
-        assertEquals(MakerCheckerStatus.PENDING, customer.getApprovalStatus(),
+        assertEquals(
+                MakerCheckerStatus.PENDING,
+                customer.getApprovalStatus(),
                 "New customer must start with PENDING status");
 
         customer.setApprovalStatus(MakerCheckerStatus.APPROVED);
@@ -882,7 +1057,9 @@ class LedgoraRbiGovernanceIntegrationTest {
         customerMasterRepository.save(customer);
 
         CustomerMaster approved = customerMasterRepository.findById(customer.getId()).orElseThrow();
-        assertEquals(MakerCheckerStatus.APPROVED, approved.getApprovalStatus(),
+        assertEquals(
+                MakerCheckerStatus.APPROVED,
+                approved.getApprovalStatus(),
                 "Customer must be APPROVED after checker approval");
     }
 
@@ -894,7 +1071,9 @@ class LedgoraRbiGovernanceIntegrationTest {
         TestContext ctx = createTestContext("AAPR");
 
         // Note: existing accounts default to APPROVED for backward compatibility
-        assertEquals(MakerCheckerStatus.APPROVED, ctx.source.getApprovalStatus(),
+        assertEquals(
+                MakerCheckerStatus.APPROVED,
+                ctx.source.getApprovalStatus(),
                 "Existing accounts default to APPROVED for backward compatibility");
     }
 
@@ -965,58 +1144,71 @@ class LedgoraRbiGovernanceIntegrationTest {
     // ════════════════════════════════════════════════════════════════════════
 
     private TestContext createTestContext(String suffix) {
-        Tenant tenant = tenantRepository.save(Tenant.builder()
-                .tenantCode("TEN-RBI-" + suffix)
-                .tenantName("RBI Governance Tenant " + suffix)
-                .status("ACTIVE")
-                .currentBusinessDate(LocalDate.now())
-                .dayStatus(DayStatus.OPEN)
-                .build());
+        Tenant tenant =
+                tenantRepository.save(
+                        Tenant.builder()
+                                .tenantCode("TEN-RBI-" + suffix)
+                                .tenantName("RBI Governance Tenant " + suffix)
+                                .status("ACTIVE")
+                                .currentBusinessDate(LocalDate.now())
+                                .dayStatus(DayStatus.OPEN)
+                                .build());
 
-        Branch branch = branchRepository.save(Branch.builder()
-                .branchCode("BR" + suffix.substring(0, Math.min(suffix.length(), 8)))
-                .name("Branch " + suffix)
-                .isActive(true)
-                .build());
+        Branch branch =
+                branchRepository.save(
+                        Branch.builder()
+                                .branchCode(
+                                        "BR" + suffix.substring(0, Math.min(suffix.length(), 8)))
+                                .name("Branch " + suffix)
+                                .isActive(true)
+                                .build());
 
-        User maker = userRepository.save(User.builder()
-                .tenant(tenant)
-                .branch(branch)
-                .username("maker-rbi-" + suffix)
-                .password("password")
-                .fullName("Maker " + suffix)
-                .email("maker-" + suffix + "@test.com")
-                .isActive(true)
-                .isLocked(false)
-                .build());
+        User maker =
+                userRepository.save(
+                        User.builder()
+                                .tenant(tenant)
+                                .branch(branch)
+                                .username("maker-rbi-" + suffix)
+                                .password("password")
+                                .fullName("Maker " + suffix)
+                                .email("maker-" + suffix + "@test.com")
+                                .isActive(true)
+                                .isLocked(false)
+                                .build());
 
-        User checker = userRepository.save(User.builder()
-                .tenant(tenant)
-                .branch(branch)
-                .username("checker-rbi-" + suffix)
-                .password("password")
-                .fullName("Checker " + suffix)
-                .email("checker-" + suffix + "@test.com")
-                .isActive(true)
-                .isLocked(false)
-                .build());
+        User checker =
+                userRepository.save(
+                        User.builder()
+                                .tenant(tenant)
+                                .branch(branch)
+                                .username("checker-rbi-" + suffix)
+                                .password("password")
+                                .fullName("Checker " + suffix)
+                                .email("checker-" + suffix + "@test.com")
+                                .isActive(true)
+                                .isLocked(false)
+                                .build());
 
-        Account source = accountRepository.save(Account.builder()
-                .tenant(tenant)
-                .branch(branch)
-                .homeBranch(branch)
-                .accountNumber("SRC-RBI-" + suffix)
-                .accountName("Source " + suffix)
-                .accountType(AccountType.SAVINGS)
-                .status(AccountStatus.ACTIVE)
-                .balance(new BigDecimal("10000.00"))
-                .currency("INR")
-                .glAccountCode("1100")
-                .build());
+        Account source =
+                accountRepository.save(
+                        Account.builder()
+                                .tenant(tenant)
+                                .branch(branch)
+                                .homeBranch(branch)
+                                .accountNumber("SRC-RBI-" + suffix)
+                                .accountName("Source " + suffix)
+                                .accountType(AccountType.SAVINGS)
+                                .status(AccountStatus.ACTIVE)
+                                .balance(new BigDecimal("10000.00"))
+                                .currency("INR")
+                                .glAccountCode("1100")
+                                .build());
 
         // Seed balance
-        AccountBalance ab = accountBalanceRepository.findByAccountId(source.getId())
-                .orElse(AccountBalance.builder().account(source).build());
+        AccountBalance ab =
+                accountBalanceRepository
+                        .findByAccountId(source.getId())
+                        .orElse(AccountBalance.builder().account(source).build());
         ab.setActualTotalBalance(new BigDecimal("10000.00"));
         ab.setActualClearedBalance(new BigDecimal("10000.00"));
         ab.setAvailableBalance(new BigDecimal("10000.00"));
@@ -1024,21 +1216,28 @@ class LedgoraRbiGovernanceIntegrationTest {
         accountBalanceRepository.save(ab);
 
         // Seed Cash GL Account required by transaction service
-        Account cashGlAccount = accountRepository.findFirstByTenantIdAndGlAccountCode(tenant.getId(), "1100")
-                .orElseGet(() -> accountRepository.save(Account.builder()
-                        .tenant(tenant)
-                        .branch(branch)
-                        .homeBranch(branch)
-                        .accountNumber("GL-CASH-RBI-" + suffix)
-                        .accountName("Cash GL " + suffix)
-                        .accountType(AccountType.SAVINGS)
-                        .status(AccountStatus.ACTIVE)
-                        .balance(BigDecimal.ZERO)
-                        .currency("INR")
-                        .glAccountCode("1100")
-                        .build()));
-        AccountBalance cashBal = accountBalanceRepository.findByAccountId(cashGlAccount.getId())
-                .orElse(AccountBalance.builder().account(cashGlAccount).build());
+        Account cashGlAccount =
+                accountRepository
+                        .findFirstByTenantIdAndGlAccountCode(tenant.getId(), "1100")
+                        .orElseGet(
+                                () ->
+                                        accountRepository.save(
+                                                Account.builder()
+                                                        .tenant(tenant)
+                                                        .branch(branch)
+                                                        .homeBranch(branch)
+                                                        .accountNumber("GL-CASH-RBI-" + suffix)
+                                                        .accountName("Cash GL " + suffix)
+                                                        .accountType(AccountType.SAVINGS)
+                                                        .status(AccountStatus.ACTIVE)
+                                                        .balance(BigDecimal.ZERO)
+                                                        .currency("INR")
+                                                        .glAccountCode("1100")
+                                                        .build()));
+        AccountBalance cashBal =
+                accountBalanceRepository
+                        .findByAccountId(cashGlAccount.getId())
+                        .orElse(AccountBalance.builder().account(cashGlAccount).build());
         cashBal.setActualTotalBalance(new BigDecimal("100000.00"));
         cashBal.setActualClearedBalance(new BigDecimal("100000.00"));
         cashBal.setAvailableBalance(new BigDecimal("100000.00"));
@@ -1046,20 +1245,24 @@ class LedgoraRbiGovernanceIntegrationTest {
         accountBalanceRepository.save(cashBal);
 
         // Create GL for deposits
-        Account destGlAccount = accountRepository.save(Account.builder()
-                .tenant(tenant)
-                .branch(branch)
-                .homeBranch(branch)
-                .accountNumber("GL-DEP-RBI-" + suffix)
-                .accountName("Deposits GL " + suffix)
-                .accountType(AccountType.SAVINGS)
-                .status(AccountStatus.ACTIVE)
-                .balance(BigDecimal.ZERO)
-                .currency("INR")
-                .glAccountCode("2100")
-                .build());
-        AccountBalance depBal = accountBalanceRepository.findByAccountId(destGlAccount.getId())
-                .orElse(AccountBalance.builder().account(destGlAccount).build());
+        Account destGlAccount =
+                accountRepository.save(
+                        Account.builder()
+                                .tenant(tenant)
+                                .branch(branch)
+                                .homeBranch(branch)
+                                .accountNumber("GL-DEP-RBI-" + suffix)
+                                .accountName("Deposits GL " + suffix)
+                                .accountType(AccountType.SAVINGS)
+                                .status(AccountStatus.ACTIVE)
+                                .balance(BigDecimal.ZERO)
+                                .currency("INR")
+                                .glAccountCode("2100")
+                                .build());
+        AccountBalance depBal =
+                accountBalanceRepository
+                        .findByAccountId(destGlAccount.getId())
+                        .orElse(AccountBalance.builder().account(destGlAccount).build());
         depBal.setActualTotalBalance(BigDecimal.ZERO);
         depBal.setActualClearedBalance(BigDecimal.ZERO);
         depBal.setAvailableBalance(BigDecimal.ZERO);
@@ -1073,22 +1276,28 @@ class LedgoraRbiGovernanceIntegrationTest {
     }
 
     private CustomerMaster createCustomerMaster(TestContext ctx, String customerNumber) {
-        return customerMasterRepository.save(CustomerMaster.builder()
-                .tenant(ctx.tenant)
-                .customerNumber(customerNumber)
-                .firstName("Test")
-                .lastName("Customer")
-                .kycStatus("VERIFIED")
-                .customerType("INDIVIDUAL")
-                .build());
+        return customerMasterRepository.save(
+                CustomerMaster.builder()
+                        .tenant(ctx.tenant)
+                        .customerNumber(customerNumber)
+                        .firstName("Test")
+                        .lastName("Customer")
+                        .kycStatus("VERIFIED")
+                        .customerType("INDIVIDUAL")
+                        .build());
     }
 
     private void setSecurityContext(User user) {
-        SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken(user.getUsername(), "N/A",
-                        List.of(new SimpleGrantedAuthority("ROLE_MAKER"),
-                                new SimpleGrantedAuthority("ROLE_CHECKER"))));
+        SecurityContextHolder.getContext()
+                .setAuthentication(
+                        new UsernamePasswordAuthenticationToken(
+                                user.getUsername(),
+                                "N/A",
+                                List.of(
+                                        new SimpleGrantedAuthority("ROLE_MAKER"),
+                                        new SimpleGrantedAuthority("ROLE_CHECKER"))));
     }
 
-    private record TestContext(Tenant tenant, Branch branch, User maker, User checker, Account source) {}
+    private record TestContext(
+            Tenant tenant, Branch branch, User maker, User checker, Account source) {}
 }

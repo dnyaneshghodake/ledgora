@@ -2,22 +2,27 @@ package com.ledgora.idempotency.entity;
 
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
-import lombok.*;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * PART 4: Idempotency key entity for financial operation deduplication.
- * Prevents duplicate transaction processing.
- * Multi-tenant aware.
+ * PART 4: Idempotency key entity for financial operation deduplication. Prevents duplicate
+ * transaction processing. Multi-tenant aware.
  */
 @Entity
-@Table(name = "idempotency_keys", indexes = {
-    @Index(name = "idx_idempotency_key", columnList = "idempotency_key", unique = true),
-    @Index(name = "idx_idempotency_tenant", columnList = "tenant_id")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "idempotency_keys",
+        indexes = {
+            @Index(name = "idx_idempotency_key", columnList = "idempotency_key", unique = true),
+            @Index(name = "idx_idempotency_tenant", columnList = "tenant_id")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class IdempotencyKey {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

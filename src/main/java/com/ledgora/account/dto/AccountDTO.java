@@ -2,10 +2,13 @@ package com.ledgora.account.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
 import java.math.BigDecimal;
+import lombok.*;
 
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class AccountDTO {
     private Long id;
     private String accountNumber;

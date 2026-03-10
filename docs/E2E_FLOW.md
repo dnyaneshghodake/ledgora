@@ -149,7 +149,9 @@ See `validateFinancialParams(...)` (`TransactionController.java:171-211`).
 
 `TransactionService` delegates to `VoucherService` for all ledger posting. The private helper `postVoucher(...)` in `TransactionService` implements the target flow:
 
-1. **Validate** business rules (business day OPEN, sufficient funds, freeze level, holiday calendar, idempotency)
+1. **Validate** business rules (hard transaction ceiling, business day OPEN, sufficient funds, freeze level, holiday calendar, idempotency)
+   - **Hard ceiling check** — `HardTransactionCeilingService.enforceHardCeiling()` runs BEFORE any persistence. If amount exceeds `hard_transaction_limits.absolute_max_amount` for the tenant+channel, throws `GovernanceException(HARD_LIMIT_EXCEEDED)`. No role can bypass. Violations logged to `audit_logs` with action `HARD_LIMIT_EXCEEDED` and metric `ledgora.hard_limit.blocked` incremented.
+   - **Velocity fraud check** — `VelocityFraudEngine.evaluateVelocity()` queries the past 60-minute transaction history for the account. If count or cumulative amount exceeds `velocity_limits` thresholds: blocks transaction, freezes account to `UNDER_REVIEW`, creates `FraudAlert` record, emits `ledgora.velocity.blocked` metric, logs `VELOCITY_BREACH_*` audit event. Limits resolved per-account first, then tenant-wide default.
 2. **Create Transaction** row (status = COMPLETED or PENDING_APPROVAL based on approval policy)
 3. **Create Voucher pair** (DR leg + CR leg) via `VoucherService.createVoucher(...)`:
    - Each voucher is linked to the transaction via `transaction_id` FK
@@ -202,6 +204,154 @@ Only POSTED vouchers can be reversed. `VoucherService.cancelVoucher(...)`:
 
 **Never** updates existing ledger entries. Corrections are always compensating entries.
 
+## 5A) Inter-Branch Transfer (IBT) posting flow
+
+When a transfer crosses branch boundaries (source account branch ≠ destination account branch), the system enforces CBS-grade inter-branch clearing via `IbtService` and `InterBranchClearingService`.
+
+### 5A.1 IBT detection
+
+In `TransactionService.postTransferLedger()`, branch resolution happens automatically:
+
+```
+Branch sourceBranch = resolveBranch(sourceAccount, poster);
+Branch destBranch   = resolveBranch(destAccount, poster);
+crossBranch = sourceBranch.id != destBranch.id
+```
+
+If `crossBranch == true`, the system routes through the 4-voucher clearing flow. **Direct cross-branch posting is strictly prohibited** — CBS standard enforced by `IbtService`.
+
+### 5A.2 IBT governance pre-validation
+
+Before any voucher is created, `IbtService.validateBranchesForIbt()` checks:
+
+- Both branches must be ACTIVE (`Branch.isActive = true`)
+- Both branches must have clearing GL mappings configured (either in `branch_gl_mappings` config table or via seeded IBC-OUT/IBC-IN accounts)
+- Source and destination must be different branches
+- Clearing GL must be branch-specific (no global clearing account)
+
+Failure throws `GovernanceException` with descriptive error codes (`IBT_BRANCH_INACTIVE`, `IBT_CLEARING_GL_NOT_CONFIGURED`, etc.).
+
+### 5A.3 4-voucher clearing flow
+
+```
+┌─────── Branch A (source) ───────┐    ┌─────── Branch B (destination) ──┐
+│                                  │    │                                  │
+│ V1 DR: Customer Account    amt   │    │ V3 DR: IBC_IN_B           amt   │
+│ V2 CR: IBC_OUT_A           amt   │    │ V4 CR: Customer Account   amt   │
+│                                  │    │                                  │
+│ Branch A: DR=amt, CR=amt ✅      │    │ Branch B: DR=amt, CR=amt ✅      │
+└──────────────────────────────────┘    └──────────────────────────────────┘
+```
+
+All 4 vouchers share the same `transaction_id` FK. The posting sequence:
+
+1. Create `InterBranchTransfer` record (status = `INITIATED`)
+2. Post Branch A leg: DR Customer, CR IBC_OUT → mark transfer `SENT`
+3. Post Branch B leg: DR IBC_IN, CR Customer → mark transfer `RECEIVED`
+4. Validate exactly 4 vouchers created via `IbtService.validateIbtVoucherCount()`
+
+### 5A.4 Atomicity guarantee
+
+The entire 4-voucher posting runs inside the `@Transactional` boundary of `postTransferLedger()`. If any voucher post fails (e.g., destination account frozen, insufficient clearing GL), Spring rolls back **all** 4 voucher inserts, all ledger entries, the `InterBranchTransfer` record, and batch total updates. No partial ledger commit is possible.
+
+### 5A.5 IBT reversal governance
+
+IBT reversal must reverse **both** branch legs together. `IbtService.validateFullReversalRequired()` detects partial reversals (some vouchers cancelled, others not) and throws `GovernanceException` with code `IBT_PARTIAL_REVERSAL_BLOCKED`.
+
+### 5A.6 Clearing GL configuration
+
+Clearing GL resolution is configuration-driven via `branch_gl_mappings` table:
+
+| Column | Purpose |
+|---|---|
+| `tenant_id` | Tenant FK (multi-tenant isolation) |
+| `branch_id` | Branch FK |
+| `clearing_gl_code` | GL code for clearing (e.g., `2910`) |
+| `ibc_out_account_number` | IBC-OUT account for this branch |
+| `ibc_in_account_number` | IBC-IN account for this branch |
+
+Falls back to seeded `IBC-OUT-<branchCode>` / `IBC-IN-<branchCode>` accounts for backward compatibility.
+
+### 5A.7 InterBranchTransfer lifecycle
+
+```
+INITIATED → SENT → RECEIVED → SETTLED
+                              ↘ FAILED
+```
+
+- `INITIATED`: Transfer record created, no posting yet
+- `SENT`: Branch A leg posted (DR Customer, CR IBC_OUT)
+- `RECEIVED`: Branch B leg posted (DR IBC_IN, CR Customer)
+- `SETTLED`: Clearing settlement completed during EOD/settlement
+- `FAILED`: One or both legs failed; requires investigation
+
+EOD blocks if any transfers are not `SETTLED` or `FAILED`.
+
+## 5B) Suspense GL parking flow
+
+When a posting partially fails (e.g., debit leg succeeds but credit leg fails due to account freeze), the system routes the failed leg to a Suspense GL to preserve double-entry integrity. This is managed by `SuspenseResolutionService`.
+
+### 5B.1 Suspense routing architecture
+
+```
+Normal Posting:
+  DR Customer Account  ──→  CR Destination Account    (balanced, no suspense)
+
+Failed Posting (credit leg fails):
+  DR Customer Account  ──→  CR SUSPENSE GL            (parked temporarily)
+  Transaction.status = PARKED
+  SuspenseCase created with reason_code
+  Metric: ledgora.suspense.created incremented
+
+Correction (operations team resolves):
+  DR SUSPENSE GL       ──→  CR Destination Account    (clears suspense to zero)
+  SuspenseCase.status = RESOLVED
+```
+
+### 5B.2 Suspense account resolution
+
+`SuspenseResolutionService.resolveSuspenseAccount(tenantId, channel)` resolves in order:
+
+1. Channel-specific mapping from `suspense_gl_mappings` table
+2. Default (channel=null) mapping from `suspense_gl_mappings` table
+3. Fallback: any account with `accountType = SUSPENSE_ACCOUNT` for the tenant
+
+Failure throws `GovernanceException` with code `SUSPENSE_ACCOUNT_MISSING`.
+
+### 5B.3 SuspenseCase lifecycle
+
+```
+OPEN → RESOLVED   (retry credit posting succeeded)
+     → REVERSED   (debit leg also reversed)
+```
+
+Each `SuspenseCase` tracks:
+- The original transaction that partially failed
+- The successfully posted voucher (debit leg)
+- The suspense voucher (credit to suspense GL)
+- The intended account (where credit should have gone)
+- Reason code (`ACCOUNT_FROZEN`, `ACCOUNT_INACTIVE`, `POSTING_EXCEPTION`, `TIMEOUT`)
+- Resolution: maker-checker enforced, resolution voucher linked
+
+### 5B.4 Resolution operations
+
+Operations team can:
+- **Retry credit posting** — creates correction voucher (DR Suspense GL, CR intended account), marks case `RESOLVED`
+- **Reverse debit** — cancels the original debit voucher, marks case `REVERSED`
+
+Both operations enforce maker-checker: resolver must differ from checker.
+
+### 5B.5 EOD enforcement
+
+EOD blocks if:
+- Any `SUSPENSE_ACCOUNT` type account has non-zero balance
+- Any `SuspenseCase` is in `OPEN` status with amount exceeding tolerance threshold (default: 0)
+
+### 5B.6 Observability
+
+- Micrometer counter: `ledgora.suspense.created` — incremented on each new suspense case
+- Audit events: `SUSPENSE_CASE_CREATED`, `SUSPENSE_CASE_RESOLVED`, `SUSPENSE_CASE_REVERSED`
+
 ## 6) Batch lifecycle
 
 ### 6.1 How batches are determined
@@ -240,23 +390,47 @@ Ledgora models day lifecycle with per-tenant `dayStatus` (`OPEN`, `DAY_CLOSING`,
 
 - unauthorized vouchers (authFlag=N, cancelFlag=N)
 - unposted vouchers (postFlag=N, cancelFlag=N)
-- **NEW: approved-but-unposted vouchers** (authFlag=Y, postFlag=N, cancelFlag=N) — must be posted or cancelled
-- **NEW: posted voucher debit/credit balance** — SUM(totalDebit) must equal SUM(totalCredit) for posted vouchers on the date
+- approved-but-unposted vouchers (authFlag=Y, postFlag=N, cancelFlag=N) — must be posted or cancelled
+- posted voucher debit/credit balance — SUM(totalDebit) must equal SUM(totalCredit) for posted vouchers on the date
 - ledger integrity for date (debits == credits from ledger_entries)
 - pending approval requests
 - transactions pending approval (PENDING_APPROVAL status)
-- open batches exist (must be closed first)
+- unsettled inter-branch transfers (all IBC transfers must be SETTLED or FAILED) via `InterBranchClearingService`
+- **clearing GL net-zero** — SUM(balance) of all `CLEARING_ACCOUNT` type accounts must equal 0 per tenant, via `IbtService.validateClearingGlNetZero()`
+- **suspense GL balance** — SUM(balance) of all `SUSPENSE_ACCOUNT` type accounts must equal 0 per tenant, via `SuspenseResolutionService.validateSuspenseAccountBalance()`
+- **suspense cases** — no open `SuspenseCase` records with amount exceeding tolerance threshold (default: 0), via `SuspenseResolutionService.validateSuspenseForEod()`
 - tenant GL balanced via `CbsGlBalanceService`
 
-### 7.2 EOD run
+### 7.2 EOD run (crash-safe state machine)
 
-`EodValidationService.runEod(tenantId)` performs (`EodValidationService.java:141-168`):
+`EodValidationService.runEod(tenantId)` delegates to `EodStateMachineService.executeEod()` which executes each phase in its own `@Transactional(propagation = REQUIRES_NEW)` boundary. Crash between phases is safe — on restart, the process resumes from the last committed phase.
 
-1. Validate pre-checks
-2. `tenantService.startDayClosing(tenantId)` (blocks posting)
-3. Close all batches for business date (`batchService.closeAllBatches(...)`)
-4. Settle all closed batches (`batchService.settleAllBatches(...)`)
-5. Close day and advance date (`tenantService.closeDayAndAdvance(tenantId)`)
+**Phase progression:**
+
+```
+VALIDATED → DAY_CLOSING → BATCH_CLOSED → SETTLED → DATE_ADVANCED
+```
+
+| Phase | What it does | Commits independently |
+|---|---|---|
+| `VALIDATED` | Run all EOD pre-checks (`validateEod()`) | ✅ |
+| `DAY_CLOSING` | `startDayClosing()` + re-validate (TOCTOU) | ✅ |
+| `BATCH_CLOSED` | `closeAllBatches()` | ✅ |
+| `SETTLED` | `settleAllBatches()` | ✅ |
+| `DATE_ADVANCED` | `closeDayAndAdvance()` + mark COMPLETED | ✅ |
+
+**State tracking:** `eod_processes` table with unique constraint `(tenant_id, business_date)`:
+- `status`: RUNNING → COMPLETED or FAILED
+- `phase`: current/last phase
+- `last_updated`: used for stuck detection (> 30 minutes = stuck alert)
+
+**Safety guarantees:**
+- **Double execution prevented**: unique constraint blocks second EOD for same date
+- **Crash recovery**: on restart, `findIncompleteProcesses()` returns all RUNNING processes for resumption
+- **Stuck detection**: `findStuckProcesses()` returns processes idle > 30 minutes
+- **Failed retry**: FAILED processes can be retried — they resume from the failed phase
+
+**Audit events:** `EOD_STARTED`, `EOD_COMPLETED`, `EOD_FAILED` logged to `audit_logs` with `entity_type = EOD_PROCESS`.
 
 ### 7.3 EOD UI endpoints
 
@@ -374,8 +548,31 @@ A quick manual verification (dev/H2):
    ```
 8. Go to `/batches` and verify batches exist for your channels
 9. Close/settle batches using UI actions
-10. Validate EOD via `/eod/validate` then run EOD via `/eod/run`
-11. After EOD, use `/eod/day-begin` to open the day
-12. Test voucher detail view: go to `/vouchers/{id}` for any voucher
+10. **Test inter-branch transfer (IBT):**
+    - Create accounts at different branches (e.g., BR001 and BR002)
+    - Perform a transfer between them via `/transactions/transfer`
+    - Verify 4 vouchers were created (2 per branch):
+      ```sql
+      select v.id, v.voucher_number, v.dr_cr, v.transaction_amount,
+             v.account_id, a.branch_code, v.narration
+      from vouchers v
+      join accounts a on a.id = v.account_id
+      where v.transaction_id = (select max(id) from transactions where transaction_type = 'TRANSFER')
+      order by v.id;
+      ```
+    - Verify clearing accounts net to zero:
+      ```sql
+      select a.account_number, a.balance, a.branch_code
+      from accounts a
+      where a.account_number like 'IBC-%'
+      order by a.account_number;
+      ```
+    - Verify InterBranchTransfer record:
+      ```sql
+      select id, status, amount, business_date from inter_branch_transfers order by id desc;
+      ```
+11. Validate EOD via `/eod/validate` then run EOD via `/eod/run`
+12. After EOD, use `/eod/day-begin` to open the day
+13. Test voucher detail view: go to `/vouchers/{id}` for any voucher
 
-For additional data-level checks, use H2 console and the SQL in `README.md`.
+For additional data-level checks, use H2 console and the SQL in `README.md`, `docs/ibt-audit-sql-pack.sql`, `docs/suspense-audit-sql-pack.sql`, `docs/hard-ceiling-audit-sql-pack.sql`, `docs/velocity-fraud-audit-sql-pack.sql`, `docs/eod-state-machine-audit-sql-pack.sql`, and `docs/balance-reconciliation-audit-sql-pack.sql`.

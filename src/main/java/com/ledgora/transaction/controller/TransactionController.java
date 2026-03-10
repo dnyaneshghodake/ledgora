@@ -1,14 +1,15 @@
 package com.ledgora.transaction.controller;
 
 import com.ledgora.account.repository.AccountRepository;
+import com.ledgora.account.service.AccountService;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.common.enums.TransactionType;
 import com.ledgora.common.exception.TransactionNotFoundException;
 import com.ledgora.transaction.dto.TransactionDTO;
 import com.ledgora.transaction.entity.Transaction;
-import com.ledgora.account.service.AccountService;
 import com.ledgora.transaction.service.TransactionService;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
@@ -16,8 +17,6 @@ import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
-import java.math.BigDecimal;
 
 @Controller
 @RequestMapping("/transactions")
@@ -28,8 +27,11 @@ public class TransactionController {
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
 
-    public TransactionController(TransactionService transactionService, AccountService accountService,
-                                 AccountRepository accountRepository, UserRepository userRepository) {
+    public TransactionController(
+            TransactionService transactionService,
+            AccountService accountService,
+            AccountRepository accountRepository,
+            UserRepository userRepository) {
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.accountRepository = accountRepository;
@@ -37,10 +39,13 @@ public class TransactionController {
     }
 
     @GetMapping
-    public String listTransactions(@RequestParam(value = "accountNumber", required = false) String accountNumber,
-                                   Model model) {
+    public String listTransactions(
+            @RequestParam(value = "accountNumber", required = false) String accountNumber,
+            Model model) {
         if (accountNumber != null && !accountNumber.isEmpty()) {
-            model.addAttribute("transactions", transactionService.getTransactionsByAccountNumber(accountNumber));
+            model.addAttribute(
+                    "transactions",
+                    transactionService.getTransactionsByAccountNumber(accountNumber));
             model.addAttribute("accountNumber", accountNumber);
         } else {
             model.addAttribute("transactions", transactionService.getAllTransactions());
@@ -51,8 +56,10 @@ public class TransactionController {
     @GetMapping("/{id}")
     public String viewTransaction(@PathVariable Long id, Model model) {
         // PART 11: Use custom TransactionNotFoundException instead of raw RuntimeException
-        Transaction transaction = transactionService.getTransactionById(id)
-                .orElseThrow(() -> new TransactionNotFoundException(id));
+        Transaction transaction =
+                transactionService
+                        .getTransactionById(id)
+                        .orElseThrow(() -> new TransactionNotFoundException(id));
         model.addAttribute("transaction", transaction);
         model.addAttribute("ledgerEntries", transactionService.getLedgerEntriesByTransaction(id));
         return "transaction/transaction-view";
@@ -66,8 +73,11 @@ public class TransactionController {
     }
 
     @PostMapping("/deposit")
-    public String deposit(@Valid @ModelAttribute("transactionDTO") TransactionDTO dto,
-                          BindingResult result, Model model, RedirectAttributes redirectAttributes) {
+    public String deposit(
+            @Valid @ModelAttribute("transactionDTO") TransactionDTO dto,
+            BindingResult result,
+            Model model,
+            RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
             model.addAttribute("accounts", accountService.getAllAccounts());
             return "transaction/transaction-deposit";
@@ -81,11 +91,12 @@ public class TransactionController {
         try {
             Transaction txn = transactionService.deposit(dto);
             if (txn.getStatus() == com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL) {
-                redirectAttributes.addFlashAttribute("message",
+                redirectAttributes.addFlashAttribute(
+                        "message",
                         "Deposit submitted for approval. Ref: " + txn.getTransactionRef());
             } else {
-                redirectAttributes.addFlashAttribute("message",
-                        "Deposit successful! Ref: " + txn.getTransactionRef());
+                redirectAttributes.addFlashAttribute(
+                        "message", "Deposit successful! Ref: " + txn.getTransactionRef());
             }
             return "redirect:/transactions";
         } catch (Exception e) {
@@ -103,8 +114,11 @@ public class TransactionController {
     }
 
     @PostMapping("/withdraw")
-    public String withdraw(@Valid @ModelAttribute("transactionDTO") TransactionDTO dto,
-                           BindingResult result, Model model, RedirectAttributes redirectAttributes) {
+    public String withdraw(
+            @Valid @ModelAttribute("transactionDTO") TransactionDTO dto,
+            BindingResult result,
+            Model model,
+            RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
             model.addAttribute("accounts", accountService.getAllAccounts());
             return "transaction/transaction-withdraw";
@@ -118,11 +132,12 @@ public class TransactionController {
         try {
             Transaction txn = transactionService.withdraw(dto);
             if (txn.getStatus() == com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL) {
-                redirectAttributes.addFlashAttribute("message",
+                redirectAttributes.addFlashAttribute(
+                        "message",
                         "Withdrawal submitted for approval. Ref: " + txn.getTransactionRef());
             } else {
-                redirectAttributes.addFlashAttribute("message",
-                        "Withdrawal successful! Ref: " + txn.getTransactionRef());
+                redirectAttributes.addFlashAttribute(
+                        "message", "Withdrawal successful! Ref: " + txn.getTransactionRef());
             }
             return "redirect:/transactions";
         } catch (Exception e) {
@@ -140,8 +155,11 @@ public class TransactionController {
     }
 
     @PostMapping("/transfer")
-    public String transfer(@Valid @ModelAttribute("transactionDTO") TransactionDTO dto,
-                           BindingResult result, Model model, RedirectAttributes redirectAttributes) {
+    public String transfer(
+            @Valid @ModelAttribute("transactionDTO") TransactionDTO dto,
+            BindingResult result,
+            Model model,
+            RedirectAttributes redirectAttributes) {
         if (result.hasErrors()) {
             model.addAttribute("accounts", accountService.getAllAccounts());
             return "transaction/transaction-transfer";
@@ -155,11 +173,12 @@ public class TransactionController {
         try {
             Transaction txn = transactionService.transfer(dto);
             if (txn.getStatus() == com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL) {
-                redirectAttributes.addFlashAttribute("message",
+                redirectAttributes.addFlashAttribute(
+                        "message",
                         "Transfer submitted for approval. Ref: " + txn.getTransactionRef());
             } else {
-                redirectAttributes.addFlashAttribute("message",
-                        "Transfer successful! Ref: " + txn.getTransactionRef());
+                redirectAttributes.addFlashAttribute(
+                        "message", "Transfer successful! Ref: " + txn.getTransactionRef());
             }
             return "redirect:/transactions";
         } catch (Exception e) {
@@ -172,29 +191,32 @@ public class TransactionController {
     // ===== Maker-Checker Approval Workflow (UI-1 fix) =====
 
     /**
-     * Pending transactions awaiting checker approval.
-     * Only CHECKER, ADMIN, MANAGER can see this queue.
+     * Pending transactions awaiting checker approval. Only CHECKER, ADMIN, MANAGER can see this
+     * queue.
      */
     @GetMapping("/pending")
     @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
     public String pendingTransactions(Model model) {
-        model.addAttribute("pendingTransactions", transactionService.getPendingApprovalTransactions());
+        model.addAttribute(
+                "pendingTransactions", transactionService.getPendingApprovalTransactions());
         model.addAttribute("pendingCount", transactionService.countPendingApproval());
         return "transaction/transaction-pending";
     }
 
     /**
-     * Approve a pending transaction (checker action).
-     * Maker-checker enforcement: checker must differ from maker (enforced by TransactionService).
+     * Approve a pending transaction (checker action). Maker-checker enforcement: checker must
+     * differ from maker (enforced by TransactionService).
      */
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
-    public String approveTransaction(@PathVariable Long id,
-                                     @RequestParam(required = false, defaultValue = "Approved") String remarks,
-                                     RedirectAttributes redirectAttributes) {
+    public String approveTransaction(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "Approved") String remarks,
+            RedirectAttributes redirectAttributes) {
         try {
             Transaction approved = transactionService.approveTransaction(id, remarks);
-            redirectAttributes.addFlashAttribute("message",
+            redirectAttributes.addFlashAttribute(
+                    "message",
                     "Transaction " + approved.getTransactionRef() + " approved and posted.");
             return "redirect:/transactions/pending";
         } catch (Exception e) {
@@ -204,18 +226,19 @@ public class TransactionController {
     }
 
     /**
-     * Reject a pending transaction (checker action).
-     * Maker-checker enforcement: checker must differ from maker (enforced by TransactionService).
+     * Reject a pending transaction (checker action). Maker-checker enforcement: checker must differ
+     * from maker (enforced by TransactionService).
      */
     @PostMapping("/{id}/reject")
     @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
-    public String rejectTransaction(@PathVariable Long id,
-                                    @RequestParam(required = false, defaultValue = "Rejected by checker") String remarks,
-                                    RedirectAttributes redirectAttributes) {
+    public String rejectTransaction(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "Rejected by checker") String remarks,
+            RedirectAttributes redirectAttributes) {
         try {
             Transaction rejected = transactionService.rejectTransaction(id, remarks);
-            redirectAttributes.addFlashAttribute("message",
-                    "Transaction " + rejected.getTransactionRef() + " rejected.");
+            redirectAttributes.addFlashAttribute(
+                    "message", "Transaction " + rejected.getTransactionRef() + " rejected.");
             return "redirect:/transactions/pending";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Rejection failed: " + e.getMessage());
@@ -226,21 +249,21 @@ public class TransactionController {
     /**
      * RBI-F8: Transaction history endpoint.
      *
-     * IDOR protection: TransactionService.getTransactionsByAccountNumber() and
+     * <p>IDOR protection: TransactionService.getTransactionsByAccountNumber() and
      * getLedgerEntriesByAccount() already filter by the current tenant context
      * (TenantContextHolder.getRequiredTenantId()), so cross-tenant access is blocked.
      *
-     * For CUSTOMER-role users, a future enhancement should additionally validate
-     * that the requested account belongs to the authenticated customer entity.
-     * Current mitigation: CUSTOMER role has limited UI visibility (no history link
-     * for other accounts), but server-side ownership check is recommended.
+     * <p>For CUSTOMER-role users, a future enhancement should additionally validate that the
+     * requested account belongs to the authenticated customer entity. Current mitigation: CUSTOMER
+     * role has limited UI visibility (no history link for other accounts), but server-side
+     * ownership check is recommended.
      */
     @GetMapping("/history/{accountNumber}")
     public String transactionHistory(@PathVariable String accountNumber, Model model) {
         // Validate account number format to prevent path traversal / injection
         if (accountNumber == null || !accountNumber.matches("^[A-Za-z0-9\\-]+$")) {
-            throw new com.ledgora.common.exception.BusinessException("INVALID_ACCOUNT",
-                    "Invalid account number format");
+            throw new com.ledgora.common.exception.BusinessException(
+                    "INVALID_ACCOUNT", "Invalid account number format");
         }
 
         // UI-2: IDOR prevention for CUSTOMER role.
@@ -249,42 +272,54 @@ public class TransactionController {
         // Validate that the requested account belongs to the authenticated user.
         org.springframework.security.core.Authentication auth =
                 SecurityContextHolder.getContext().getAuthentication();
-        boolean isCustomerRole = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_CUSTOMER"));
+        boolean isCustomerRole =
+                auth.getAuthorities().stream()
+                        .anyMatch(a -> a.getAuthority().equals("ROLE_CUSTOMER"));
         if (isCustomerRole) {
             // For CUSTOMER users, verify account ownership via the user's linked accounts
             String username = auth.getName();
             Long tenantId = com.ledgora.tenant.context.TenantContextHolder.getRequiredTenantId();
-            com.ledgora.account.entity.Account account = accountRepository
-                    .findByAccountNumberAndTenantId(accountNumber, tenantId)
-                    .orElseThrow(() -> new com.ledgora.common.exception.BusinessException(
-                            "ACCOUNT_NOT_FOUND", "Account not found: " + accountNumber));
+            com.ledgora.account.entity.Account account =
+                    accountRepository
+                            .findByAccountNumberAndTenantId(accountNumber, tenantId)
+                            .orElseThrow(
+                                    () ->
+                                            new com.ledgora.common.exception.BusinessException(
+                                                    "ACCOUNT_NOT_FOUND",
+                                                    "Account not found: " + accountNumber));
             // Check if the account's customer is linked to the authenticated user
             if (account.getCustomerName() == null || account.getCustomer() == null) {
-                throw new com.ledgora.common.exception.BusinessException("ACCESS_DENIED",
+                throw new com.ledgora.common.exception.BusinessException(
+                        "ACCESS_DENIED",
                         "Account " + accountNumber + " is not a customer account.");
             }
-            com.ledgora.auth.entity.User user = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new com.ledgora.common.exception.BusinessException(
-                            "USER_NOT_FOUND", "Current user not found"));
+            com.ledgora.auth.entity.User user =
+                    userRepository
+                            .findByUsername(username)
+                            .orElseThrow(
+                                    () ->
+                                            new com.ledgora.common.exception.BusinessException(
+                                                    "USER_NOT_FOUND", "Current user not found"));
             // Match by comparing the user's full name with the account's customer name
             // In production, this should use a direct User→Customer FK relationship
             if (user.getFullName() == null
                     || !user.getFullName().equalsIgnoreCase(account.getCustomerName())) {
-                throw new com.ledgora.common.exception.BusinessException("ACCESS_DENIED",
-                        "You do not have access to account " + accountNumber);
+                throw new com.ledgora.common.exception.BusinessException(
+                        "ACCESS_DENIED", "You do not have access to account " + accountNumber);
             }
         }
 
-        model.addAttribute("transactions", transactionService.getTransactionsByAccountNumber(accountNumber));
-        model.addAttribute("ledgerEntries", transactionService.getLedgerEntriesByAccount(accountNumber));
+        model.addAttribute(
+                "transactions", transactionService.getTransactionsByAccountNumber(accountNumber));
+        model.addAttribute(
+                "ledgerEntries", transactionService.getLedgerEntriesByAccount(accountNumber));
         model.addAttribute("accountNumber", accountNumber);
         return "transaction/transaction-history";
     }
 
     /**
-     * Server-side validation to prevent parameter tampering of financial fields.
-     * Validates transaction type against allowed enum values and amount ranges.
+     * Server-side validation to prevent parameter tampering of financial fields. Validates
+     * transaction type against allowed enum values and amount ranges.
      */
     private String validateFinancialParams(TransactionDTO dto, String expectedType) {
         // Validate transaction type matches expected operation and is a known enum value
@@ -316,7 +351,8 @@ public class TransactionController {
                 return "Invalid source account number format.";
             }
         }
-        if (dto.getDestinationAccountNumber() != null && !dto.getDestinationAccountNumber().isEmpty()) {
+        if (dto.getDestinationAccountNumber() != null
+                && !dto.getDestinationAccountNumber().isEmpty()) {
             if (!dto.getDestinationAccountNumber().matches("^[A-Za-z0-9\\-]+$")) {
                 return "Invalid destination account number format.";
             }

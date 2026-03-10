@@ -1,8 +1,6 @@
 package com.ledgora.common.exception;
 
-/**
- * General business logic exception for CBS operations.
- */
+/** General business logic exception for CBS operations. */
 public class BusinessException extends RuntimeException {
 
     private final String errorCode;

@@ -1,28 +1,29 @@
 package com.ledgora.validation.dto;
 
-import lombok.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.*;
 
-/**
- * PART 6: Validation result DTO for ledger integrity checks.
- */
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+/** PART 6: Validation result DTO for ledger integrity checks. */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ValidationResult {
-    public enum Status { HEALTHY, WARNING, CORRUPTED }
+    public enum Status {
+        HEALTHY,
+        WARNING,
+        CORRUPTED
+    }
 
-    @Builder.Default
-    private Status status = Status.HEALTHY;
+    @Builder.Default private Status status = Status.HEALTHY;
 
-    @Builder.Default
-    private List<String> warnings = new ArrayList<>();
+    @Builder.Default private List<String> warnings = new ArrayList<>();
 
-    @Builder.Default
-    private List<String> errors = new ArrayList<>();
+    @Builder.Default private List<String> errors = new ArrayList<>();
 
-    @Builder.Default
-    private LocalDateTime validatedAt = LocalDateTime.now();
+    @Builder.Default private LocalDateTime validatedAt = LocalDateTime.now();
 
     private long transactionsChecked;
     private long accountsChecked;

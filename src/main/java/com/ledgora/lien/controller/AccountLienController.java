@@ -4,18 +4,15 @@ import com.ledgora.common.enums.LienType;
 import com.ledgora.lien.entity.AccountLien;
 import com.ledgora.lien.service.AccountLienService;
 import com.ledgora.tenant.context.TenantContextHolder;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
-
-/**
- * Controller for Account Lien management.
- */
+/** Controller for Account Lien management. */
 @Controller
 @RequestMapping("/liens")
 public class AccountLienController {
@@ -47,20 +44,31 @@ public class AccountLienController {
     }
 
     @PostMapping("/create")
-    public String createLien(@RequestParam("accountId") Long accountId,
-                              @RequestParam("lienAmount") BigDecimal lienAmount,
-                              @RequestParam("lienType") String lienType,
-                              @RequestParam("startDate") String startDateStr,
-                              @RequestParam(value = "endDate", required = false) String endDateStr,
-                              @RequestParam(value = "lienReference", required = false) String lienReference,
-                              @RequestParam(value = "remarks", required = false) String remarks,
-                              RedirectAttributes redirectAttributes) {
+    public String createLien(
+            @RequestParam("accountId") Long accountId,
+            @RequestParam("lienAmount") BigDecimal lienAmount,
+            @RequestParam("lienType") String lienType,
+            @RequestParam("startDate") String startDateStr,
+            @RequestParam(value = "endDate", required = false) String endDateStr,
+            @RequestParam(value = "lienReference", required = false) String lienReference,
+            @RequestParam(value = "remarks", required = false) String remarks,
+            RedirectAttributes redirectAttributes) {
         try {
             Long tenantId = TenantContextHolder.getRequiredTenantId();
             LocalDate startDate = LocalDate.parse(startDateStr);
-            LocalDate endDate = endDateStr != null && !endDateStr.isEmpty() ? LocalDate.parse(endDateStr) : null;
-            lienService.createLien(tenantId, accountId, lienAmount, LienType.valueOf(lienType),
-                    startDate, endDate, lienReference, remarks);
+            LocalDate endDate =
+                    endDateStr != null && !endDateStr.isEmpty()
+                            ? LocalDate.parse(endDateStr)
+                            : null;
+            lienService.createLien(
+                    tenantId,
+                    accountId,
+                    lienAmount,
+                    LienType.valueOf(lienType),
+                    startDate,
+                    endDate,
+                    lienReference,
+                    remarks);
             redirectAttributes.addFlashAttribute("success", "Lien submitted for approval.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());

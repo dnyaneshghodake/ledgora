@@ -10,39 +10,49 @@ import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.transaction.entity.Transaction;
 import jakarta.persistence.*;
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * CBS Voucher Entity - controls the full lifecycle of a financial posting.
- * Vouchers flow: Create -> Authorize -> Post -> (optional Cancel via reversal).
- * NO DELETE allowed. Immutability enforced via cancel/reversal pattern.
+ * CBS Voucher Entity - controls the full lifecycle of a financial posting. Vouchers flow: Create ->
+ * Authorize -> Post -> (optional Cancel via reversal). NO DELETE allowed. Immutability enforced via
+ * cancel/reversal pattern.
  *
- * Composite index: (tenant_id, branch_id, posting_date, batch_code, scroll_no)
+ * <p>Composite index: (tenant_id, branch_id, posting_date, batch_code, scroll_no)
  */
 @Entity
-@Table(name = "vouchers", indexes = {
-    @Index(name = "idx_voucher_composite", columnList = "tenant_id, branch_id, posting_date, batch_code, scroll_no"),
-    @Index(name = "idx_voucher_number", columnList = "voucher_number", unique = true),
-    @Index(name = "idx_voucher_tenant", columnList = "tenant_id"),
-    @Index(name = "idx_voucher_tenant_date", columnList = "tenant_id, posting_date"),
-    @Index(name = "idx_voucher_status_flags", columnList = "auth_flag, post_flag, cancel_flag"),
-    @Index(name = "idx_voucher_branch", columnList = "branch_id"),
-    @Index(name = "idx_voucher_posting_date", columnList = "posting_date"),
-    @Index(name = "idx_voucher_account", columnList = "account_id"),
-    @Index(name = "idx_voucher_batch", columnList = "batch_id"),
-    @Index(name = "idx_voucher_transaction", columnList = "transaction_id")
-})
-@Getter @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "vouchers",
+        indexes = {
+            @Index(
+                    name = "idx_voucher_composite",
+                    columnList = "tenant_id, branch_id, posting_date, batch_code, scroll_no"),
+            @Index(name = "idx_voucher_number", columnList = "voucher_number", unique = true),
+            @Index(name = "idx_voucher_tenant", columnList = "tenant_id"),
+            @Index(name = "idx_voucher_tenant_date", columnList = "tenant_id, posting_date"),
+            @Index(
+                    name = "idx_voucher_status_flags",
+                    columnList = "auth_flag, post_flag, cancel_flag"),
+            @Index(name = "idx_voucher_branch", columnList = "branch_id"),
+            @Index(name = "idx_voucher_posting_date", columnList = "posting_date"),
+            @Index(name = "idx_voucher_account", columnList = "account_id"),
+            @Index(name = "idx_voucher_batch", columnList = "batch_id"),
+            @Index(name = "idx_voucher_transaction", columnList = "transaction_id")
+        })
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Voucher {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     /**
-     * Formatted voucher number: <TENANT_CODE>-<BRANCH_CODE>-<YYYYMMDD>-<6-digit scroll>.
-     * Generated on create by VoucherService. Unique, indexed.
+     * Formatted voucher number: <TENANT_CODE>-<BRANCH_CODE>-<YYYYMMDD>-<6-digit scroll>. Generated
+     * on create by VoucherService. Unique, indexed.
      */
     @Column(name = "voucher_number", length = 60, unique = true)
     private String voucherNumber;
@@ -56,7 +66,8 @@ public class Voucher {
     private Branch branch;
 
     /**
-     * FK to the originating transaction. A single transaction produces multiple vouchers (DR + CR legs).
+     * FK to the originating transaction. A single transaction produces multiple vouchers (DR + CR
+     * legs).
      */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "transaction_id")
@@ -155,16 +166,16 @@ public class Voucher {
     private Voucher reversalOfVoucher;
 
     /**
-     * Total debit amount for this voucher leg (equals transactionAmount when drCr == DR, else ZERO).
-     * Populated on create for quick batch/EOD aggregation queries.
+     * Total debit amount for this voucher leg (equals transactionAmount when drCr == DR, else
+     * ZERO). Populated on create for quick batch/EOD aggregation queries.
      */
     @Column(name = "total_debit", precision = 19, scale = 4, nullable = false)
     @Builder.Default
     private BigDecimal totalDebit = BigDecimal.ZERO;
 
     /**
-     * Total credit amount for this voucher leg (equals transactionAmount when drCr == CR, else ZERO).
-     * Populated on create for quick batch/EOD aggregation queries.
+     * Total credit amount for this voucher leg (equals transactionAmount when drCr == CR, else
+     * ZERO). Populated on create for quick batch/EOD aggregation queries.
      */
     @Column(name = "total_credit", precision = 19, scale = 4, nullable = false)
     @Builder.Default
@@ -176,9 +187,7 @@ public class Voucher {
     @Column(name = "authorization_remarks", length = 500)
     private String authorizationRemarks;
 
-    /**
-     * RBI-F11: Optimistic locking — prevents concurrent authorize/post race conditions.
-     */
+    /** RBI-F11: Optimistic locking — prevents concurrent authorize/post race conditions. */
     @Version
     @Column(name = "version")
     private Long version;
@@ -190,8 +199,8 @@ public class Voucher {
     private LocalDateTime updatedAt;
 
     /**
-     * Derive VoucherStatus from ground-truth flags.
-     * This is NOT persisted — the triple (authFlag, postFlag, cancelFlag) is the source of truth.
+     * Derive VoucherStatus from ground-truth flags. This is NOT persisted — the triple (authFlag,
+     * postFlag, cancelFlag) is the source of truth.
      */
     @Transient
     public VoucherStatus getStatus() {
@@ -203,12 +212,29 @@ public class Voucher {
     // Financial fields (amount, drCr, account, postingDate, etc.) have NO setters.
     // ──────────────────────────────────────────────────────────────────────
 
-    public void setAuthFlag(String authFlag) { this.authFlag = authFlag; }
-    public void setPostFlag(String postFlag) { this.postFlag = postFlag; }
-    public void setCancelFlag(String cancelFlag) { this.cancelFlag = cancelFlag; }
-    public void setChecker(User checker) { this.checker = checker; }
-    public void setLedgerEntry(LedgerEntry ledgerEntry) { this.ledgerEntry = ledgerEntry; }
-    public void setAuthorizationRemarks(String authorizationRemarks) { this.authorizationRemarks = authorizationRemarks; }
+    public void setAuthFlag(String authFlag) {
+        this.authFlag = authFlag;
+    }
+
+    public void setPostFlag(String postFlag) {
+        this.postFlag = postFlag;
+    }
+
+    public void setCancelFlag(String cancelFlag) {
+        this.cancelFlag = cancelFlag;
+    }
+
+    public void setChecker(User checker) {
+        this.checker = checker;
+    }
+
+    public void setLedgerEntry(LedgerEntry ledgerEntry) {
+        this.ledgerEntry = ledgerEntry;
+    }
+
+    public void setAuthorizationRemarks(String authorizationRemarks) {
+        this.authorizationRemarks = authorizationRemarks;
+    }
 
     @PrePersist
     protected void onCreate() {
@@ -227,8 +253,8 @@ public class Voucher {
     }
 
     /**
-     * RBI-F3: Guard against mutation of POSTED vouchers.
-     * After posting, only cancelFlag may transition (to 'Y' via reversal).
+     * RBI-F3: Guard against mutation of POSTED vouchers. After posting, only cancelFlag may
+     * transition (to 'Y' via reversal).
      */
     @PreUpdate
     protected void onUpdate() {

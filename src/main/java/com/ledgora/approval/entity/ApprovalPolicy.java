@@ -2,35 +2,39 @@ package com.ledgora.approval.entity;
 
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * CBS Approval Policy Table.
- * Configurable rules that determine whether a transaction is auto-authorized
- * or requires maker-checker approval.
+ * CBS Approval Policy Table. Configurable rules that determine whether a transaction is
+ * auto-authorized or requires maker-checker approval.
  *
- * Decision flow:
- *   1. Match by tenant + transaction_type + channel (most specific)
- *   2. If amount within [min_amount, max_amount] and auto_authorize_flag = true -> auto-post
- *   3. Otherwise -> PENDING_APPROVAL (requires checker)
+ * <p>Decision flow: 1. Match by tenant + transaction_type + channel (most specific) 2. If amount
+ * within [min_amount, max_amount] and auto_authorize_flag = true -> auto-post 3. Otherwise ->
+ * PENDING_APPROVAL (requires checker)
  *
- * Special rules (always require approval regardless of policy):
- *   - Reversals
- *   - Backdated entries
- *   - Config/master data changes
+ * <p>Special rules (always require approval regardless of policy): - Reversals - Backdated entries
+ * - Config/master data changes
  *
- * System-only transactions (interest accrual, EOD, charges) bypass this entirely
- * via BATCH/SYSTEM channel with auto_authorize_flag = true.
+ * <p>System-only transactions (interest accrual, EOD, charges) bypass this entirely via
+ * BATCH/SYSTEM channel with auto_authorize_flag = true.
  */
 @Entity
-@Table(name = "approval_policies", indexes = {
-    @Index(name = "idx_ap_tenant_type_channel", columnList = "tenant_id, transaction_type, channel")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "approval_policies",
+        indexes = {
+            @Index(
+                    name = "idx_ap_tenant_type_channel",
+                    columnList = "tenant_id, transaction_type, channel")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ApprovalPolicy {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -64,7 +68,10 @@ public class ApprovalPolicy {
     @Builder.Default
     private Boolean approvalRequiredFlag = true;
 
-    /** Comma-separated role names allowed to approve (e.g. "ROLE_CHECKER,ROLE_MANAGER"). Null = any checker. */
+    /**
+     * Comma-separated role names allowed to approve (e.g. "ROLE_CHECKER,ROLE_MANAGER"). Null = any
+     * checker.
+     */
     @Column(name = "role_allowed", length = 255)
     private String roleAllowed;
 
