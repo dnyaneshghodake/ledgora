@@ -69,7 +69,7 @@
 | # | Gap | Severity | Current State | Recommendation |
 |---|---|---|---|---|
 | G1 | **Suspense GL not implemented** | HIGH | No mechanism to park unresolved postings. Failed partial transfers have no safe landing zone. | Implement per-tenant Suspense GL (see Part 3). EOD should validate Suspense GL == 0. |
-| G2 | **Inter-branch clearing GL absent** | HIGH | Multi-branch transfers within same tenant lack a clearing mechanism. No mirrored entries for branch-level reconciliation. | Implement INTER_BRANCH_CLEARING GL with mirrored entries (see Part 4). |
+| G2 | ~~**Inter-branch clearing GL absent**~~ | ~~HIGH~~ | **RESOLVED:** GL 2910 (Inter-Branch Clearing) added to chart of accounts. IBC-OUT and IBC-IN clearing accounts seeded per branch (HQ001, BR001, BR002). `TransactionService.postTransferLedger()` detects cross-branch transfers and routes through 4-voucher clearing flow (DR Customer A + CR IBC_OUT_A / DR IBC_IN_B + CR Customer B). `InterBranchTransfer` entity tracks lifecycle (INITIATED → SENT → RECEIVED → SETTLED). EOD blocks on unsettled transfers via `InterBranchClearingService.validateClearingBalance()`. Settlement integration via `settleTransfers()`. | ✅ Resolved |
 | G3 | **No transaction amount limits per role** | MEDIUM | `TransactionService` validates amount > 0 and < 999999999999.99, but no per-role/per-channel limits. A teller can process unlimited amounts. | Add configurable teller/channel limits in approval policy. |
 | G4 | **No velocity checks** | MEDIUM | No detection of rapid-fire transactions from same account/user within a time window. | Add velocity monitoring (e.g., max N transactions per account per hour). |
 | G5 | ~~**systemAuthorizeVoucher uses maker as checker**~~ | ~~MEDIUM~~ | **RESOLVED** (commit `04ad39db`): `SYSTEM_AUTO` pseudo-user seeded with `ROLE_SYSTEM`. `systemAuthorizeVoucher()` now throws `GovernanceException` if SYSTEM_AUTO missing — no fallback to maker. AUDIT-12 query validates compliance. | ✅ Resolved |
@@ -82,7 +82,7 @@
 | Priority | Enhancement | Effort | Impact | Status |
 |---|---|---|---|---|
 | P0 (Immediate) | Suspense GL implementation | 2-3 days | Blocks production deployment without safe error routing | ⬜ Design complete (Part 3), implementation pending |
-| P0 (Immediate) | Inter-branch clearing GL | 2-3 days | Required for multi-branch operations | ⬜ Design complete (Part 4), implementation pending |
+| ~~P0~~ | ~~Inter-branch clearing GL~~ | ~~2-3 days~~ | ~~Required for multi-branch operations~~ | ✅ **DONE** — GL 2910 seeded, IBC-OUT/IBC-IN per branch, 4-voucher clearing flow, EOD validation, settlement integration |
 | ~~P1~~ | ~~Dedicated SYSTEM_AUTO user for STP~~ | ~~0.5 day~~ | ~~Cleaner audit trail~~ | ✅ **DONE** — `SYSTEM_AUTO` seeded with `ROLE_SYSTEM`, `GovernanceException` on missing, no fallback |
 | P1 (Next sprint) | Per-role transaction amount limits | 1-2 days | Prevents unauthorized high-value transactions | ⬜ Open |
 | P1 (Next sprint) | Scheduled ledger-vs-cache validator | 1 day | Detects balance drift between EODs | ⬜ Open |
@@ -127,8 +127,9 @@ Summary of all governance gaps identified and addressed in PR #40 (Feature Enhan
 | **UI-1** | Transaction approval endpoints added: `GET /transactions/pending`, `POST /transactions/{id}/approve`, `POST /transactions/{id}/reject`. All `@PreAuthorize` gated for CHECKER/ADMIN/MANAGER. Connects existing `TransactionService.approveTransaction()` to the UI. | `6bb7667f` | ✅ Resolved |
 | **UI-2 / FR-08** | CUSTOMER account ownership check added in `TransactionController.transactionHistory()`. CUSTOMER-role users can only access their own accounts. Non-customer roles bypass for legitimate access. Stopgap: name-based matching (production should use User→Customer FK). | `6bb7667f` | ✅ Resolved |
 | **UI-3** | `isOwnVoucher` flag passed to voucher detail view. JSP can conditionally hide Authorize/Reject/Post buttons when current user is the voucher's maker. Backend enforcement unchanged. | `6bb7667f` | ✅ Resolved |
+| **G2 / IBC** | Inter-Branch Clearing fully implemented: GL 2910 added, IBC-OUT/IBC-IN accounts seeded per branch, `InterBranchTransfer` entity + repository + service, `TransactionService.postTransferLedger()` routes cross-branch transfers through 4-voucher clearing flow, EOD validation blocks on unsettled IBC transfers, `settleTransfers()` for settlement integration. | PR #40 (latest) | ✅ Resolved |
 
-**Remaining open gaps:** G1 (Suspense GL — design only), G2 (Inter-branch clearing — design only), G3 (per-role limits), G4 (velocity checks), G6 (ledger-vs-cache reconciliation), G7 (data archival), G8 (password policy).
+**Remaining open gaps:** G1 (Suspense GL — design only), G3 (per-role limits), G4 (velocity checks), G6 (ledger-vs-cache reconciliation), G7 (data archival), G8 (password policy).
 
 ---
 

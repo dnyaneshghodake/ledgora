@@ -54,6 +54,7 @@ public class EodValidationService {
     private final TenantRepository tenantRepository;
     private final BatchService batchService;
     private final TransactionRepository transactionRepository;
+    private final com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService;
 
     public EodValidationService(VoucherRepository voucherRepository,
                                  LedgerEntryRepository ledgerEntryRepository,
@@ -63,7 +64,8 @@ public class EodValidationService {
                                  TenantService tenantService,
                                  TenantRepository tenantRepository,
                                  BatchService batchService,
-                                 TransactionRepository transactionRepository) {
+                                 TransactionRepository transactionRepository,
+                                 com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService) {
         this.voucherRepository = voucherRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.accountBalanceRepository = accountBalanceRepository;
@@ -73,6 +75,7 @@ public class EodValidationService {
         this.tenantRepository = tenantRepository;
         this.batchService = batchService;
         this.transactionRepository = transactionRepository;
+        this.interBranchClearingService = interBranchClearingService;
     }
 
     /**
@@ -121,6 +124,14 @@ public class EodValidationService {
         long pendingTxns = transactionRepository.countByTenantIdAndStatus(tenantId, com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL);
         if (pendingTxns > 0) {
             errors.add("EOD blocked: " + pendingTxns + " transaction(s) pending approval for tenant " + tenantId);
+        }
+
+        // Inter-branch clearing validation: all IBC transfers must be SETTLED or FAILED
+        if (interBranchClearingService != null) {
+            String ibcError = interBranchClearingService.validateClearingBalance(tenantId, businessDate);
+            if (ibcError != null) {
+                errors.add(ibcError);
+            }
         }
 
         // 7. Branch GL balanced - checked if CbsGlBalanceService is tracking balances

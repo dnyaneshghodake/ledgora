@@ -90,6 +90,7 @@ public class TransactionService {
     private final BankCalendarService bankCalendarService;
     private final com.ledgora.approval.service.ApprovalPolicyService approvalPolicyService;
     private final com.ledgora.approval.service.ApprovalService approvalService;
+    private final com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService;
 
     public TransactionService(TransactionRepository transactionRepository,
                               TransactionLineRepository transactionLineRepository,
@@ -107,7 +108,8 @@ public class TransactionService {
                               BatchService batchService,
                               BankCalendarService bankCalendarService,
                               com.ledgora.approval.service.ApprovalPolicyService approvalPolicyService,
-                              com.ledgora.approval.service.ApprovalService approvalService) {
+                              com.ledgora.approval.service.ApprovalService approvalService,
+                              com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService) {
         this.transactionRepository = transactionRepository;
         this.transactionLineRepository = transactionLineRepository;
         this.accountRepository = accountRepository;
@@ -125,6 +127,7 @@ public class TransactionService {
         this.bankCalendarService = bankCalendarService;
         this.approvalPolicyService = approvalPolicyService;
         this.approvalService = approvalService;
+        this.interBranchClearingService = interBranchClearingService;
     }
 
     /**
@@ -579,13 +582,55 @@ public class TransactionService {
         createTransactionLine(transaction, destAccount, EntryType.CREDIT, dto.getAmount(),
                 "Transfer from " + sourceAccount.getAccountNumber());
 
+        String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
+
+        // ── INTER-BRANCH CLEARING DETECTION ──
+        // If source and dest are at different branches, route through IBC clearing accounts
+        // so each branch independently balances per RBI requirements.
+        Branch sourceBranch = resolveBranch(sourceAccount, poster);
+        Branch destBranch = resolveBranch(destAccount, poster);
+        boolean crossBranch = sourceBranch != null && destBranch != null
+                && !sourceBranch.getId().equals(destBranch.getId());
+
+        if (crossBranch && interBranchClearingService != null) {
+            // ── CROSS-BRANCH: 4-voucher clearing flow ──
+            // Branch A: DR Customer A, CR IBC_OUT_A (Branch A balanced)
+            // Branch B: DR IBC_IN_B, CR Customer B (Branch B balanced)
+            com.ledgora.clearing.entity.InterBranchTransfer ibcTransfer =
+                    interBranchClearingService.createTransfer(
+                            tenant, sourceBranch, destBranch, dto.getAmount(), currency,
+                            transaction, businessDate, poster,
+                            "IBC: " + sourceAccount.getAccountNumber() + " → " + destAccount.getAccountNumber());
+
+            // Branch A leg: DR Customer A, CR IBC_OUT_A
+            Account ibcOutAccount = interBranchClearingService.resolveIbcOutAccount(tenant.getId(), sourceBranch);
+            postVoucher(transaction, tenant, poster, sourceAccount, VoucherDrCr.DR, dto.getAmount(),
+                    currency, businessDate, batch, "IBC Transfer DR: " + sourceAccount.getAccountNumber());
+            postVoucher(transaction, tenant, poster, ibcOutAccount, VoucherDrCr.CR, dto.getAmount(),
+                    currency, businessDate, batch, "IBC OUT CR: " + sourceBranch.getBranchCode());
+            interBranchClearingService.markSent(ibcTransfer.getId());
+
+            // Branch B leg: DR IBC_IN_B, CR Customer B
+            Account ibcInAccount = interBranchClearingService.resolveIbcInAccount(tenant.getId(), destBranch);
+            postVoucher(transaction, tenant, poster, ibcInAccount, VoucherDrCr.DR, dto.getAmount(),
+                    currency, businessDate, batch, "IBC IN DR: " + destBranch.getBranchCode());
+            postVoucher(transaction, tenant, poster, destAccount, VoucherDrCr.CR, dto.getAmount(),
+                    currency, businessDate, batch, "IBC Transfer CR: " + destAccount.getAccountNumber());
+            interBranchClearingService.markReceived(ibcTransfer.getId());
+
+            log.info("Cross-branch transfer posted via IBC: {} → {} amount={} ibcId={}",
+                    sourceBranch.getBranchCode(), destBranch.getBranchCode(),
+                    dto.getAmount(), ibcTransfer.getId());
+        } else {
+            // ── SAME BRANCH: direct DR/CR posting (existing behavior) ──
+            postVoucher(transaction, tenant, poster, sourceAccount, VoucherDrCr.DR, dto.getAmount(),
+                    currency, businessDate, batch, "Transfer to " + destAccount.getAccountNumber());
+            postVoucher(transaction, tenant, poster, destAccount, VoucherDrCr.CR, dto.getAmount(),
+                    currency, businessDate, batch, "Transfer from " + sourceAccount.getAccountNumber());
+        }
+
         BigDecimal sourceNewBalance = sourceAccount.getBalance().subtract(dto.getAmount());
         BigDecimal destNewBalance = destAccount.getBalance().add(dto.getAmount());
-        String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
-        postVoucher(transaction, tenant, poster, sourceAccount, VoucherDrCr.DR, dto.getAmount(),
-                currency, businessDate, batch, "Transfer to " + destAccount.getAccountNumber());
-        postVoucher(transaction, tenant, poster, destAccount, VoucherDrCr.CR, dto.getAmount(),
-                currency, businessDate, batch, "Transfer from " + sourceAccount.getAccountNumber());
 
         sourceAccount.setBalance(sourceNewBalance);
         accountRepository.save(sourceAccount);
