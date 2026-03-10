@@ -88,6 +88,8 @@ public class TransactionService {
     private final com.ledgora.clearing.service.InterBranchClearingService
             interBranchClearingService;
     private final com.ledgora.clearing.service.IbtService ibtService;
+    private final com.ledgora.approval.service.HardTransactionCeilingService
+            hardTransactionCeilingService;
 
     public TransactionService(
             TransactionRepository transactionRepository,
@@ -108,7 +110,9 @@ public class TransactionService {
             com.ledgora.approval.service.ApprovalPolicyService approvalPolicyService,
             com.ledgora.approval.service.ApprovalService approvalService,
             com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService,
-            com.ledgora.clearing.service.IbtService ibtService) {
+            com.ledgora.clearing.service.IbtService ibtService,
+            com.ledgora.approval.service.HardTransactionCeilingService
+                    hardTransactionCeilingService) {
         this.transactionRepository = transactionRepository;
         this.transactionLineRepository = transactionLineRepository;
         this.accountRepository = accountRepository;
@@ -128,6 +132,7 @@ public class TransactionService {
         this.approvalService = approvalService;
         this.interBranchClearingService = interBranchClearingService;
         this.ibtService = ibtService;
+        this.hardTransactionCeilingService = hardTransactionCeilingService;
     }
 
     /**
@@ -142,6 +147,15 @@ public class TransactionService {
         Long tenantId = requireTenantId();
         tenantService.validateBusinessDayOpen(tenantId);
         Tenant tenant = tenantService.getTenantById(tenantId);
+
+        // ── HARD CEILING: absolute limit enforced BEFORE any persistence ──
+        TransactionChannel channelForLimit = parseChannel(dto.getChannel());
+        User currentUserForLimit = getCurrentUser();
+        hardTransactionCeilingService.enforceHardCeiling(
+                tenantId,
+                channelForLimit,
+                dto.getAmount(),
+                currentUserForLimit != null ? currentUserForLimit.getId() : null);
 
         checkIdempotency(dto);
 
@@ -237,6 +251,15 @@ public class TransactionService {
         Long tenantId = requireTenantId();
         tenantService.validateBusinessDayOpen(tenantId);
         Tenant tenant = tenantService.getTenantById(tenantId);
+
+        // ── HARD CEILING: absolute limit enforced BEFORE any persistence ──
+        TransactionChannel channelForLimit = parseChannel(dto.getChannel());
+        User currentUserForLimit = getCurrentUser();
+        hardTransactionCeilingService.enforceHardCeiling(
+                tenantId,
+                channelForLimit,
+                dto.getAmount(),
+                currentUserForLimit != null ? currentUserForLimit.getId() : null);
 
         checkIdempotency(dto);
 
@@ -342,6 +365,15 @@ public class TransactionService {
         Long tenantId = requireTenantId();
         tenantService.validateBusinessDayOpen(tenantId);
         Tenant tenant = tenantService.getTenantById(tenantId);
+
+        // ── HARD CEILING: absolute limit enforced BEFORE any persistence ──
+        TransactionChannel channelForLimit = parseChannel(dto.getChannel());
+        User currentUserForLimit = getCurrentUser();
+        hardTransactionCeilingService.enforceHardCeiling(
+                tenantId,
+                channelForLimit,
+                dto.getAmount(),
+                currentUserForLimit != null ? currentUserForLimit.getId() : null);
 
         checkIdempotency(dto);
 

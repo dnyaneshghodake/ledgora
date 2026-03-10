@@ -149,7 +149,8 @@ See `validateFinancialParams(...)` (`TransactionController.java:171-211`).
 
 `TransactionService` delegates to `VoucherService` for all ledger posting. The private helper `postVoucher(...)` in `TransactionService` implements the target flow:
 
-1. **Validate** business rules (business day OPEN, sufficient funds, freeze level, holiday calendar, idempotency)
+1. **Validate** business rules (hard transaction ceiling, business day OPEN, sufficient funds, freeze level, holiday calendar, idempotency)
+   - **Hard ceiling check** — `HardTransactionCeilingService.enforceHardCeiling()` runs BEFORE any persistence. If amount exceeds `hard_transaction_limits.absolute_max_amount` for the tenant+channel, throws `GovernanceException(HARD_LIMIT_EXCEEDED)`. No role can bypass. Violations logged to `audit_logs` with action `HARD_LIMIT_EXCEEDED` and metric `ledgora.hard_limit.blocked` incremented.
 2. **Create Transaction** row (status = COMPLETED or PENDING_APPROVAL based on approval policy)
 3. **Create Voucher pair** (DR leg + CR leg) via `VoucherService.createVoucher(...)`:
    - Each voucher is linked to the transaction via `transaction_id` FK
@@ -552,4 +553,4 @@ A quick manual verification (dev/H2):
 12. After EOD, use `/eod/day-begin` to open the day
 13. Test voucher detail view: go to `/vouchers/{id}` for any voucher
 
-For additional data-level checks, use H2 console and the SQL in `README.md`, `docs/ibt-audit-sql-pack.sql`, and `docs/suspense-audit-sql-pack.sql`.
+For additional data-level checks, use H2 console and the SQL in `README.md`, `docs/ibt-audit-sql-pack.sql`, `docs/suspense-audit-sql-pack.sql`, and `docs/hard-ceiling-audit-sql-pack.sql`.

@@ -1,17 +1,18 @@
 # Ledgora — RBI Governance & Compliance Control Layer
 
-**Document Version:** 2.3
+**Document Version:** 2.4
 **System:** Ledgora CBS (Spring Boot 3.2.3)
-**Commit Baseline:** PR #41 — CBS Enhancement (IBT Upgrade + Suspense GL)
-**Previous Versions:** 2.2, 2.1 (6bb7667f), 2.0 (b3f20d5c), 1.0 (d6a0a46)
-**Standard Applied:** RBI Master Direction on IT Governance (2023), Banking Regulation Act §10/§35A, IS Audit Guidelines, CBS Accounting Standard — Branch-level Trial Balance Isolation, CBS Exception Accounting Standard
+**Commit Baseline:** PR #41 — CBS Enhancement (IBT + Suspense GL + Hard Ceilings)
+**Previous Versions:** 2.3, 2.2, 2.1 (6bb7667f), 2.0 (b3f20d5c), 1.0 (d6a0a46)
+**Standard Applied:** RBI Master Direction on IT Governance (2023), Banking Regulation Act §10/§35A, IS Audit Guidelines, CBS Accounting Standard, RBI Risk Appetite Framework — Absolute Exposure Limits
 
-> **Version 2.3 Changes:** Suspense GL implementation: `SUSPENSE_ACCOUNT` type, `SuspenseGlMapping` config table, `SuspenseCase` entity + repository, `SuspenseResolutionService` (account resolution, case creation, maker-checker resolution/reversal, EOD validation), `PARKED` transaction status, Micrometer `ledgora.suspense.created` metric, suspense audit SQL pack (6 queries), EOD blocks on non-zero suspense balance + open cases. Closes gap G1. See §1.8 for change log.
-> **Version 2.2 Changes:** CBS-grade IBT upgrade: `IbtService` enforcement layer, `BranchGlMapping` config table, clearing GL net-zero EOD check, IBT voucher count validation, partial reversal blocking, branch ACTIVE pre-validation, IBT audit SQL pack (8 queries). See §1.7 for change log.
+> **Version 2.4 Changes:** Hard Transaction Ceiling enforcement: `HardTransactionLimit` entity (`hard_transaction_limits` table), `HardTransactionCeilingService` (non-bypassable, pre-persistence enforcement, no role override), integrated into `deposit()` / `withdraw()` / `transfer()` in `TransactionService`, Micrometer `ledgora.hard_limit.blocked` metric, violations logged to `audit_logs` as `HARD_LIMIT_EXCEEDED`, audit SQL pack (4 queries). Addresses FR-05. See §1.9 for change log.
+> **Version 2.3 Changes:** Suspense GL implementation. Closes gap G1. See §1.8 for change log.
+> **Version 2.2 Changes:** CBS-grade IBT upgrade. See §1.7 for change log.
 > **Version 2.1 Changes:** Added UI governance fixes (transaction approval endpoints, IDOR prevention, maker-checker UI hints).
 > **Version 2.0 Changes:** Core governance fixes (SYSTEM_AUTO, voucher integrity, tenant isolation, EOD, ledger immutability).
 > Items marked ✅ Resolved were previously identified as gaps and have been addressed in code.
-> See §1.6 / §1.7 / §1.8 for full change logs.
+> See §1.6 / §1.7 / §1.8 / §1.9 for full change logs.
 
 ---
 
@@ -128,6 +129,7 @@
 | `DayBeginService` | Day Begin ceremony — validates previous day closed, batches settled | `validateDayBegin()`, `openDay()` |
 | `IbtService` | Inter-branch transfer governance — branch validation, clearing GL enforcement, voucher count, partial reversal block | `validateBranchesForIbt()`, `validateIbtVoucherCount()`, `validateClearingGlNetZero()`, `validateFullReversalRequired()` |
 | `SuspenseResolutionService` | Suspense GL management — account resolution, case lifecycle, maker-checker resolution, EOD suspense check | `resolveSuspenseAccount()`, `createSuspenseCase()`, `resolveCase()`, `reverseCase()`, `validateSuspenseForEod()` |
+| `HardTransactionCeilingService` | Absolute hard transaction ceiling — non-bypassable limit enforcement before any persistence, governance audit logging, metric emission | `enforceHardCeiling(tenantId, channel, amount, userId)` — throws `GovernanceException(HARD_LIMIT_EXCEEDED)` |
 
 ### 1.6 PR #40 Change Log — Gaps Addressed
 
@@ -167,6 +169,19 @@ Summary of all governance gaps identified and addressed in PR #40 (Feature Enhan
 | **G1-STATUS** | `PARKED` added to `TransactionStatus` enum for transactions routed to suspense. | ✅ Resolved |
 | **G1-METRIC** | Micrometer counter `ledgora.suspense.created` emitted on each new suspense case. | ✅ Resolved |
 | **G1-AUDIT** | Suspense audit SQL pack: 6 queries (account balance, open cases, resolution trail, summary, config check, PARKED transactions). See `docs/suspense-audit-sql-pack.sql`. | ✅ Resolved |
+
+### 1.9 PR #41 Change Log — Hard Transaction Ceiling (v2.4)
+
+| Item | Description | Status |
+|---|---|---|
+| **FR-05** | Hard Transaction Ceiling fully implemented. `HardTransactionLimit` entity with `hard_transaction_limits` table (tenant_id, channel, absolute_max_amount). `HardTransactionCeilingService` enforces absolute non-bypassable limits. | ✅ Resolved |
+| **FR-05-INT** | `TransactionService.deposit()`, `withdraw()`, `transfer()` all call `enforceHardCeiling()` BEFORE any persistence — idempotency check, transaction creation, or voucher creation. | ✅ Resolved |
+| **FR-05-NO-BYPASS** | No role (including ADMIN) can bypass. No runtime configuration override. Only DB-level change to `hard_transaction_limits` can modify ceilings. | ✅ Resolved |
+| **FR-05-AUDIT** | All violations logged to `audit_logs` with action `HARD_LIMIT_EXCEEDED` and entity_type `GOVERNANCE`. Includes amount, ceiling, channel, userId in detail. | ✅ Resolved |
+| **FR-05-METRIC** | Micrometer counter `ledgora.hard_limit.blocked` emitted on each blocked transaction. | ✅ Resolved |
+| **FR-05-SQL** | Hard ceiling audit SQL pack: 4 queries (violation log, config check, bypass detection, user frequency). See `docs/hard-ceiling-audit-sql-pack.sql`. | ✅ Resolved |
+
+**Remaining open gaps:** G3 (per-role soft limits), G4 (velocity checks), G6 (ledger-vs-cache reconciliation), G7 (data archival), G8 (password policy).
 
 ---
 
@@ -993,7 +1008,7 @@ The bank's CISO / CRO must maintain a signed register for every open item. Templ
 | Reg # | Risk ID | Gap Description | Compensating Control (if any) | Risk Owner | Accepted By (Name + Designation) | Acceptance Date | Review-By Date | Status |
 |---|---|---|---|---|---|---|---|---|
 | RAR-001 | FR-06 | Velocity monitoring absent | Manual EOD review of high-frequency accounts | Head — Operations | *(CISO signature)* | *(date)* | *(date + 90d)* | OPEN |
-| RAR-002 | FR-05 | No hard ceiling per role | Approval policy table with ranges configured | Head — Compliance | *(CRO signature)* | *(date)* | *(date + 60d)* | OPEN |
+| ~~RAR-002~~ | ~~FR-05~~ | ~~No hard ceiling per role~~ | ~~`HardTransactionCeilingService` now enforces absolute hard ceilings from `hard_transaction_limits` table. No role bypass.~~ | Head — Compliance | *(CRO signature)* | *(date)* | — | ✅ CLOSED (PR #41 — Hard Ceiling) |
 | ~~RAR-003~~ | ~~FR-04~~ | ~~STP checker = maker~~ | ~~SYSTEM_AUTO now enforced with GovernanceException~~ | Head — IT | *(CISO signature)* | *(date)* | — | ✅ CLOSED (commit `04ad39db`) |
 | ~~RAR-004~~ | ~~FR-08~~ | ~~IDOR — CUSTOMER account history~~ | ~~Ownership check now enforced in `TransactionController.transactionHistory()` for CUSTOMER role~~ | Head — IT Security | *(CRO signature)* | *(date)* | — | ✅ CLOSED (commit `6bb7667f` — stopgap, name-based matching) |
 | ~~RAR-005~~ | ~~FR-10~~ | ~~Reversal audit trail linkage gap~~ | ~~`findOrCreateTransaction` now checks `voucher.getTransaction()` first~~ | Head — IT | *(CTO signature)* | *(date)* | — | ✅ CLOSED (PR #40 — FR-10 fix) |
