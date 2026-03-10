@@ -4,6 +4,7 @@ import com.ledgora.clearing.entity.InterBranchTransfer;
 import com.ledgora.common.enums.InterBranchTransferStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
@@ -84,6 +85,24 @@ public interface InterBranchTransferRepository
                     + "AND t.status NOT IN ('SETTLED') "
                     + "ORDER BY t.status, t.createdAt DESC")
     List<InterBranchTransfer> findUnsettledByTenantId(@Param("tenantId") Long tenantId);
+
+    // ===== Reconciliation dashboard queries =====
+
+    /** Count IBT transfers for a tenant matching any of the given statuses. */
+    long countByTenantIdAndStatusIn(Long tenantId, Collection<InterBranchTransferStatus> statuses);
+
+    /**
+     * Fetch the oldest unsettled IBT transfers (status IN INITIATED, SENT, RECEIVED) for aging
+     * display. Eagerly fetches fromBranch and toBranch to avoid N+1 in the JSP.
+     */
+    @Query(
+            "SELECT DISTINCT t FROM InterBranchTransfer t "
+                    + "LEFT JOIN FETCH t.fromBranch "
+                    + "LEFT JOIN FETCH t.toBranch "
+                    + "WHERE t.tenant.id = :tenantId "
+                    + "AND t.status IN ('INITIATED', 'SENT', 'RECEIVED') "
+                    + "ORDER BY t.createdAt ASC")
+    List<InterBranchTransfer> findOldestUnsettledByTenantId(@Param("tenantId") Long tenantId);
 
     // ===== Eager-fetch query for IBT detail screen (N+1 prevention) =====
 

@@ -7,6 +7,7 @@ import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.clearing.entity.InterBranchTransfer;
 import com.ledgora.clearing.repository.InterBranchTransferRepository;
 import com.ledgora.clearing.service.IbtService;
+import com.ledgora.common.enums.AccountType;
 import com.ledgora.common.enums.InterBranchTransferStatus;
 import com.ledgora.common.enums.TransactionChannel;
 import com.ledgora.tenant.context.TenantContextHolder;
@@ -20,6 +21,7 @@ import jakarta.servlet.http.HttpSession;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -349,6 +351,63 @@ public class IbtController {
         model.addAttribute("clearingAccounts", clearingAccounts);
 
         return "ibt/ibt-detail";
+    }
+
+    // ===== IBT Reconciliation Dashboard =====
+
+    /**
+     * CBS-grade operational dashboard for inter-branch clearing reconciliation. Read-only — does
+     * NOT mutate any records. Uses CLEARING_ACCOUNT type balances (not voucher derivation).
+     *
+     * <p>KPIs: unsettled count, failed count, clearing GL net, oldest unsettled for aging.
+     */
+    @GetMapping("/reconciliation")
+    @PreAuthorize("hasAnyRole('OPERATIONS', 'ADMIN', 'MANAGER', 'AUDITOR')")
+    @Transactional(readOnly = true)
+    public String reconciliation(Model model, HttpSession session) {
+        Long tenantId = resolveTenantId(session);
+
+        // KPI 1: Total unsettled transfers (INITIATED + SENT + RECEIVED)
+        Set<InterBranchTransferStatus> unsettledStatuses =
+                Set.of(
+                        InterBranchTransferStatus.INITIATED,
+                        InterBranchTransferStatus.SENT,
+                        InterBranchTransferStatus.RECEIVED);
+        long totalUnsettled = ibtRepository.countByTenantIdAndStatusIn(tenantId, unsettledStatuses);
+
+        // KPI 2: Failed transfers
+        long failedCount =
+                ibtRepository.countByTenantIdAndStatusIn(
+                        tenantId, Set.of(InterBranchTransferStatus.FAILED));
+
+        // KPI 3: Clearing GL net balance (from CLEARING_ACCOUNT type — NOT voucher derivation)
+        BigDecimal clearingNet =
+                accountRepository.sumBalanceByTenantIdAndAccountType(
+                        tenantId, AccountType.CLEARING_ACCOUNT);
+        boolean clearingBalanced = clearingNet.compareTo(BigDecimal.ZERO) == 0;
+
+        // Aging: oldest unsettled IBTs (eagerly fetched with branches)
+        List<InterBranchTransfer> allUnsettled =
+                ibtRepository.findOldestUnsettledByTenantId(tenantId);
+        // Limit to top 5 for display (query is ordered ASC by createdAt)
+        List<InterBranchTransfer> oldestUnsettled =
+                allUnsettled.size() > 5 ? allUnsettled.subList(0, 5) : allUnsettled;
+
+        // Per-branch clearing account balances for drill-down
+        List<Account> clearingAccounts = ibtService.getIbcClearingAccounts(tenantId);
+
+        // Business date for aging calculation
+        LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
+
+        model.addAttribute("totalUnsettled", totalUnsettled);
+        model.addAttribute("failedCount", failedCount);
+        model.addAttribute("clearingNet", clearingNet);
+        model.addAttribute("clearingBalanced", clearingBalanced);
+        model.addAttribute("oldestUnsettled", oldestUnsettled);
+        model.addAttribute("clearingAccounts", clearingAccounts);
+        model.addAttribute("businessDate", businessDate);
+
+        return "ibt/ibt-reconciliation";
     }
 
     /** Resolve tenant ID from TenantContextHolder or session. */
