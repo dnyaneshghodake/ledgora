@@ -202,14 +202,16 @@ public class IbtController {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         // Parse status filter (ignore invalid values gracefully)
-        InterBranchTransferStatus filterStatus = null;
+        InterBranchTransferStatus parsedStatus = null;
         if (status != null && !status.isBlank()) {
             try {
-                filterStatus = InterBranchTransferStatus.valueOf(status);
+                parsedStatus = InterBranchTransferStatus.valueOf(status);
             } catch (IllegalArgumentException ignored) {
                 // Invalid status param — treat as no filter
             }
         }
+        // Effectively final copy for lambda capture (JLS §15.27.2)
+        final InterBranchTransferStatus filterStatus = parsedStatus;
 
         // Select the appropriate repository query based on which filters are active.
         // InterBranchTransfer is the canonical aggregate — no Transaction derivation.
