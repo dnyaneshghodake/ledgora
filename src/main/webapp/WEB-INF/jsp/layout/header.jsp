@@ -14,7 +14,7 @@
     <meta name="_csrf" content="${_csrf.token}"/>
     <meta name="_csrf_header" content="${_csrf.headerName}"/>
 </head>
-<body>
+<body data-context-path="${pageContext.request.contextPath}">
 <c:if test="${not empty sessionScope.username}">
 <%--
   CBS Layout: Fixed Header + Fixed Sidebar + Scrollable Main Content

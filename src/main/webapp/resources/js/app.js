@@ -145,13 +145,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 sessionSecondsLeft--;
                 updateSessionDisplay();
             } else {
-                window.location.href = '/login?expired=true';
+                var ctxPath = document.body.getAttribute('data-context-path') || '';
+                window.location.href = ctxPath + '/login?expired=true';
             }
         };
 
         // Ping server to keep server-side session alive on user activity
         var pingServer = function() {
-            fetch('/actuator/health', { method: 'HEAD', credentials: 'same-origin' }).catch(function() {});
+            var ctxPath = document.body.getAttribute('data-context-path') || '';
+            fetch(ctxPath + '/actuator/health', { method: 'HEAD', credentials: 'same-origin' }).catch(function() {});
         };
 
         var resetSessionTimer = function() {
@@ -180,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Only handle Alt+Key combinations
         if (!e.altKey || e.ctrlKey || e.metaKey) return;
 
-        var ctx = '/';
+        var ctx = (document.body.getAttribute('data-context-path') || '') + '/';
         var handled = false;
 
         switch (e.key.toLowerCase()) {
