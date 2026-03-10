@@ -106,6 +106,13 @@
                 </ul>
             </div>
         </c:if>
+        <%-- Pending Approvals --%>
+        <c:if test="${sessionScope.pendingApprovals != null && sessionScope.pendingApprovals > 0 && (sessionScope.isAdmin || sessionScope.isManager || sessionScope.isChecker)}">
+            <a href="${pageContext.request.contextPath}/approvals" class="cbs-notifications" aria-label="Pending approvals">
+                <i class="bi bi-bell" aria-hidden="true"></i>
+                <span class="cbs-badge">${sessionScope.pendingApprovals}</span>
+            </a>
+        </c:if>
         <%-- Session Timer --%>
         <div class="cbs-session-timer" id="cbsSessionTimer" aria-label="Session timeout" title="Session time remaining">
             <i class="bi bi-hourglass-split" aria-hidden="true"></i>
