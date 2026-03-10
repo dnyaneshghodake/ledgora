@@ -295,7 +295,12 @@ From `IbtController` (`src/main/java/com/ledgora/ibt/controller/IbtController.ja
 
 ### Stress Testing (stress profile only)
 
-- `POST /stress/eod` — EOD performance stress test: generate bulk load + run EOD + return structured metrics (ADMIN only, `@Profile("stress")`)
+- `POST /stress/eod` — EOD performance stress test: generate bulk load + run EOD + return Hibernate statistics (ADMIN only)
+- `POST /stress/lock-contention` — concurrent posting + parallel EOD lock contention simulation (ADMIN only)
+- `POST /stress/deadlock` — cross-account deadlock provocation + recovery verification (ADMIN only)
+- `POST /stress/load` — production-style load generator with rate limiting + percentile latency (ADMIN only)
+- `POST /stress/chaos-eod` — EOD state machine crash/resume simulation + integrity verification (ADMIN only)
+- `GET /diagnostics/query-plans` — EXPLAIN analysis for 6 critical queries with risk classification (ADMIN only)
 
 ### Reports
 

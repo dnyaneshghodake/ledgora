@@ -617,6 +617,34 @@ Request body:
 
 **Activation:** `mvn spring-boot:run -Dspring-boot.run.profiles=stress`
 
+### 9A.7 Additional Stress & Diagnostics Harnesses
+
+All active only in `stress` profile. ADMIN role required. No production logic modified.
+
+**Query Plan Analyzer** — `GET /diagnostics/query-plans`
+- Runs EXPLAIN on 6 critical SQL queries (EOD, IBT, suspense, audit)
+- Risk classification: HIGH (table scan, no index), MEDIUM, LOW
+- Validates that production performance indexes are effective
+
+**Lock Contention Simulator** — `POST /stress/lock-contention`
+- N concurrent threads posting transfers + optional parallel EOD
+- Detects deadlocks, lock timeouts, slow transactions (>2s)
+- CountDownLatch synchronization maximizes contention
+
+**Deadlock Simulator** — `POST /stress/deadlock`
+- Provokes cross-account lock ordering deadlock (A→B vs B→A)
+- Post-deadlock recovery verification: ledger balanced, no partial vouchers, batch totals intact
+
+**Production Load Generator** — `POST /stress/load`
+- Token-bucket rate limiter (Semaphore, refill per second)
+- Workload mix: 40% deposit, 30% withdrawal, 25% transfer, 5% IBT
+- Captures P50/P95/P99 latency, error classification (balance/velocity/ceiling/lock)
+
+**Chaos EOD Tester** — `POST /stress/chaos-eod`
+- Manufactures FAILED EodProcess at target phase, then triggers resume
+- Tests EodStateMachineService crash recovery without modifying it
+- Validates: ledger balanced, no duplicates, no stuck RUNNING, clearing/suspense GL zero
+
 ## 10) Suggested E2E verification checklist
 
 A quick manual verification (dev/H2):
@@ -695,5 +723,10 @@ A quick manual verification (dev/H2):
 17. **Test Velocity Fraud Monitor:** go to `/risk/velocity` — verify pressure level (LOW if no open alerts) and accounts under review count
 18. **Test Audit Explorer:** go to `/audit/explorer` — verify filter panel works (try filtering by action `VOUCHER_POSTED`), verify pagination
 19. **Test Stress Harness (stress profile only):** start app with `--spring.profiles.active=stress`, then `POST /stress/eod` with `{"tenantId":1,"accounts":50,"transactions":200,"ibtRatio":30}`. Verify JSON response includes `success: true`, `clearingGlZero: true`, `suspenseGlZero: true`, and check console for structured performance summary.
+20. **Test Query Plan Analyzer:** `GET /diagnostics/query-plans` — verify all 6 queries return `riskLevel: "LOW"` (indexes effective)
+21. **Test Lock Contention:** `POST /stress/lock-contention` with `{"tenantId":1,"threads":4,"transactionsPerThread":20,"triggerEod":false}` — verify `deadlockCount: 0` or low, check `lockWaitOccurrences`
+22. **Test Deadlock Simulation:** `POST /stress/deadlock` with `{"tenantId":1,"accountA":"SAV-1001-0001","accountB":"SAV-1002-0001","rounds":2}` — verify `systemRecovered: true`, `ledgerBalanced: true`
+23. **Test Production Load:** `POST /stress/load` with `{"tenantId":1,"threads":5,"targetTps":20,"durationSeconds":10,"ibtRatio":15}` — verify `actualTps` near target, check `p95LatencyMs`
+24. **Test Chaos EOD:** `POST /stress/chaos-eod` with `{"tenantId":1,"crashAfterPhase":"DAY_CLOSING"}` — verify `resumeSucceeded: true`, `ledgerBalanced: true`, `noStuckRunning: true`
 
 For additional data-level checks, use H2 console and the SQL in `README.md`, `docs/ibt-audit-sql-pack.sql`, `docs/suspense-audit-sql-pack.sql`, `docs/hard-ceiling-audit-sql-pack.sql`, `docs/velocity-fraud-audit-sql-pack.sql`, `docs/eod-state-machine-audit-sql-pack.sql`, and `docs/balance-reconciliation-audit-sql-pack.sql`.
