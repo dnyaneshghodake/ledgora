@@ -118,12 +118,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // ── CBS Session Timeout Countdown ──
+    // Must match server.servlet.session.timeout=15m in application.properties
     var sessionTimerEl = document.getElementById('cbsSessionTimer');
     var sessionCountdownEl = document.getElementById('cbsSessionCountdown');
     if (sessionTimerEl && sessionCountdownEl) {
-        var SESSION_TIMEOUT = 30 * 60;
-        var SESSION_WARN = 5 * 60;
-        var SESSION_CRITICAL = 2 * 60;
+        var SESSION_TIMEOUT = 15 * 60; // 15 minutes — synced with server
+        var SESSION_WARN = 3 * 60;     // warn at 3 minutes
+        var SESSION_CRITICAL = 1 * 60; // critical at 1 minute
         var sessionSecondsLeft = SESSION_TIMEOUT;
         var pad2 = function(n) { return String(n).padStart(2, '0'); };
 
@@ -148,9 +149,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         };
 
+        // Ping server to keep server-side session alive on user activity
+        var pingServer = function() {
+            fetch('/actuator/health', { method: 'HEAD', credentials: 'same-origin' }).catch(function() {});
+        };
+
         var resetSessionTimer = function() {
             sessionSecondsLeft = SESSION_TIMEOUT;
             updateSessionDisplay();
+            pingServer();
         };
 
         updateSessionDisplay();
