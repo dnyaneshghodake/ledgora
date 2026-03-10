@@ -1,7 +1,9 @@
 package com.ledgora.stress.controller;
 
+import com.ledgora.stress.dto.DeadlockSimulationResult;
 import com.ledgora.stress.dto.EodPerformanceResult;
 import com.ledgora.stress.dto.LockContentionResult;
+import com.ledgora.stress.service.DeadlockSimulator;
 import com.ledgora.stress.service.EodLoadGeneratorService;
 import com.ledgora.stress.service.EodPerformanceRunner;
 import com.ledgora.stress.service.LockContentionSimulator;
@@ -44,14 +46,17 @@ public class StressTestController {
     private final EodLoadGeneratorService loadGenerator;
     private final EodPerformanceRunner performanceRunner;
     private final LockContentionSimulator lockContentionSimulator;
+    private final DeadlockSimulator deadlockSimulator;
 
     public StressTestController(
             EodLoadGeneratorService loadGenerator,
             EodPerformanceRunner performanceRunner,
-            LockContentionSimulator lockContentionSimulator) {
+            LockContentionSimulator lockContentionSimulator,
+            DeadlockSimulator deadlockSimulator) {
         this.loadGenerator = loadGenerator;
         this.performanceRunner = performanceRunner;
         this.lockContentionSimulator = lockContentionSimulator;
+        this.deadlockSimulator = deadlockSimulator;
     }
 
     @PostMapping("/eod")
@@ -129,6 +134,43 @@ public class StressTestController {
 
         LockContentionResult result =
                 lockContentionSimulator.simulate(tenantId, threads, txnsPerThread, triggerEod);
+
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Deadlock simulation: provoke cross-account lock ordering deadlock and verify recovery.
+     *
+     * <p>Usage: POST /stress/deadlock with JSON body:
+     *
+     * <pre>
+     * {
+     *   "tenantId": 1,
+     *   "accountA": "SAV-1001-0001",
+     *   "accountB": "SAV-1002-0001",
+     *   "rounds": 3
+     * }
+     * </pre>
+     */
+    @PostMapping("/deadlock")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<DeadlockSimulationResult> runDeadlockTest(
+            @RequestBody Map<String, Object> params) {
+
+        Long tenantId = ((Number) params.getOrDefault("tenantId", 1)).longValue();
+        String accountA = (String) params.getOrDefault("accountA", "SAV-1001-0001");
+        String accountB = (String) params.getOrDefault("accountB", "SAV-1002-0001");
+        int rounds = ((Number) params.getOrDefault("rounds", 3)).intValue();
+
+        log.info(
+                "Deadlock simulation initiated: tenant={} accountA={} accountB={} rounds={}",
+                tenantId,
+                accountA,
+                accountB,
+                rounds);
+
+        DeadlockSimulationResult result =
+                deadlockSimulator.simulate(tenantId, accountA, accountB, rounds);
 
         return ResponseEntity.ok(result);
     }
