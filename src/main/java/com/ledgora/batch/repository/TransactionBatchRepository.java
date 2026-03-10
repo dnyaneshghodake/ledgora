@@ -31,6 +31,8 @@ public interface TransactionBatchRepository extends JpaRepository<TransactionBat
     @Query("SELECT tb FROM TransactionBatch tb WHERE tb.tenant.id = :tenantId")
     List<TransactionBatch> findByTenantId(@Param("tenantId") Long tenantId);
 
+    Optional<TransactionBatch> findByBatchCode(String batchCode);
+
     List<TransactionBatch> findByStatus(BatchStatus status);
 
     @Query("SELECT tb FROM TransactionBatch tb WHERE tb.tenant.id = :tenantId AND tb.businessDate = :businessDate AND tb.status = :status")

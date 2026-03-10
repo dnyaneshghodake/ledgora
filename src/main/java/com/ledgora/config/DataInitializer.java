@@ -327,7 +327,16 @@ public class DataInitializer implements CommandLineRunner {
                 "teller3@ledgora.com", "+91-9000000030", branch2, Set.of(tellerRole),
                 secondTenant, TenantScope.SINGLE);
 
-        log.info("  [Users] 16 users ready (admin, superadmin, tenantadmin, branchmgr1, manager, teller1-3, customer1-4, maker1, checker1, ops1, auditor1)");
+        // ── SYSTEM_AUTO pseudo-user — used as checker for STP auto-authorized flows ──
+        // Cannot login via UI (isActive=false prevents authentication).
+        // Ensures maker != checker audit trail for all auto-authorized vouchers.
+        Role systemRole = roleRepository.findByName(RoleName.ROLE_SYSTEM)
+                .orElseThrow(() -> new RuntimeException("ROLE_SYSTEM not found"));
+        createUserIfMissing("SYSTEM_AUTO", "SYSTEM_AUTO_NO_LOGIN_" + java.util.UUID.randomUUID(),
+                "System Auto-Authorization", "system@ledgora.internal", "+00-0000000000",
+                hqBranch, Set.of(systemRole), defaultTenant, TenantScope.MULTI);
+
+        log.info("  [Users] 17 users ready (admin, superadmin, tenantadmin, branchmgr1, manager, teller1-3, customer1-4, maker1, checker1, ops1, auditor1, SYSTEM_AUTO)");
     }
 
     /**
@@ -423,8 +432,12 @@ public class DataInitializer implements CommandLineRunner {
                 GLAccountType.LIABILITY, liabilities, 1, "CREDIT");
         createGL("2300", "Payables", "Accounts payable",
                 GLAccountType.LIABILITY, liabilities, 1, "CREDIT");
-        createGL("2400", "Other Liabilities", "Miscellaneous liabilities",
+        GeneralLedger otherLiabilities = createGL("2400", "Other Liabilities", "Miscellaneous liabilities",
                 GLAccountType.LIABILITY, liabilities, 1, "CREDIT");
+
+        // ── Liabilities -> Level 2 (Inter-Branch Clearing GL — RBI requirement) ──
+        createGL("2910", "Inter-Branch Clearing", "IBC clearing accounts for branch-independent books",
+                GLAccountType.LIABILITY, otherLiabilities, 2, "CREDIT");
 
         // ── Liabilities -> Level 2 (Customer Deposits sub-accounts) ──
         createGL("2110", "Savings Deposits", "Customer savings account deposits",
@@ -552,6 +565,34 @@ public class DataInitializer implements CommandLineRunner {
                 AccountType.SETTLEMENT_ACCOUNT, LedgerAccountType.SETTLEMENT_ACCOUNT,
                 BigDecimal.ZERO, "INR", hqBranch, null, null, null,
                 null);
+
+        // ── Inter-Branch Clearing (IBC) accounts — per branch, GL 2910 ──
+        // RBI: Each branch must independently balance. IBC accounts enable this.
+        // IBC-OUT-<branch>: credited when funds leave the branch
+        // IBC-IN-<branch>: debited when funds arrive at the branch
+        // At settlement: SUM(IBC-OUT) == SUM(IBC-IN) must net to zero.
+        createAccount("IBC-OUT-HQ001", "IBC Outward - Head Office",
+                AccountType.CLEARING_ACCOUNT, LedgerAccountType.CLEARING_ACCOUNT,
+                BigDecimal.ZERO, "INR", hqBranch, null, null, "2910", null);
+        createAccount("IBC-IN-HQ001", "IBC Inward - Head Office",
+                AccountType.CLEARING_ACCOUNT, LedgerAccountType.CLEARING_ACCOUNT,
+                BigDecimal.ZERO, "INR", hqBranch, null, null, "2910", null);
+
+        createAccount("IBC-OUT-BR001", "IBC Outward - Downtown Branch",
+                AccountType.CLEARING_ACCOUNT, LedgerAccountType.CLEARING_ACCOUNT,
+                BigDecimal.ZERO, "INR", branch1, null, null, "2910", null);
+        createAccount("IBC-IN-BR001", "IBC Inward - Downtown Branch",
+                AccountType.CLEARING_ACCOUNT, LedgerAccountType.CLEARING_ACCOUNT,
+                BigDecimal.ZERO, "INR", branch1, null, null, "2910", null);
+
+        createAccount("IBC-OUT-BR002", "IBC Outward - Uptown Branch",
+                AccountType.CLEARING_ACCOUNT, LedgerAccountType.CLEARING_ACCOUNT,
+                BigDecimal.ZERO, "INR", branch2, null, null, "2910", null);
+        createAccount("IBC-IN-BR002", "IBC Inward - Uptown Branch",
+                AccountType.CLEARING_ACCOUNT, LedgerAccountType.CLEARING_ACCOUNT,
+                BigDecimal.ZERO, "INR", branch2, null, null, "2910", null);
+
+        log.info("  [IBC] 6 Inter-Branch Clearing accounts seeded (IBC-OUT + IBC-IN per branch)");
 
         // ── Customer 1: Rajesh Kumar — SAVINGS + CURRENT + LOAN + FD ──
         Account rajeshSavings = createAccount("SAV-1001-0001", "Rajesh Kumar - Savings",

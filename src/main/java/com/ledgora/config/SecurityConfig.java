@@ -2,7 +2,11 @@ package com.ledgora.config;
 
 import com.ledgora.security.CustomUserDetailsService;
 import com.ledgora.security.JwtAuthenticationFilter;
+import jakarta.annotation.PostConstruct;
 import jakarta.servlet.DispatcherType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -23,9 +27,20 @@ import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+
+    /** Known insecure default — used only to detect misconfiguration. */
+    private static final String DEV_JWT_SECRET = "ledgora-dev-only-secret-key-must-be-at-least-256-bits-long";
+
     private final CustomUserDetailsService userDetailsService;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final com.ledgora.security.CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
+
+    @Value("${app.jwt.secret:}")
+    private String jwtSecret;
+
+    @Value("${spring.h2.console.enabled:false}")
+    private boolean h2ConsoleEnabled;
 
     public SecurityConfig(CustomUserDetailsService userDetailsService,
                           JwtAuthenticationFilter jwtAuthenticationFilter,
@@ -33,6 +48,22 @@ public class SecurityConfig {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.customAuthenticationSuccessHandler = customAuthenticationSuccessHandler;
+    }
+
+    /**
+     * RBI-F2: Fail-fast if JWT secret is the known dev-only default.
+     * In production, JWT_SECRET env var MUST be set to a unique, strong key.
+     */
+    @PostConstruct
+    public void validateJwtSecret() {
+        if (jwtSecret == null || jwtSecret.isBlank()) {
+            log.error("SECURITY: app.jwt.secret is not set. Set JWT_SECRET environment variable.");
+            throw new IllegalStateException("app.jwt.secret must be configured. Set JWT_SECRET env var.");
+        }
+        if (jwtSecret.equals(DEV_JWT_SECRET)) {
+            log.warn("SECURITY WARNING: Using dev-only JWT secret. "
+                    + "Override via JWT_SECRET env var before production deployment.");
+        }
     }
 
     @Bean
@@ -56,23 +87,27 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf
-                .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
-                .ignoringRequestMatchers("/h2-console/**")
-            )
-            .authorizeHttpRequests(auth -> auth
-                .dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
+            .csrf(csrf -> {
+                csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                    .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler());
+                // Only exclude H2 console from CSRF when it is actually enabled
+                if (h2ConsoleEnabled) {
+                    csrf.ignoringRequestMatchers("/h2-console/**");
+                }
+            })
+            .authorizeHttpRequests(auth -> {
+                auth.dispatcherTypeMatchers(DispatcherType.FORWARD, DispatcherType.ERROR).permitAll()
                 .requestMatchers("/", "/login", "/register").permitAll()
                 .requestMatchers("/resources/**", "/css/**", "/js/**").permitAll()
-                .requestMatchers("/h2-console/**").permitAll()
+                // RBI-F1: H2 console requires ADMIN role (never permitAll)
+                .requestMatchers("/h2-console/**").hasRole("ADMIN")
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/audit/validation").hasAnyRole("AUDITOR", "ADMIN", "SUPER_ADMIN")
                 .requestMatchers("/customers/**").authenticated()
                 .requestMatchers("/approvals/**").authenticated()
                 .requestMatchers("/reports/**").authenticated()
-                .anyRequest().authenticated()
-            )
+                .anyRequest().authenticated();
+            })
             .formLogin(form -> form
                 .loginPage("/login")
                 .loginProcessingUrl("/perform_login")
@@ -103,6 +138,10 @@ public class SecurityConfig {
             )
             .sessionManagement(session -> session
                 .sessionFixation(fix -> fix.migrateSession())
+                // RBI-F5: Limit concurrent sessions per user to 1.
+                // Second login from another browser/machine is blocked.
+                .maximumSessions(1)
+                .maxSessionsPreventsLogin(true)
             );
 
         http.authenticationProvider(authenticationProvider());

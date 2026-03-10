@@ -259,7 +259,10 @@ class LedgoraVoucherLifecycleTest {
                 .businessDate(businessDate)
                 .status(BatchStatus.OPEN)
                 .build());
-        return "BATCH-" + openBatch.getId();
+        // Set batchCode after save (needs the generated ID), matching BatchService behavior
+        openBatch.setBatchCode("BATCH-" + openBatch.getId());
+        openBatch = transactionBatchRepository.save(openBatch);
+        return openBatch.getBatchCode();
     }
 
     private TestData setupTestData(String suffix) {

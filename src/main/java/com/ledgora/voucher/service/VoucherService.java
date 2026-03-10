@@ -2,7 +2,9 @@ package com.ledgora.voucher.service;
 
 import com.ledgora.account.entity.Account;
 import com.ledgora.account.repository.AccountRepository;
+import com.ledgora.audit.service.AuditService;
 import com.ledgora.auth.entity.User;
+import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.batch.entity.TransactionBatch;
 import com.ledgora.batch.repository.TransactionBatchRepository;
 import com.ledgora.balance.service.CbsBalanceEngine;
@@ -65,6 +67,8 @@ public class VoucherService {
     private final TransactionBatchRepository transactionBatchRepository;
     private final CbsCustomerValidationService customerValidationService;
     private final GlBalanceService glBalanceService;
+    private final AuditService auditService;
+    private final UserRepository userRepository;
 
     public VoucherService(VoucherRepository voucherRepository,
                           ScrollSequenceRepository scrollSequenceRepository,
@@ -76,7 +80,9 @@ public class VoucherService {
                           CbsBalanceEngine cbsBalanceEngine,
                           TransactionBatchRepository transactionBatchRepository,
                           CbsCustomerValidationService customerValidationService,
-                          GlBalanceService glBalanceService) {
+                          GlBalanceService glBalanceService,
+                          AuditService auditService,
+                          UserRepository userRepository) {
         this.voucherRepository = voucherRepository;
         this.scrollSequenceRepository = scrollSequenceRepository;
         this.accountRepository = accountRepository;
@@ -88,10 +94,13 @@ public class VoucherService {
         this.transactionBatchRepository = transactionBatchRepository;
         this.customerValidationService = customerValidationService;
         this.glBalanceService = glBalanceService;
+        this.auditService = auditService;
+        this.userRepository = userRepository;
     }
 
     /**
      * Create a new voucher. On create, only shadow balance is updated.
+     * Backward-compatible overload without Transaction FK.
      */
     @Transactional
     public Voucher createVoucher(Tenant tenant, Branch branch, Account account,
@@ -99,8 +108,34 @@ public class VoucherService {
                                   BigDecimal transactionAmount, BigDecimal localCurrencyAmount,
                                   String currency, LocalDate postingDate, LocalDate valueDate,
                                   String batchCode, Integer setNo, User maker, String narration) {
+        return createVoucher(tenant, branch, account, glAccount, drCr,
+                transactionAmount, localCurrencyAmount, currency, postingDate,
+                valueDate, batchCode, setNo, maker, narration, null);
+    }
+
+    /**
+     * Create a new voucher linked to an originating transaction.
+     * On create, only shadow balance is updated.
+     *
+     * Voucher number format: <TENANT_CODE>-<BRANCH_CODE>-<YYYYMMDD>-<6-digit scroll>
+     *
+     * @param linkedTransaction optional FK to the originating Transaction
+     */
+    @Transactional
+    public Voucher createVoucher(Tenant tenant, Branch branch, Account account,
+                                  GeneralLedger glAccount, VoucherDrCr drCr,
+                                  BigDecimal transactionAmount, BigDecimal localCurrencyAmount,
+                                  String currency, LocalDate postingDate, LocalDate valueDate,
+                                  String batchCode, Integer setNo, User maker, String narration,
+                                  com.ledgora.transaction.entity.Transaction linkedTransaction) {
 
         assertTenantContext(tenant.getId());
+
+        // Validate voucher business_date matches tenant current business date
+        if (!postingDate.equals(tenant.getCurrentBusinessDate())) {
+            throw new RuntimeException("Voucher posting date " + postingDate
+                    + " does not match tenant business date " + tenant.getCurrentBusinessDate());
+        }
 
         // Validate customer and account
         customerValidationService.validateAccountForTransaction(
@@ -113,12 +148,18 @@ public class VoucherService {
             cbsBalanceEngine.validateSufficientBalance(account.getId(), transactionAmount);
         }
 
-        // Get next scroll number
+        // Get next scroll number (concurrency-safe via PESSIMISTIC_WRITE)
         Long scrollNo = getNextScrollNo(tenant.getId(), branch.getId(), postingDate);
 
+        // Generate formatted voucher number
+        String voucherNumber = generateVoucherNumber(
+                tenant.getTenantCode(), branch.getBranchCode(), postingDate, scrollNo);
+
         Voucher voucher = Voucher.builder()
+                .voucherNumber(voucherNumber)
                 .tenant(tenant)
                 .branch(branch)
+                .transaction(linkedTransaction)
                 .account(account)
                 .glAccount(glAccount)
                 .drCr(drCr)
@@ -145,10 +186,49 @@ public class VoucherService {
         // Update shadow balance only on create
         cbsBalanceEngine.updateShadowBalance(account.getId(), transactionAmount, drCr);
 
-        log.info("Voucher created: id={}, account={}, dr_cr={}, amount={}, scroll={}",
-                voucher.getId(), account.getAccountNumber(), drCr, transactionAmount, scrollNo);
+        log.info("Voucher created: voucherNo={}, id={}, account={}, dr_cr={}, amount={}, scroll={}, txn={}",
+                voucherNumber, voucher.getId(), account.getAccountNumber(), drCr, transactionAmount, scrollNo,
+                linkedTransaction != null ? linkedTransaction.getTransactionRef() : "N/A");
+
+        // RBI-F7: Persistent audit trail for voucher creation
+        Long makerId = maker != null ? maker.getId() : null;
+        auditService.logEvent(makerId, "VOUCHER_CREATED", "VOUCHER", voucher.getId(),
+                "Voucher " + voucherNumber + " created: " + drCr + " " + currency + " " + transactionAmount
+                + " account=" + account.getAccountNumber() + " maker=" + (maker != null ? maker.getUsername() : "N/A"),
+                null);
 
         return voucher;
+    }
+
+    /**
+     * Atomically create a DR+CR voucher pair within a single transaction.
+     * If either leg fails, both are rolled back — no orphaned half-pairs.
+     *
+     * @return array of [drVoucher, crVoucher]
+     */
+    @Transactional
+    public Voucher[] createVoucherPair(Tenant tenant,
+                                        Branch debitBranch, Account debitAccount, GeneralLedger debitGl,
+                                        Branch creditBranch, Account creditAccount, GeneralLedger creditGl,
+                                        BigDecimal amount, String currency, LocalDate businessDate,
+                                        String batchCode, User maker, String drNarration, String crNarration) {
+        Voucher drVoucher = createVoucher(tenant, debitBranch, debitAccount, debitGl, VoucherDrCr.DR,
+                amount, amount, currency, businessDate, businessDate,
+                batchCode, 1, maker, drNarration);
+        Voucher crVoucher = createVoucher(tenant, creditBranch, creditAccount, creditGl, VoucherDrCr.CR,
+                amount, amount, currency, businessDate, businessDate,
+                batchCode, 1, maker, crNarration);
+        return new Voucher[]{drVoucher, crVoucher};
+    }
+
+    /**
+     * Generate formatted voucher number: <TENANT_CODE>-<BRANCH_CODE>-<YYYYMMDD>-<6-digit scroll>.
+     * Example: TENANT-001-HQ001-20250130-000001
+     */
+    private String generateVoucherNumber(String tenantCode, String branchCode,
+                                          LocalDate postingDate, Long scrollNo) {
+        String dateStr = postingDate.toString().replace("-", "");
+        return String.format("%s-%s-%s-%06d", tenantCode, branchCode, dateStr, scrollNo);
     }
 
     /**
@@ -181,13 +261,23 @@ public class VoucherService {
 
         log.info("Voucher authorized: id={}, checker={}", voucherId, checker.getUsername());
 
+        // RBI-F7: Audit trail for authorization
+        auditService.logEvent(checker.getId(), "VOUCHER_AUTHORIZED", "VOUCHER", voucher.getId(),
+                "Voucher " + voucher.getVoucherNumber() + " authorized by checker=" + checker.getUsername()
+                + " (maker=" + (voucher.getMaker() != null ? voucher.getMaker().getUsername() : "N/A") + ")",
+                null);
+
         return voucher;
     }
 
     /**
-     * System auto-authorize a voucher for straight-through processing (e.g. teller deposits).
-     * Records the maker as the initiator and marks authorization as SYSTEM_AUTO.
-     * This maintains audit trail while allowing single-user transaction flows.
+     * RBI-F4/F9: System auto-authorize a voucher for straight-through processing (e.g. teller deposits).
+     *
+     * Uses the dedicated SYSTEM_AUTO pseudo-user as checker to ensure maker != checker
+     * in the audit trail. SYSTEM_AUTO MUST be seeded in DataInitializer.
+     *
+     * GOVERNANCE: If SYSTEM_AUTO is not found, posting is BLOCKED with GovernanceException.
+     * No fallback to maker. No silent degradation. Fail fast.
      */
     @Transactional
     public Voucher systemAuthorizeVoucher(Long voucherId, User maker) {
@@ -202,15 +292,23 @@ public class VoucherService {
             throw new RuntimeException("Voucher already authorized: " + voucherId);
         }
 
+        // RBI-F4: Resolve SYSTEM_AUTO — NO FALLBACK. Fail fast if not configured.
+        User checker = userRepository.findByUsername("SYSTEM_AUTO")
+                .orElseThrow(() -> new com.ledgora.common.exception.GovernanceException(
+                        "SYSTEM_AUTO_MISSING",
+                        "SYSTEM_AUTO user not configured. Posting blocked. "
+                        + "Seed SYSTEM_AUTO with ROLE_SYSTEM in DataInitializer."));
+
         voucher.setAuthFlag("Y");
-        // Record maker as checker with SYSTEM_AUTO narration for audit trail
-        voucher.setChecker(maker);
-        String existingNarration = voucher.getNarration() != null ? voucher.getNarration() : "";
-        voucher.setNarration(existingNarration + " [SYSTEM_AUTO_AUTHORIZED]");
+        voucher.setChecker(checker);
+        // RBI-F9: Authorization metadata goes to dedicated field, narration stays immutable
+        voucher.setAuthorizationRemarks("SYSTEM_AUTO_AUTHORIZED by " + checker.getUsername()
+                + " for maker=" + (maker != null ? maker.getUsername() : "N/A")
+                + " at " + LocalDateTime.now());
         voucher = voucherRepository.save(voucher);
 
-        log.info("Voucher system-auto-authorized: id={}, maker={}", voucherId,
-                maker != null ? maker.getUsername() : "SYSTEM");
+        log.info("Voucher system-auto-authorized: id={}, checker=SYSTEM_AUTO, maker={}", voucherId,
+                maker != null ? maker.getUsername() : "N/A");
 
         return voucher;
     }
@@ -225,12 +323,49 @@ public class VoucherService {
 
     /**
      * Post a voucher and optionally link ledger entries to an existing transaction.
+     *
+     * ACCOUNTING MODEL:
+     * Each Voucher is a SINGLE accounting leg (DR or CR, never both).
+     * DR==CR balance is enforced at the PAIR level:
+     *   - TransactionService creates matched DR+CR vouchers with equal amounts
+     *   - createVoucherPair() wraps both in a single @Transactional
+     *   - EOD validates SUM(debits) == SUM(credits) at ledger level
+     *
+     * VOUCHER INTEGRITY (RBI-CRITICAL):
+     * Before any ledger entry is persisted, this method validates:
+     *   - drCr is not null (direction must be explicit)
+     *   - amount > 0 (zero/negative amounts are corrupt)
+     * If either fails, AccountingException is thrown and @Transactional rolls back.
+     *
+     * TENANT SAFETY (RBI-F1):
+     * - Voucher fetched with tenant isolation (findByIdAndTenantId)
+     * - Voucher businessDate validated against tenant.currentBusinessDate
+     * - Tenant dayStatus validated as OPEN
      */
     @Transactional
     public Voucher postVoucher(Long voucherId, Transaction linkedTransaction) {
+        Long tenantId = requireTenantId();
+
+        // ── TENANT ISOLATION: fetch with tenant filter first ──
+        voucherRepository.findByIdAndTenantId(voucherId, tenantId)
+                .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
         Voucher voucher = voucherRepository.findByIdWithLock(voucherId)
                 .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
 
+        // ── TENANT SAFETY: validate business date and day status ──
+        Tenant tenant = voucher.getTenant();
+        if (tenant.getDayStatus() != com.ledgora.common.enums.DayStatus.OPEN) {
+            throw new RuntimeException("Cannot post voucher " + voucherId
+                    + ": tenant business day is " + tenant.getDayStatus()
+                    + ". Posting only allowed when day status is OPEN.");
+        }
+        if (!voucher.getPostingDate().equals(tenant.getCurrentBusinessDate())) {
+            throw new RuntimeException("Cannot post voucher " + voucherId
+                    + ": posting date " + voucher.getPostingDate()
+                    + " does not match tenant business date " + tenant.getCurrentBusinessDate());
+        }
+
+        // ── VOUCHER STATE GUARDS ──
         if ("Y".equals(voucher.getCancelFlag())) {
             throw new RuntimeException("Cannot post a cancelled voucher: " + voucherId);
         }
@@ -244,9 +379,31 @@ public class VoucherService {
         ensureBatchIsOpen(voucher);
 
         Account account = voucher.getAccount();
-        Tenant tenant = voucher.getTenant();
         BigDecimal amount = voucher.getTransactionAmount();
         VoucherDrCr drCr = voucher.getDrCr();
+
+        // ── VOUCHER INTEGRITY ASSERTION (RBI-CRITICAL) ──
+        // Each voucher is a single accounting leg (DR xor CR). The DR==CR balance
+        // is enforced at the PAIR level: TransactionService always creates matched
+        // DR+CR vouchers with equal amounts, and createVoucherPair() is atomic.
+        //
+        // Here we validate the leg itself is well-formed:
+        //   - drCr must not be null
+        //   - amount must be positive (> 0)
+        // If either is violated, the voucher is corrupt and must not post.
+        if (drCr == null) {
+            throw new com.ledgora.common.exception.AccountingException(
+                    "INVALID_VOUCHER",
+                    "Voucher " + voucherId + " has null DR/CR direction — cannot post.");
+        }
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new com.ledgora.common.exception.AccountingException(
+                    "INVALID_VOUCHER_AMOUNT",
+                    "Voucher " + voucherId + " has zero or negative amount (" + amount
+                    + ") — cannot post.");
+        }
+
+        // ── All validations passed. Now persist immutable ledger entries. ──
 
         // Find or create a transaction reference for this voucher
         Transaction transaction = findOrCreateTransaction(voucher, linkedTransaction);
@@ -265,6 +422,7 @@ public class VoucherService {
         EntryType glEntryType = drCr == VoucherDrCr.DR ? EntryType.CREDIT : EntryType.DEBIT;
 
         // Create immutable LedgerEntry for account side
+        // voucherId must be set at build time because LedgerEntry is @Immutable (no updates)
         BigDecimal balanceAfter = calculateBalanceAfter(account.getId(), amount, drCr);
         LedgerEntry accountEntry = LedgerEntry.builder()
                 .journal(journal)
@@ -280,6 +438,7 @@ public class VoucherService {
                 .businessDate(voucher.getPostingDate())
                 .postingTime(LocalDateTime.now())
                 .narration(voucher.getNarration())
+                .voucherId(voucher.getId())
                 .build();
         accountEntry = entryRepository.save(accountEntry);
 
@@ -302,12 +461,24 @@ public class VoucherService {
                 voucherId, journal.getId(), accountEntry.getId(),
                 account.getAccountNumber(), amount);
 
+        // RBI-F7: Audit trail for posting
+        Long checkerId = voucher.getChecker() != null ? voucher.getChecker().getId() : null;
+        auditService.logEvent(checkerId, "VOUCHER_POSTED", "VOUCHER", voucher.getId(),
+                "Voucher " + voucher.getVoucherNumber() + " posted: journal=" + journal.getId()
+                + " ledgerEntry=" + accountEntry.getId() + " " + drCr + " " + amount
+                + " account=" + account.getAccountNumber(),
+                null);
+
         return voucher;
     }
 
     /**
      * Cancel a voucher. Creates a reversal voucher and reversal ledger entry.
      * Marks original cancel_flag = Y.
+     *
+     * RBI-F6: Validates that tenant business day is OPEN and that the voucher's
+     * posting date matches the current business date (no backdated reversals
+     * without a separate back-value workflow).
      */
     @Transactional
     public Voucher cancelVoucher(Long voucherId, User cancelledBy, String reason) {
@@ -319,52 +490,77 @@ public class VoucherService {
             throw new RuntimeException("Voucher already cancelled: " + voucherId);
         }
 
+        // RBI-F6: Block cancellation if business day is not OPEN
+        com.ledgora.tenant.entity.Tenant tenant = original.getTenant();
+        if (tenant.getDayStatus() != com.ledgora.common.enums.DayStatus.OPEN) {
+            throw new RuntimeException("Cannot cancel voucher " + voucherId
+                    + ": tenant business day is " + tenant.getDayStatus()
+                    + ". Cancellations only allowed when day status is OPEN.");
+        }
+        // RBI-F6: Block backdated reversal — voucher posting date must equal current business date
+        if (!original.getPostingDate().equals(tenant.getCurrentBusinessDate())) {
+            throw new RuntimeException("Cannot cancel voucher " + voucherId
+                    + ": posting date " + original.getPostingDate()
+                    + " does not match current business date " + tenant.getCurrentBusinessDate()
+                    + ". Backdated reversals require a separate back-value workflow.");
+        }
+
         // Determine reversal direction
         VoucherDrCr reversalDrCr = original.getDrCr() == VoucherDrCr.DR ? VoucherDrCr.CR : VoucherDrCr.DR;
 
-        // Get next scroll number for reversal
-        Long scrollNo = getNextScrollNo(
-                original.getTenant().getId(),
-                original.getBranch().getId(),
-                original.getPostingDate());
+        Voucher reversal;
 
-        // Create reversal voucher
-        Voucher reversal = Voucher.builder()
-                .tenant(original.getTenant())
-                .branch(original.getBranch())
-                .account(original.getAccount())
-                .glAccount(original.getGlAccount())
-                .drCr(reversalDrCr)
-                .transactionAmount(original.getTransactionAmount())
-                .localCurrencyAmount(original.getLocalCurrencyAmount())
-                .currency(original.getCurrency())
-                .entryDate(LocalDate.now())
-                .postingDate(original.getPostingDate())
-                .valueDate(original.getValueDate())
-                .effectiveDate(original.getEffectiveDate())
-                .batchCode(original.getBatchCode())
-                .setNo(original.getSetNo())
-                .scrollNo(scrollNo)
-                .maker(cancelledBy)
-                .authFlag("Y")
-                .postFlag("N")
-                .cancelFlag("N")
-                .financialEffectFlag("Y")
-                .narration("REVERSAL of voucher " + voucherId + ": " + reason)
-                .reversalOfVoucher(original)
-                .build();
-        reversal = voucherRepository.save(reversal);
-
-        // If original was posted, create reversal ledger entry
         if ("Y".equals(original.getPostFlag())) {
-            // Auto-post the reversal voucher
+            // Original was posted — create a full reversal voucher and auto-post it
+            Long scrollNo = getNextScrollNo(
+                    original.getTenant().getId(),
+                    original.getBranch().getId(),
+                    original.getPostingDate());
+
+            String reversalVoucherNumber = generateVoucherNumber(
+                    original.getTenant().getTenantCode(),
+                    original.getBranch().getBranchCode(),
+                    original.getPostingDate(), scrollNo);
+
+            reversal = Voucher.builder()
+                    .voucherNumber(reversalVoucherNumber)
+                    .tenant(original.getTenant())
+                    .branch(original.getBranch())
+                    .transaction(original.getTransaction())
+                    .account(original.getAccount())
+                    .glAccount(original.getGlAccount())
+                    .drCr(reversalDrCr)
+                    .transactionAmount(original.getTransactionAmount())
+                    .localCurrencyAmount(original.getLocalCurrencyAmount())
+                    .currency(original.getCurrency())
+                    .entryDate(LocalDate.now())
+                    .postingDate(original.getPostingDate())
+                    .valueDate(original.getValueDate())
+                    .effectiveDate(original.getEffectiveDate())
+                    .batchCode(original.getBatchCode())
+                    .setNo(original.getSetNo())
+                    .scrollNo(scrollNo)
+                    .maker(cancelledBy)
+                    .authFlag("Y")
+                    .postFlag("N")
+                    .cancelFlag("N")
+                    .financialEffectFlag("Y")
+                    .narration("REVERSAL of voucher " + voucherId + " (" + original.getVoucherNumber() + "): " + reason)
+                    .reversalOfVoucher(original)
+                    .build();
+            reversal = voucherRepository.save(reversal);
+
+            // Auto-post the reversal voucher (creates reversal ledger entries)
             reversal = postVoucher(reversal.getId());
         } else {
-            // If not posted, just reverse the shadow effect
+            // Original was NOT posted — no ledger entries to reverse.
+            // Just reverse the shadow balance effect; no reversal voucher needed.
             cbsBalanceEngine.updateShadowBalance(
                     original.getAccount().getId(),
                     original.getTransactionAmount(),
                     reversalDrCr);
+            // Use the original as the "reversal" return value since no separate voucher is created
+            reversal = original;
         }
 
         // Mark original as cancelled
@@ -373,6 +569,14 @@ public class VoucherService {
 
         log.info("Voucher cancelled: original={}, reversal={}, reason={}",
                 voucherId, reversal.getId(), reason);
+
+        // RBI-F7: Audit trail for cancellation/reversal
+        Long cancelUserId = cancelledBy != null ? cancelledBy.getId() : null;
+        auditService.logEvent(cancelUserId, "VOUCHER_CANCELLED", "VOUCHER", voucherId,
+                "Voucher " + original.getVoucherNumber() + " cancelled. Reversal voucher="
+                + reversal.getVoucherNumber() + " reason=" + reason
+                + " cancelledBy=" + (cancelledBy != null ? cancelledBy.getUsername() : "N/A"),
+                null);
 
         return reversal;
     }
@@ -439,8 +643,14 @@ public class VoucherService {
         if (linkedTransaction != null) {
             return linkedTransaction;
         }
-        // Look for existing transactions linked to this account on the same date
-        // Create a minimal transaction record for the voucher posting
+        // FR-10 fix: Use the voucher's own transaction FK before creating a synthetic one.
+        // This is critical for reversal auto-posting — cancelVoucher sets
+        // reversal.transaction = original.transaction, but calls postVoucher(id)
+        // without passing the transaction explicitly.
+        if (voucher.getTransaction() != null) {
+            return voucher.getTransaction();
+        }
+        // Last resort: create a minimal synthetic transaction for standalone voucher posting
         String txRef = "VCH-" + voucher.getId() + "-" + System.currentTimeMillis();
         Transaction transaction = Transaction.builder()
                 .tenant(voucher.getTenant())
@@ -460,18 +670,27 @@ public class VoucherService {
 
     private void ensureBatchIsOpen(Voucher voucher) {
         String batchCode = voucher.getBatchCode();
-        if (batchCode == null || !batchCode.startsWith("BATCH-")) {
+        if (batchCode == null || batchCode.isBlank()) {
             throw new RuntimeException("Voucher posting requires a valid open batch code. Found: " + batchCode);
         }
-        Long batchId;
-        try {
-            batchId = Long.parseLong(batchCode.substring("BATCH-".length()));
-        } catch (NumberFormatException ex) {
-            throw new RuntimeException("Voucher posting requires batch code format BATCH-<id>. Found: " + batchCode);
-        }
 
-        TransactionBatch batch = transactionBatchRepository.findById(batchId)
-                .orElseThrow(() -> new RuntimeException("Batch not found for voucher posting: " + batchCode));
+        // Try lookup by batchCode column first; fall back to BATCH-<id> pattern for backward compat
+        TransactionBatch batch = transactionBatchRepository.findByBatchCode(batchCode)
+                .orElseGet(() -> {
+                    // Legacy pattern: batchCode string is "BATCH-<id>" but the DB column may be null
+                    if (batchCode.startsWith("BATCH-")) {
+                        try {
+                            Long batchId = Long.parseLong(batchCode.substring("BATCH-".length()));
+                            return transactionBatchRepository.findById(batchId).orElse(null);
+                        } catch (NumberFormatException ex) {
+                            return null;
+                        }
+                    }
+                    return null;
+                });
+        if (batch == null) {
+            throw new RuntimeException("Batch not found for voucher posting: " + batchCode);
+        }
 
         if (batch.getTenant() == null || voucher.getTenant() == null
                 || !batch.getTenant().getId().equals(voucher.getTenant().getId())) {
