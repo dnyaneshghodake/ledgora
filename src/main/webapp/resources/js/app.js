@@ -117,25 +117,20 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // ── CBS Session Timeout Countdown (PCI-DSS / RBI compliance) ──
-    // Counts down from 30 minutes. Warns at 5min, critical at 2min.
-    // Resets on user activity (click, keypress, scroll).
+    // ── CBS Session Timeout Countdown ──
     var sessionTimerEl = document.getElementById('cbsSessionTimer');
     var sessionCountdownEl = document.getElementById('cbsSessionCountdown');
     if (sessionTimerEl && sessionCountdownEl) {
-        var SESSION_TIMEOUT = 30 * 60; // 30 minutes in seconds
-        var SESSION_WARN = 5 * 60;     // warn at 5 minutes
-        var SESSION_CRITICAL = 2 * 60; // critical at 2 minutes
+        var SESSION_TIMEOUT = 30 * 60;
+        var SESSION_WARN = 5 * 60;
+        var SESSION_CRITICAL = 2 * 60;
         var sessionSecondsLeft = SESSION_TIMEOUT;
-
         var pad2 = function(n) { return String(n).padStart(2, '0'); };
 
         var updateSessionDisplay = function() {
             var mins = Math.floor(sessionSecondsLeft / 60);
             var secs = sessionSecondsLeft % 60;
             sessionCountdownEl.textContent = pad2(mins) + ':' + pad2(secs);
-
-            // Update visual state
             sessionTimerEl.classList.remove('cbs-session-warning', 'cbs-session-critical');
             if (sessionSecondsLeft <= SESSION_CRITICAL) {
                 sessionTimerEl.classList.add('cbs-session-critical');
@@ -149,8 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 sessionSecondsLeft--;
                 updateSessionDisplay();
             } else {
-                // Session expired — redirect to login
-                window.location.href = window.location.pathname.substring(0, window.location.pathname.indexOf('/', 1) + 1) + 'login?expired=true';
+                window.location.href = '/login?expired=true';
             }
         };
 
@@ -162,10 +156,14 @@ document.addEventListener('DOMContentLoaded', function() {
         updateSessionDisplay();
         setInterval(sessionTick, 1000);
 
-        // Reset timer on user activity
-        ['click', 'keypress', 'scroll', 'mousemove'].forEach(function(evt) {
+        var lastResetTime = Date.now();
+        ['click', 'keypress', 'scroll'].forEach(function(evt) {
             document.addEventListener(evt, function() {
-                resetSessionTimer();
+                var now = Date.now();
+                if (now - lastResetTime > 5000) {
+                    lastResetTime = now;
+                    resetSessionTimer();
+                }
             }, { passive: true });
         });
     }
