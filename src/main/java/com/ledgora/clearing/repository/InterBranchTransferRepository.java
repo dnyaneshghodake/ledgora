@@ -5,13 +5,17 @@ import com.ledgora.common.enums.InterBranchTransferStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface InterBranchTransferRepository extends JpaRepository<InterBranchTransfer, Long> {
+public interface InterBranchTransferRepository
+        extends JpaRepository<InterBranchTransfer, Long>, JpaSpecificationExecutor<InterBranchTransfer> {
 
     List<InterBranchTransfer> findByTenantIdAndStatus(
             Long tenantId, InterBranchTransferStatus status);
@@ -79,4 +83,38 @@ public interface InterBranchTransferRepository extends JpaRepository<InterBranch
                     + "AND t.status NOT IN ('SETTLED') "
                     + "ORDER BY t.status, t.createdAt DESC")
     List<InterBranchTransfer> findUnsettledByTenantId(@Param("tenantId") Long tenantId);
+
+    // ===== Paginated queries for IBT list screen =====
+
+    /** Paginated tenant-scoped listing (default sort: createdAt desc). */
+    Page<InterBranchTransfer> findByTenantId(Long tenantId, Pageable pageable);
+
+    /** Paginated filter by status. */
+    Page<InterBranchTransfer> findByTenantIdAndStatus(
+            Long tenantId, InterBranchTransferStatus status, Pageable pageable);
+
+    /** Paginated filter by business date. */
+    Page<InterBranchTransfer> findByTenantIdAndBusinessDate(
+            Long tenantId, LocalDate businessDate, Pageable pageable);
+
+    /** Paginated filter by source branch. */
+    Page<InterBranchTransfer> findByTenantIdAndFromBranchId(
+            Long tenantId, Long fromBranchId, Pageable pageable);
+
+    /** Paginated filter by destination branch. */
+    Page<InterBranchTransfer> findByTenantIdAndToBranchId(
+            Long tenantId, Long toBranchId, Pageable pageable);
+
+    /** Paginated filter by status + business date. */
+    Page<InterBranchTransfer> findByTenantIdAndStatusAndBusinessDate(
+            Long tenantId, InterBranchTransferStatus status, LocalDate businessDate,
+            Pageable pageable);
+
+    /** Paginated filter by status + source branch. */
+    Page<InterBranchTransfer> findByTenantIdAndStatusAndFromBranchId(
+            Long tenantId, InterBranchTransferStatus status, Long fromBranchId, Pageable pageable);
+
+    /** Paginated filter by status + destination branch. */
+    Page<InterBranchTransfer> findByTenantIdAndStatusAndToBranchId(
+            Long tenantId, InterBranchTransferStatus status, Long toBranchId, Pageable pageable);
 }
