@@ -22,8 +22,8 @@ import lombok.NoArgsConstructor;
 /**
  * Fraud alert raised when velocity or other fraud detection rules are triggered.
  *
- * <p>RBI Fraud Risk Management: Each alert is an immutable record that forms the compliance evidence
- * trail. Alerts are never deleted — only resolved via status update.
+ * <p>RBI Fraud Risk Management: Each alert is an immutable record that forms the compliance
+ * evidence trail. Alerts are never deleted — only resolved via status update.
  */
 @Entity
 @Table(

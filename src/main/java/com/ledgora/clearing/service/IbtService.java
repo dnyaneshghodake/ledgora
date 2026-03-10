@@ -70,8 +70,7 @@ public class IbtService {
      *
      * @throws GovernanceException if any validation fails
      */
-    public void validateBranchesForIbt(
-            Tenant tenant, Branch sourceBranch, Branch destBranch) {
+    public void validateBranchesForIbt(Tenant tenant, Branch sourceBranch, Branch destBranch) {
         if (sourceBranch == null || destBranch == null) {
             throw new GovernanceException(
                     "IBT_BRANCH_NULL",
@@ -120,10 +119,7 @@ public class IbtService {
      * @throws GovernanceException always — direct cross-branch posting is never allowed
      */
     public void blockDirectCrossBranchPosting(
-            Account sourceAccount,
-            Account destAccount,
-            Branch sourceBranch,
-            Branch destBranch) {
+            Account sourceAccount, Account destAccount, Branch sourceBranch, Branch destBranch) {
         throw new GovernanceException(
                 "DIRECT_CROSS_BRANCH_BLOCKED",
                 "Direct cross-branch posting is strictly prohibited. "
@@ -234,10 +230,7 @@ public class IbtService {
         List<com.ledgora.voucher.entity.Voucher> vouchers =
                 voucherRepository.findByTransactionId(originalTransactionId);
 
-        long cancelledCount =
-                vouchers.stream()
-                        .filter(v -> "Y".equals(v.getCancelFlag()))
-                        .count();
+        long cancelledCount = vouchers.stream().filter(v -> "Y".equals(v.getCancelFlag())).count();
         long totalCount = vouchers.size();
 
         if (cancelledCount > 0 && cancelledCount < totalCount) {

@@ -18,7 +18,6 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * CBS End-of-Day (EOD) Validation Service.
@@ -219,8 +218,9 @@ public class EodValidationService {
      * Run EOD process using the crash-safe state machine.
      *
      * <p>Delegates to {@link EodStateMachineService} which executes each phase in its own
-     * transaction. On crash/restart, incomplete EOD is detected and resumed from the last successful
-     * phase. Double execution is prevented via unique constraint on (tenant_id, business_date).
+     * transaction. On crash/restart, incomplete EOD is detected and resumed from the last
+     * successful phase. Double execution is prevented via unique constraint on (tenant_id,
+     * business_date).
      *
      * <p>Legacy single-transaction EOD is replaced by phase-by-phase execution: VALIDATED →
      * DAY_CLOSING → BATCH_CLOSED → SETTLED → DATE_ADVANCED

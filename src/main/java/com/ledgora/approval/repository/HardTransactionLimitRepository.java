@@ -7,8 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface HardTransactionLimitRepository
-        extends JpaRepository<HardTransactionLimit, Long> {
+public interface HardTransactionLimitRepository extends JpaRepository<HardTransactionLimit, Long> {
 
     /** Find channel-specific hard limit. */
     Optional<HardTransactionLimit> findByTenantIdAndChannelAndIsActiveTrue(

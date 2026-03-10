@@ -132,8 +132,8 @@ public class EodStateMachineService {
     }
 
     /**
-     * Detect and list all incomplete EOD processes across all tenants. Called on application startup
-     * for recovery.
+     * Detect and list all incomplete EOD processes across all tenants. Called on application
+     * startup for recovery.
      */
     public List<EodProcess> findIncompleteProcesses() {
         return eodProcessRepository.findByStatus("RUNNING");
@@ -163,10 +163,7 @@ public class EodStateMachineService {
                 "EOD_STARTED",
                 "EOD_PROCESS",
                 process.getId(),
-                "EOD started for tenant "
-                        + tenant.getId()
-                        + " business date "
-                        + businessDate,
+                "EOD started for tenant " + tenant.getId() + " business date " + businessDate,
                 null);
 
         log.info(
@@ -213,8 +210,7 @@ public class EodStateMachineService {
 
         List<String> errors = eodValidationService.validateEod(tenantId, businessDate);
         if (!errors.isEmpty()) {
-            throw new RuntimeException(
-                    "EOD validation failed: " + String.join("; ", errors));
+            throw new RuntimeException("EOD validation failed: " + String.join("; ", errors));
         }
 
         updatePhase(process.getId(), EodPhase.DAY_CLOSING);
@@ -266,7 +262,9 @@ public class EodStateMachineService {
                 eodProcessRepository
                         .findById(process.getId())
                         .orElseThrow(
-                                () -> new RuntimeException("EodProcess not found: " + process.getId()));
+                                () ->
+                                        new RuntimeException(
+                                                "EodProcess not found: " + process.getId()));
         process.setPhase(EodPhase.DATE_ADVANCED);
         process.setStatus("COMPLETED");
         process.setCompletedAt(LocalDateTime.now());
@@ -311,7 +309,9 @@ public class EodStateMachineService {
                 eodProcessRepository
                         .findById(process.getId())
                         .orElseThrow(
-                                () -> new RuntimeException("EodProcess not found: " + process.getId()));
+                                () ->
+                                        new RuntimeException(
+                                                "EodProcess not found: " + process.getId()));
         process.setStatus("FAILED");
         process.setFailureReason(
                 reason != null && reason.length() > 2000 ? reason.substring(0, 2000) : reason);

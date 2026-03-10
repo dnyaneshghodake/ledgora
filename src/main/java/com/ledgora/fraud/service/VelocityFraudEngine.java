@@ -108,8 +108,7 @@ public class VelocityFraudEngine {
         LocalDateTime since = LocalDateTime.now().minusMinutes(VELOCITY_WINDOW_MINUTES);
 
         // Check transaction count in window
-        long recentCount =
-                transactionRepository.countRecentByAccountId(tenantId, accountId, since);
+        long recentCount = transactionRepository.countRecentByAccountId(tenantId, accountId, since);
         if (recentCount >= limit.getMaxTxnCountPerHour()) {
             handleVelocityBreach(
                     tenant,

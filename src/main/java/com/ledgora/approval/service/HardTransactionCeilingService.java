@@ -112,8 +112,7 @@ public class HardTransactionCeilingService {
                             + " userId="
                             + userId;
 
-            auditService.logEvent(
-                    userId, "HARD_LIMIT_EXCEEDED", "GOVERNANCE", null, detail, null);
+            auditService.logEvent(userId, "HARD_LIMIT_EXCEEDED", "GOVERNANCE", null, detail, null);
 
             log.warn(
                     "HARD CEILING BLOCKED: tenant={} channel={} amount={} ceiling={} userId={}",
