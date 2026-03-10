@@ -5,9 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Structured result of a deadlock simulation and recovery verification run.
- */
+/** Structured result of a deadlock simulation and recovery verification run. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -36,19 +34,41 @@ public class DeadlockSimulationResult {
                 + "╔══════════════════════════════════════════════════╗\n"
                 + "║        DEADLOCK SIMULATION SUMMARY               ║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
-                + "║ Deadlock triggered:  " + pad(deadlockTriggered ? "YES" : "NO") + "║\n"
-                + "║ Deadlock count:      " + pad(deadlockCount) + "║\n"
-                + "║ Total attempts:      " + pad(totalAttempts) + "║\n"
-                + "║ Succeeded:           " + pad(successfulTransactions) + "║\n"
-                + "║ Failed:              " + pad(failedTransactions) + "║\n"
-                + "║ Thread A:            " + pad(threadAOutcome) + "║\n"
-                + "║ Thread B:            " + pad(threadBOutcome) + "║\n"
+                + "║ Deadlock triggered:  "
+                + pad(deadlockTriggered ? "YES" : "NO")
+                + "║\n"
+                + "║ Deadlock count:      "
+                + pad(deadlockCount)
+                + "║\n"
+                + "║ Total attempts:      "
+                + pad(totalAttempts)
+                + "║\n"
+                + "║ Succeeded:           "
+                + pad(successfulTransactions)
+                + "║\n"
+                + "║ Failed:              "
+                + pad(failedTransactions)
+                + "║\n"
+                + "║ Thread A:            "
+                + pad(threadAOutcome)
+                + "║\n"
+                + "║ Thread B:            "
+                + pad(threadBOutcome)
+                + "║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
                 + "║ Recovery Verification                           ║\n"
-                + "║ Ledger balanced:     " + pad(ledgerBalanced ? "VERIFIED ✅" : "FAILED ❌") + "║\n"
-                + "║ No partial vouchers: " + pad(noPartialVouchers ? "VERIFIED ✅" : "FAILED ❌") + "║\n"
-                + "║ Batch totals intact: " + pad(batchTotalsIntact ? "VERIFIED ✅" : "FAILED ❌") + "║\n"
-                + "║ System recovered:    " + pad(systemRecovered ? "YES ✅" : "NO ❌") + "║\n"
+                + "║ Ledger balanced:     "
+                + pad(ledgerBalanced ? "VERIFIED ✅" : "FAILED ❌")
+                + "║\n"
+                + "║ No partial vouchers: "
+                + pad(noPartialVouchers ? "VERIFIED ✅" : "FAILED ❌")
+                + "║\n"
+                + "║ Batch totals intact: "
+                + pad(batchTotalsIntact ? "VERIFIED ✅" : "FAILED ❌")
+                + "║\n"
+                + "║ System recovered:    "
+                + pad(systemRecovered ? "YES ✅" : "NO ❌")
+                + "║\n"
                 + "╚══════════════════════════════════════════════════╝";
     }
 

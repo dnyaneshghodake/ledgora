@@ -81,10 +81,7 @@ public class StressTestController {
 
         log.info(
                 "Stress test initiated: tenant={} accounts={} txns={} ibtRatio={}%",
-                tenantId,
-                accounts,
-                transactions,
-                ibtRatio);
+                tenantId, accounts, transactions, ibtRatio);
 
         // Phase 1: Generate load
         long loadStart = System.currentTimeMillis();
@@ -213,11 +210,7 @@ public class StressTestController {
 
         log.info(
                 "Production load test: tenant={} threads={} tps={} duration={}s ibt={}%",
-                tenantId,
-                threads,
-                targetTps,
-                duration,
-                ibtRatio);
+                tenantId, threads, targetTps, duration, ibtRatio);
 
         LoadGeneratorResult result =
                 productionLoadGenerator.generate(tenantId, threads, targetTps, duration, ibtRatio);
@@ -241,8 +234,7 @@ public class StressTestController {
      */
     @PostMapping("/chaos-eod")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ChaosEodResult> runChaosEodTest(
-            @RequestBody Map<String, Object> params) {
+    public ResponseEntity<ChaosEodResult> runChaosEodTest(@RequestBody Map<String, Object> params) {
 
         Long tenantId = ((Number) params.getOrDefault("tenantId", 1)).longValue();
         String crashAfterPhase = (String) params.getOrDefault("crashAfterPhase", "DAY_CLOSING");

@@ -9,8 +9,8 @@ import lombok.NoArgsConstructor;
 /**
  * Structured result of a lock contention simulation run.
  *
- * <p>Captures concurrency metrics, lock wait events, and deadlock occurrences from parallel
- * posting + EOD execution.
+ * <p>Captures concurrency metrics, lock wait events, and deadlock occurrences from parallel posting
+ * + EOD execution.
  */
 @Data
 @NoArgsConstructor
@@ -52,28 +52,60 @@ public class LockContentionResult {
                 + "║       LOCK CONTENTION SIMULATION SUMMARY        ║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
                 + "║ Configuration                                   ║\n"
-                + "║   Threads:          " + pad(threadCount) + "║\n"
-                + "║   Txns/Thread:      " + pad(transactionsPerThread) + "║\n"
-                + "║   Total Duration:   " + pad(totalDurationMs + "ms") + "║\n"
+                + "║   Threads:          "
+                + pad(threadCount)
+                + "║\n"
+                + "║   Txns/Thread:      "
+                + pad(transactionsPerThread)
+                + "║\n"
+                + "║   Total Duration:   "
+                + pad(totalDurationMs + "ms")
+                + "║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
                 + "║ Transactions                                    ║\n"
-                + "║   Attempted:        " + pad(totalTransactionsAttempted) + "║\n"
-                + "║   Succeeded:        " + pad(totalTransactionsSucceeded) + "║\n"
-                + "║   Failed:           " + pad(totalTransactionsFailed) + "║\n"
-                + "║   Avg Time (ms):    " + pad(avgTransactionTimeMs) + "║\n"
-                + "║   Max Time (ms):    " + pad(maxTransactionTimeMs) + "║\n"
-                + "║   Min Time (ms):    " + pad(minTransactionTimeMs) + "║\n"
-                + "║   Slow (>2s):       " + pad(slowTransactionCount) + "║\n"
+                + "║   Attempted:        "
+                + pad(totalTransactionsAttempted)
+                + "║\n"
+                + "║   Succeeded:        "
+                + pad(totalTransactionsSucceeded)
+                + "║\n"
+                + "║   Failed:           "
+                + pad(totalTransactionsFailed)
+                + "║\n"
+                + "║   Avg Time (ms):    "
+                + pad(avgTransactionTimeMs)
+                + "║\n"
+                + "║   Max Time (ms):    "
+                + pad(maxTransactionTimeMs)
+                + "║\n"
+                + "║   Min Time (ms):    "
+                + pad(minTransactionTimeMs)
+                + "║\n"
+                + "║   Slow (>2s):       "
+                + pad(slowTransactionCount)
+                + "║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
                 + "║ Lock Contention                                 ║\n"
-                + "║   Lock Waits:       " + pad(lockWaitOccurrences) + "║\n"
-                + "║   Deadlocks:        " + pad(deadlockCount) + "║\n"
-                + "║   Lock Timeouts:    " + pad(lockTimeoutCount) + "║\n"
+                + "║   Lock Waits:       "
+                + pad(lockWaitOccurrences)
+                + "║\n"
+                + "║   Deadlocks:        "
+                + pad(deadlockCount)
+                + "║\n"
+                + "║   Lock Timeouts:    "
+                + pad(lockTimeoutCount)
+                + "║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
                 + "║ EOD (Parallel)                                  ║\n"
-                + "║   Attempted:        " + pad(eodAttempted) + "║\n"
-                + "║   Succeeded:        " + pad(eodSucceeded) + "║\n"
-                + "║   Time (ms):        " + pad(eodExecutionTimeMs) + "║\n"
+                + "║   Attempted:        "
+                + pad(eodAttempted)
+                + "║\n"
+                + "║   Succeeded:        "
+                + pad(eodSucceeded)
+                + "║\n"
+                + "║   Time (ms):        "
+                + pad(eodExecutionTimeMs)
+                + "║\n"
                 + (eodFailureReason != null
                         ? "║   Failure:          " + pad(eodFailureReason) + "║\n"
                         : "")
