@@ -59,4 +59,25 @@ public interface InterBranchTransferRepository extends JpaRepository<InterBranch
             @Param("tenantId") Long tenantId,
             @Param("branchId") Long branchId,
             @Param("businessDate") LocalDate businessDate);
+
+    /** Find all transfers for a tenant on a specific business date. */
+    List<InterBranchTransfer> findByTenantIdAndBusinessDate(
+            Long tenantId, LocalDate businessDate);
+
+    /** Find all transfers for a tenant (ordered by creation date descending). */
+    List<InterBranchTransfer> findByTenantIdOrderByCreatedAtDesc(Long tenantId);
+
+    /** Find transfers by tenant and reference transaction status (pending approval). */
+    @Query(
+            "SELECT t FROM InterBranchTransfer t WHERE t.tenant.id = :tenantId "
+                    + "AND t.referenceTransaction.status = 'PENDING_APPROVAL' "
+                    + "ORDER BY t.createdAt DESC")
+    List<InterBranchTransfer> findPendingApprovalByTenantId(@Param("tenantId") Long tenantId);
+
+    /** Find unsettled or failed transfers for reconciliation. */
+    @Query(
+            "SELECT t FROM InterBranchTransfer t WHERE t.tenant.id = :tenantId "
+                    + "AND t.status NOT IN ('SETTLED') "
+                    + "ORDER BY t.status, t.createdAt DESC")
+    List<InterBranchTransfer> findUnsettledByTenantId(@Param("tenantId") Long tenantId);
 }

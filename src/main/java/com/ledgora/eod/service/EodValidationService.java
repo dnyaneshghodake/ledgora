@@ -1,14 +1,11 @@
 package com.ledgora.eod.service;
 
-import com.ledgora.account.repository.AccountBalanceRepository;
 import com.ledgora.approval.repository.ApprovalRequestRepository;
-import com.ledgora.batch.service.BatchService;
 import com.ledgora.common.enums.ApprovalStatus;
 import com.ledgora.gl.service.CbsGlBalanceService;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
-import com.ledgora.tenant.service.TenantService;
 import com.ledgora.transaction.repository.TransactionRepository;
 import com.ledgora.voucher.repository.VoucherRepository;
 import java.math.BigDecimal;
@@ -18,7 +15,6 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * CBS End-of-Day (EOD) Validation Service.
@@ -38,12 +34,9 @@ public class EodValidationService {
 
     private final VoucherRepository voucherRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
-    private final AccountBalanceRepository accountBalanceRepository;
     private final ApprovalRequestRepository approvalRequestRepository;
     private final CbsGlBalanceService cbsGlBalanceService;
-    private final TenantService tenantService;
     private final TenantRepository tenantRepository;
-    private final BatchService batchService;
     private final TransactionRepository transactionRepository;
     private final com.ledgora.clearing.service.InterBranchClearingService
             interBranchClearingService;
@@ -54,12 +47,9 @@ public class EodValidationService {
     public EodValidationService(
             VoucherRepository voucherRepository,
             LedgerEntryRepository ledgerEntryRepository,
-            AccountBalanceRepository accountBalanceRepository,
             ApprovalRequestRepository approvalRequestRepository,
             CbsGlBalanceService cbsGlBalanceService,
-            TenantService tenantService,
             TenantRepository tenantRepository,
-            BatchService batchService,
             TransactionRepository transactionRepository,
             com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService,
             com.ledgora.clearing.service.IbtService ibtService,
@@ -67,12 +57,9 @@ public class EodValidationService {
             org.springframework.context.ApplicationContext applicationContext) {
         this.voucherRepository = voucherRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
-        this.accountBalanceRepository = accountBalanceRepository;
         this.approvalRequestRepository = approvalRequestRepository;
         this.cbsGlBalanceService = cbsGlBalanceService;
-        this.tenantService = tenantService;
         this.tenantRepository = tenantRepository;
-        this.batchService = batchService;
         this.transactionRepository = transactionRepository;
         this.interBranchClearingService = interBranchClearingService;
         this.ibtService = ibtService;
@@ -165,35 +152,29 @@ public class EodValidationService {
         }
 
         // Inter-branch clearing validation: all IBC transfers must be SETTLED or FAILED
-        if (interBranchClearingService != null) {
-            String ibcError =
-                    interBranchClearingService.validateClearingBalance(tenantId, businessDate);
-            if (ibcError != null) {
-                errors.add(ibcError);
-            }
+        String ibcError =
+                interBranchClearingService.validateClearingBalance(tenantId, businessDate);
+        if (ibcError != null) {
+            errors.add(ibcError);
         }
 
         // CBS Standard (Step 3): Clearing GL net balance must be zero at EOD
-        if (ibtService != null) {
-            String clearingGlError = ibtService.validateClearingGlNetZero(tenantId);
-            if (clearingGlError != null) {
-                errors.add(clearingGlError);
-            }
+        String clearingGlError = ibtService.validateClearingGlNetZero(tenantId);
+        if (clearingGlError != null) {
+            errors.add(clearingGlError);
         }
 
         // Suspense GL validation: suspense balance must be within tolerance (default: 0)
-        if (suspenseResolutionService != null) {
-            String suspenseBalanceError =
-                    suspenseResolutionService.validateSuspenseAccountBalance(tenantId);
-            if (suspenseBalanceError != null) {
-                errors.add(suspenseBalanceError);
-            }
-            String suspenseCaseError =
-                    suspenseResolutionService.validateSuspenseForEod(
-                            tenantId, java.math.BigDecimal.ZERO);
-            if (suspenseCaseError != null) {
-                errors.add(suspenseCaseError);
-            }
+        String suspenseBalanceError =
+                suspenseResolutionService.validateSuspenseAccountBalance(tenantId);
+        if (suspenseBalanceError != null) {
+            errors.add(suspenseBalanceError);
+        }
+        String suspenseCaseError =
+                suspenseResolutionService.validateSuspenseForEod(
+                        tenantId, java.math.BigDecimal.ZERO);
+        if (suspenseCaseError != null) {
+            errors.add(suspenseCaseError);
         }
 
         // 7. Branch GL balanced - checked if CbsGlBalanceService is tracking balances
@@ -219,8 +200,9 @@ public class EodValidationService {
      * Run EOD process using the crash-safe state machine.
      *
      * <p>Delegates to {@link EodStateMachineService} which executes each phase in its own
-     * transaction. On crash/restart, incomplete EOD is detected and resumed from the last successful
-     * phase. Double execution is prevented via unique constraint on (tenant_id, business_date).
+     * transaction. On crash/restart, incomplete EOD is detected and resumed from the last
+     * successful phase. Double execution is prevented via unique constraint on (tenant_id,
+     * business_date).
      *
      * <p>Legacy single-transaction EOD is replaced by phase-by-phase execution: VALIDATED →
      * DAY_CLOSING → BATCH_CLOSED → SETTLED → DATE_ADVANCED

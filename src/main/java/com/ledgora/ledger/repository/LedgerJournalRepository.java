@@ -21,6 +21,7 @@ public interface LedgerJournalRepository extends JpaRepository<LedgerJournal, Lo
     /**
      * @deprecated CBS: Ledger journals are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void deleteById(Long id) {
         throw new UnsupportedOperationException(
@@ -30,6 +31,7 @@ public interface LedgerJournalRepository extends JpaRepository<LedgerJournal, Lo
     /**
      * @deprecated CBS: Ledger journals are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void delete(LedgerJournal entity) {
         throw new UnsupportedOperationException(
@@ -39,6 +41,7 @@ public interface LedgerJournalRepository extends JpaRepository<LedgerJournal, Lo
     /**
      * @deprecated CBS: Ledger journals are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void deleteAll() {
         throw new UnsupportedOperationException(
@@ -48,6 +51,7 @@ public interface LedgerJournalRepository extends JpaRepository<LedgerJournal, Lo
     /**
      * @deprecated CBS: Ledger journals are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void deleteAllById(Iterable<? extends Long> ids) {
         throw new UnsupportedOperationException(
@@ -57,6 +61,7 @@ public interface LedgerJournalRepository extends JpaRepository<LedgerJournal, Lo
     /**
      * @deprecated CBS: Ledger journals are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void deleteAll(Iterable<? extends LedgerJournal> entities) {
         throw new UnsupportedOperationException(
@@ -66,6 +71,7 @@ public interface LedgerJournalRepository extends JpaRepository<LedgerJournal, Lo
     /**
      * @deprecated CBS: Ledger journals are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void deleteAllInBatch() {
         throw new UnsupportedOperationException(
@@ -75,6 +81,7 @@ public interface LedgerJournalRepository extends JpaRepository<LedgerJournal, Lo
     /**
      * @deprecated CBS: Ledger journals are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void deleteAllByIdInBatch(Iterable<Long> ids) {
         throw new UnsupportedOperationException(
@@ -84,6 +91,7 @@ public interface LedgerJournalRepository extends JpaRepository<LedgerJournal, Lo
     /**
      * @deprecated CBS: Ledger journals are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void deleteAllInBatch(Iterable<LedgerJournal> entities) {
         throw new UnsupportedOperationException(

@@ -23,6 +23,7 @@ import com.ledgora.customer.entity.CustomerMaster;
 import com.ledgora.customer.repository.CustomerFreezeControlRepository;
 import com.ledgora.customer.repository.CustomerMasterRepository;
 import com.ledgora.customer.service.CbsCustomerValidationService;
+import com.ledgora.eod.repository.EodProcessRepository;
 import com.ledgora.eod.service.EodValidationService;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
@@ -81,6 +82,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @Autowired private CbsBalanceEngine cbsBalanceEngine;
     @Autowired private CbsGlBalanceService cbsGlBalanceService;
     @Autowired private EodValidationService eodValidationService;
+    @Autowired private EodProcessRepository eodProcessRepository;
     @Autowired private CbsCustomerValidationService customerValidationService;
 
     @Autowired private TenantRepository tenantRepository;
@@ -1130,28 +1132,39 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
     @Test
     @Order(50)
-    @Transactional
     @DisplayName("Phase 6.1: Valid EOD - all conditions met, business date advances")
     void testValidEodAllConditionsMet() {
-        Tenant tenant = createTenant("P6-EOD-OK");
+        // NOTE: No @Transactional — EOD state machine uses REQUIRES_NEW which needs committed data
+        Tenant tenant =
+                tenantService.createTenant("P6-EOD-OK", "EOD OK Bank", LocalDate.now());
         LocalDate currentDate = tenant.getCurrentBusinessDate();
 
-        // No transactions means no unauthorized/unposted vouchers and ledger is trivially balanced
-        // Run EOD
-        assertDoesNotThrow(
-                () -> eodValidationService.runEod(tenant.getId()),
-                "EOD should pass when all conditions are met");
+        try {
+            // No transactions means no unauthorized/unposted vouchers and ledger is trivially
+            // balanced
+            // Run EOD
+            assertDoesNotThrow(
+                    () -> eodValidationService.runEod(tenant.getId()),
+                    "EOD should pass when all conditions are met");
 
-        // Verify business date advanced
-        Tenant updated = tenantRepository.findById(tenant.getId()).orElseThrow();
-        assertEquals(
-                currentDate.plusDays(1),
-                updated.getCurrentBusinessDate(),
-                "Business date must advance after successful EOD");
-        assertEquals(
-                DayStatus.CLOSED,
-                updated.getDayStatus(),
-                "Day status must be CLOSED after EOD (requires explicit Day Begin to re-open)");
+            // Verify business date advanced
+            Tenant updated = tenantRepository.findById(tenant.getId()).orElseThrow();
+            assertEquals(
+                    currentDate.plusDays(1),
+                    updated.getCurrentBusinessDate(),
+                    "Business date must advance after successful EOD");
+            assertEquals(
+                    DayStatus.CLOSED,
+                    updated.getDayStatus(),
+                    "Day status must be CLOSED after EOD (requires explicit Day Begin to re-open)");
+        } finally {
+            // Manual cleanup since no @Transactional rollback
+            // Delete child EodProcess records before tenant (FK constraint)
+            eodProcessRepository
+                    .findByTenantIdAndBusinessDate(tenant.getId(), currentDate)
+                    .ifPresent(eodProcessRepository::delete);
+            tenantRepository.deleteById(tenant.getId());
+        }
     }
 
     @Test
@@ -1252,34 +1265,47 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
     @Test
     @Order(54)
-    @Transactional
     @DisplayName("Phase 6.5: After EOD close, transactions must be blocked")
     void testTransactionsBlockedAfterEodClose() {
-        FullTestData data = setupFullTestData("P6-BLCK");
+        // NOTE: No @Transactional — EOD state machine uses REQUIRES_NEW which needs committed data
+        Tenant tenant =
+                tenantService.createTenant("P6-BLCK", "EOD Block Bank", LocalDate.now());
 
-        // Run EOD (no transactions, so it should pass)
-        eodValidationService.runEod(data.tenant.getId());
+        try {
+            // Run EOD (no transactions, so it should pass)
+            eodValidationService.runEod(tenant.getId());
 
-        // After EOD, day is CLOSED. Open it first, then start day closing to test blocking.
-        tenantService.openDay(data.tenant.getId());
-        tenantService.startDayClosing(data.tenant.getId());
+            // After EOD, day is CLOSED. Open it first, then start day closing to test blocking.
+            tenantService.openDay(tenant.getId());
+            tenantService.startDayClosing(tenant.getId());
 
-        TransactionDTO dto =
-                TransactionDTO.builder()
-                        .transactionType("DEPOSIT")
-                        .destinationAccountNumber(data.account.getAccountNumber())
-                        .amount(new BigDecimal("100.00"))
-                        .currency("INR")
-                        .channel(TransactionChannel.TELLER.name())
-                        .clientReferenceId("P6-BLCK-REF-001")
-                        .description("Post-EOD deposit attempt")
-                        .narration("Should be blocked")
-                        .build();
+            // Set tenant context required by TransactionService
+            TenantContextHolder.setTenantId(tenant.getId());
 
-        assertThrows(
-                BusinessDayClosedException.class,
-                () -> transactionService.deposit(dto),
-                "Transactions must be blocked when day is in DAY_CLOSING status");
+            TransactionDTO dto =
+                    TransactionDTO.builder()
+                            .transactionType("DEPOSIT")
+                            .destinationAccountNumber("NONEXISTENT-ACC")
+                            .amount(new BigDecimal("100.00"))
+                            .currency("INR")
+                            .channel(TransactionChannel.TELLER.name())
+                            .clientReferenceId("P6-BLCK-REF-001")
+                            .description("Post-EOD deposit attempt")
+                            .narration("Should be blocked")
+                            .build();
+
+            assertThrows(
+                    BusinessDayClosedException.class,
+                    () -> transactionService.deposit(dto),
+                    "Transactions must be blocked when day is in DAY_CLOSING status");
+        } finally {
+            // Manual cleanup since no @Transactional rollback
+            // Delete child EodProcess records before tenant (FK constraint)
+            eodProcessRepository
+                    .findByTenantIdAndBusinessDate(tenant.getId(), LocalDate.now())
+                    .ifPresent(eodProcessRepository::delete);
+            tenantRepository.deleteById(tenant.getId());
+        }
     }
 
     @Test

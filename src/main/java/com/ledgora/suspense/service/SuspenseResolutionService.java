@@ -204,23 +204,16 @@ public class SuspenseResolutionService {
      */
     @Transactional
     public SuspenseCase resolveCase(
-            Long caseId,
-            User resolver,
-            User checker,
-            Voucher resolutionVoucher,
-            String remarks) {
+            Long caseId, User resolver, User checker, Voucher resolutionVoucher, String remarks) {
 
         SuspenseCase sc =
                 suspenseCaseRepository
                         .findById(caseId)
                         .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "Suspense case not found: " + caseId));
+                                () -> new RuntimeException("Suspense case not found: " + caseId));
 
         if (!"OPEN".equals(sc.getStatus())) {
-            throw new RuntimeException(
-                    "Suspense case " + caseId + " is already " + sc.getStatus());
+            throw new RuntimeException("Suspense case " + caseId + " is already " + sc.getStatus());
         }
 
         // Maker-checker enforcement
@@ -256,26 +249,24 @@ public class SuspenseResolutionService {
                         + (checker != null ? checker.getUsername() : "N/A"),
                 null);
 
-        log.info("Suspense case {} resolved by {}", caseId, resolver != null ? resolver.getUsername() : "N/A");
+        log.info(
+                "Suspense case {} resolved by {}",
+                caseId,
+                resolver != null ? resolver.getUsername() : "N/A");
         return sc;
     }
 
-    /**
-     * Reverse a suspense case by marking it as REVERSED after the debit leg is also reversed.
-     */
+    /** Reverse a suspense case by marking it as REVERSED after the debit leg is also reversed. */
     @Transactional
     public SuspenseCase reverseCase(Long caseId, User resolver, User checker, String remarks) {
         SuspenseCase sc =
                 suspenseCaseRepository
                         .findById(caseId)
                         .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "Suspense case not found: " + caseId));
+                                () -> new RuntimeException("Suspense case not found: " + caseId));
 
         if (!"OPEN".equals(sc.getStatus())) {
-            throw new RuntimeException(
-                    "Suspense case " + caseId + " is already " + sc.getStatus());
+            throw new RuntimeException("Suspense case " + caseId + " is already " + sc.getStatus());
         }
 
         if (resolver != null && checker != null && resolver.getId().equals(checker.getId())) {
@@ -299,7 +290,10 @@ public class SuspenseResolutionService {
                 "Suspense case " + sc.getId() + " reversed: " + remarks,
                 null);
 
-        log.info("Suspense case {} reversed by {}", caseId, resolver != null ? resolver.getUsername() : "N/A");
+        log.info(
+                "Suspense case {} reversed by {}",
+                caseId,
+                resolver != null ? resolver.getUsername() : "N/A");
         return sc;
     }
 

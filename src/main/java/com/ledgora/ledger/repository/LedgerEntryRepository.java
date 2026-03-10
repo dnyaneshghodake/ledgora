@@ -24,6 +24,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     /**
      * @deprecated CBS: Ledger entries are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void deleteById(Long id) {
         throw new UnsupportedOperationException(
@@ -33,6 +34,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     /**
      * @deprecated CBS: Ledger entries are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void delete(LedgerEntry entity) {
         throw new UnsupportedOperationException(
@@ -42,6 +44,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     /**
      * @deprecated CBS: Ledger entries are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void deleteAll() {
         throw new UnsupportedOperationException(
@@ -51,6 +54,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     /**
      * @deprecated CBS: Ledger entries are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void deleteAllById(Iterable<? extends Long> ids) {
         throw new UnsupportedOperationException(
@@ -60,6 +64,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     /**
      * @deprecated CBS: Ledger entries are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void deleteAll(Iterable<? extends LedgerEntry> entities) {
         throw new UnsupportedOperationException(
@@ -69,6 +74,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     /**
      * @deprecated CBS: Ledger entries are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void deleteAllInBatch() {
         throw new UnsupportedOperationException(
@@ -78,6 +84,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     /**
      * @deprecated CBS: Ledger entries are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void deleteAllByIdInBatch(Iterable<Long> ids) {
         throw new UnsupportedOperationException(
@@ -87,6 +94,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     /**
      * @deprecated CBS: Ledger entries are immutable. Use reversal entries instead.
      */
+    @Deprecated
     @Override
     default void deleteAllInBatch(Iterable<LedgerEntry> entities) {
         throw new UnsupportedOperationException(

@@ -79,7 +79,6 @@ public class AccountBalanceReconciliationService {
         log.info("Balance reconciliation started");
         long startTime = System.currentTimeMillis();
         int totalDrifts = 0;
-        int totalAccounts = 0;
 
         List<Tenant> tenants = tenantRepository.findAll();
         for (Tenant tenant : tenants) {
@@ -106,7 +105,9 @@ public class AccountBalanceReconciliationService {
 
         Page<Account> page;
         do {
-            page = accountRepository.findByTenantId(tenantId, PageRequest.of(pageNumber, PAGE_SIZE));
+            page =
+                    accountRepository.findByTenantId(
+                            tenantId, PageRequest.of(pageNumber, PAGE_SIZE));
 
             for (Account account : page.getContent()) {
                 boolean drifted = reconcileAccount(tenant, account);
@@ -140,10 +141,8 @@ public class AccountBalanceReconciliationService {
                 account.getBalance() != null ? account.getBalance() : BigDecimal.ZERO;
 
         // Authoritative balance from ledger: SUM(credits) - SUM(debits)
-        BigDecimal totalCredits =
-                ledgerEntryRepository.sumCreditsByAccountId(account.getId());
-        BigDecimal totalDebits =
-                ledgerEntryRepository.sumDebitsByAccountId(account.getId());
+        BigDecimal totalCredits = ledgerEntryRepository.sumCreditsByAccountId(account.getId());
+        BigDecimal totalDebits = ledgerEntryRepository.sumDebitsByAccountId(account.getId());
         BigDecimal ledgerBalance = totalCredits.subtract(totalDebits);
 
         if (cachedBalance.compareTo(ledgerBalance) != 0) {
