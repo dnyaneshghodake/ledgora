@@ -324,18 +324,18 @@ public class VoucherService {
     /**
      * Post a voucher and optionally link ledger entries to an existing transaction.
      *
-     * ACCOUNTING INVARIANT (RBI-CRITICAL):
-     * Before ANY ledger entry is persisted, this method validates:
-     *   totalDebit == totalCredit for the voucher being posted.
+     * ACCOUNTING MODEL:
+     * Each Voucher is a SINGLE accounting leg (DR or CR, never both).
+     * DR==CR balance is enforced at the PAIR level:
+     *   - TransactionService creates matched DR+CR vouchers with equal amounts
+     *   - createVoucherPair() wraps both in a single @Transactional
+     *   - EOD validates SUM(debits) == SUM(credits) at ledger level
      *
-     * A single voucher leg is balanced by design: a DR voucher contributes
-     * (amount, 0) and a CR voucher contributes (0, amount). The TransactionService
-     * always creates paired DR+CR vouchers with equal amounts, so each individual
-     * leg is self-balanced at the entry level (one entry per voucher).
-     *
-     * This method enforces the invariant explicitly: if totalDebit != totalCredit
-     * for this voucher's entry, an AccountingException is thrown and the entire
-     * @Transactional rolls back — no journal, no entry, no balance update.
+     * VOUCHER INTEGRITY (RBI-CRITICAL):
+     * Before any ledger entry is persisted, this method validates:
+     *   - drCr is not null (direction must be explicit)
+     *   - amount > 0 (zero/negative amounts are corrupt)
+     * If either fails, AccountingException is thrown and @Transactional rolls back.
      *
      * TENANT SAFETY (RBI-F1):
      * - Voucher fetched with tenant isolation (findByIdAndTenantId)
@@ -382,20 +382,25 @@ public class VoucherService {
         BigDecimal amount = voucher.getTransactionAmount();
         VoucherDrCr drCr = voucher.getDrCr();
 
-        // ── DOUBLE-ENTRY ENFORCEMENT (RBI-CRITICAL) ──
-        // Compute DR/CR totals for this voucher leg BEFORE any ledger write.
-        // A DR voucher contributes (amount, 0); a CR voucher contributes (0, amount).
-        BigDecimal totalDebit = drCr == VoucherDrCr.DR ? amount : BigDecimal.ZERO;
-        BigDecimal totalCredit = drCr == VoucherDrCr.CR ? amount : BigDecimal.ZERO;
-
-        if (totalDebit.compareTo(totalCredit) != 0) {
-            // This should never happen for a well-formed voucher (DR xor CR with amount > 0),
-            // but we enforce it as an absolute gate: no ledger persistence if unbalanced.
+        // ── VOUCHER INTEGRITY ASSERTION (RBI-CRITICAL) ──
+        // Each voucher is a single accounting leg (DR xor CR). The DR==CR balance
+        // is enforced at the PAIR level: TransactionService always creates matched
+        // DR+CR vouchers with equal amounts, and createVoucherPair() is atomic.
+        //
+        // Here we validate the leg itself is well-formed:
+        //   - drCr must not be null
+        //   - amount must be positive (> 0)
+        // If either is violated, the voucher is corrupt and must not post.
+        if (drCr == null) {
             throw new com.ledgora.common.exception.AccountingException(
-                    "UNBALANCED_VOUCHER",
-                    "Unbalanced voucher cannot be posted. Voucher " + voucherId
-                    + " totalDebit=" + totalDebit + " totalCredit=" + totalCredit
-                    + ". DR==CR invariant violated.");
+                    "INVALID_VOUCHER",
+                    "Voucher " + voucherId + " has null DR/CR direction — cannot post.");
+        }
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new com.ledgora.common.exception.AccountingException(
+                    "INVALID_VOUCHER_AMOUNT",
+                    "Voucher " + voucherId + " has zero or negative amount (" + amount
+                    + ") — cannot post.");
         }
 
         // ── All validations passed. Now persist immutable ledger entries. ──
