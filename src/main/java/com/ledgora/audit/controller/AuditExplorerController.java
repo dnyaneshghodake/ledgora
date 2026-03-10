@@ -68,7 +68,10 @@ public class AuditExplorerController {
 
         if (dateFrom != null) {
             final LocalDateTime start = dateFrom.atStartOfDay();
-            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("timestamp"), start));
+            spec =
+                    spec.and(
+                            (root, query, cb) ->
+                                    cb.greaterThanOrEqualTo(root.get("timestamp"), start));
         }
         if (dateTo != null) {
             final LocalDateTime end = dateTo.atTime(LocalTime.MAX);
