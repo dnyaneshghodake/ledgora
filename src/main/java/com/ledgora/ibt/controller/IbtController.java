@@ -2,7 +2,6 @@ package com.ledgora.ibt.controller;
 
 import com.ledgora.account.entity.Account;
 import com.ledgora.account.repository.AccountRepository;
-import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.clearing.entity.InterBranchTransfer;
 import com.ledgora.clearing.repository.InterBranchTransferRepository;
@@ -90,8 +89,10 @@ public class IbtController {
             RedirectAttributes redirectAttributes) {
         try {
             // Basic validation
-            if (sourceAccountNumber == null || sourceAccountNumber.isBlank()
-                    || destinationAccountNumber == null || destinationAccountNumber.isBlank()) {
+            if (sourceAccountNumber == null
+                    || sourceAccountNumber.isBlank()
+                    || destinationAccountNumber == null
+                    || destinationAccountNumber.isBlank()) {
                 redirectAttributes.addFlashAttribute(
                         "error", "Both source and destination accounts are required.");
                 return "redirect:/ibt/create";
@@ -102,8 +103,7 @@ public class IbtController {
                 return "redirect:/ibt/create";
             }
             if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-                redirectAttributes.addFlashAttribute(
-                        "error", "Amount must be greater than zero.");
+                redirectAttributes.addFlashAttribute("error", "Amount must be greater than zero.");
                 return "redirect:/ibt/create";
             }
             if (amount.scale() > 2) {
@@ -135,7 +135,8 @@ public class IbtController {
                 return "redirect:/ibt/create";
             }
 
-            if (sourceAccount.getBranch() != null && destAccount.getBranch() != null
+            if (sourceAccount.getBranch() != null
+                    && destAccount.getBranch() != null
                     && sourceAccount.getBranch().getId().equals(destAccount.getBranch().getId())) {
                 redirectAttributes.addFlashAttribute(
                         "error",
@@ -157,20 +158,20 @@ public class IbtController {
                             .channel(TransactionChannel.TELLER.name())
                             .description(
                                     "Inter-Branch Transfer: "
-                                            + sourceAccountNumber + " → " + destinationAccountNumber)
+                                            + sourceAccountNumber
+                                            + " → "
+                                            + destinationAccountNumber)
                             .narration(narration != null ? narration : "Inter-Branch Transfer")
                             .build();
 
             Transaction txn = transactionService.transfer(dto);
 
             redirectAttributes.addFlashAttribute(
-                    "message",
-                    "Inter-Branch Transfer initiated. Ref: " + txn.getTransactionRef());
+                    "message", "Inter-Branch Transfer initiated. Ref: " + txn.getTransactionRef());
             return "redirect:/ibt/" + txn.getId();
 
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute(
-                    "error", "IBT creation failed: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "IBT creation failed: " + e.getMessage());
             return "redirect:/ibt/create";
         }
     }
@@ -185,8 +186,7 @@ public class IbtController {
      * default sort by createdAt descending.
      */
     @GetMapping
-    @PreAuthorize(
-            "hasAnyRole('MAKER', 'CHECKER', 'OPERATIONS', 'ADMIN', 'MANAGER', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'OPERATIONS', 'ADMIN', 'MANAGER', 'AUDITOR')")
     @Transactional(readOnly = true)
     public String listIbt(
             @RequestParam(required = false) String status,
@@ -224,9 +224,7 @@ public class IbtController {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("status"), filterStatus));
         }
         if (businessDate != null) {
-            spec =
-                    spec.and(
-                            (root, query, cb) -> cb.equal(root.get("businessDate"), businessDate));
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("businessDate"), businessDate));
         }
         if (fromBranchId != null) {
             spec =
@@ -268,8 +266,8 @@ public class IbtController {
 
     /**
      * View IBT detail using InterBranchTransfer as the aggregate root. Accepts either an IBT ID
-     * (direct navigation from list) or a Transaction ID (redirect from POST /ibt/create). Uses
-     * JOIN FETCH queries to eliminate N+1:
+     * (direct navigation from list) or a Transaction ID (redirect from POST /ibt/create). Uses JOIN
+     * FETCH queries to eliminate N+1:
      *
      * <ul>
      *   <li>Query 1: findByIdWithGraph — IBT + branches + transaction + users (1 SELECT)
@@ -280,8 +278,7 @@ public class IbtController {
      * Total: 2 SQL SELECTs. Zero lazy loading in JSP.
      */
     @GetMapping("/{id}")
-    @PreAuthorize(
-            "hasAnyRole('MAKER', 'CHECKER', 'OPERATIONS', 'ADMIN', 'MANAGER', 'AUDITOR')")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'OPERATIONS', 'ADMIN', 'MANAGER', 'AUDITOR')")
     @Transactional(readOnly = true)
     public String viewIbt(@PathVariable Long id, Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
@@ -299,15 +296,13 @@ public class IbtController {
         }
 
         if (ibt == null) {
-            model.addAttribute(
-                    "error", "Inter-Branch Transfer not found for ID: " + id);
+            model.addAttribute("error", "Inter-Branch Transfer not found for ID: " + id);
             return "ibt/ibt-detail";
         }
 
         // Tenant isolation check
         if (!ibt.getTenant().getId().equals(tenantId)) {
-            model.addAttribute(
-                    "error", "Access denied: IBT does not belong to current tenant.");
+            model.addAttribute("error", "Access denied: IBT does not belong to current tenant.");
             return "ibt/ibt-detail";
         }
 
@@ -327,8 +322,7 @@ public class IbtController {
         // Separate vouchers by branch for grouped display
         String fromBranchCode =
                 ibt.getFromBranch() != null ? ibt.getFromBranch().getBranchCode() : "";
-        String toBranchCode =
-                ibt.getToBranch() != null ? ibt.getToBranch().getBranchCode() : "";
+        String toBranchCode = ibt.getToBranch() != null ? ibt.getToBranch().getBranchCode() : "";
         List<Voucher> branchAVouchers =
                 vouchers.stream()
                         .filter(

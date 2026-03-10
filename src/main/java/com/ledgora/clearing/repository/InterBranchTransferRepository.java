@@ -17,7 +17,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface InterBranchTransferRepository
-        extends JpaRepository<InterBranchTransfer, Long>, JpaSpecificationExecutor<InterBranchTransfer> {
+        extends JpaRepository<InterBranchTransfer, Long>,
+                JpaSpecificationExecutor<InterBranchTransfer> {
 
     List<InterBranchTransfer> findByTenantIdAndStatus(
             Long tenantId, InterBranchTransferStatus status);
@@ -123,8 +124,8 @@ public interface InterBranchTransferRepository
     Optional<InterBranchTransfer> findByIdWithGraph(@Param("id") Long id);
 
     /**
-     * Find the IBT record linked to a specific reference transaction.
-     * Used when redirecting from POST /ibt/create (which returns a Transaction ID).
+     * Find the IBT record linked to a specific reference transaction. Used when redirecting from
+     * POST /ibt/create (which returns a Transaction ID).
      */
     @Query(
             "SELECT ibt FROM InterBranchTransfer ibt "
@@ -156,7 +157,9 @@ public interface InterBranchTransferRepository
 
     /** Paginated filter by status + business date. */
     Page<InterBranchTransfer> findByTenantIdAndStatusAndBusinessDate(
-            Long tenantId, InterBranchTransferStatus status, LocalDate businessDate,
+            Long tenantId,
+            InterBranchTransferStatus status,
+            LocalDate businessDate,
             Pageable pageable);
 
     /** Paginated filter by status + source branch. */

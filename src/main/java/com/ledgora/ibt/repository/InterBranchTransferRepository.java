@@ -7,4 +7,3 @@ package com.ledgora.ibt.repository;
 final class IbtRepositoryPackageMarker {
     private IbtRepositoryPackageMarker() {}
 }
-
