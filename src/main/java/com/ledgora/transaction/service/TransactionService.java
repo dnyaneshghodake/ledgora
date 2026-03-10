@@ -90,6 +90,7 @@ public class TransactionService {
     private final com.ledgora.clearing.service.IbtService ibtService;
     private final com.ledgora.approval.service.HardTransactionCeilingService
             hardTransactionCeilingService;
+    private final com.ledgora.fraud.service.VelocityFraudEngine velocityFraudEngine;
 
     public TransactionService(
             TransactionRepository transactionRepository,
@@ -112,7 +113,8 @@ public class TransactionService {
             com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService,
             com.ledgora.clearing.service.IbtService ibtService,
             com.ledgora.approval.service.HardTransactionCeilingService
-                    hardTransactionCeilingService) {
+                    hardTransactionCeilingService,
+            com.ledgora.fraud.service.VelocityFraudEngine velocityFraudEngine) {
         this.transactionRepository = transactionRepository;
         this.transactionLineRepository = transactionLineRepository;
         this.accountRepository = accountRepository;
@@ -133,6 +135,7 @@ public class TransactionService {
         this.interBranchClearingService = interBranchClearingService;
         this.ibtService = ibtService;
         this.hardTransactionCeilingService = hardTransactionCeilingService;
+        this.velocityFraudEngine = velocityFraudEngine;
     }
 
     /**
@@ -173,6 +176,11 @@ public class TransactionService {
         validateAccountFreezeLevel(account, VoucherDrCr.CR);
 
         User currentUser = getCurrentUser();
+        Long userId = currentUser != null ? currentUser.getId() : null;
+
+        // ── VELOCITY FRAUD CHECK: proactive burst detection ──
+        velocityFraudEngine.evaluateVelocity(tenant, account, dto.getAmount(), userId);
+
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
 
         TransactionChannel channel = parseChannel(dto.getChannel());
@@ -285,6 +293,11 @@ public class TransactionService {
         }
 
         User currentUser = getCurrentUser();
+        Long userId = currentUser != null ? currentUser.getId() : null;
+
+        // ── VELOCITY FRAUD CHECK: proactive burst detection ──
+        velocityFraudEngine.evaluateVelocity(tenant, account, dto.getAmount(), userId);
+
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
 
         TransactionChannel channel = parseChannel(dto.getChannel());
@@ -415,6 +428,11 @@ public class TransactionService {
         }
 
         User currentUser = getCurrentUser();
+        Long userId = currentUser != null ? currentUser.getId() : null;
+
+        // ── VELOCITY FRAUD CHECK: proactive burst detection (check source account) ──
+        velocityFraudEngine.evaluateVelocity(tenant, sourceAccount, dto.getAmount(), userId);
+
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
 
         TransactionChannel channel = parseChannel(dto.getChannel());

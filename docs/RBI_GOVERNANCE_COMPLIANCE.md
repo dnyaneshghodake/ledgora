@@ -1,18 +1,18 @@
 # Ledgora — RBI Governance & Compliance Control Layer
 
-**Document Version:** 2.4
+**Document Version:** 2.5
 **System:** Ledgora CBS (Spring Boot 3.2.3)
-**Commit Baseline:** PR #41 — CBS Enhancement (IBT + Suspense GL + Hard Ceilings)
-**Previous Versions:** 2.3, 2.2, 2.1 (6bb7667f), 2.0 (b3f20d5c), 1.0 (d6a0a46)
-**Standard Applied:** RBI Master Direction on IT Governance (2023), Banking Regulation Act §10/§35A, IS Audit Guidelines, CBS Accounting Standard, RBI Risk Appetite Framework — Absolute Exposure Limits
+**Commit Baseline:** PR #41 — CBS Enhancement (IBT + Suspense GL + Hard Ceilings + Velocity Fraud)
+**Previous Versions:** 2.4, 2.3, 2.2, 2.1, 2.0, 1.0
+**Standard Applied:** RBI Master Direction on IT Governance (2023), Banking Regulation Act §10/§35A, IS Audit Guidelines, CBS Accounting Standard, RBI Risk Appetite Framework, RBI Master Direction on Fraud Risk Management (2023)
 
-> **Version 2.4 Changes:** Hard Transaction Ceiling enforcement: `HardTransactionLimit` entity (`hard_transaction_limits` table), `HardTransactionCeilingService` (non-bypassable, pre-persistence enforcement, no role override), integrated into `deposit()` / `withdraw()` / `transfer()` in `TransactionService`, Micrometer `ledgora.hard_limit.blocked` metric, violations logged to `audit_logs` as `HARD_LIMIT_EXCEEDED`, audit SQL pack (4 queries). Addresses FR-05. See §1.9 for change log.
-> **Version 2.3 Changes:** Suspense GL implementation. Closes gap G1. See §1.8 for change log.
-> **Version 2.2 Changes:** CBS-grade IBT upgrade. See §1.7 for change log.
-> **Version 2.1 Changes:** Added UI governance fixes (transaction approval endpoints, IDOR prevention, maker-checker UI hints).
-> **Version 2.0 Changes:** Core governance fixes (SYSTEM_AUTO, voucher integrity, tenant isolation, EOD, ledger immutability).
+> **Version 2.5 Changes:** Velocity Fraud Engine: `VelocityLimit` entity (`velocity_limits` table), `FraudAlert` entity (`fraud_alerts` table), `VelocityFraudEngine` service (60-min window, count + amount checks, account freeze to `UNDER_REVIEW`, FraudAlert creation), `UNDER_REVIEW` account status, Micrometer `ledgora.velocity.blocked` metric, integrated into `deposit()`/`withdraw()`/`transfer()`, audit SQL pack (6 queries). Closes G4/FR-06. See §1.10 for change log.
+> **Version 2.4 Changes:** Hard Transaction Ceiling. Addresses FR-05. See §1.9.
+> **Version 2.3 Changes:** Suspense GL. Closes G1. See §1.8.
+> **Version 2.2 Changes:** CBS-grade IBT upgrade. See §1.7.
+> **Version 2.1 / 2.0:** UI governance fixes, core governance fixes.
 > Items marked ✅ Resolved were previously identified as gaps and have been addressed in code.
-> See §1.6 / §1.7 / §1.8 / §1.9 for full change logs.
+> See §1.6–§1.10 for full change logs.
 
 ---
 
@@ -96,7 +96,7 @@
 | G1 | ~~**Suspense GL not implemented**~~ | ~~HIGH~~ | **RESOLVED:** `SUSPENSE_ACCOUNT` type added. `SuspenseGlMapping` config table for tenant+channel routing. `SuspenseCase` entity tracks parked entries (OPEN → RESOLVED/REVERSED). `SuspenseResolutionService` handles account resolution, case creation with Micrometer metric (`ledgora.suspense.created`), maker-checker resolution/reversal. `PARKED` transaction status added. EOD blocks on non-zero suspense balance + open cases via `validateSuspenseAccountBalance()` and `validateSuspenseForEod()`. Suspense audit SQL pack with 6 queries. | ✅ Resolved |
 | G2 | ~~**Inter-branch clearing GL absent**~~ | ~~HIGH~~ | **RESOLVED:** GL 2910 (Inter-Branch Clearing) added to chart of accounts. IBC-OUT and IBC-IN clearing accounts seeded per branch (HQ001, BR001, BR002). `TransactionService.postTransferLedger()` detects cross-branch transfers and routes through 4-voucher clearing flow (DR Customer A + CR IBC_OUT_A / DR IBC_IN_B + CR Customer B). `InterBranchTransfer` entity tracks lifecycle (INITIATED → SENT → RECEIVED → SETTLED). EOD blocks on unsettled transfers via `InterBranchClearingService.validateClearingBalance()`. Settlement integration via `settleTransfers()`. | ✅ Resolved |
 | G3 | **No transaction amount limits per role** | MEDIUM | `TransactionService` validates amount > 0 and < 999999999999.99, but no per-role/per-channel limits. A teller can process unlimited amounts. | Add configurable teller/channel limits in approval policy. |
-| G4 | **No velocity checks** | MEDIUM | No detection of rapid-fire transactions from same account/user within a time window. | Add velocity monitoring (e.g., max N transactions per account per hour). |
+| G4 | ~~**No velocity checks**~~ | ~~MEDIUM~~ | **RESOLVED:** `VelocityFraudEngine` queries 60-minute transaction window per account. `VelocityLimit` config table (per-account or tenant-wide default). On breach: blocks transaction, freezes account to `UNDER_REVIEW`, creates `FraudAlert`, emits `ledgora.velocity.blocked` metric, logs `VELOCITY_BREACH_*` audit event. Integrated into `deposit()`, `withdraw()`, `transfer()`. Audit SQL pack with 6 queries. | ✅ Resolved |
 | G5 | ~~**systemAuthorizeVoucher uses maker as checker**~~ | ~~MEDIUM~~ | **RESOLVED** (commit `04ad39db`): `SYSTEM_AUTO` pseudo-user seeded with `ROLE_SYSTEM`. `systemAuthorizeVoucher()` now throws `GovernanceException` if SYSTEM_AUTO missing — no fallback to maker. AUDIT-12 query validates compliance. | ✅ Resolved |
 | G6 | **No scheduled ledger-vs-cache reconciliation** | LOW | `Account.balance` is documented as cache, but no scheduled job validates it against `SUM(ledger_entries)`. Drift could go undetected between EODs. | Add a `@Scheduled` validator service (e.g., every 5 minutes) that compares cache vs ledger and logs discrepancies. |
 | G7 | **No data retention / archival policy** | LOW | All data lives in active tables indefinitely. No archival for historical ledger entries or closed-day vouchers. | Design an archival strategy: move closed-day data to archive tables after configurable retention period. |
@@ -130,6 +130,7 @@
 | `IbtService` | Inter-branch transfer governance — branch validation, clearing GL enforcement, voucher count, partial reversal block | `validateBranchesForIbt()`, `validateIbtVoucherCount()`, `validateClearingGlNetZero()`, `validateFullReversalRequired()` |
 | `SuspenseResolutionService` | Suspense GL management — account resolution, case lifecycle, maker-checker resolution, EOD suspense check | `resolveSuspenseAccount()`, `createSuspenseCase()`, `resolveCase()`, `reverseCase()`, `validateSuspenseForEod()` |
 | `HardTransactionCeilingService` | Absolute hard transaction ceiling — non-bypassable limit enforcement before any persistence, governance audit logging, metric emission | `enforceHardCeiling(tenantId, channel, amount, userId)` — throws `GovernanceException(HARD_LIMIT_EXCEEDED)` |
+| `VelocityFraudEngine` | Proactive velocity fraud detection — 60-min window count + amount check, account freeze, FraudAlert creation, metric emission | `evaluateVelocity(tenant, account, amount, userId)` — throws `GovernanceException(VELOCITY_LIMIT_EXCEEDED)` |
 
 ### 1.6 PR #40 Change Log — Gaps Addressed
 
@@ -181,7 +182,18 @@ Summary of all governance gaps identified and addressed in PR #40 (Feature Enhan
 | **FR-05-METRIC** | Micrometer counter `ledgora.hard_limit.blocked` emitted on each blocked transaction. | ✅ Resolved |
 | **FR-05-SQL** | Hard ceiling audit SQL pack: 4 queries (violation log, config check, bypass detection, user frequency). See `docs/hard-ceiling-audit-sql-pack.sql`. | ✅ Resolved |
 
-**Remaining open gaps:** G3 (per-role soft limits), G4 (velocity checks), G6 (ledger-vs-cache reconciliation), G7 (data archival), G8 (password policy).
+**Remaining open gaps:** G3 (per-role soft limits), G6 (ledger-vs-cache reconciliation), G7 (data archival), G8 (password policy).
+
+### 1.10 PR #41 Change Log — Velocity Fraud Engine (v2.5)
+
+| Item | Description | Status |
+|---|---|---|
+| **G4 / FR-06** | Velocity Fraud Engine fully implemented. `VelocityLimit` entity with `velocity_limits` table (tenant_id, account_id, max_txn_count_per_hour, max_total_amount_per_hour). `FraudAlert` entity with `fraud_alerts` table. `VelocityFraudEngine` service. | ✅ Resolved |
+| **G4-ENGINE** | `VelocityFraudEngine.evaluateVelocity()`: queries 60-minute transaction window via `TransactionRepository.countRecentByAccountId()` and `sumRecentAmountByAccountId()`. Resolves limit per-account first, then tenant default. | ✅ Resolved |
+| **G4-ACTIONS** | On velocity breach: (1) block transaction with `GovernanceException`, (2) freeze account to `UNDER_REVIEW`, (3) create `FraudAlert` record, (4) emit `ledgora.velocity.blocked` metric, (5) log `VELOCITY_BREACH_*` audit event. | ✅ Resolved |
+| **G4-STATUS** | `UNDER_REVIEW` added to `AccountStatus` enum. Accounts frozen by velocity engine are blocked from further transactions by existing `validateAccountActive()` check. | ✅ Resolved |
+| **G4-INT** | `TransactionService.deposit()`, `withdraw()`, `transfer()` all call `evaluateVelocity()` after account validation and before transaction persistence. | ✅ Resolved |
+| **G4-SQL** | Velocity fraud audit SQL pack: 6 queries (real-time velocity snapshot, open alerts, under-review accounts, config check, dashboard summary, breach trail). See `docs/velocity-fraud-audit-sql-pack.sql`. | ✅ Resolved |
 
 ---
 
@@ -1007,7 +1019,7 @@ The bank's CISO / CRO must maintain a signed register for every open item. Templ
 
 | Reg # | Risk ID | Gap Description | Compensating Control (if any) | Risk Owner | Accepted By (Name + Designation) | Acceptance Date | Review-By Date | Status |
 |---|---|---|---|---|---|---|---|---|
-| RAR-001 | FR-06 | Velocity monitoring absent | Manual EOD review of high-frequency accounts | Head — Operations | *(CISO signature)* | *(date)* | *(date + 90d)* | OPEN |
+| ~~RAR-001~~ | ~~FR-06~~ | ~~Velocity monitoring absent~~ | ~~`VelocityFraudEngine` now enforces 60-min velocity limits with account freeze + FraudAlert.~~ | Head — Operations | *(CISO signature)* | *(date)* | — | ✅ CLOSED (PR #41 — Velocity Fraud Engine) |
 | ~~RAR-002~~ | ~~FR-05~~ | ~~No hard ceiling per role~~ | ~~`HardTransactionCeilingService` now enforces absolute hard ceilings from `hard_transaction_limits` table. No role bypass.~~ | Head — Compliance | *(CRO signature)* | *(date)* | — | ✅ CLOSED (PR #41 — Hard Ceiling) |
 | ~~RAR-003~~ | ~~FR-04~~ | ~~STP checker = maker~~ | ~~SYSTEM_AUTO now enforced with GovernanceException~~ | Head — IT | *(CISO signature)* | *(date)* | — | ✅ CLOSED (commit `04ad39db`) |
 | ~~RAR-004~~ | ~~FR-08~~ | ~~IDOR — CUSTOMER account history~~ | ~~Ownership check now enforced in `TransactionController.transactionHistory()` for CUSTOMER role~~ | Head — IT Security | *(CRO signature)* | *(date)* | — | ✅ CLOSED (commit `6bb7667f` — stopgap, name-based matching) |

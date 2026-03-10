@@ -101,4 +101,24 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             "SELECT COUNT(t) FROM Transaction t WHERE t.tenant.id = :tenantId AND t.status = :status")
     long countByTenantIdAndStatus(
             @Param("tenantId") Long tenantId, @Param("status") TransactionStatus status);
+
+    /** Count transactions for an account in the last N minutes (velocity check). */
+    @Query(
+            "SELECT COUNT(t) FROM Transaction t WHERE t.tenant.id = :tenantId "
+                    + "AND (t.sourceAccount.id = :accountId OR t.destinationAccount.id = :accountId) "
+                    + "AND t.status != 'REJECTED' AND t.createdAt >= :since")
+    long countRecentByAccountId(
+            @Param("tenantId") Long tenantId,
+            @Param("accountId") Long accountId,
+            @Param("since") LocalDateTime since);
+
+    /** Sum amount for an account in the last N minutes (velocity check). */
+    @Query(
+            "SELECT COALESCE(SUM(t.amount), 0) FROM Transaction t WHERE t.tenant.id = :tenantId "
+                    + "AND (t.sourceAccount.id = :accountId OR t.destinationAccount.id = :accountId) "
+                    + "AND t.status != 'REJECTED' AND t.createdAt >= :since")
+    java.math.BigDecimal sumRecentAmountByAccountId(
+            @Param("tenantId") Long tenantId,
+            @Param("accountId") Long accountId,
+            @Param("since") LocalDateTime since);
 }

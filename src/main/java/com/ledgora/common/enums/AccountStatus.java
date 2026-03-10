@@ -5,5 +5,7 @@ public enum AccountStatus {
     INACTIVE,
     SUSPENDED,
     FROZEN,
-    CLOSED
+    CLOSED,
+    /** Account placed under fraud review due to velocity breach. Transactions blocked. */
+    UNDER_REVIEW
 }

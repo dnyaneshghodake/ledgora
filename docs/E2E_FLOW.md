@@ -151,6 +151,7 @@ See `validateFinancialParams(...)` (`TransactionController.java:171-211`).
 
 1. **Validate** business rules (hard transaction ceiling, business day OPEN, sufficient funds, freeze level, holiday calendar, idempotency)
    - **Hard ceiling check** — `HardTransactionCeilingService.enforceHardCeiling()` runs BEFORE any persistence. If amount exceeds `hard_transaction_limits.absolute_max_amount` for the tenant+channel, throws `GovernanceException(HARD_LIMIT_EXCEEDED)`. No role can bypass. Violations logged to `audit_logs` with action `HARD_LIMIT_EXCEEDED` and metric `ledgora.hard_limit.blocked` incremented.
+   - **Velocity fraud check** — `VelocityFraudEngine.evaluateVelocity()` queries the past 60-minute transaction history for the account. If count or cumulative amount exceeds `velocity_limits` thresholds: blocks transaction, freezes account to `UNDER_REVIEW`, creates `FraudAlert` record, emits `ledgora.velocity.blocked` metric, logs `VELOCITY_BREACH_*` audit event. Limits resolved per-account first, then tenant-wide default.
 2. **Create Transaction** row (status = COMPLETED or PENDING_APPROVAL based on approval policy)
 3. **Create Voucher pair** (DR leg + CR leg) via `VoucherService.createVoucher(...)`:
    - Each voucher is linked to the transaction via `transaction_id` FK
@@ -553,4 +554,4 @@ A quick manual verification (dev/H2):
 12. After EOD, use `/eod/day-begin` to open the day
 13. Test voucher detail view: go to `/vouchers/{id}` for any voucher
 
-For additional data-level checks, use H2 console and the SQL in `README.md`, `docs/ibt-audit-sql-pack.sql`, `docs/suspense-audit-sql-pack.sql`, and `docs/hard-ceiling-audit-sql-pack.sql`.
+For additional data-level checks, use H2 console and the SQL in `README.md`, `docs/ibt-audit-sql-pack.sql`, `docs/suspense-audit-sql-pack.sql`, `docs/hard-ceiling-audit-sql-pack.sql`, and `docs/velocity-fraud-audit-sql-pack.sql`.
