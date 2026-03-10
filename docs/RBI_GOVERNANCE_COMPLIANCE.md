@@ -1,12 +1,13 @@
 # Ledgora — RBI Governance & Compliance Control Layer
 
-**Document Version:** 2.0
+**Document Version:** 2.1
 **System:** Ledgora CBS (Spring Boot 3.2.3)
-**Commit Baseline:** b3f20d5c (PR #40 — Feature Enhancement)
-**Previous Version:** 1.0 (commit d6a0a46)
+**Commit Baseline:** 6bb7667f (PR #40 — Feature Enhancement)
+**Previous Versions:** 2.0 (b3f20d5c), 1.0 (d6a0a46)
 **Standard Applied:** RBI Master Direction on IT Governance (2023), Banking Regulation Act §10/§35A, IS Audit Guidelines
 
-> **Version 2.0 Changes:** This document has been updated to reflect all governance fixes implemented in PR #40.
+> **Version 2.1 Changes:** Added UI governance fixes (transaction approval endpoints, IDOR prevention, maker-checker UI hints).
+> **Version 2.0 Changes:** Core governance fixes (SYSTEM_AUTO, voucher integrity, tenant isolation, EOD, ledger immutability).
 > Items marked ✅ Resolved were previously identified as gaps and have been addressed in code.
 > See §1.6 for full change log.
 
@@ -123,8 +124,11 @@ Summary of all governance gaps identified and addressed in PR #40 (Feature Enhan
 | **Batch** | `ensureBatchIsOpen()` uses `findByBatchCode` with BATCH-<id> fallback for backward compatibility. Tests updated to set `batchCode` column. | `08079497` | ✅ Resolved |
 | **Atomic** | `createVoucherPair()` creates DR+CR in single `@Transactional` — no orphaned half-pairs. Controller uses it for UI-created vouchers. | `df99e2b9` | ✅ Resolved |
 | **EOD** | TOCTOU fix: `runEod()` re-validates after `startDayClosing()` to catch concurrent transactions that sneaked in between pre-flight and lock. | `df99e2b9` | ✅ Resolved |
+| **UI-1** | Transaction approval endpoints added: `GET /transactions/pending`, `POST /transactions/{id}/approve`, `POST /transactions/{id}/reject`. All `@PreAuthorize` gated for CHECKER/ADMIN/MANAGER. Connects existing `TransactionService.approveTransaction()` to the UI. | `6bb7667f` | ✅ Resolved |
+| **UI-2 / FR-08** | CUSTOMER account ownership check added in `TransactionController.transactionHistory()`. CUSTOMER-role users can only access their own accounts. Non-customer roles bypass for legitimate access. Stopgap: name-based matching (production should use User→Customer FK). | `6bb7667f` | ✅ Resolved |
+| **UI-3** | `isOwnVoucher` flag passed to voucher detail view. JSP can conditionally hide Authorize/Reject/Post buttons when current user is the voucher's maker. Backend enforcement unchanged. | `6bb7667f` | ✅ Resolved |
 
-**Remaining open gaps:** G1 (Suspense GL — design only), G2 (Inter-branch clearing — design only), G3 (per-role limits), G4 (velocity checks), G6 (ledger-vs-cache reconciliation), G7 (data archival), G8 (password policy), FR-08 (IDOR for CUSTOMER role).
+**Remaining open gaps:** G1 (Suspense GL — design only), G2 (Inter-branch clearing — design only), G3 (per-role limits), G4 (velocity checks), G6 (ledger-vs-cache reconciliation), G7 (data archival), G8 (password policy).
 
 ---
 
@@ -938,7 +942,7 @@ This section is written as an **internal RBI inspection team** review. It assume
 | FR-05 | **High-value transactions executed without checker due to misconfigured policies** | M | H | Approval policy engine is fail-safe: missing policy => requires approval (`src/main/java/com/ledgora/approval/service/ApprovalPolicyService.java:76-81`) | If policies are configured incorrectly (wide ranges with autoAuthorize=true), very high-value transfers could be auto-approved. No “hard ceiling” per role/channel. | Implement hard caps: per-role/per-channel absolute limits enforced in service layer (not only policy table). Require dual authorization above threshold. |
 | FR-06 | **Velocity / rapid-fire fraud** (multiple withdrawals/transfers quickly) | H | H | None observed in code; only idempotency for exact client references (`src/main/java/com/ledgora/transaction/service/TransactionService.java:834-854`) | No per-account/per-user velocity controls. RBI audit will flag absence of fraud monitoring controls as a gap. | Add velocity rules (e.g., max N txns / time-window, max cumulative amount) and alerting + auto-block. Store decisions in audit logs. |
 | FR-07 | **Duplicate / replay transactions** due to client retries or channel faults | M | M/H | Idempotency checks via `clientReferenceId:channel` + IdempotencyService (`src/main/java/com/ledgora/transaction/service/TransactionService.java:834-854`) | If clientReferenceId is missing, there is no deduplication. Near-duplicate detection is only via SQL audit pack (Part 2). | Make client reference mandatory for external channels (ONLINE/MOBILE/ATM). Add server-generated idempotency keys per request. |
-| FR-08 | **Unauthorized account access (IDOR)** — customer views another customer’s account history | M | H | Tenant isolation enforced in service methods (`src/main/java/com/ledgora/transaction/service/TransactionService.java:636-659`), controller validates account format (`src/main/java/com/ledgora/transaction/controller/TransactionController.java:175-185`) | Controller itself notes missing ownership validation for CUSTOMER users (`src/main/java/com/ledgora/transaction/controller/TransactionController.java:163-173`). This is a direct RBI observation (privacy + fraud). | Enforce account ownership for CUSTOMER role: accountNumber must map to the authenticated customer only. Add negative tests. |
+| FR-08 | ~~**Unauthorized account access (IDOR)**~~ — customer views another customer’s account history | M | H | Tenant isolation enforced in service methods (`src/main/java/com/ledgora/transaction/service/TransactionService.java:636-659`), controller validates account format (`src/main/java/com/ledgora/transaction/controller/TransactionController.java:175-185`) | Controller itself notes missing ownership validation for CUSTOMER users (`src/main/java/com/ledgora/transaction/controller/TransactionController.java:163-173`). This is a direct RBI observation (privacy + fraud). | Enforce account ownership for CUSTOMER role: accountNumber must map to the authenticated customer only. Add negative tests. |
 | FR-09 | **Reversal misuse** (fraudulent cancellation to conceal theft) | M | H | Cancellation restricted to OPEN day + no backdated reversal (`src/main/java/com/ledgora/voucher/service/VoucherService.java:403-416`) | Cancel action currently sets reversal.maker = cancelledBy and auto-posts reversal if original posted (`src/main/java/com/ledgora/voucher/service/VoucherService.java:452-466`). This is effectively “single-person reversal” unless further gated in controller/security. | Require maker-checker for cancellations above threshold and for all reversals in production. Add separate REVERSAL approval workflow and audit evidence. |
 | FR-10 | **Audit trail integrity break** — ledger entries not traceable to originating transaction | M | H | Voucher linked to transaction at creation (`TransactionService.java:779-797`). `findOrCreateTransaction()` **now checks `voucher.getTransaction()` before creating synthetic** (FR-10 fix in `VoucherService.java:645-651`). Reversal vouchers carry `original.getTransaction()` FK. | ✅ **RESOLVED.** `findOrCreateTransaction` prioritizes voucher's own transaction FK. FRAUD-08 SQL detects any remaining mismatches. | ✅ Resolved |
 
@@ -953,7 +957,7 @@ The bank's CISO / CRO must maintain a signed register for every open item. Templ
 | RAR-001 | FR-06 | Velocity monitoring absent | Manual EOD review of high-frequency accounts | Head — Operations | *(CISO signature)* | *(date)* | *(date + 90d)* | OPEN |
 | RAR-002 | FR-05 | No hard ceiling per role | Approval policy table with ranges configured | Head — Compliance | *(CRO signature)* | *(date)* | *(date + 60d)* | OPEN |
 | ~~RAR-003~~ | ~~FR-04~~ | ~~STP checker = maker~~ | ~~SYSTEM_AUTO now enforced with GovernanceException~~ | Head — IT | *(CISO signature)* | *(date)* | — | ✅ CLOSED (commit `04ad39db`) |
-| RAR-004 | FR-08 | IDOR — CUSTOMER account history | Tenant isolation blocks cross-tenant; UI hides links; ownership check pending | Head — IT Security | *(CRO signature)* | *(date)* | *(date + 30d)* | OPEN |
+| ~~RAR-004~~ | ~~FR-08~~ | ~~IDOR — CUSTOMER account history~~ | ~~Ownership check now enforced in `TransactionController.transactionHistory()` for CUSTOMER role~~ | Head — IT Security | *(CRO signature)* | *(date)* | — | ✅ CLOSED (commit `6bb7667f` — stopgap, name-based matching) |
 | ~~RAR-005~~ | ~~FR-10~~ | ~~Reversal audit trail linkage gap~~ | ~~`findOrCreateTransaction` now checks `voucher.getTransaction()` first~~ | Head — IT | *(CTO signature)* | *(date)* | — | ✅ CLOSED (PR #40 — FR-10 fix) |
 
 **Rules:**
