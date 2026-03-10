@@ -179,12 +179,14 @@
                             <include>src/main/java/**/*.java</include>
                             <include>src/test/java/**/*.java</include>
                         </includes>
-                        <!-- Remove unused imports -->
+                        <!-- Expand wildcard imports to single-class imports and remove unused -->
                         <removeUnusedImports/>
-                        <!-- Import ordering: java, javax/jakarta, then everything else -->
-                        <importOrder>
-                            <order>java,javax,jakarta,org,com,</order>
-                        </importOrder>
+                        <cleanthat>
+                            <sourceJdk>17</sourceJdk>
+                            <mutators>
+                                <mutator>UseExplicitImports</mutator>
+                            </mutators>
+                        </cleanthat>
                         <!-- Trailing whitespace and final newline -->
                         <trimTrailingWhitespace/>
                         <endWithNewline/>
