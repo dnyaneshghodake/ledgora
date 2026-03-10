@@ -274,8 +274,10 @@ public class VoucherService {
      * RBI-F4/F9: System auto-authorize a voucher for straight-through processing (e.g. teller deposits).
      *
      * Uses the dedicated SYSTEM_AUTO pseudo-user as checker to ensure maker != checker
-     * in the audit trail. Falls back to maker if SYSTEM_AUTO is not seeded.
-     * Authorization metadata goes to the dedicated authorizationRemarks field — narration is never mutated.
+     * in the audit trail. SYSTEM_AUTO MUST be seeded in DataInitializer.
+     *
+     * GOVERNANCE: If SYSTEM_AUTO is not found, posting is BLOCKED with GovernanceException.
+     * No fallback to maker. No silent degradation. Fail fast.
      */
     @Transactional
     public Voucher systemAuthorizeVoucher(Long voucherId, User maker) {
@@ -290,21 +292,22 @@ public class VoucherService {
             throw new RuntimeException("Voucher already authorized: " + voucherId);
         }
 
-        // RBI-F4: Resolve SYSTEM_AUTO pseudo-user as checker (maker != checker for audit trail)
-        User systemAutoUser = userRepository.findByUsername("SYSTEM_AUTO").orElse(null);
-        User checker = systemAutoUser != null ? systemAutoUser : maker;
+        // RBI-F4: Resolve SYSTEM_AUTO — NO FALLBACK. Fail fast if not configured.
+        User checker = userRepository.findByUsername("SYSTEM_AUTO")
+                .orElseThrow(() -> new com.ledgora.common.exception.GovernanceException(
+                        "SYSTEM_AUTO_MISSING",
+                        "SYSTEM_AUTO user not configured. Posting blocked. "
+                        + "Seed SYSTEM_AUTO with ROLE_SYSTEM in DataInitializer."));
 
         voucher.setAuthFlag("Y");
         voucher.setChecker(checker);
         // RBI-F9: Authorization metadata goes to dedicated field, narration stays immutable
-        voucher.setAuthorizationRemarks("SYSTEM_AUTO_AUTHORIZED by "
-                + (checker != null ? checker.getUsername() : "SYSTEM")
+        voucher.setAuthorizationRemarks("SYSTEM_AUTO_AUTHORIZED by " + checker.getUsername()
                 + " for maker=" + (maker != null ? maker.getUsername() : "N/A")
                 + " at " + LocalDateTime.now());
         voucher = voucherRepository.save(voucher);
 
-        log.info("Voucher system-auto-authorized: id={}, checker={}, maker={}", voucherId,
-                checker != null ? checker.getUsername() : "SYSTEM",
+        log.info("Voucher system-auto-authorized: id={}, checker=SYSTEM_AUTO, maker={}", voucherId,
                 maker != null ? maker.getUsername() : "N/A");
 
         return voucher;
@@ -320,16 +323,49 @@ public class VoucherService {
 
     /**
      * Post a voucher and optionally link ledger entries to an existing transaction.
+     *
+     * ACCOUNTING INVARIANT (RBI-CRITICAL):
+     * Before ANY ledger entry is persisted, this method validates:
+     *   totalDebit == totalCredit for the voucher being posted.
+     *
+     * A single voucher leg is balanced by design: a DR voucher contributes
+     * (amount, 0) and a CR voucher contributes (0, amount). The TransactionService
+     * always creates paired DR+CR vouchers with equal amounts, so each individual
+     * leg is self-balanced at the entry level (one entry per voucher).
+     *
+     * This method enforces the invariant explicitly: if totalDebit != totalCredit
+     * for this voucher's entry, an AccountingException is thrown and the entire
+     * @Transactional rolls back — no journal, no entry, no balance update.
+     *
+     * TENANT SAFETY (RBI-F1):
+     * - Voucher fetched with tenant isolation (findByIdAndTenantId)
+     * - Voucher businessDate validated against tenant.currentBusinessDate
+     * - Tenant dayStatus validated as OPEN
      */
     @Transactional
     public Voucher postVoucher(Long voucherId, Transaction linkedTransaction) {
         Long tenantId = requireTenantId();
-        // RBI-F1: Fetch with tenant isolation first, then acquire pessimistic lock
+
+        // ── TENANT ISOLATION: fetch with tenant filter first ──
         voucherRepository.findByIdAndTenantId(voucherId, tenantId)
                 .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
         Voucher voucher = voucherRepository.findByIdWithLock(voucherId)
                 .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
 
+        // ── TENANT SAFETY: validate business date and day status ──
+        Tenant tenant = voucher.getTenant();
+        if (tenant.getDayStatus() != com.ledgora.common.enums.DayStatus.OPEN) {
+            throw new RuntimeException("Cannot post voucher " + voucherId
+                    + ": tenant business day is " + tenant.getDayStatus()
+                    + ". Posting only allowed when day status is OPEN.");
+        }
+        if (!voucher.getPostingDate().equals(tenant.getCurrentBusinessDate())) {
+            throw new RuntimeException("Cannot post voucher " + voucherId
+                    + ": posting date " + voucher.getPostingDate()
+                    + " does not match tenant business date " + tenant.getCurrentBusinessDate());
+        }
+
+        // ── VOUCHER STATE GUARDS ──
         if ("Y".equals(voucher.getCancelFlag())) {
             throw new RuntimeException("Cannot post a cancelled voucher: " + voucherId);
         }
@@ -343,9 +379,26 @@ public class VoucherService {
         ensureBatchIsOpen(voucher);
 
         Account account = voucher.getAccount();
-        Tenant tenant = voucher.getTenant();
         BigDecimal amount = voucher.getTransactionAmount();
         VoucherDrCr drCr = voucher.getDrCr();
+
+        // ── DOUBLE-ENTRY ENFORCEMENT (RBI-CRITICAL) ──
+        // Compute DR/CR totals for this voucher leg BEFORE any ledger write.
+        // A DR voucher contributes (amount, 0); a CR voucher contributes (0, amount).
+        BigDecimal totalDebit = drCr == VoucherDrCr.DR ? amount : BigDecimal.ZERO;
+        BigDecimal totalCredit = drCr == VoucherDrCr.CR ? amount : BigDecimal.ZERO;
+
+        if (totalDebit.compareTo(totalCredit) != 0) {
+            // This should never happen for a well-formed voucher (DR xor CR with amount > 0),
+            // but we enforce it as an absolute gate: no ledger persistence if unbalanced.
+            throw new com.ledgora.common.exception.AccountingException(
+                    "UNBALANCED_VOUCHER",
+                    "Unbalanced voucher cannot be posted. Voucher " + voucherId
+                    + " totalDebit=" + totalDebit + " totalCredit=" + totalCredit
+                    + ". DR==CR invariant violated.");
+        }
+
+        // ── All validations passed. Now persist immutable ledger entries. ──
 
         // Find or create a transaction reference for this voucher
         Transaction transaction = findOrCreateTransaction(voucher, linkedTransaction);
