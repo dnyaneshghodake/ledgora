@@ -285,6 +285,71 @@ INITIATED → SENT → RECEIVED → SETTLED
 
 EOD blocks if any transfers are not `SETTLED` or `FAILED`.
 
+## 5B) Suspense GL parking flow
+
+When a posting partially fails (e.g., debit leg succeeds but credit leg fails due to account freeze), the system routes the failed leg to a Suspense GL to preserve double-entry integrity. This is managed by `SuspenseResolutionService`.
+
+### 5B.1 Suspense routing architecture
+
+```
+Normal Posting:
+  DR Customer Account  ──→  CR Destination Account    (balanced, no suspense)
+
+Failed Posting (credit leg fails):
+  DR Customer Account  ──→  CR SUSPENSE GL            (parked temporarily)
+  Transaction.status = PARKED
+  SuspenseCase created with reason_code
+  Metric: ledgora.suspense.created incremented
+
+Correction (operations team resolves):
+  DR SUSPENSE GL       ──→  CR Destination Account    (clears suspense to zero)
+  SuspenseCase.status = RESOLVED
+```
+
+### 5B.2 Suspense account resolution
+
+`SuspenseResolutionService.resolveSuspenseAccount(tenantId, channel)` resolves in order:
+
+1. Channel-specific mapping from `suspense_gl_mappings` table
+2. Default (channel=null) mapping from `suspense_gl_mappings` table
+3. Fallback: any account with `accountType = SUSPENSE_ACCOUNT` for the tenant
+
+Failure throws `GovernanceException` with code `SUSPENSE_ACCOUNT_MISSING`.
+
+### 5B.3 SuspenseCase lifecycle
+
+```
+OPEN → RESOLVED   (retry credit posting succeeded)
+     → REVERSED   (debit leg also reversed)
+```
+
+Each `SuspenseCase` tracks:
+- The original transaction that partially failed
+- The successfully posted voucher (debit leg)
+- The suspense voucher (credit to suspense GL)
+- The intended account (where credit should have gone)
+- Reason code (`ACCOUNT_FROZEN`, `ACCOUNT_INACTIVE`, `POSTING_EXCEPTION`, `TIMEOUT`)
+- Resolution: maker-checker enforced, resolution voucher linked
+
+### 5B.4 Resolution operations
+
+Operations team can:
+- **Retry credit posting** — creates correction voucher (DR Suspense GL, CR intended account), marks case `RESOLVED`
+- **Reverse debit** — cancels the original debit voucher, marks case `REVERSED`
+
+Both operations enforce maker-checker: resolver must differ from checker.
+
+### 5B.5 EOD enforcement
+
+EOD blocks if:
+- Any `SUSPENSE_ACCOUNT` type account has non-zero balance
+- Any `SuspenseCase` is in `OPEN` status with amount exceeding tolerance threshold (default: 0)
+
+### 5B.6 Observability
+
+- Micrometer counter: `ledgora.suspense.created` — incremented on each new suspense case
+- Audit events: `SUSPENSE_CASE_CREATED`, `SUSPENSE_CASE_RESOLVED`, `SUSPENSE_CASE_REVERSED`
+
 ## 6) Batch lifecycle
 
 ### 6.1 How batches are determined
@@ -330,6 +395,8 @@ Ledgora models day lifecycle with per-tenant `dayStatus` (`OPEN`, `DAY_CLOSING`,
 - transactions pending approval (PENDING_APPROVAL status)
 - unsettled inter-branch transfers (all IBC transfers must be SETTLED or FAILED) via `InterBranchClearingService`
 - **clearing GL net-zero** — SUM(balance) of all `CLEARING_ACCOUNT` type accounts must equal 0 per tenant, via `IbtService.validateClearingGlNetZero()`
+- **suspense GL balance** — SUM(balance) of all `SUSPENSE_ACCOUNT` type accounts must equal 0 per tenant, via `SuspenseResolutionService.validateSuspenseAccountBalance()`
+- **suspense cases** — no open `SuspenseCase` records with amount exceeding tolerance threshold (default: 0), via `SuspenseResolutionService.validateSuspenseForEod()`
 - tenant GL balanced via `CbsGlBalanceService`
 
 ### 7.2 EOD run
@@ -485,4 +552,4 @@ A quick manual verification (dev/H2):
 12. After EOD, use `/eod/day-begin` to open the day
 13. Test voucher detail view: go to `/vouchers/{id}` for any voucher
 
-For additional data-level checks, use H2 console and the SQL in `README.md` and `docs/ibt-audit-sql-pack.sql`.
+For additional data-level checks, use H2 console and the SQL in `README.md`, `docs/ibt-audit-sql-pack.sql`, and `docs/suspense-audit-sql-pack.sql`.

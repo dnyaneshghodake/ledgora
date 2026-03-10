@@ -7,5 +7,7 @@ public enum TransactionStatus {
     COMPLETED,
     FAILED,
     REVERSED,
-    REJECTED
+    REJECTED,
+    /** Transaction parked to Suspense GL due to partial posting failure. Requires resolution. */
+    PARKED
 }

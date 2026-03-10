@@ -1,16 +1,17 @@
 # Ledgora — RBI Governance & Compliance Control Layer
 
-**Document Version:** 2.2
+**Document Version:** 2.3
 **System:** Ledgora CBS (Spring Boot 3.2.3)
-**Commit Baseline:** PR #41 — CBS Enhancement (IBT Upgrade)
-**Previous Versions:** 2.1 (6bb7667f), 2.0 (b3f20d5c), 1.0 (d6a0a46)
-**Standard Applied:** RBI Master Direction on IT Governance (2023), Banking Regulation Act §10/§35A, IS Audit Guidelines, CBS Accounting Standard — Branch-level Trial Balance Isolation
+**Commit Baseline:** PR #41 — CBS Enhancement (IBT Upgrade + Suspense GL)
+**Previous Versions:** 2.2, 2.1 (6bb7667f), 2.0 (b3f20d5c), 1.0 (d6a0a46)
+**Standard Applied:** RBI Master Direction on IT Governance (2023), Banking Regulation Act §10/§35A, IS Audit Guidelines, CBS Accounting Standard — Branch-level Trial Balance Isolation, CBS Exception Accounting Standard
 
-> **Version 2.2 Changes:** CBS-grade IBT upgrade: `IbtService` enforcement layer, `BranchGlMapping` config table, clearing GL net-zero EOD check, IBT voucher count validation, partial reversal blocking, branch ACTIVE pre-validation, IBT audit SQL pack (8 queries). See §1.7 for full change log.
+> **Version 2.3 Changes:** Suspense GL implementation: `SUSPENSE_ACCOUNT` type, `SuspenseGlMapping` config table, `SuspenseCase` entity + repository, `SuspenseResolutionService` (account resolution, case creation, maker-checker resolution/reversal, EOD validation), `PARKED` transaction status, Micrometer `ledgora.suspense.created` metric, suspense audit SQL pack (6 queries), EOD blocks on non-zero suspense balance + open cases. Closes gap G1. See §1.8 for change log.
+> **Version 2.2 Changes:** CBS-grade IBT upgrade: `IbtService` enforcement layer, `BranchGlMapping` config table, clearing GL net-zero EOD check, IBT voucher count validation, partial reversal blocking, branch ACTIVE pre-validation, IBT audit SQL pack (8 queries). See §1.7 for change log.
 > **Version 2.1 Changes:** Added UI governance fixes (transaction approval endpoints, IDOR prevention, maker-checker UI hints).
 > **Version 2.0 Changes:** Core governance fixes (SYSTEM_AUTO, voucher integrity, tenant isolation, EOD, ledger immutability).
 > Items marked ✅ Resolved were previously identified as gaps and have been addressed in code.
-> See §1.6 / §1.7 for full change logs.
+> See §1.6 / §1.7 / §1.8 for full change logs.
 
 ---
 
@@ -57,6 +58,16 @@
 │  Branch ACTIVE + clearing GL pre-validation              │
 │  Clearing GL net-zero EOD check                          │
 │  BranchGlMapping config table                            │
+├─────────────────────────────────────────────────────────┤
+│              SUSPENSE GL EXCEPTION LAYER                  │
+├─────────────────────────────────────────────────────────┤
+│  SuspenseResolutionService — CBS exception accounting    │
+│  SUSPENSE_ACCOUNT type + SuspenseGlMapping config        │
+│  SuspenseCase entity (OPEN → RESOLVED / REVERSED)        │
+│  Maker-checker enforced on resolution/reversal           │
+│  PARKED transaction status for partial failures          │
+│  EOD blocks on non-zero suspense balance + open cases    │
+│  Micrometer metric: ledgora.suspense.created             │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -81,7 +92,7 @@
 
 | # | Gap | Severity | Current State | Recommendation |
 |---|---|---|---|---|
-| G1 | **Suspense GL not implemented** | HIGH | No mechanism to park unresolved postings. Failed partial transfers have no safe landing zone. | Implement per-tenant Suspense GL (see Part 3). EOD should validate Suspense GL == 0. |
+| G1 | ~~**Suspense GL not implemented**~~ | ~~HIGH~~ | **RESOLVED:** `SUSPENSE_ACCOUNT` type added. `SuspenseGlMapping` config table for tenant+channel routing. `SuspenseCase` entity tracks parked entries (OPEN → RESOLVED/REVERSED). `SuspenseResolutionService` handles account resolution, case creation with Micrometer metric (`ledgora.suspense.created`), maker-checker resolution/reversal. `PARKED` transaction status added. EOD blocks on non-zero suspense balance + open cases via `validateSuspenseAccountBalance()` and `validateSuspenseForEod()`. Suspense audit SQL pack with 6 queries. | ✅ Resolved |
 | G2 | ~~**Inter-branch clearing GL absent**~~ | ~~HIGH~~ | **RESOLVED:** GL 2910 (Inter-Branch Clearing) added to chart of accounts. IBC-OUT and IBC-IN clearing accounts seeded per branch (HQ001, BR001, BR002). `TransactionService.postTransferLedger()` detects cross-branch transfers and routes through 4-voucher clearing flow (DR Customer A + CR IBC_OUT_A / DR IBC_IN_B + CR Customer B). `InterBranchTransfer` entity tracks lifecycle (INITIATED → SENT → RECEIVED → SETTLED). EOD blocks on unsettled transfers via `InterBranchClearingService.validateClearingBalance()`. Settlement integration via `settleTransfers()`. | ✅ Resolved |
 | G3 | **No transaction amount limits per role** | MEDIUM | `TransactionService` validates amount > 0 and < 999999999999.99, but no per-role/per-channel limits. A teller can process unlimited amounts. | Add configurable teller/channel limits in approval policy. |
 | G4 | **No velocity checks** | MEDIUM | No detection of rapid-fire transactions from same account/user within a time window. | Add velocity monitoring (e.g., max N transactions per account per hour). |
@@ -94,7 +105,7 @@
 
 | Priority | Enhancement | Effort | Impact | Status |
 |---|---|---|---|---|
-| P0 (Immediate) | Suspense GL implementation | 2-3 days | Blocks production deployment without safe error routing | ⬜ Design complete (Part 3), implementation pending |
+| ~~P0 (Immediate)~~ | ~~Suspense GL implementation~~ | ~~2-3 days~~ | ~~Blocks production deployment without safe error routing~~ | ✅ **DONE** — `SUSPENSE_ACCOUNT` type, `SuspenseGlMapping` config, `SuspenseCase` entity, `SuspenseResolutionService`, `PARKED` status, EOD validation, Micrometer metric, audit SQL pack |
 | ~~P0~~ | ~~Inter-branch clearing GL~~ | ~~2-3 days~~ | ~~Required for multi-branch operations~~ | ✅ **DONE** — GL 2910 seeded, IBC-OUT/IBC-IN per branch, 4-voucher clearing flow, EOD validation, settlement integration |
 | ~~P1~~ | ~~Dedicated SYSTEM_AUTO user for STP~~ | ~~0.5 day~~ | ~~Cleaner audit trail~~ | ✅ **DONE** — `SYSTEM_AUTO` seeded with `ROLE_SYSTEM`, `GovernanceException` on missing, no fallback |
 | P1 (Next sprint) | Per-role transaction amount limits | 1-2 days | Prevents unauthorized high-value transactions | ⬜ Open |
@@ -115,6 +126,8 @@
 | `AuditService` | Audit trail — persistent logging of all financial events | `logEvent()`, `logFinancialEvent()`, `logChangeEvent()` |
 | `CbsGlBalanceService` | GL integrity — branch + tenant level GL balance tracking | `isTenantGlBalanced()`, `isBranchGlBalanced()` |
 | `DayBeginService` | Day Begin ceremony — validates previous day closed, batches settled | `validateDayBegin()`, `openDay()` |
+| `IbtService` | Inter-branch transfer governance — branch validation, clearing GL enforcement, voucher count, partial reversal block | `validateBranchesForIbt()`, `validateIbtVoucherCount()`, `validateClearingGlNetZero()`, `validateFullReversalRequired()` |
+| `SuspenseResolutionService` | Suspense GL management — account resolution, case lifecycle, maker-checker resolution, EOD suspense check | `resolveSuspenseAccount()`, `createSuspenseCase()`, `resolveCase()`, `reverseCase()`, `validateSuspenseForEod()` |
 
 ### 1.6 PR #40 Change Log — Gaps Addressed
 
@@ -142,7 +155,18 @@ Summary of all governance gaps identified and addressed in PR #40 (Feature Enhan
 | **UI-3** | `isOwnVoucher` flag passed to voucher detail view. JSP can conditionally hide Authorize/Reject/Post buttons when current user is the voucher's maker. Backend enforcement unchanged. | `6bb7667f` | ✅ Resolved |
 | **G2 / IBC** | Inter-Branch Clearing fully implemented: GL 2910 added, IBC-OUT/IBC-IN accounts seeded per branch, `InterBranchTransfer` entity + repository + service, `TransactionService.postTransferLedger()` routes cross-branch transfers through 4-voucher clearing flow, EOD validation blocks on unsettled IBC transfers, `settleTransfers()` for settlement integration. | PR #40 (latest) | ✅ Resolved |
 
-**Remaining open gaps:** G1 (Suspense GL — design only), G3 (per-role limits), G4 (velocity checks), G6 (ledger-vs-cache reconciliation), G7 (data archival), G8 (password policy).
+**Remaining open gaps:** G3 (per-role limits), G4 (velocity checks), G6 (ledger-vs-cache reconciliation), G7 (data archival), G8 (password policy).
+
+### 1.8 PR #41 Change Log — Suspense GL Implementation (v2.3)
+
+| Item | Description | Status |
+|---|---|---|
+| **G1** | Suspense GL fully implemented. `SUSPENSE_ACCOUNT` added to `AccountType` enum. `SuspenseGlMapping` config table (tenant + channel → suspense account). `SuspenseCase` entity with full lifecycle tracking (OPEN → RESOLVED / REVERSED). | ✅ Resolved |
+| **G1-SVC** | `SuspenseResolutionService`: suspense account resolution (channel-specific → default → fallback), case creation with Micrometer metric, maker-checker enforced resolution/reversal, EOD tolerance validation. | ✅ Resolved |
+| **G1-EOD** | `EodValidationService` enhanced: suspense account balance check (`SUSPENSE_ACCOUNT` SUM = 0) + open suspense case tolerance check (default: zero tolerance). Both block EOD on violation. | ✅ Resolved |
+| **G1-STATUS** | `PARKED` added to `TransactionStatus` enum for transactions routed to suspense. | ✅ Resolved |
+| **G1-METRIC** | Micrometer counter `ledgora.suspense.created` emitted on each new suspense case. | ✅ Resolved |
+| **G1-AUDIT** | Suspense audit SQL pack: 6 queries (account balance, open cases, resolution trail, summary, config check, PARKED transactions). See `docs/suspense-audit-sql-pack.sql`. | ✅ Resolved |
 
 ---
 

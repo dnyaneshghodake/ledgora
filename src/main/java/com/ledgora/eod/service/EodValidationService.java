@@ -48,6 +48,7 @@ public class EodValidationService {
     private final com.ledgora.clearing.service.InterBranchClearingService
             interBranchClearingService;
     private final com.ledgora.clearing.service.IbtService ibtService;
+    private final com.ledgora.suspense.service.SuspenseResolutionService suspenseResolutionService;
 
     public EodValidationService(
             VoucherRepository voucherRepository,
@@ -60,7 +61,8 @@ public class EodValidationService {
             BatchService batchService,
             TransactionRepository transactionRepository,
             com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService,
-            com.ledgora.clearing.service.IbtService ibtService) {
+            com.ledgora.clearing.service.IbtService ibtService,
+            com.ledgora.suspense.service.SuspenseResolutionService suspenseResolutionService) {
         this.voucherRepository = voucherRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.accountBalanceRepository = accountBalanceRepository;
@@ -72,6 +74,7 @@ public class EodValidationService {
         this.transactionRepository = transactionRepository;
         this.interBranchClearingService = interBranchClearingService;
         this.ibtService = ibtService;
+        this.suspenseResolutionService = suspenseResolutionService;
     }
 
     /**
@@ -172,6 +175,21 @@ public class EodValidationService {
             String clearingGlError = ibtService.validateClearingGlNetZero(tenantId);
             if (clearingGlError != null) {
                 errors.add(clearingGlError);
+            }
+        }
+
+        // Suspense GL validation: suspense balance must be within tolerance (default: 0)
+        if (suspenseResolutionService != null) {
+            String suspenseBalanceError =
+                    suspenseResolutionService.validateSuspenseAccountBalance(tenantId);
+            if (suspenseBalanceError != null) {
+                errors.add(suspenseBalanceError);
+            }
+            String suspenseCaseError =
+                    suspenseResolutionService.validateSuspenseForEod(
+                            tenantId, java.math.BigDecimal.ZERO);
+            if (suspenseCaseError != null) {
+                errors.add(suspenseCaseError);
             }
         }
 
