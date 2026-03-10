@@ -85,6 +85,12 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     List<Account> findByTenantIdAndCustomerId(
             @Param("tenantId") Long tenantId, @Param("customerId") Long customerId);
 
+    /** Find all accounts linked to a CustomerMaster (for freeze propagation). */
+    @Query(
+            "SELECT a FROM Account a WHERE a.customerMaster.id = :customerMasterId AND a.tenant.id = :tenantId")
+    List<Account> findByCustomerMasterIdAndTenantId(
+            @Param("customerMasterId") Long customerMasterId, @Param("tenantId") Long tenantId);
+
     /** Sum balance of all accounts of a given type for a tenant (e.g., clearing GL net check). */
     @Query(
             "SELECT COALESCE(SUM(a.balance), 0) FROM Account a "
