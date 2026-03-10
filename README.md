@@ -293,6 +293,10 @@ From `IbtController` (`src/main/java/com/ledgora/ibt/controller/IbtController.ja
 - `GET /risk/velocity` — Velocity fraud monitoring: open alerts, frozen accounts, pressure level (OPERATIONS, ADMIN, MANAGER, AUDITOR)
 - `GET /audit/explorer` — Enterprise audit log: searchable/filterable with date range, action, username, entity (ADMIN, AUDITOR)
 
+### Stress Testing (stress profile only)
+
+- `POST /stress/eod` — EOD performance stress test: generate bulk load + run EOD + return structured metrics (ADMIN only, `@Profile("stress")`)
+
 ### Reports
 
 - `GET /reports` (`src/main/java/com/ledgora/reporting/controller/ReportingController.java:25-29`)

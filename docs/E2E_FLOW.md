@@ -582,6 +582,41 @@ All governance dashboards are read-only — no record mutation. They provide CBS
 - All filters optional; tenant isolation always enforced as base predicate
 - Performance: 1 paginated SELECT (COUNT + data). No N+1.
 
+### 9A.6 EOD Performance Stress Test Harness
+
+**Active only in `stress` profile** — `@Profile("stress")` on all beans. Never instantiated in dev/prod.
+
+**Endpoint:** `POST /stress/eod` — `StressTestController` (ADMIN only)
+
+Request body:
+```json
+{
+  "tenantId": 1,
+  "accounts": 100,
+  "transactions": 1000,
+  "ibtRatio": 30
+}
+```
+
+**Phase 1 — Load Generation** (`EodLoadGeneratorService`):
+- Creates N accounts across existing branches (round-robin distribution)
+- Generates deposits + cross-branch IBT transfers via `TransactionService.deposit()` and `.transfer()`
+- All governance controls fire: hard ceiling, velocity, idempotency, batch totals, double-entry
+- Uses deterministic random seed (42) for reproducibility
+- Progress logged every 500 transactions
+
+**Phase 2 — EOD Execution** (`EodPerformanceRunner`):
+- Captures pre-EOD counts: transactions, vouchers, ledger entries, IBT records, suspense cases
+- Clears Hibernate statistics, executes `eodValidationService.runEod(tenantId)`, captures wall-clock time
+- Post-EOD captures: `prepareStatementCount`, `entityLoadCount`, `queryExecutionCount`
+- Validates: clearing GL net = 0, suspense GL net = 0, no exception
+
+**Output:** `EodPerformanceResult` DTO returned as JSON + logged as structured console summary.
+
+**Configuration:** `application-stress.properties` — H2 isolated DB (`ledgora_stress`), `hibernate.generate_statistics=true`, SQL logging suppressed, HikariCP pool=20.
+
+**Activation:** `mvn spring-boot:run -Dspring-boot.run.profiles=stress`
+
 ## 10) Suggested E2E verification checklist
 
 A quick manual verification (dev/H2):
@@ -659,5 +694,6 @@ A quick manual verification (dev/H2):
 16. **Test Hard Ceiling Monitor:** go to `/risk/hard-ceiling` — verify today's violation count and enforcement status badge
 17. **Test Velocity Fraud Monitor:** go to `/risk/velocity` — verify pressure level (LOW if no open alerts) and accounts under review count
 18. **Test Audit Explorer:** go to `/audit/explorer` — verify filter panel works (try filtering by action `VOUCHER_POSTED`), verify pagination
+19. **Test Stress Harness (stress profile only):** start app with `--spring.profiles.active=stress`, then `POST /stress/eod` with `{"tenantId":1,"accounts":50,"transactions":200,"ibtRatio":30}`. Verify JSON response includes `success: true`, `clearingGlZero: true`, `suspenseGlZero: true`, and check console for structured performance summary.
 
 For additional data-level checks, use H2 console and the SQL in `README.md`, `docs/ibt-audit-sql-pack.sql`, `docs/suspense-audit-sql-pack.sql`, `docs/hard-ceiling-audit-sql-pack.sql`, `docs/velocity-fraud-audit-sql-pack.sql`, `docs/eod-state-machine-audit-sql-pack.sql`, and `docs/balance-reconciliation-audit-sql-pack.sql`.
