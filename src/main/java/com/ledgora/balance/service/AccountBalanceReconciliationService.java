@@ -79,7 +79,6 @@ public class AccountBalanceReconciliationService {
         log.info("Balance reconciliation started");
         long startTime = System.currentTimeMillis();
         int totalDrifts = 0;
-        int totalAccounts = 0;
 
         List<Tenant> tenants = tenantRepository.findAll();
         for (Tenant tenant : tenants) {

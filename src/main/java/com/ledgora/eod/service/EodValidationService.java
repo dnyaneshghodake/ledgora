@@ -1,14 +1,11 @@
 package com.ledgora.eod.service;
 
-import com.ledgora.account.repository.AccountBalanceRepository;
 import com.ledgora.approval.repository.ApprovalRequestRepository;
-import com.ledgora.batch.service.BatchService;
 import com.ledgora.common.enums.ApprovalStatus;
 import com.ledgora.gl.service.CbsGlBalanceService;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
-import com.ledgora.tenant.service.TenantService;
 import com.ledgora.transaction.repository.TransactionRepository;
 import com.ledgora.voucher.repository.VoucherRepository;
 import java.math.BigDecimal;
@@ -37,12 +34,9 @@ public class EodValidationService {
 
     private final VoucherRepository voucherRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
-    private final AccountBalanceRepository accountBalanceRepository;
     private final ApprovalRequestRepository approvalRequestRepository;
     private final CbsGlBalanceService cbsGlBalanceService;
-    private final TenantService tenantService;
     private final TenantRepository tenantRepository;
-    private final BatchService batchService;
     private final TransactionRepository transactionRepository;
     private final com.ledgora.clearing.service.InterBranchClearingService
             interBranchClearingService;
@@ -53,12 +47,9 @@ public class EodValidationService {
     public EodValidationService(
             VoucherRepository voucherRepository,
             LedgerEntryRepository ledgerEntryRepository,
-            AccountBalanceRepository accountBalanceRepository,
             ApprovalRequestRepository approvalRequestRepository,
             CbsGlBalanceService cbsGlBalanceService,
-            TenantService tenantService,
             TenantRepository tenantRepository,
-            BatchService batchService,
             TransactionRepository transactionRepository,
             com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService,
             com.ledgora.clearing.service.IbtService ibtService,
@@ -66,12 +57,9 @@ public class EodValidationService {
             org.springframework.context.ApplicationContext applicationContext) {
         this.voucherRepository = voucherRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
-        this.accountBalanceRepository = accountBalanceRepository;
         this.approvalRequestRepository = approvalRequestRepository;
         this.cbsGlBalanceService = cbsGlBalanceService;
-        this.tenantService = tenantService;
         this.tenantRepository = tenantRepository;
-        this.batchService = batchService;
         this.transactionRepository = transactionRepository;
         this.interBranchClearingService = interBranchClearingService;
         this.ibtService = ibtService;

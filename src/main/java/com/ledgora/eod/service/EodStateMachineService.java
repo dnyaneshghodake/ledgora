@@ -258,13 +258,14 @@ public class EodStateMachineService {
         tenantService.closeDayAndAdvance(tenantId);
 
         // Mark completed
+        Long processId = process.getId();
         process =
                 eodProcessRepository
-                        .findById(process.getId())
+                        .findById(processId)
                         .orElseThrow(
                                 () ->
                                         new RuntimeException(
-                                                "EodProcess not found: " + process.getId()));
+                                                "EodProcess not found: " + processId));
         process.setPhase(EodPhase.DATE_ADVANCED);
         process.setStatus("COMPLETED");
         process.setCompletedAt(LocalDateTime.now());
@@ -305,13 +306,14 @@ public class EodStateMachineService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void markFailed(EodProcess process, String reason) {
+        Long processId = process.getId();
         process =
                 eodProcessRepository
-                        .findById(process.getId())
+                        .findById(processId)
                         .orElseThrow(
                                 () ->
                                         new RuntimeException(
-                                                "EodProcess not found: " + process.getId()));
+                                                "EodProcess not found: " + processId));
         process.setStatus("FAILED");
         process.setFailureReason(
                 reason != null && reason.length() > 2000 ? reason.substring(0, 2000) : reason);
