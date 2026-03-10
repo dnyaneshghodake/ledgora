@@ -65,7 +65,7 @@
 | G2 | **Inter-branch clearing GL absent** | HIGH | Multi-branch transfers within same tenant lack a clearing mechanism. No mirrored entries for branch-level reconciliation. | Implement INTER_BRANCH_CLEARING GL with mirrored entries (see Part 4). |
 | G3 | **No transaction amount limits per role** | MEDIUM | `TransactionService` validates amount > 0 and < 999999999999.99, but no per-role/per-channel limits. A teller can process unlimited amounts. | Add configurable teller/channel limits in approval policy. |
 | G4 | **No velocity checks** | MEDIUM | No detection of rapid-fire transactions from same account/user within a time window. | Add velocity monitoring (e.g., max N transactions per account per hour). |
-| G5 | **systemAuthorizeVoucher uses maker as checker** | MEDIUM | STP vouchers show `maker_id == checker_id`. Audit trail does not clearly distinguish human approval from system auto. | Seed a dedicated `SYSTEM_AUTO` user; use it as checker for STP flows. |
+| G5 | ~~**systemAuthorizeVoucher uses maker as checker**~~ | ~~MEDIUM~~ | **RESOLVED** (commit `04ad39db`): `SYSTEM_AUTO` pseudo-user seeded with `ROLE_SYSTEM`. `systemAuthorizeVoucher()` now throws `GovernanceException` if SYSTEM_AUTO missing — no fallback to maker. AUDIT-12 query validates compliance. | ✅ Resolved |
 | G6 | **No scheduled ledger-vs-cache reconciliation** | LOW | `Account.balance` is documented as cache, but no scheduled job validates it against `SUM(ledger_entries)`. Drift could go undetected between EODs. | Add a `@Scheduled` validator service (e.g., every 5 minutes) that compares cache vs ledger and logs discrepancies. |
 | G7 | **No data retention / archival policy** | LOW | All data lives in active tables indefinitely. No archival for historical ledger entries or closed-day vouchers. | Design an archival strategy: move closed-day data to archive tables after configurable retention period. |
 | G8 | **Password policy not enforced** | LOW | BCrypt hashing is used, but no minimum length, complexity, or rotation requirements are enforced at registration/change time. | Add password policy validation (min 8 chars, uppercase, digit, special character). |
@@ -352,7 +352,77 @@ GROUP BY idempotency_key
 HAVING COUNT(*) > 1;
 ```
 
-### 2.11 Audit Pack Execution Checklist
+### 2.11 Per-Journal Double-Entry Balance Proof
+
+**Purpose:** Prove that no individual journal has ever been persisted in an unbalanced state. This is the **definitive** audit evidence that the posting engine enforces DR == CR at the journal level — not just at day-end.
+
+Enforced by: `VoucherService.postVoucher()` — validates `totalDebit == totalCredit` BEFORE any `LedgerJournal` or `LedgerEntry` is persisted. If unbalanced, throws `AccountingException` and `@Transactional` rolls back the entire operation.
+
+```sql
+-- AUDIT-11: Per-journal debit vs credit balance proof
+-- Expected: ZERO rows returned. Any row = severe accounting violation.
+-- Run: daily (pre-EOD) + on-demand after any posting incident.
+SELECT
+    lj.id AS journal_id,
+    lj.business_date,
+    lj.description,
+    SUM(CASE WHEN le.entry_type = 'DEBIT' THEN le.amount ELSE 0 END) AS total_debit,
+    SUM(CASE WHEN le.entry_type = 'CREDIT' THEN le.amount ELSE 0 END) AS total_credit,
+    SUM(CASE WHEN le.entry_type = 'DEBIT' THEN le.amount ELSE 0 END)
+      - SUM(CASE WHEN le.entry_type = 'CREDIT' THEN le.amount ELSE 0 END) AS imbalance,
+    COUNT(le.id) AS entry_count,
+    CASE
+        WHEN SUM(CASE WHEN le.entry_type = 'DEBIT' THEN le.amount ELSE 0 END)
+           = SUM(CASE WHEN le.entry_type = 'CREDIT' THEN le.amount ELSE 0 END)
+        THEN 'BALANCED'
+        ELSE 'IMBALANCED — SEVERE VIOLATION'
+    END AS audit_result
+FROM ledger_journals lj
+JOIN ledger_entries le ON le.journal_id = lj.id
+GROUP BY lj.id, lj.business_date, lj.description
+HAVING SUM(CASE WHEN le.entry_type = 'DEBIT' THEN le.amount ELSE 0 END)
+    != SUM(CASE WHEN le.entry_type = 'CREDIT' THEN le.amount ELSE 0 END)
+ORDER BY lj.business_date DESC, lj.id;
+```
+
+**If any rows are returned:**
+1. **BLOCK EOD IMMEDIATELY** — do not close the business day.
+2. Escalate to Operations Head + IT Head + Compliance.
+3. Investigate the `journal_id` — trace back to the voucher and transaction.
+4. The `@Immutable` annotation prevents modification — correction requires a compensating reversal journal.
+5. Root cause analysis: check if `VoucherService.postVoucher()` was bypassed or if a code defect allowed unbalanced persistence.
+
+**Governance control chain:**
+- **Preventive:** `AccountingException` thrown in `VoucherService.postVoucher()` if DR != CR (commit `04ad39db`).
+- **Detective:** This SQL query (AUDIT-11) run daily pre-EOD.
+- **Corrective:** Reversal journal + root cause analysis if violation detected.
+
+### 2.12 SYSTEM_AUTO Segregation of Duties Proof
+
+**Purpose:** Prove that all STP (auto-authorized) vouchers use the `SYSTEM_AUTO` pseudo-user as checker, never the maker. This is the audit evidence for segregation of duties in straight-through processing.
+
+Enforced by: `VoucherService.systemAuthorizeVoucher()` — throws `GovernanceException` if SYSTEM_AUTO user is not found (commit `04ad39db`). No fallback to maker.
+
+```sql
+-- AUDIT-12: Verify all STP vouchers have SYSTEM_AUTO as checker (not maker)
+-- Expected: 0 rows. Any row = governance violation (maker acted as own checker).
+SELECT v.id AS voucher_id, v.voucher_number,
+       v.maker_id, v.checker_id,
+       m.username AS maker_username,
+       c.username AS checker_username,
+       v.authorization_remarks,
+       v.transaction_amount, v.dr_cr, v.posting_date
+FROM vouchers v
+JOIN users m ON m.id = v.maker_id
+JOIN users c ON c.id = v.checker_id
+WHERE v.authorization_remarks LIKE '%SYSTEM_AUTO_AUTHORIZED%'
+  AND c.username != 'SYSTEM_AUTO'
+  AND v.auth_flag = 'Y'
+  AND v.cancel_flag = 'N'
+ORDER BY v.posting_date DESC;
+```
+
+### 2.13 Audit Pack Execution Checklist
 
 | # | Query | Run Frequency | Acceptable Result | Action on Failure |
 |---|---|---|---|---|
@@ -366,6 +436,8 @@ HAVING COUNT(*) > 1;
 | 08 | Same maker-checker | Weekly | 0 non-STP violations | Disciplinary review; access audit |
 | 09 | Backdated postings | Weekly | 0 rows | Investigate authorization chain |
 | 10 | Duplicate transactions | Daily | 0 exact dupes; review near-dupes | Reversal + root cause |
+| 11 | Per-journal DR==CR proof | Daily (pre-EOD) | 0 rows | **BLOCK EOD** — severe accounting violation; escalate immediately |
+| 12 | SYSTEM_AUTO SoD proof | Weekly | 0 rows | Governance violation; investigate bypass; disciplinary action |
 
 ---
 
