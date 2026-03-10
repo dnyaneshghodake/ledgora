@@ -1,17 +1,18 @@
 # Ledgora — RBI Governance & Compliance Control Layer
 
-**Document Version:** 2.6
+**Document Version:** 2.7
 **System:** Ledgora CBS (Spring Boot 3.2.3)
-**Commit Baseline:** PR #41 — CBS Enhancement (IBT + Suspense GL + Hard Ceilings + Velocity Fraud + EOD State Machine)
-**Previous Versions:** 2.5, 2.4, 2.3, 2.2, 2.1, 2.0, 1.0
+**Commit Baseline:** PR #43 — Feature Enhancement (IBT UI Layer + Reconciliation Dashboard)
+**Previous Versions:** 2.6, 2.5, 2.4, 2.3, 2.2, 2.1, 2.0, 1.0
 **Standard Applied:** RBI Master Direction on IT Governance (2023), Banking Regulation Act §10/§35A, IS Audit Guidelines, CBS Accounting Standard, RBI Risk Appetite Framework, RBI Master Direction on Fraud Risk Management (2023), RBI IT Framework — Business Continuity
 
+> **Version 2.7 Changes:** IBT UI layer with dedicated IbtController: create/list/detail/reconciliation screens. Reconciliation dashboard provides CBS-grade operational visibility (clearing GL net balance, unsettled aging, failed transfer tracking). `InterBranchTransfer` used as canonical aggregate — no Transaction-table derivation. JOIN FETCH queries for N+1 prevention (≤2 SELECTs per detail page). See §1.12 for change log.
 > **Version 2.6 Changes:** Crash-safe EOD state machine: `EodProcess` entity (`eod_processes` table), `EodStateMachineService` (5-phase execution with `REQUIRES_NEW` per phase), crash recovery via `findIncompleteProcesses()`, stuck detection (>30 min), double execution prevention (unique constraint), audit SQL pack (6 queries). See §1.11 for change log.
 > **Version 2.5 Changes:** Velocity Fraud Engine. Closes G4/FR-06. See §1.10.
 > **Version 2.4 Changes:** Hard Transaction Ceiling. Addresses FR-05. See §1.9.
 > **Version 2.3 / 2.2 / 2.1 / 2.0:** Suspense GL (G1), IBT upgrade, UI fixes, core fixes.
 > Items marked ✅ Resolved were previously identified as gaps and have been addressed in code.
-> See §1.6–§1.11 for full change logs.
+> See §1.6–§1.12 for full change logs.
 
 ---
 
@@ -58,6 +59,8 @@
 │  Branch ACTIVE + clearing GL pre-validation              │
 │  Clearing GL net-zero EOD check                          │
 │  BranchGlMapping config table                            │
+│  IbtController — dedicated UI (create/list/detail/recon) │
+│  Reconciliation dashboard (clearing net, aging, KPIs)    │
 ├─────────────────────────────────────────────────────────┤
 │              SUSPENSE GL EXCEPTION LAYER                  │
 ├─────────────────────────────────────────────────────────┤
@@ -109,9 +112,10 @@
 | ~~P0~~ | ~~Inter-branch clearing GL~~ | ~~2-3 days~~ | ~~Required for multi-branch operations~~ | ✅ **DONE** — GL 2910 seeded, IBC-OUT/IBC-IN per branch, 4-voucher clearing flow, EOD validation, settlement integration |
 | ~~P1~~ | ~~Dedicated SYSTEM_AUTO user for STP~~ | ~~0.5 day~~ | ~~Cleaner audit trail~~ | ✅ **DONE** — `SYSTEM_AUTO` seeded with `ROLE_SYSTEM`, `GovernanceException` on missing, no fallback |
 | P1 (Next sprint) | Per-role transaction amount limits | 1-2 days | Prevents unauthorized high-value transactions | ⬜ Open |
-| P1 (Next sprint) | Scheduled ledger-vs-cache validator | 1 day | Detects balance drift between EODs | ⬜ Open |
-| P2 (Backlog) | Velocity monitoring | 2-3 days | Fraud detection for rapid-fire transactions | ⬜ Open |
+| ~~P1 (Next sprint)~~ | ~~Scheduled ledger-vs-cache validator~~ | ~~1 day~~ | ~~Detects balance drift between EODs~~ | ✅ **DONE** — `AccountBalanceReconciliationService` runs every 15 min via `@Scheduled`. See §1.11. |
+| ~~P2 (Backlog)~~ | ~~Velocity monitoring~~ | ~~2-3 days~~ | ~~Fraud detection for rapid-fire transactions~~ | ✅ **DONE** — `VelocityFraudEngine` with 60-min window, account freeze, FraudAlert. See §1.10. |
 | P2 (Backlog) | Password policy enforcement | 1 day | Regulatory hygiene | ⬜ Open |
+| P2 (Backlog) | IBT UI — authorization + reversal workflows | 2-3 days | Complete IBT lifecycle from UI (currently create/list/detail/reconciliation only) | ⬜ Open |
 | P3 (Long-term) | Data archival strategy | 5+ days | Storage optimization and regulatory retention | ⬜ Open |
 
 ### 1.5 Integration Points Summary
@@ -132,6 +136,12 @@
 | `VelocityFraudEngine` | Proactive velocity fraud detection — 60-min window count + amount check, account freeze, FraudAlert creation, metric emission | `evaluateVelocity(tenant, account, amount, userId)` — throws `GovernanceException(VELOCITY_LIMIT_EXCEEDED)` |
 | `EodStateMachineService` | Crash-safe EOD execution — 5-phase state machine with independent commits, restart recovery, stuck detection, double execution prevention | `executeEod(tenantId)`, `findIncompleteProcesses()`, `findStuckProcesses()` |
 | `AccountBalanceReconciliationService` | Scheduled (15-min) ledger-vs-cache reconciliation — paginated multi-tenant, BalanceDriftAlert on mismatch, CRITICAL audit log, metric | `reconcileAll()` (@Scheduled), `reconcileTenant()`, `getOpenAlerts()` |
+| `IbtController` | IBT UI layer — dedicated screens for inter-branch transfer create, list, detail, and reconciliation. Uses `InterBranchTransfer` as canonical aggregate (not Transaction derivation). JOIN FETCH queries for N+1 prevention (≤2 SELECTs per page). Reconciliation dashboard shows clearing GL net, unsettled aging (T+1/T+2/T+3 color-coded), failed transfer KPIs. | `GET /ibt`, `GET /ibt/create`, `POST /ibt/create`, `GET /ibt/{id}`, `GET /ibt/reconciliation` |
+| `SuspenseDashboardController` | Suspense GL governance dashboard — open case count, GL net balance (SUSPENSE_ACCOUNT type), exposure mismatch detection, aging table with T+1/T+2/T+3 color coding. Read-only. ≤3 SELECTs. | `GET /suspense/dashboard` |
+| `ClearingEngineController` | Clearing settlement readiness monitor — unsettled IBT count, clearing GL net, settlement gate (ready/not ready). Read-only. ≤3 SELECTs. | `GET /clearing/engine` |
+| `HardCeilingDashboardController` | Hard transaction ceiling violation monitor — today's count (tenant business date), last 20 violations from audit_logs (action=HARD_LIMIT_EXCEEDED). Read-only. 2 SELECTs. | `GET /risk/hard-ceiling` |
+| `VelocityFraudDashboardController` | Velocity fraud risk monitor — open alerts, frozen accounts (UNDER_REVIEW), fraud pressure level (LOW/MEDIUM/HIGH), last 20 FraudAlert records. Read-only. 3 SELECTs. | `GET /risk/velocity` |
+| `AuditExplorerController` | Enterprise audit log explorer — searchable/filterable via JpaSpecificationExecutor (date range, action, username, entity type/id). Paginated. Tenant-isolated. Read-only. 1 paginated SELECT. | `GET /audit/explorer` |
 
 ### 1.6 PR #40 Change Log — Gaps Addressed
 
@@ -159,7 +169,8 @@ Summary of all governance gaps identified and addressed in PR #40 (Feature Enhan
 | **UI-3** | `isOwnVoucher` flag passed to voucher detail view. JSP can conditionally hide Authorize/Reject/Post buttons when current user is the voucher's maker. Backend enforcement unchanged. | `6bb7667f` | ✅ Resolved |
 | **G2 / IBC** | Inter-Branch Clearing fully implemented: GL 2910 added, IBC-OUT/IBC-IN accounts seeded per branch, `InterBranchTransfer` entity + repository + service, `TransactionService.postTransferLedger()` routes cross-branch transfers through 4-voucher clearing flow, EOD validation blocks on unsettled IBC transfers, `settleTransfers()` for settlement integration. | PR #40 (latest) | ✅ Resolved |
 
-**Remaining open gaps:** G3 (per-role limits), G4 (velocity checks), G6 (ledger-vs-cache reconciliation), G7 (data archival), G8 (password policy).
+**Remaining open gaps (as of PR #40):** G3 (per-role limits), G4 (velocity checks), G6 (ledger-vs-cache reconciliation), G7 (data archival), G8 (password policy).
+> **Note:** G4 resolved in PR #41 (§1.10), G6 resolved in PR #41 (§1.11). Current open gaps: G3, G7, G8.
 
 ### 1.8 PR #41 Change Log — Suspense GL Implementation (v2.3)
 
@@ -183,7 +194,8 @@ Summary of all governance gaps identified and addressed in PR #40 (Feature Enhan
 | **FR-05-METRIC** | Micrometer counter `ledgora.hard_limit.blocked` emitted on each blocked transaction. | ✅ Resolved |
 | **FR-05-SQL** | Hard ceiling audit SQL pack: 4 queries (violation log, config check, bypass detection, user frequency). See `docs/hard-ceiling-audit-sql-pack.sql`. | ✅ Resolved |
 
-**Remaining open gaps:** G3 (per-role soft limits), G6 (ledger-vs-cache reconciliation), G7 (data archival), G8 (password policy).
+**Remaining open gaps (as of PR #41 v2.4):** G3 (per-role soft limits), G6 (ledger-vs-cache reconciliation), G7 (data archival), G8 (password policy).
+> **Note:** G6 resolved in PR #41 v2.6 (§1.11). Current open gaps: G3, G7, G8.
 
 ### 1.10 PR #41 Change Log — Velocity Fraud Engine (v2.5)
 
@@ -206,6 +218,34 @@ Summary of all governance gaps identified and addressed in PR #40 (Feature Enhan
 | **EOD-SM-STUCK** | `findStuckProcesses()` detects processes idle > 30 minutes in same phase. EOD-SM-02 SQL provides manual stuck detection. | ✅ Implemented |
 | **EOD-SM-DELEGATE** | `EodValidationService.runEod()` refactored to delegate to `EodStateMachineService.executeEod()`. Existing controller and UI unchanged. | ✅ Implemented |
 | **EOD-SM-AUDIT** | Audit events: `EOD_STARTED`, `EOD_COMPLETED`, `EOD_FAILED` logged to `audit_logs`. SQL pack with 6 queries. See `docs/eod-state-machine-audit-sql-pack.sql`. | ✅ Implemented |
+
+### 1.12 PR #43 Change Log — IBT UI Layer + Reconciliation Dashboard (v2.7)
+
+| Item | Description | Status |
+|---|---|---|
+| **IBT-UI** | `IbtController` created in `com.ledgora.ibt.controller` with 5 endpoints: `GET /ibt` (paginated list), `GET /ibt/create` (form), `POST /ibt/create` (validate + delegate to `TransactionService.transfer()`), `GET /ibt/{id}` (detail), `GET /ibt/reconciliation` (dashboard). All role-gated via `@PreAuthorize`. | ✅ Implemented |
+| **IBT-LIST** | Paginated IBT list using `InterBranchTransfer` as canonical aggregate. `JpaSpecificationExecutor` for composable status/date/branch filters. No Transaction-table derivation. Status badges: INITIATED (gray), SENT (blue), RECEIVED (purple), SETTLED (green), FAILED (red). | ✅ Implemented |
+| **IBT-DETAIL** | Detail view with 2-query N+1 prevention strategy: Query 1 = `findByIdWithGraph()` (IBT + branches + transaction + users via JOIN FETCH), Query 2 = `findByTransactionIdWithGraph()` (vouchers + branch + account + ledgerEntry + GL via JOIN FETCH). Total: ≤2 SQL SELECTs, zero lazy loading in JSP. Vouchers grouped by branch (Branch A / Branch B). | ✅ Implemented |
+| **IBT-CREATE** | Cross-branch pre-validation in controller (accounts must be at different branches). AJAX branch detection via `/accounts/api/lookup`. Delegates to existing `TransactionService.transfer()` — no new business logic. | ✅ Implemented |
+| **IBT-RECON** | CBS-grade reconciliation dashboard (read-only). KPI cards: unsettled count (INITIATED+SENT+RECEIVED), failed count, clearing GL net balance (from `CLEARING_ACCOUNT` type — not voucher derivation), clearing status (BALANCED/IMBALANCE). Aging table: top 5 oldest unsettled IBTs with color-coded age (T+1 blue, T+2 yellow/ESCALATE, T+3+ red/CRITICAL). Per-branch clearing account balances. Governance banner. | ✅ Implemented |
+| **IBT-REPO** | Repository queries added: `findByIdWithGraph()`, `findByReferenceTransactionIdAndTenantId()`, `findOldestUnsettledByTenantId()`, `countByTenantIdAndStatusIn()`. `VoucherRepository.findByTransactionIdWithGraph()` added. All use JOIN FETCH for N+1 prevention. | ✅ Implemented |
+| **IBT-DOCS** | `README.md` updated with IBT endpoints, database tables (`inter_branch_transfers`, `branch_gl_mappings`), H2 verification SQL. `docs/E2E_FLOW.md` updated with §5A.8 (IBT UI endpoints) and revised verification checklist step 10. | ✅ Implemented |
+| **GOV-SUSPENSE** | `SuspenseDashboardController` at `GET /suspense/dashboard`. KPI cards (open/resolved/GL net/exposure), GL control alerts (RED/ORANGE/GREEN), aging table (top 10 OPEN cases, color-coded T+1/T+2/T+3). Repository: `findOldestOpenByTenantId` (JOIN FETCH), `countByTenantIdAndStatus`. ≤3 SELECTs. | ✅ Implemented |
+| **GOV-CLEARING** | `ClearingEngineController` at `GET /clearing/engine`. Settlement readiness gate (`unsettledCount==0 AND clearingGlNet==0`), unsettled transfers table (top 20), per-branch clearing balances. Reuses existing IBT repository queries. ≤3 SELECTs. | ✅ Implemented |
+| **GOV-CEILING** | `HardCeilingDashboardController` at `GET /risk/hard-ceiling`. Today's violations (tenant business date), enforcement status (CLEAN/MONITOR/ALERT), last 20 `HARD_LIMIT_EXCEEDED` audit events. Repository: `countByTenantIdAndActionAndTimestampBetween`, `findTop20ByTenantIdAndActionOrderByTimestampDesc`. 2 SELECTs. | ✅ Implemented |
+| **GOV-VELOCITY** | `VelocityFraudDashboardController` at `GET /risk/velocity`. Fraud pressure level (LOW/MEDIUM/HIGH), open alerts, frozen accounts (UNDER_REVIEW). Repository: `FraudAlertRepository.countByTenantIdAndStatus`, `findTop20ByTenantIdOrderByCreatedAtDesc`, `AccountRepository.countByTenantIdAndStatus`. 3 SELECTs. | ✅ Implemented |
+| **GOV-AUDIT** | `AuditExplorerController` at `GET /audit/explorer`. Searchable/filterable via `JpaSpecificationExecutor` (date range, action, username, entity type/id). Paginated. `AuditLogRepository` extended with `JpaSpecificationExecutor`. 1 paginated SELECT. | ✅ Implemented |
+| **GOV-INDEXES** | Production performance indexing strategy: 16 additive-only indexes across 6 tables (`inter_branch_transfers`, `suspense_cases`, `audit_logs`, `accounts`, `ledger_entries`, `fraud_alerts`). SQL file: `src/main/resources/db/performance-indexes.sql`. Documentation: `docs/production-indexing-strategy.md`. | ✅ Implemented |
+| **STRESS-HARNESS** | EOD performance stress test harness (`@Profile("stress")` — never active in production). `EodLoadGeneratorService`: bulk account/transaction/IBT generation using existing `TransactionService` methods (all governance controls fire). `EodPerformanceRunner`: timed EOD execution with Hibernate statistics capture (`prepareStatementCount`, `entityLoadCount`, `queryExecutionCount`), post-EOD validation (clearing GL net=0, suspense GL net=0). `StressTestController`: `POST /stress/eod` (ADMIN only). `EodPerformanceResult` DTO with structured console output. `application-stress.properties` with `hibernate.generate_statistics=true`. | ✅ Implemented |
+| **STRESS-QUERY** | `QueryPlanAnalyzerService` + `DiagnosticsController` at `GET /diagnostics/query-plans`. Analyzes EXPLAIN plans for 6 critical queries (EOD voucher balance, clearing GL net, suspense GL net, IBT unsettled count, suspense open count, audit explorer). Risk classification: HIGH (table scan, no index), MEDIUM (scan with index assist), LOW (index used). Uses `JdbcTemplate` EXPLAIN. Profile-isolated. | ✅ Implemented |
+| **STRESS-LOCK** | `LockContentionSimulator`: multi-thread concurrent posting (N threads × M transactions) with parallel EOD trigger via `CountDownLatch` synchronization. Detects deadlocks, lock timeouts, slow transactions (>2s). `POST /stress/lock-contention`. Structured `LockContentionResult` with lock wait/deadlock/timeout counters. | ✅ Implemented |
+| **STRESS-DEADLOCK** | `DeadlockSimulator`: deliberately provokes cross-account lock ordering deadlock (Thread A: X→Y, Thread B: Y→X). Post-deadlock recovery verification: ledger balanced, no partial vouchers (even delta), batch totals intact. `POST /stress/deadlock`. | ✅ Implemented |
+| **STRESS-LOAD** | `ProductionLoadGenerator`: token-bucket rate limiter (`Semaphore` refill), realistic workload mix (40% deposit, 30% withdrawal, 25% transfer, 5% IBT), percentile latency calculation (P50/P95/P99), error classification (balance/velocity/ceiling/lock/other). `POST /stress/load`. | ✅ Implemented |
+| **STRESS-CHAOS** | `ChaosEodTester`: simulates EOD crash-and-resume by manufacturing `FAILED` EodProcess at target phase, then calling `executeEod()` which detects and resumes. Post-recovery validation: ledger balanced, no duplicate vouchers, no stuck RUNNING, clearing/suspense GL zero. `POST /stress/chaos-eod`. | ✅ Implemented |
+
+**Scope constraint:** No modifications to `TransactionService`, `IbtService`, `VoucherService`, `InterBranchClearingService`, `EodValidationService`, `EodStateMachineService`, `SuspenseResolutionService`, `HardTransactionCeilingService`, `VelocityFraudEngine`, `AuditService`, or `SecurityConfig`. Pure UI layer + repository queries + documentation + indexes + test harness (profile-isolated).
+
+**Current open gaps:** G3 (per-role transaction limits), G7 (data archival), G8 (password policy). IBT authorization + reversal workflows deferred to next sprint (see §1.4 roadmap).
 
 ---
 
@@ -977,13 +1017,17 @@ createAccount("CLR-IB-BR002", "Inter-Branch Clearing - Uptown",
 
 ### 4.10 Integration Summary
 
-| Component | Change Required |
-|---|---|
-| `DataInitializer` | Seed GL `2910` + per-branch `CLR-IB-*` clearing accounts |
-| `TransactionService.postTransferLedger()` | Detect inter-branch; route through 4-voucher clearing flow |
-| `EodValidationService` | Add clearing GL net ≠ 0 check |
-| `AccountRepository` | Add `sumBalanceByTenantIdAndAccountType()` query |
-| Audit SQL Pack | CLEARING-01/02/03 queries added |
+| Component | Change Required | Status |
+|---|---|---|
+| `DataInitializer` | Seed GL `2910` + per-branch `CLR-IB-*` clearing accounts | ✅ Done (PR #40) |
+| `TransactionService.postTransferLedger()` | Detect inter-branch; route through 4-voucher clearing flow | ✅ Done (PR #40) |
+| `EodValidationService` | Add clearing GL net ≠ 0 check | ✅ Done (PR #40) |
+| `AccountRepository` | Add `sumBalanceByTenantIdAndAccountType()` query | ✅ Done (PR #40) |
+| Audit SQL Pack | CLEARING-01/02/03 queries added | ✅ Done (PR #40) |
+| `IbtController` | Dedicated UI: create, list (paginated), detail (JOIN FETCH), reconciliation dashboard | ✅ Done (PR #43) |
+| `InterBranchTransferRepository` | `findByIdWithGraph()`, `findOldestUnsettledByTenantId()`, `countByTenantIdAndStatusIn()`, `JpaSpecificationExecutor` | ✅ Done (PR #43) |
+| `VoucherRepository` | `findByTransactionIdWithGraph()` for N+1-free voucher loading | ✅ Done (PR #43) |
+| JSP views | `ibt-create.jsp`, `ibt-list.jsp`, `ibt-detail.jsp`, `ibt-reconciliation.jsp` | ✅ Done (PR #43) |
 
 **Invariants preserved:**
 - ✅ Each branch independently balances (DR == CR within branch)
@@ -992,6 +1036,7 @@ createAccount("CLR-IB-BR002", "Inter-Branch Clearing - Uptown",
 - ✅ EOD blocks if clearing is non-zero
 - ✅ Integrates with suspense (Part 3) for partial failure scenarios
 - ✅ Batch totals updated correctly (4 vouchers = 4 batch total updates)
+- ✅ IBT UI layer is read-only for reconciliation; create delegates to existing `TransactionService.transfer()` (no new business logic)
 
 ---
 

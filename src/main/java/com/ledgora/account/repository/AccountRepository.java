@@ -51,6 +51,9 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     @Query("SELECT COUNT(a) FROM Account a WHERE a.status = :status")
     long countByStatus(@Param("status") AccountStatus status);
 
+    /** Count accounts by tenant and status (e.g., UNDER_REVIEW for velocity dashboard). */
+    long countByTenantIdAndStatus(Long tenantId, AccountStatus status);
+
     // PART 2: Hierarchy support
     List<Account> findByParentAccountId(Long parentAccountId);
 

@@ -263,6 +263,93 @@
             </li>
             </c:if>
 
+            <%-- ═══ Inter-Branch Transfer (IBT) ═══ --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isMaker || sessionScope.isChecker || sessionScope.isOperations || sessionScope.isAuditor || sessionScope.isTeller}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="ibt">
+                    <i class="bi bi-building"></i>
+                    <span>Inter-Branch Transfer</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-ibt">
+                    <c:if test="${sessionScope.isMaker || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTeller}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/ibt/create" class="cbs-nav-link cbs-lockable" data-page="ibt/create">
+                            <i class="bi bi-plus-circle"></i>
+                            <span>New IBT</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/ibt" class="cbs-nav-link" data-page="ibt">
+                            <i class="bi bi-list-ul"></i>
+                            <span>IBT List</span>
+                        </a>
+                    </li>
+                    <c:if test="${sessionScope.isOperations || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/ibt/reconciliation" class="cbs-nav-link" data-page="ibt/reconciliation">
+                            <i class="bi bi-clipboard2-data"></i>
+                            <span>IBT Reconciliation</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <c:if test="${sessionScope.isOperations || sessionScope.isAdmin || sessionScope.isManager}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/clearing/engine" class="cbs-nav-link" data-page="clearing/engine">
+                            <i class="bi bi-gear-wide-connected"></i>
+                            <span>Clearing Engine</span>
+                        </a>
+                    </li>
+                    </c:if>
+                </ul>
+            </li>
+            </c:if>
+
+            <%-- ═══ Suspense GL Governance ═══ --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isAuditor}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="suspense">
+                    <i class="bi bi-exclamation-diamond"></i>
+                    <span>Suspense GL</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-suspense">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/suspense/dashboard" class="cbs-nav-link" data-page="suspense/dashboard">
+                            <i class="bi bi-clipboard2-data"></i>
+                            <span>Suspense Dashboard</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            </c:if>
+
+            <%-- ═══ Risk & Fraud Monitoring ═══ --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isAuditor}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="risk">
+                    <i class="bi bi-shield-exclamation"></i>
+                    <span>Risk & Fraud</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-risk">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/risk/hard-ceiling" class="cbs-nav-link" data-page="risk/hard-ceiling">
+                            <i class="bi bi-shield-exclamation"></i>
+                            <span>Hard Ceiling Monitor</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/risk/velocity" class="cbs-nav-link" data-page="risk/velocity">
+                            <i class="bi bi-speedometer2"></i>
+                            <span>Velocity Fraud Monitor</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            </c:if>
+
             <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin || sessionScope.isOperations}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="ledger">
@@ -401,8 +488,8 @@
             </li>
             </c:if>
 
-            <%-- Audit & Governance Section --%>
-            <c:if test="${sessionScope.isAuditor || sessionScope.isAdmin || sessionScope.isSuperAdmin}">
+            <%-- ═══ Audit & Governance Section ═══ --%>
+            <c:if test="${sessionScope.isAuditor || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isSuperAdmin}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="audit-governance">
                     <i class="bi bi-shield-check"></i>
@@ -418,6 +505,15 @@
                         </a>
                     </li>
                     </c:if>
+                    <c:if test="${sessionScope.isAuditor || sessionScope.isAdmin}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/audit/explorer" class="cbs-nav-link" data-page="audit/explorer">
+                            <i class="bi bi-clock-history"></i>
+                            <span>Audit Log Explorer</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager}">
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/approvals" class="cbs-nav-link" data-page="approvals-queue">
                             <i class="bi bi-clipboard-check"></i>
@@ -425,6 +521,38 @@
                             <c:if test="${sessionScope.pendingApprovals != null && sessionScope.pendingApprovals > 0}">
                                 <span class="cbs-badge">${sessionScope.pendingApprovals}</span>
                             </c:if>
+                        </a>
+                    </li>
+                    </c:if>
+                </ul>
+            </li>
+            </c:if>
+
+            <%-- ═══ Diagnostics (ADMIN only — stress profile features) ═══ --%>
+            <c:if test="${sessionScope.isAdmin}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="diagnostics">
+                    <i class="bi bi-wrench-adjustable"></i>
+                    <span>Diagnostics</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-diagnostics">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/diagnostics/query-plans" class="cbs-nav-link" data-page="diagnostics/query-plans">
+                            <i class="bi bi-diagram-3"></i>
+                            <span>Query Plan Analyzer</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/diagnostics/concurrency-audit" class="cbs-nav-link" data-page="diagnostics/concurrency-audit">
+                            <i class="bi bi-check2-all"></i>
+                            <span>Concurrency Audit</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="#" class="cbs-nav-link" data-page="diagnostics/certification" title="POST /diagnostics/certification/run — use API client">
+                            <i class="bi bi-award"></i>
+                            <span>Enterprise Certification</span>
                         </a>
                     </li>
                 </ul>
@@ -494,7 +622,7 @@
 
     <div class="cbs-sidebar-footer">
         <div class="cbs-sidebar-version">
-            <small>Ledgora CBS v2.0</small>
+            <small>Ledgora CBS v2.7</small>
         </div>
     </div>
 </aside>

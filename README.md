@@ -275,6 +275,33 @@ Examples:
 - `GET /vouchers/posted` — posted list (all operational roles)
 - `GET /vouchers/cancelled` — cancelled list (all operational roles)
 
+### Inter-Branch Transfer (IBT)
+
+From `IbtController` (`src/main/java/com/ledgora/ibt/controller/IbtController.java`):
+
+- `GET /ibt` — paginated list with status/date/branch filters (MAKER, CHECKER, OPERATIONS, ADMIN, MANAGER, AUDITOR)
+- `GET /ibt/create` — IBT initiation form (MAKER, ADMIN, MANAGER, TELLER)
+- `POST /ibt/create` — validate cross-branch + delegate to `TransactionService.transfer()` (same roles)
+- `GET /ibt/{id}` — detail view: IBT header, branch-grouped voucher breakdown, ledger entries, clearing GL (MAKER, CHECKER, OPERATIONS, ADMIN, MANAGER, AUDITOR)
+- `GET /ibt/reconciliation` — CBS reconciliation dashboard: KPIs, clearing GL net, aging table (OPERATIONS, ADMIN, MANAGER, AUDITOR)
+
+### Governance Dashboards
+
+- `GET /suspense/dashboard` — Suspense GL governance: open cases, GL net balance, aging table (OPERATIONS, ADMIN, MANAGER, AUDITOR)
+- `GET /clearing/engine` — Clearing settlement readiness: unsettled IBTs, clearing GL net, settlement gate (OPERATIONS, ADMIN, MANAGER)
+- `GET /risk/hard-ceiling` — Hard transaction ceiling violations: today's count, last 20 violations (OPERATIONS, ADMIN, MANAGER, AUDITOR)
+- `GET /risk/velocity` — Velocity fraud monitoring: open alerts, frozen accounts, pressure level (OPERATIONS, ADMIN, MANAGER, AUDITOR)
+- `GET /audit/explorer` — Enterprise audit log: searchable/filterable with date range, action, username, entity (ADMIN, AUDITOR)
+
+### Stress Testing (stress profile only)
+
+- `POST /stress/eod` — EOD performance stress test: generate bulk load + run EOD + return Hibernate statistics (ADMIN only)
+- `POST /stress/lock-contention` — concurrent posting + parallel EOD lock contention simulation (ADMIN only)
+- `POST /stress/deadlock` — cross-account deadlock provocation + recovery verification (ADMIN only)
+- `POST /stress/load` — production-style load generator with rate limiting + percentile latency (ADMIN only)
+- `POST /stress/chaos-eod` — EOD state machine crash/resume simulation + integrity verification (ADMIN only)
+- `GET /diagnostics/query-plans` — EXPLAIN analysis for 6 critical queries with risk classification (ADMIN only)
+
 ### Reports
 
 - `GET /reports` (`src/main/java/com/ledgora/reporting/controller/ReportingController.java:25-29`)
@@ -312,6 +339,15 @@ Important tables (non-exhaustive but core):
 - `settlements`, `settlement_entries` (`src/main/java/com/ledgora/settlement/entity/*`)
 - `vouchers` (`src/main/java/com/ledgora/voucher/entity/Voucher.java`) — CBS voucher lifecycle (create→authorize→post→cancel)
 - `scroll_sequences` (`src/main/java/com/ledgora/voucher/entity/ScrollSequence.java`) — concurrency-safe scroll number per tenant/branch/date
+- `inter_branch_transfers` (`src/main/java/com/ledgora/clearing/entity/InterBranchTransfer.java`) — IBT lifecycle tracking (INITIATED→SENT→RECEIVED→SETTLED/FAILED)
+- `branch_gl_mappings` (`src/main/java/com/ledgora/clearing/entity/BranchGlMapping.java`) — per-branch clearing GL configuration
+- `suspense_cases` (`src/main/java/com/ledgora/suspense/entity/SuspenseCase.java`) — suspense GL case lifecycle (OPEN→RESOLVED/REVERSED)
+- `suspense_gl_mappings` (`src/main/java/com/ledgora/suspense/entity/SuspenseGlMapping.java`) — tenant+channel→suspense account routing
+- `fraud_alerts` (`src/main/java/com/ledgora/fraud/entity/FraudAlert.java`) — velocity breach alerts with account freeze tracking
+- `velocity_limits` (`src/main/java/com/ledgora/fraud/entity/VelocityLimit.java`) — per-account/tenant velocity thresholds
+- `hard_transaction_limits` (`src/main/java/com/ledgora/approval/entity/HardTransactionLimit.java`) — absolute transaction ceilings per tenant+channel
+- `audit_logs` (`src/main/java/com/ledgora/audit/entity/AuditLog.java`) — immutable governance + financial event trail
+- `eod_processes` (`src/main/java/com/ledgora/eod/entity/EodProcess.java`) — crash-safe EOD state machine tracking
 - `exchange_rates` (`src/main/java/com/ledgora/currency/entity/ExchangeRate.java`)
 - `idempotency_keys` (`src/main/java/com/ledgora/idempotency/entity/IdempotencyKey.java`)
 - `system_dates` (`src/main/java/com/ledgora/common/entity/SystemDate.java`)
@@ -392,6 +428,26 @@ select sum(total_debit) as total_dr, sum(total_credit) as total_cr,
 from vouchers
 where post_flag = 'Y' and cancel_flag = 'N'
   and posting_date = CURRENT_DATE;
+```
+
+### Check IBT records
+
+```sql
+select id, status, amount, currency, business_date,
+       from_branch_id, to_branch_id, reference_transaction_id
+from inter_branch_transfers
+order by id desc;
+```
+
+### Check clearing GL net balance (must be zero before EOD)
+
+```sql
+select a.account_number, a.account_name, a.balance,
+       case when a.balance = 0 then 'ZERO' else 'NON-ZERO' end as status
+from accounts a
+where a.account_type = 'CLEARING_ACCOUNT'
+   or a.account_number like 'IBC-%'
+order by a.account_number;
 ```
 
 ## Security Notes

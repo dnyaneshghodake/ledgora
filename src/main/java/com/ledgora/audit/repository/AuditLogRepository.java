@@ -6,10 +6,12 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
+public interface AuditLogRepository
+        extends JpaRepository<AuditLog, Long>, JpaSpecificationExecutor<AuditLog> {
     List<AuditLog> findByUserId(Long userId);
 
     List<AuditLog> findByEntity(String entity);
@@ -39,4 +41,17 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
     Page<AuditLog> findByTenantIdAndActionOrderByTimestampDesc(
             Long tenantId, String action, Pageable pageable);
+
+    // ===== Governance dashboard queries =====
+
+    /**
+     * Count audit events by tenant, action, and time range (e.g., today's hard ceiling violations).
+     */
+    long countByTenantIdAndActionAndTimestampBetween(
+            Long tenantId, String action, LocalDateTime start, LocalDateTime end);
+
+    /**
+     * Fetch most recent audit events for a specific action (e.g., last 20 hard ceiling violations).
+     */
+    List<AuditLog> findTop20ByTenantIdAndActionOrderByTimestampDesc(Long tenantId, String action);
 }

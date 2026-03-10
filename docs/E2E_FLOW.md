@@ -287,6 +287,23 @@ INITIATED → SENT → RECEIVED → SETTLED
 
 EOD blocks if any transfers are not `SETTLED` or `FAILED`.
 
+### 5A.8 IBT UI endpoints
+
+From `IbtController` (`src/main/java/com/ledgora/ibt/controller/IbtController.java`):
+
+- `GET /ibt` — paginated IBT list with status/date/branch filters (MAKER, CHECKER, OPERATIONS, ADMIN, MANAGER, AUDITOR). Uses `JpaSpecificationExecutor` for composable filter queries against `InterBranchTransfer` (canonical aggregate — no Transaction table derivation).
+- `GET /ibt/create` — IBT initiation form (MAKER, ADMIN, MANAGER, TELLER). Pre-validates cross-branch via AJAX account lookup showing branch codes.
+- `POST /ibt/create` — validates source ≠ destination branch, delegates to `TransactionService.transfer()` which auto-detects cross-branch and routes through 4-voucher IBC clearing. Redirects to `/ibt/{transactionId}`.
+- `GET /ibt/{id}` — IBT detail view (MAKER, CHECKER, OPERATIONS, ADMIN, MANAGER, AUDITOR). Accepts both IBT ID (from list) and Transaction ID (from create redirect). Uses 2-query strategy for N+1 prevention:
+  - Query 1: `InterBranchTransferRepository.findByIdWithGraph()` — JOIN FETCH for IBT + fromBranch + toBranch + referenceTransaction + createdBy + approvedBy + tenant
+  - Query 2: `VoucherRepository.findByTransactionIdWithGraph()` — JOIN FETCH for vouchers + branch + account + ledgerEntry + glAccount + maker + checker
+  - Total: 2 SQL SELECTs, zero lazy loading in JSP. Vouchers grouped by branch (Branch A / Branch B) for visual clarity.
+- `GET /ibt/reconciliation` — CBS-grade reconciliation dashboard (OPERATIONS, ADMIN, MANAGER, AUDITOR). Read-only. Shows:
+  - KPI cards: unsettled count (INITIATED+SENT+RECEIVED), failed count, clearing GL net balance (from `CLEARING_ACCOUNT` type — not voucher derivation), clearing status (BALANCED/IMBALANCE)
+  - Clearing net status alert (red if non-zero, green if balanced — maps to EOD gate)
+  - Aging table: top 5 oldest unsettled IBTs with color-coded age (T+1 blue, T+2 yellow/ESCALATE, T+3+ red/CRITICAL)
+  - Per-branch clearing account balances (IBC-OUT/IBC-IN with ZERO/NON-ZERO badges)
+
 ## 5B) Suspense GL parking flow
 
 When a posting partially fails (e.g., debit leg succeeds but credit leg fails due to account freeze), the system routes the failed leg to a Suspense GL to preserve double-entry integrity. This is managed by `SuspenseResolutionService`.
@@ -512,6 +529,122 @@ All voucher endpoints are protected by `@PreAuthorize`:
 
 Maker-checker enforcement: a checker cannot authorize their own voucher (enforced in `VoucherService.authorizeVoucher(...)`).
 
+## 9A) Governance Dashboards (read-only operational visibility)
+
+All governance dashboards are read-only — no record mutation. They provide CBS-grade operational monitoring for pre-EOD checks, fraud detection, and audit compliance.
+
+### 9A.1 Suspense GL Dashboard
+
+`GET /suspense/dashboard` — `SuspenseDashboardController` (OPERATIONS, ADMIN, MANAGER, AUDITOR)
+
+- KPI cards: open cases, resolved cases, suspense GL net balance (`SUSPENSE_ACCOUNT` type), open exposure (sum of open case amounts)
+- GL Control: RED if `suspenseGlNetBalance != 0` ("EOD will block"), ORANGE if GL ≠ case exposure (mismatch), GREEN if healthy
+- Aging table: top 10 oldest OPEN cases with color-coded age (T+1 blue, T+2 yellow/ESCALATE, T+3+ red/CRITICAL)
+- Performance: ≤3 SELECTs. JOIN FETCH on aging query prevents N+1.
+
+### 9A.2 Clearing Settlement Engine
+
+`GET /clearing/engine` — `ClearingEngineController` (OPERATIONS, ADMIN, MANAGER)
+
+- Settlement readiness gate: `settlementReady = (unsettledCount == 0 AND clearingGlNet == 0)`
+- KPI cards: unsettled IBT count, failed count, clearing GL net balance
+- Unsettled transfers table: top 20 oldest with branch codes and color-coded aging
+- Does NOT execute settlement — read-only monitoring only
+- Performance: ≤3 SELECTs. Reuses existing `findOldestUnsettledByTenantId` (JOIN FETCH).
+
+### 9A.3 Hard Transaction Ceiling Monitor
+
+`GET /risk/hard-ceiling` — `HardCeilingDashboardController` (OPERATIONS, ADMIN, MANAGER, AUDITOR)
+
+- KPI: today's violation count (uses tenant business date, not system clock)
+- Enforcement status: CLEAN (0), MONITOR (1-3), ALERT (>3)
+- Recent violations table: last 20 `HARD_LIMIT_EXCEEDED` audit events with timestamp, user, entity, details
+- Data source: `audit_logs` table with `action = 'HARD_LIMIT_EXCEEDED'`
+- Performance: 2 SELECTs. No N+1 (AuditLog has no lazy associations).
+
+### 9A.4 Velocity Fraud Risk Monitor
+
+`GET /risk/velocity` — `VelocityFraudDashboardController` (OPERATIONS, ADMIN, MANAGER, AUDITOR)
+
+- Fraud pressure level: LOW (0 alerts), MEDIUM (1-5), HIGH (>5)
+- KPI cards: open fraud alerts, accounts under review (`UNDER_REVIEW` status)
+- Recent alerts table: last 20 FraudAlert records with account, type, observed count/amount, threshold, status
+- Data source: `fraud_alerts` table + `accounts` table (UNDER_REVIEW count)
+- Performance: 3 SELECTs. No N+1 (FraudAlert scalar fields only in JSP).
+
+### 9A.5 Enterprise Audit Log Explorer
+
+`GET /audit/explorer` — `AuditExplorerController` (ADMIN, AUDITOR)
+
+- Searchable/filterable: date range, action (LIKE), username (LIKE), entity type (LIKE), entity ID (exact)
+- Paginated table: timestamp, username, action, entity, entity ID, old value (truncated), new value (truncated), IP address
+- Uses `JpaSpecificationExecutor` for composable filter queries — single paginated SELECT
+- All filters optional; tenant isolation always enforced as base predicate
+- Performance: 1 paginated SELECT (COUNT + data). No N+1.
+
+### 9A.6 EOD Performance Stress Test Harness
+
+**Active only in `stress` profile** — `@Profile("stress")` on all beans. Never instantiated in dev/prod.
+
+**Endpoint:** `POST /stress/eod` — `StressTestController` (ADMIN only)
+
+Request body:
+```json
+{
+  "tenantId": 1,
+  "accounts": 100,
+  "transactions": 1000,
+  "ibtRatio": 30
+}
+```
+
+**Phase 1 — Load Generation** (`EodLoadGeneratorService`):
+- Creates N accounts across existing branches (round-robin distribution)
+- Generates deposits + cross-branch IBT transfers via `TransactionService.deposit()` and `.transfer()`
+- All governance controls fire: hard ceiling, velocity, idempotency, batch totals, double-entry
+- Uses deterministic random seed (42) for reproducibility
+- Progress logged every 500 transactions
+
+**Phase 2 — EOD Execution** (`EodPerformanceRunner`):
+- Captures pre-EOD counts: transactions, vouchers, ledger entries, IBT records, suspense cases
+- Clears Hibernate statistics, executes `eodValidationService.runEod(tenantId)`, captures wall-clock time
+- Post-EOD captures: `prepareStatementCount`, `entityLoadCount`, `queryExecutionCount`
+- Validates: clearing GL net = 0, suspense GL net = 0, no exception
+
+**Output:** `EodPerformanceResult` DTO returned as JSON + logged as structured console summary.
+
+**Configuration:** `application-stress.properties` — H2 isolated DB (`ledgora_stress`), `hibernate.generate_statistics=true`, SQL logging suppressed, HikariCP pool=20.
+
+**Activation:** `mvn spring-boot:run -Dspring-boot.run.profiles=stress`
+
+### 9A.7 Additional Stress & Diagnostics Harnesses
+
+All active only in `stress` profile. ADMIN role required. No production logic modified.
+
+**Query Plan Analyzer** — `GET /diagnostics/query-plans`
+- Runs EXPLAIN on 6 critical SQL queries (EOD, IBT, suspense, audit)
+- Risk classification: HIGH (table scan, no index), MEDIUM, LOW
+- Validates that production performance indexes are effective
+
+**Lock Contention Simulator** — `POST /stress/lock-contention`
+- N concurrent threads posting transfers + optional parallel EOD
+- Detects deadlocks, lock timeouts, slow transactions (>2s)
+- CountDownLatch synchronization maximizes contention
+
+**Deadlock Simulator** — `POST /stress/deadlock`
+- Provokes cross-account lock ordering deadlock (A→B vs B→A)
+- Post-deadlock recovery verification: ledger balanced, no partial vouchers, batch totals intact
+
+**Production Load Generator** — `POST /stress/load`
+- Token-bucket rate limiter (Semaphore, refill per second)
+- Workload mix: 40% deposit, 30% withdrawal, 25% transfer, 5% IBT
+- Captures P50/P95/P99 latency, error classification (balance/velocity/ceiling/lock)
+
+**Chaos EOD Tester** — `POST /stress/chaos-eod`
+- Manufactures FAILED EodProcess at target phase, then triggers resume
+- Tests EodStateMachineService crash recovery without modifying it
+- Validates: ledger balanced, no duplicates, no stuck RUNNING, clearing/suspense GL zero
+
 ## 10) Suggested E2E verification checklist
 
 A quick manual verification (dev/H2):
@@ -548,10 +681,20 @@ A quick manual verification (dev/H2):
    ```
 8. Go to `/batches` and verify batches exist for your channels
 9. Close/settle batches using UI actions
-10. **Test inter-branch transfer (IBT):**
-    - Create accounts at different branches (e.g., BR001 and BR002)
-    - Perform a transfer between them via `/transactions/transfer`
-    - Verify 4 vouchers were created (2 per branch):
+10. **Test inter-branch transfer (IBT) via dedicated UI:**
+    - Go to `/ibt/create` and select accounts at different branches (e.g., BR001 and BR002)
+    - Verify the cross-branch detection banner appears (green "Cross-branch detected" indicator)
+    - Submit the transfer — system redirects to `/ibt/{id}` detail view
+    - On the detail view, verify:
+      - IBT record shows status progression (INITIATED → SENT → RECEIVED)
+      - 4 vouchers displayed grouped by branch (Branch A: DR Customer + CR IBC_OUT; Branch B: DR IBC_IN + CR Customer)
+      - Clearing GL panel shows IBC-OUT/IBC-IN balances
+    - Go to `/ibt` list and verify the new transfer appears with correct status badge
+    - Go to `/ibt/reconciliation` and verify:
+      - KPI cards show correct unsettled/failed counts
+      - Clearing GL net balance (should be 0 if both legs posted)
+      - Clearing status shows BALANCED (green)
+    - Also verify via H2 console:
       ```sql
       select v.id, v.voucher_number, v.dr_cr, v.transaction_amount,
              v.account_id, a.branch_code, v.narration
@@ -574,5 +717,16 @@ A quick manual verification (dev/H2):
 11. Validate EOD via `/eod/validate` then run EOD via `/eod/run`
 12. After EOD, use `/eod/day-begin` to open the day
 13. Test voucher detail view: go to `/vouchers/{id}` for any voucher
+14. **Test Suspense Dashboard:** go to `/suspense/dashboard` — verify KPI cards show 0 open cases and suspense GL balanced (green)
+15. **Test Clearing Engine:** go to `/clearing/engine` — verify settlement readiness shows green if no unsettled IBTs and clearing GL net = 0
+16. **Test Hard Ceiling Monitor:** go to `/risk/hard-ceiling` — verify today's violation count and enforcement status badge
+17. **Test Velocity Fraud Monitor:** go to `/risk/velocity` — verify pressure level (LOW if no open alerts) and accounts under review count
+18. **Test Audit Explorer:** go to `/audit/explorer` — verify filter panel works (try filtering by action `VOUCHER_POSTED`), verify pagination
+19. **Test Stress Harness (stress profile only):** start app with `--spring.profiles.active=stress`, then `POST /stress/eod` with `{"tenantId":1,"accounts":50,"transactions":200,"ibtRatio":30}`. Verify JSON response includes `success: true`, `clearingGlZero: true`, `suspenseGlZero: true`, and check console for structured performance summary.
+20. **Test Query Plan Analyzer:** `GET /diagnostics/query-plans` — verify all 6 queries return `riskLevel: "LOW"` (indexes effective)
+21. **Test Lock Contention:** `POST /stress/lock-contention` with `{"tenantId":1,"threads":4,"transactionsPerThread":20,"triggerEod":false}` — verify `deadlockCount: 0` or low, check `lockWaitOccurrences`
+22. **Test Deadlock Simulation:** `POST /stress/deadlock` with `{"tenantId":1,"accountA":"SAV-1001-0001","accountB":"SAV-1002-0001","rounds":2}` — verify `systemRecovered: true`, `ledgerBalanced: true`
+23. **Test Production Load:** `POST /stress/load` with `{"tenantId":1,"threads":5,"targetTps":20,"durationSeconds":10,"ibtRatio":15}` — verify `actualTps` near target, check `p95LatencyMs`
+24. **Test Chaos EOD:** `POST /stress/chaos-eod` with `{"tenantId":1,"crashAfterPhase":"DAY_CLOSING"}` — verify `resumeSucceeded: true`, `ledgerBalanced: true`, `noStuckRunning: true`
 
 For additional data-level checks, use H2 console and the SQL in `README.md`, `docs/ibt-audit-sql-pack.sql`, `docs/suspense-audit-sql-pack.sql`, `docs/hard-ceiling-audit-sql-pack.sql`, `docs/velocity-fraud-audit-sql-pack.sql`, `docs/eod-state-machine-audit-sql-pack.sql`, and `docs/balance-reconciliation-audit-sql-pack.sql`.
