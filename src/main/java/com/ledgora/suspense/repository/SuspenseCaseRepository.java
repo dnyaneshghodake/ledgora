@@ -25,4 +25,22 @@ public interface SuspenseCaseRepository extends JpaRepository<SuspenseCase, Long
             "SELECT COALESCE(SUM(sc.amount), 0) FROM SuspenseCase sc "
                     + "WHERE sc.tenant.id = :tenantId AND sc.status = 'OPEN'")
     java.math.BigDecimal sumOpenAmountByTenantId(@Param("tenantId") Long tenantId);
+
+    // ===== Suspense dashboard queries =====
+
+    /** Count cases by tenant and status (generic — works for OPEN, RESOLVED, REVERSED). */
+    long countByTenantIdAndStatus(Long tenantId, String status);
+
+    /**
+     * Fetch the oldest OPEN suspense cases with all associations eagerly loaded (N+1 prevention).
+     * Used by the dashboard aging table. Limits handled in Java (Spring Data Top10).
+     */
+    @Query(
+            "SELECT DISTINCT sc FROM SuspenseCase sc "
+                    + "LEFT JOIN FETCH sc.originalTransaction "
+                    + "LEFT JOIN FETCH sc.intendedAccount "
+                    + "LEFT JOIN FETCH sc.suspenseAccount "
+                    + "WHERE sc.tenant.id = :tenantId AND sc.status = 'OPEN' "
+                    + "ORDER BY sc.createdAt ASC")
+    List<SuspenseCase> findOldestOpenByTenantId(@Param("tenantId") Long tenantId);
 }
