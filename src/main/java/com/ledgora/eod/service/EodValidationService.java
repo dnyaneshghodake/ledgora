@@ -47,6 +47,7 @@ public class EodValidationService {
     private final TransactionRepository transactionRepository;
     private final com.ledgora.clearing.service.InterBranchClearingService
             interBranchClearingService;
+    private final com.ledgora.clearing.service.IbtService ibtService;
 
     public EodValidationService(
             VoucherRepository voucherRepository,
@@ -58,7 +59,8 @@ public class EodValidationService {
             TenantRepository tenantRepository,
             BatchService batchService,
             TransactionRepository transactionRepository,
-            com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService) {
+            com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService,
+            com.ledgora.clearing.service.IbtService ibtService) {
         this.voucherRepository = voucherRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.accountBalanceRepository = accountBalanceRepository;
@@ -69,6 +71,7 @@ public class EodValidationService {
         this.batchService = batchService;
         this.transactionRepository = transactionRepository;
         this.interBranchClearingService = interBranchClearingService;
+        this.ibtService = ibtService;
     }
 
     /**
@@ -161,6 +164,14 @@ public class EodValidationService {
                     interBranchClearingService.validateClearingBalance(tenantId, businessDate);
             if (ibcError != null) {
                 errors.add(ibcError);
+            }
+        }
+
+        // CBS Standard (Step 3): Clearing GL net balance must be zero at EOD
+        if (ibtService != null) {
+            String clearingGlError = ibtService.validateClearingGlNetZero(tenantId);
+            if (clearingGlError != null) {
+                errors.add(clearingGlError);
             }
         }
 

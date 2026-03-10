@@ -1,15 +1,16 @@
 # Ledgora — RBI Governance & Compliance Control Layer
 
-**Document Version:** 2.1
+**Document Version:** 2.2
 **System:** Ledgora CBS (Spring Boot 3.2.3)
-**Commit Baseline:** 6bb7667f (PR #40 — Feature Enhancement)
-**Previous Versions:** 2.0 (b3f20d5c), 1.0 (d6a0a46)
-**Standard Applied:** RBI Master Direction on IT Governance (2023), Banking Regulation Act §10/§35A, IS Audit Guidelines
+**Commit Baseline:** PR #41 — CBS Enhancement (IBT Upgrade)
+**Previous Versions:** 2.1 (6bb7667f), 2.0 (b3f20d5c), 1.0 (d6a0a46)
+**Standard Applied:** RBI Master Direction on IT Governance (2023), Banking Regulation Act §10/§35A, IS Audit Guidelines, CBS Accounting Standard — Branch-level Trial Balance Isolation
 
+> **Version 2.2 Changes:** CBS-grade IBT upgrade: `IbtService` enforcement layer, `BranchGlMapping` config table, clearing GL net-zero EOD check, IBT voucher count validation, partial reversal blocking, branch ACTIVE pre-validation, IBT audit SQL pack (8 queries). See §1.7 for full change log.
 > **Version 2.1 Changes:** Added UI governance fixes (transaction approval endpoints, IDOR prevention, maker-checker UI hints).
 > **Version 2.0 Changes:** Core governance fixes (SYSTEM_AUTO, voucher integrity, tenant isolation, EOD, ledger immutability).
 > Items marked ✅ Resolved were previously identified as gaps and have been addressed in code.
-> See §1.6 for full change log.
+> See §1.6 / §1.7 for full change logs.
 
 ---
 
@@ -39,11 +40,23 @@
 │                  OPERATIONAL CONTROL LAYER                │
 ├─────────────────────────────────────────────────────────┤
 │  Batch Lifecycle (OPEN → CLOSED → SETTLED)               │
-│  EOD Validation (10+ pre-checks before day close)        │
+│  EOD Validation (12+ pre-checks before day close)        │
 │  Day Begin Ceremony (explicit open after CLOSED)         │
 │  Settlement (per-tenant, validates all invariants)        │
 │  Tenant Isolation (ThreadLocal + session + DB scope)     │
 │  Idempotency Keys (deduplication per client+channel)     │
+├─────────────────────────────────────────────────────────┤
+│              INTER-BRANCH TRANSFER (IBT) LAYER           │
+├─────────────────────────────────────────────────────────┤
+│  IbtService — CBS-grade IBT enforcement                  │
+│  Direct cross-branch posting blocked (GovernanceExc)     │
+│  Branch-specific clearing GL (config-driven)             │
+│  4-voucher clearing flow (atomic @Transactional)         │
+│  IBT voucher count validation (must be exactly 4)        │
+│  Partial reversal blocked (all-or-nothing)               │
+│  Branch ACTIVE + clearing GL pre-validation              │
+│  Clearing GL net-zero EOD check                          │
+│  BranchGlMapping config table                            │
 └─────────────────────────────────────────────────────────┘
 ```
 

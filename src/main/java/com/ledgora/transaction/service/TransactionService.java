@@ -87,6 +87,7 @@ public class TransactionService {
     private final com.ledgora.approval.service.ApprovalService approvalService;
     private final com.ledgora.clearing.service.InterBranchClearingService
             interBranchClearingService;
+    private final com.ledgora.clearing.service.IbtService ibtService;
 
     public TransactionService(
             TransactionRepository transactionRepository,
@@ -106,7 +107,8 @@ public class TransactionService {
             BankCalendarService bankCalendarService,
             com.ledgora.approval.service.ApprovalPolicyService approvalPolicyService,
             com.ledgora.approval.service.ApprovalService approvalService,
-            com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService) {
+            com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService,
+            com.ledgora.clearing.service.IbtService ibtService) {
         this.transactionRepository = transactionRepository;
         this.transactionLineRepository = transactionLineRepository;
         this.accountRepository = accountRepository;
@@ -125,6 +127,7 @@ public class TransactionService {
         this.approvalPolicyService = approvalPolicyService;
         this.approvalService = approvalService;
         this.interBranchClearingService = interBranchClearingService;
+        this.ibtService = ibtService;
     }
 
     /**
@@ -829,6 +832,7 @@ public class TransactionService {
         String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
 
         // ── INTER-BRANCH CLEARING DETECTION ──
+        // CBS Standard: Direct cross-branch posting is strictly prohibited.
         // If source and dest are at different branches, route through IBC clearing accounts
         // so each branch independently balances per RBI requirements.
         Branch sourceBranch = resolveBranch(sourceAccount, poster);
@@ -838,8 +842,12 @@ public class TransactionService {
                         && destBranch != null
                         && !sourceBranch.getId().equals(destBranch.getId());
 
-        if (crossBranch && interBranchClearingService != null) {
-            // ── CROSS-BRANCH: 4-voucher clearing flow ──
+        if (crossBranch) {
+            // ── IBT GOVERNANCE VALIDATION (Steps 1, 7) ──
+            // Validate both branches are ACTIVE, have clearing GL mappings, etc.
+            ibtService.validateBranchesForIbt(tenant, sourceBranch, destBranch);
+
+            // ── CROSS-BRANCH: 4-voucher clearing flow (Step 2) ──
             // Branch A: DR Customer A, CR IBC_OUT_A (Branch A balanced)
             // Branch B: DR IBC_IN_B, CR Customer B (Branch B balanced)
             com.ledgora.clearing.entity.InterBranchTransfer ibcTransfer =
@@ -910,6 +918,10 @@ public class TransactionService {
                     batch,
                     "IBC Transfer CR: " + destAccount.getAccountNumber());
             interBranchClearingService.markReceived(ibcTransfer.getId());
+
+            // ── IBT VOUCHER COUNT VALIDATION (Step 2) ──
+            // Verify exactly 4 vouchers were created for this IBT transaction
+            ibtService.validateIbtVoucherCount(transaction.getId());
 
             log.info(
                     "Cross-branch transfer posted via IBC: {} → {} amount={} ibcId={}",

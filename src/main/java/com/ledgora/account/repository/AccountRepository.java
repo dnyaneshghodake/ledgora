@@ -81,4 +81,17 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
             "SELECT a FROM Account a WHERE a.tenant.id = :tenantId AND a.customer.customerId = :customerId")
     List<Account> findByTenantIdAndCustomerId(
             @Param("tenantId") Long tenantId, @Param("customerId") Long customerId);
+
+    /** Sum balance of all accounts of a given type for a tenant (e.g., clearing GL net check). */
+    @Query(
+            "SELECT COALESCE(SUM(a.balance), 0) FROM Account a "
+                    + "WHERE a.tenant.id = :tenantId AND a.accountType = :accountType")
+    java.math.BigDecimal sumBalanceByTenantIdAndAccountType(
+            @Param("tenantId") Long tenantId, @Param("accountType") AccountType accountType);
+
+    /** Find all IBC clearing accounts for a tenant (IBC-OUT + IBC-IN pattern). */
+    @Query(
+            "SELECT a FROM Account a WHERE a.tenant.id = :tenantId "
+                    + "AND (a.accountNumber LIKE 'IBC-OUT-%' OR a.accountNumber LIKE 'IBC-IN-%')")
+    List<Account> findIbcClearingAccountsByTenantId(@Param("tenantId") Long tenantId);
 }

@@ -85,4 +85,8 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
             @Param("tenantId") Long tenantId,
             @Param("accountId") Long accountId,
             @Param("postingDate") LocalDate postingDate);
+
+    /** Count vouchers linked to a specific transaction (for IBT dual-voucher validation). */
+    @Query("SELECT COUNT(v) FROM Voucher v WHERE v.transaction.id = :transactionId")
+    long countByTransactionId(@Param("transactionId") Long transactionId);
 }
