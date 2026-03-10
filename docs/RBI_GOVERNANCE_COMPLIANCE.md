@@ -1,9 +1,14 @@
 # Ledgora — RBI Governance & Compliance Control Layer
 
-**Document Version:** 1.0
+**Document Version:** 2.0
 **System:** Ledgora CBS (Spring Boot 3.2.3)
-**Commit Baseline:** d6a0a46
+**Commit Baseline:** b3f20d5c (PR #40 — Feature Enhancement)
+**Previous Version:** 1.0 (commit d6a0a46)
 **Standard Applied:** RBI Master Direction on IT Governance (2023), Banking Regulation Act §10/§35A, IS Audit Guidelines
+
+> **Version 2.0 Changes:** This document has been updated to reflect all governance fixes implemented in PR #40.
+> Items marked ✅ Resolved were previously identified as gaps and have been addressed in code.
+> See §1.6 for full change log.
 
 ---
 
@@ -24,7 +29,8 @@
 │                  ACCOUNTING CONTROL LAYER                 │
 ├─────────────────────────────────────────────────────────┤
 │  Immutable Ledger (@Immutable on Journal + Entry)        │
-│  Double-Entry Enforcement (debit == credit per journal)  │
+│  Double-Entry: pair-level (DR+CR vouchers, equal amount) │
+│  Voucher Integrity (drCr!=null, amount>0 per leg)        │
 │  Voucher Lifecycle (DRAFT → APPROVED → POSTED)           │
 │  GL Balance Integrity (Branch + Tenant level)            │
 │  Account.balance = cache only (ledger = truth)           │
@@ -45,7 +51,7 @@
 | # | RBI Requirement | Reference | Ledgora Component | Implementation | Status |
 |---|---|---|---|---|---|
 | R1 | **Ledger Immutability** — Books of accounts must not be altered after posting | Banking Reg Act §10, IAS/GAAP | `LedgerJournal` + `LedgerEntry` | Both marked `@org.hibernate.annotations.Immutable`; Hibernate prevents UPDATE/DELETE SQL. Corrections via reversal vouchers only. | ✅ Compliant |
-| R2 | **Double-Entry Accounting** — Every debit must have an equal credit | Banking Reg Act §10, AS-1 | `VoucherService.postVoucher()`, `EodValidationService` | Voucher pairs (DR+CR) created per transaction. EOD validates `SUM(debits) == SUM(credits)` at ledger and voucher level. | ✅ Compliant |
+| R2 | **Double-Entry Accounting** — Every debit must have an equal credit | Banking Reg Act §10, AS-1 | `TransactionService`, `VoucherService`, `EodValidationService` | **Single-leg voucher model:** each voucher is DR xor CR. Balance enforced at pair level — `TransactionService` passes identical `dto.getAmount()` to both DR and CR legs. `createVoucherPair()` atomic via `@Transactional`. `postVoucher()` validates voucher integrity (`drCr != null`, `amount > 0`). EOD validates `SUM(debits) == SUM(credits)` at ledger and voucher level. AUDIT-11 SQL provides per-journal proof. | ✅ Compliant |
 | R3 | **Segregation of Duties** — Maker and checker must be different persons | RBI IT Gov §4.2, IS Audit §5.2 | `VoucherService.authorizeVoucher()`, `TransactionService.approveTransaction()` | `maker.getId() != checker.getId()` enforced in service layer. `@PreAuthorize` role gates on VoucherController. | ✅ Compliant |
 | R4 | **Daily Balancing** — Books must balance at end of each business day | Banking Reg Act §10, RBI Circular | `EodValidationService.validateEod()` | 10+ pre-checks: unauthorized vouchers, unposted vouchers, approved-but-unposted, voucher DR/CR balance, ledger DR/CR balance, pending approvals, pending transactions, open batches, tenant GL balance. EOD blocked on any failure. | ✅ Compliant |
 | R5 | **Audit Trail** — All financial operations must be traceable | RBI IT Gov §6.3, IS Audit §6 | `AuditService`, `audit_logs` table | Voucher lifecycle (CREATED/AUTHORIZED/POSTED/CANCELLED) logged via `AuditService.logEvent()`. Transaction lifecycle logged. Login/logout tracked. Old/new value capture available via `logChangeEvent()`. | ✅ Compliant |
@@ -53,7 +59,7 @@
 | R7 | **Business Day Control** — No transactions outside business hours | RBI Ops Circular | `TenantService.validateBusinessDayOpen()`, `Tenant.dayStatus` | Transactions blocked when `dayStatus != OPEN`. Day lifecycle: OPEN → DAY_CLOSING → CLOSED → (Day Begin) → OPEN. Per-tenant independent dates. | ✅ Compliant |
 | R8 | **Batch Integrity** — Transaction batches must balance | CBS Operations Standard | `BatchService.validateBatchClose()`, `settleAllBatches()` | `totalDebit == totalCredit` enforced before close and before settlement. Only OPEN batches accept new transactions. | ✅ Compliant |
 | R9 | **Tenant Isolation** — Multi-bank data must not leak | RBI IT Gov §4.3 | `TenantContextHolder` (ThreadLocal), `tenant_id` FK on all entities | Every query is tenant-scoped. Tenant switch requires POST + MULTI scope + allowed tenant validation. Context cleared after request. | ✅ Compliant |
-| R10 | **Access Control** — Role-based access with least privilege | RBI Cyber Security Framework §4.1 | `SecurityConfig`, `@PreAuthorize`, 12 roles | CSRF enabled (cookie-based). H2 console requires ADMIN. Voucher endpoints role-gated. Session concurrency limit (1). Account lockout after 5 failures. | ✅ Compliant |
+| R10 | **Access Control** — Role-based access with least privilege | RBI Cyber Security Framework §4.1 | `SecurityConfig`, `@PreAuthorize`, 13 roles | CSRF enabled (cookie-based, conditional H2 exclusion). H2 console requires ADMIN + disabled in prod. Voucher endpoints role-gated. Session concurrency limit (1). Account lockout after 5 failures. `ROLE_SYSTEM` for SYSTEM_AUTO pseudo-user (cannot login). JWT secret validated at startup. | ✅ Compliant |
 | R11 | **Idempotency** — Duplicate transactions must be prevented | CBS Operations Standard | `IdempotencyService`, composite index `(client_reference_id, channel, tenant_id)` | Checked before transaction creation. Existing key returns error. | ✅ Compliant |
 | R12 | **KYC Compliance** — Customer identity verification before account operations | RBI KYC/AML Master Direction | `CbsCustomerValidationService`, `CustomerMaster.kycStatus` | Account operations validate customer KYC status. PAN/Aadhaar stored in `CustomerTaxProfile`. | ✅ Compliant |
 
@@ -72,16 +78,16 @@
 
 ### 1.4 Recommended Enhancement Roadmap
 
-| Priority | Enhancement | Effort | Impact |
-|---|---|---|---|
-| P0 (Immediate) | Suspense GL implementation | 2-3 days | Blocks production deployment without safe error routing |
-| P0 (Immediate) | Inter-branch clearing GL | 2-3 days | Required for multi-branch operations |
-| P1 (Next sprint) | Dedicated SYSTEM_AUTO user for STP | 0.5 day | Cleaner audit trail for auto-authorized vouchers |
-| P1 (Next sprint) | Per-role transaction amount limits | 1-2 days | Prevents unauthorized high-value transactions |
-| P1 (Next sprint) | Scheduled ledger-vs-cache validator | 1 day | Detects balance drift between EODs |
-| P2 (Backlog) | Velocity monitoring | 2-3 days | Fraud detection for rapid-fire transactions |
-| P2 (Backlog) | Password policy enforcement | 1 day | Regulatory hygiene |
-| P3 (Long-term) | Data archival strategy | 5+ days | Storage optimization and regulatory retention |
+| Priority | Enhancement | Effort | Impact | Status |
+|---|---|---|---|---|
+| P0 (Immediate) | Suspense GL implementation | 2-3 days | Blocks production deployment without safe error routing | ⬜ Design complete (Part 3), implementation pending |
+| P0 (Immediate) | Inter-branch clearing GL | 2-3 days | Required for multi-branch operations | ⬜ Design complete (Part 4), implementation pending |
+| ~~P1~~ | ~~Dedicated SYSTEM_AUTO user for STP~~ | ~~0.5 day~~ | ~~Cleaner audit trail~~ | ✅ **DONE** — `SYSTEM_AUTO` seeded with `ROLE_SYSTEM`, `GovernanceException` on missing, no fallback |
+| P1 (Next sprint) | Per-role transaction amount limits | 1-2 days | Prevents unauthorized high-value transactions | ⬜ Open |
+| P1 (Next sprint) | Scheduled ledger-vs-cache validator | 1 day | Detects balance drift between EODs | ⬜ Open |
+| P2 (Backlog) | Velocity monitoring | 2-3 days | Fraud detection for rapid-fire transactions | ⬜ Open |
+| P2 (Backlog) | Password policy enforcement | 1 day | Regulatory hygiene | ⬜ Open |
+| P3 (Long-term) | Data archival strategy | 5+ days | Storage optimization and regulatory retention | ⬜ Open |
 
 ### 1.5 Integration Points Summary
 
@@ -95,6 +101,30 @@
 | `AuditService` | Audit trail — persistent logging of all financial events | `logEvent()`, `logFinancialEvent()`, `logChangeEvent()` |
 | `CbsGlBalanceService` | GL integrity — branch + tenant level GL balance tracking | `isTenantGlBalanced()`, `isBranchGlBalanced()` |
 | `DayBeginService` | Day Begin ceremony — validates previous day closed, batches settled | `validateDayBegin()`, `openDay()` |
+
+### 1.6 PR #40 Change Log — Gaps Addressed
+
+Summary of all governance gaps identified and addressed in PR #40 (Feature Enhancement):
+
+| Item | Description | Commit | Status |
+|---|---|---|---|
+| **G5** | SYSTEM_AUTO pseudo-user seeded with ROLE_SYSTEM. `systemAuthorizeVoucher()` throws `GovernanceException` if missing — no fallback to maker. | `04ad39db` | ✅ Resolved |
+| **FR-04** | Maker-checker bypass for STP eliminated. SYSTEM_AUTO is mandatory checker for all auto-authorized vouchers. | `04ad39db` | ✅ Resolved |
+| **FR-10** | `findOrCreateTransaction()` now checks `voucher.getTransaction()` before creating synthetic transaction — fixes audit trail for reversals. | PR #40 (ac232f6) | ✅ Resolved |
+| **P1-1** | Amount scale validation (≤ 2 decimals) enforced in `TransactionService` via `RbiFieldValidator.validateTransactionAmount()`. | `d0473ff0` | ✅ Resolved |
+| **P2-1** | `postVoucher()` now validates `tenant.dayStatus == OPEN` inside the service — blocks posting during DAY_CLOSING from any entry point. | `f79190c2` | ✅ Resolved |
+| **P3-2** | `LedgerJournalRepository` — all delete methods overridden to throw `UnsupportedOperationException`, matching `LedgerEntryRepository`. | `f79190c2` | ✅ Resolved |
+| **P6-1** | `postVoucher()` now fetches voucher via `findByIdAndTenantId` before acquiring pessimistic lock — blocks cross-tenant posting. | `df99e2b9` | ✅ Resolved |
+| **P4-1** | EOD `areAllBatchesClosed` check removed from `validateEod()` — it was blocking `runEod()` since batches are OPEN during business. Batch closing handled by `runEod()` step 2. | `df99e2b9` | ✅ Resolved |
+| **Security** | H2 CSRF exclusion now conditional on `h2ConsoleEnabled`. JWT secret validated at startup. Account lockout after 5 failures. Session limit of 1. | `df99e2b9` | ✅ Resolved |
+| **Voucher** | Voucher entity hardened: `@Data` → `@Getter` + controlled setters. Financial fields immutable post-creation. `@Version` for optimistic locking. `totalDebit`/`totalCredit` auto-populated. | PR #40 | ✅ Resolved |
+| **Voucher** | `cancelVoucher()` for non-posted vouchers no longer creates stuck reversal voucher that blocked EOD. | `df99e2b9` | ✅ Resolved |
+| **Voucher** | Voucher integrity assertion: `postVoucher()` validates `drCr != null` and `amount > 0` before any ledger persistence. Replaces logically incorrect per-leg DR==CR check. | `b3f20d5c` | ✅ Resolved |
+| **Batch** | `ensureBatchIsOpen()` uses `findByBatchCode` with BATCH-<id> fallback for backward compatibility. Tests updated to set `batchCode` column. | `08079497` | ✅ Resolved |
+| **Atomic** | `createVoucherPair()` creates DR+CR in single `@Transactional` — no orphaned half-pairs. Controller uses it for UI-created vouchers. | `df99e2b9` | ✅ Resolved |
+| **EOD** | TOCTOU fix: `runEod()` re-validates after `startDayClosing()` to catch concurrent transactions that sneaked in between pre-flight and lock. | `df99e2b9` | ✅ Resolved |
+
+**Remaining open gaps:** G1 (Suspense GL — design only), G2 (Inter-branch clearing — design only), G3 (per-role limits), G4 (velocity checks), G6 (ledger-vs-cache reconciliation), G7 (data archival), G8 (password policy), FR-08 (IDOR for CUSTOMER role).
 
 ---
 
@@ -354,9 +384,11 @@ HAVING COUNT(*) > 1;
 
 ### 2.11 Per-Journal Double-Entry Balance Proof
 
-**Purpose:** Prove that no individual journal has ever been persisted in an unbalanced state. This is the **definitive** audit evidence that the posting engine enforces DR == CR at the journal level — not just at day-end.
+**Purpose:** Verify that the ledger remains balanced at the journal level across the entire system. This is a detective control that catches any imbalance regardless of cause.
 
-Enforced by: `VoucherService.postVoucher()` — validates `totalDebit == totalCredit` BEFORE any `LedgerJournal` or `LedgerEntry` is persisted. If unbalanced, throws `AccountingException` and `@Transactional` rolls back the entire operation.
+**Accounting model note:** Ledgora uses a **single-leg voucher model** — each voucher is DR xor CR, and each `postVoucher()` call creates one `LedgerJournal` with one `LedgerEntry`. The DR==CR balance is enforced at the **pair level** by `TransactionService` (creates matched DR+CR vouchers with equal amounts within a single `@Transactional`). This query validates the aggregate invariant across all journals.
+
+**Preventive controls:** `VoucherService.postVoucher()` validates voucher integrity (`drCr != null`, `amount > 0`) before any ledger persistence. `TransactionService` passes identical amounts to both DR and CR legs. `createVoucherPair()` is atomic via `@Transactional`.
 
 ```sql
 -- AUDIT-11: Per-journal debit vs credit balance proof
@@ -393,8 +425,10 @@ ORDER BY lj.business_date DESC, lj.id;
 5. Root cause analysis: check if `VoucherService.postVoucher()` was bypassed or if a code defect allowed unbalanced persistence.
 
 **Governance control chain:**
-- **Preventive:** `AccountingException` thrown in `VoucherService.postVoucher()` if DR != CR (commit `04ad39db`).
-- **Detective:** This SQL query (AUDIT-11) run daily pre-EOD.
+- **Preventive (pair-level):** `TransactionService` creates equal-amount DR+CR vouchers within single `@Transactional`. `createVoucherPair()` atomic rollback if either leg fails.
+- **Preventive (leg-level):** `VoucherService.postVoucher()` validates `drCr != null` and `amount > 0` via `AccountingException` (commit `b3f20d5c`).
+- **Detective (EOD):** `EodValidationService.validateEod()` checks `SUM(debits) == SUM(credits)` at ledger and voucher level.
+- **Detective (SQL):** This query (AUDIT-11) run daily pre-EOD — catches any imbalance regardless of source.
 - **Corrective:** Reversal journal + root cause analysis if violation detected.
 
 ### 2.12 SYSTEM_AUTO Segregation of Duties Proof
@@ -900,13 +934,13 @@ This section is written as an **internal RBI inspection team** review. It assume
 | FR-01 | **Brute-force / credential stuffing** against privileged roles (ADMIN, CHECKER) | H | H | Account lockout after 5 failures (`src/main/java/com/ledgora/security/AuthenticationFailureListener.java:30-46`, `src/main/java/com/ledgora/security/CustomUserDetailsService.java`) | Lockout is permanent until admin unlock (policy-dependent). No IP throttling, CAPTCHA, or adaptive MFA. | Add rate limiting (per-IP + per-username), CAPTCHA after N attempts, and MFA for privileged roles. Produce evidence logs (SIEM). |
 | FR-02 | **Session hijack / replay** (shared terminals, teller machines) | M | H | Session fixation protection + single session per user (`src/main/java/com/ledgora/config/SecurityConfig.java:136-142`); session timeout configured (`src/main/resources/application.properties:33-34`, `src/main/resources/application-prod.properties:22-23`) | No device binding. No forced re-auth for high-risk actions (authorize/cancel/EOD). | Add step-up authentication for: voucher authorize/post/cancel, EOD run, tenant switch. Consider short idle timeout for teller roles. |
 | FR-03 | **CSRF / forced transaction submission** | M | H | CSRF enabled with cookie token repository (`src/main/java/com/ledgora/config/SecurityConfig.java:90-94`) | H2 console is excluded from CSRF and must never be enabled in prod. No explicit CSRF validation evidence for custom AJAX calls (if any). | Ensure prod profile disables H2. Verify all state-changing endpoints are POST with CSRF token in JSP forms. Add security tests. |
-| FR-04 | **Maker–checker bypass** (maker approves own transaction) | M | H | Enforced in transaction approval (`src/main/java/com/ledgora/transaction/service/TransactionService.java:386-392`, `480-486`) and voucher authorization (`src/main/java/com/ledgora/voucher/service/VoucherService.java:228-231`) | STP flow explicitly sets checker = maker (`src/main/java/com/ledgora/voucher/service/VoucherService.java:270-277`). This is acceptable only if policy + audit tagging is unambiguous. | Seed a dedicated `SYSTEM_AUTO` pseudo-user and set checker to SYSTEM_AUTO for STP flows. Treat same-user approvals as violations unless SYSTEM_AUTO is used. |
+| FR-04 | **Maker–checker bypass** (maker approves own transaction) | M | H | Enforced in transaction approval (`TransactionService.java:386-392`, `480-486`) and voucher authorization (`VoucherService.java:253-255`). **STP flow uses dedicated `SYSTEM_AUTO` pseudo-user** as checker — `GovernanceException` thrown if missing, no fallback to maker (commit `04ad39db`). | ✅ **RESOLVED.** SYSTEM_AUTO with ROLE_SYSTEM seeded in DataInitializer. AUDIT-12 SQL validates no maker==checker for STP vouchers. | ✅ Resolved |
 | FR-05 | **High-value transactions executed without checker due to misconfigured policies** | M | H | Approval policy engine is fail-safe: missing policy => requires approval (`src/main/java/com/ledgora/approval/service/ApprovalPolicyService.java:76-81`) | If policies are configured incorrectly (wide ranges with autoAuthorize=true), very high-value transfers could be auto-approved. No “hard ceiling” per role/channel. | Implement hard caps: per-role/per-channel absolute limits enforced in service layer (not only policy table). Require dual authorization above threshold. |
 | FR-06 | **Velocity / rapid-fire fraud** (multiple withdrawals/transfers quickly) | H | H | None observed in code; only idempotency for exact client references (`src/main/java/com/ledgora/transaction/service/TransactionService.java:834-854`) | No per-account/per-user velocity controls. RBI audit will flag absence of fraud monitoring controls as a gap. | Add velocity rules (e.g., max N txns / time-window, max cumulative amount) and alerting + auto-block. Store decisions in audit logs. |
 | FR-07 | **Duplicate / replay transactions** due to client retries or channel faults | M | M/H | Idempotency checks via `clientReferenceId:channel` + IdempotencyService (`src/main/java/com/ledgora/transaction/service/TransactionService.java:834-854`) | If clientReferenceId is missing, there is no deduplication. Near-duplicate detection is only via SQL audit pack (Part 2). | Make client reference mandatory for external channels (ONLINE/MOBILE/ATM). Add server-generated idempotency keys per request. |
 | FR-08 | **Unauthorized account access (IDOR)** — customer views another customer’s account history | M | H | Tenant isolation enforced in service methods (`src/main/java/com/ledgora/transaction/service/TransactionService.java:636-659`), controller validates account format (`src/main/java/com/ledgora/transaction/controller/TransactionController.java:175-185`) | Controller itself notes missing ownership validation for CUSTOMER users (`src/main/java/com/ledgora/transaction/controller/TransactionController.java:163-173`). This is a direct RBI observation (privacy + fraud). | Enforce account ownership for CUSTOMER role: accountNumber must map to the authenticated customer only. Add negative tests. |
 | FR-09 | **Reversal misuse** (fraudulent cancellation to conceal theft) | M | H | Cancellation restricted to OPEN day + no backdated reversal (`src/main/java/com/ledgora/voucher/service/VoucherService.java:403-416`) | Cancel action currently sets reversal.maker = cancelledBy and auto-posts reversal if original posted (`src/main/java/com/ledgora/voucher/service/VoucherService.java:452-466`). This is effectively “single-person reversal” unless further gated in controller/security. | Require maker-checker for cancellations above threshold and for all reversals in production. Add separate REVERSAL approval workflow and audit evidence. |
-| FR-10 | **Audit trail integrity break** — ledger entries not traceable to originating transaction | M | H | Voucher linked to transaction at creation (`src/main/java/com/ledgora/transaction/service/TransactionService.java:772-800`; `src/main/java/com/ledgora/voucher/service/VoucherService.java:154-160`) | Posting logic can create a synthetic transaction when `postVoucher(voucherId)` is called without explicitly passing a linked transaction (`src/main/java/com/ledgora/voucher/service/VoucherService.java:550-571`). In reversal auto-post, `postVoucher(reversal.getId())` is used (`src/main/java/com/ledgora/voucher/service/VoucherService.java:463-466`), risking mismatch between `voucher.transaction_id` and `ledger_entries.transaction_id`. This is a severe audit observation. | Fix `findOrCreateTransaction(...)` to first use `voucher.getTransaction()` before creating any synthetic transaction. Add an audit SQL check (Part 2) to detect mismatched transaction linkage. |
+| FR-10 | **Audit trail integrity break** — ledger entries not traceable to originating transaction | M | H | Voucher linked to transaction at creation (`TransactionService.java:779-797`). `findOrCreateTransaction()` **now checks `voucher.getTransaction()` before creating synthetic** (FR-10 fix in `VoucherService.java:645-651`). Reversal vouchers carry `original.getTransaction()` FK. | ✅ **RESOLVED.** `findOrCreateTransaction` prioritizes voucher's own transaction FK. FRAUD-08 SQL detects any remaining mismatches. | ✅ Resolved |
 
 ### 5.2 Risk Acceptance / Exception Register Template
 
@@ -918,9 +952,9 @@ The bank's CISO / CRO must maintain a signed register for every open item. Templ
 |---|---|---|---|---|---|---|---|---|
 | RAR-001 | FR-06 | Velocity monitoring absent | Manual EOD review of high-frequency accounts | Head — Operations | *(CISO signature)* | *(date)* | *(date + 90d)* | OPEN |
 | RAR-002 | FR-05 | No hard ceiling per role | Approval policy table with ranges configured | Head — Compliance | *(CRO signature)* | *(date)* | *(date + 60d)* | OPEN |
-| RAR-003 | FR-04 | STP checker = maker | `authorizationRemarks` tags SYSTEM_AUTO; AUDIT-08 query detects violations | Head — IT | *(CISO signature)* | *(date)* | *(date + 30d)* | OPEN |
+| ~~RAR-003~~ | ~~FR-04~~ | ~~STP checker = maker~~ | ~~SYSTEM_AUTO now enforced with GovernanceException~~ | Head — IT | *(CISO signature)* | *(date)* | — | ✅ CLOSED (commit `04ad39db`) |
 | RAR-004 | FR-08 | IDOR — CUSTOMER account history | Tenant isolation blocks cross-tenant; UI hides links; ownership check pending | Head — IT Security | *(CRO signature)* | *(date)* | *(date + 30d)* | OPEN |
-| RAR-005 | FR-10 | Reversal audit trail linkage gap | `findOrCreateTransaction` fix scheduled; FRAUD-08 query detects orphans | Head — IT | *(CTO signature)* | *(date)* | *(date + 14d)* | OPEN |
+| ~~RAR-005~~ | ~~FR-10~~ | ~~Reversal audit trail linkage gap~~ | ~~`findOrCreateTransaction` now checks `voucher.getTransaction()` first~~ | Head — IT | *(CTO signature)* | *(date)* | — | ✅ CLOSED (PR #40 — FR-10 fix) |
 
 **Rules:**
 - Every OPEN item must have a review-by date ≤ 90 days.
