@@ -89,4 +89,21 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
     /** Count vouchers linked to a specific transaction (for IBT dual-voucher validation). */
     @Query("SELECT COUNT(v) FROM Voucher v WHERE v.transaction.id = :transactionId")
     long countByTransactionId(@Param("transactionId") Long transactionId);
+
+    /**
+     * Fetch vouchers for a transaction with all associations eagerly loaded (N+1 prevention). Used
+     * by IBT detail screen to render branch-grouped voucher breakdown + ledger entries in zero
+     * additional queries.
+     */
+    @Query(
+            "SELECT DISTINCT v FROM Voucher v "
+                    + "LEFT JOIN FETCH v.branch "
+                    + "LEFT JOIN FETCH v.account "
+                    + "LEFT JOIN FETCH v.ledgerEntry "
+                    + "LEFT JOIN FETCH v.glAccount "
+                    + "LEFT JOIN FETCH v.maker "
+                    + "LEFT JOIN FETCH v.checker "
+                    + "WHERE v.transaction.id = :transactionId "
+                    + "ORDER BY v.id")
+    List<Voucher> findByTransactionIdWithGraph(@Param("transactionId") Long transactionId);
 }

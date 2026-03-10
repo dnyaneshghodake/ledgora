@@ -260,44 +260,93 @@ public class IbtController {
         return "ibt/ibt-list";
     }
 
-    // ===== IBT Detail =====
+    // ===== IBT Detail (aggregate root: InterBranchTransfer) =====
 
+    /**
+     * View IBT detail using InterBranchTransfer as the aggregate root. Accepts either an IBT ID
+     * (direct navigation from list) or a Transaction ID (redirect from POST /ibt/create). Uses
+     * JOIN FETCH queries to eliminate N+1:
+     *
+     * <ul>
+     *   <li>Query 1: findByIdWithGraph — IBT + branches + transaction + users (1 SELECT)
+     *   <li>Query 2: findByTransactionIdWithGraph — vouchers + branch + account + ledgerEntry (1
+     *       SELECT)
+     * </ul>
+     *
+     * Total: 2 SQL SELECTs. Zero lazy loading in JSP.
+     */
     @GetMapping("/{id}")
     @PreAuthorize(
-            "hasAnyRole('MAKER', 'CHECKER', 'OPERATIONS', 'ADMIN', 'MANAGER', 'AUDITOR', 'TELLER')")
+            "hasAnyRole('MAKER', 'CHECKER', 'OPERATIONS', 'ADMIN', 'MANAGER', 'AUDITOR')")
     @Transactional(readOnly = true)
     public String viewIbt(@PathVariable Long id, Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
 
-        // Try to find as a Transaction ID first (from POST /ibt/create redirect)
-        Transaction transaction =
-                transactionService.getTransactionById(id).orElse(null);
+        // Query 1: Try to load as IBT ID first (direct navigation from list screen)
+        InterBranchTransfer ibt = ibtRepository.findByIdWithGraph(id).orElse(null);
 
-        if (transaction != null) {
-            model.addAttribute("transaction", transaction);
-
-            // Find related IBT record via reference transaction
-            List<InterBranchTransfer> ibtRecords =
-                    ibtRepository.findByTenantIdOrderByCreatedAtDesc(tenantId);
-            InterBranchTransfer ibtRecord = ibtRecords.stream()
-                    .filter(t -> t.getReferenceTransaction() != null
-                            && t.getReferenceTransaction().getId().equals(id))
-                    .findFirst()
-                    .orElse(null);
-            model.addAttribute("ibtRecord", ibtRecord);
-
-            // Find all vouchers for this transaction
-            List<Voucher> vouchers = voucherRepository.findByTransactionId(id);
-            model.addAttribute("vouchers", vouchers);
-            model.addAttribute("voucherCount", vouchers.size());
-            model.addAttribute("isCrossBranch", vouchers.size() == 4);
-
-            // Clearing GL balances
-            List<Account> clearingAccounts = ibtService.getIbcClearingAccounts(tenantId);
-            model.addAttribute("clearingAccounts", clearingAccounts);
-        } else {
-            model.addAttribute("error", "Transaction not found: " + id);
+        // If not found by IBT ID, try as Transaction ID (redirect from POST /ibt/create)
+        if (ibt == null) {
+            ibt =
+                    ibtRepository
+                            .findByReferenceTransactionIdAndTenantId(id, tenantId)
+                            .flatMap(found -> ibtRepository.findByIdWithGraph(found.getId()))
+                            .orElse(null);
         }
+
+        if (ibt == null) {
+            model.addAttribute(
+                    "error", "Inter-Branch Transfer not found for ID: " + id);
+            return "ibt/ibt-detail";
+        }
+
+        // Tenant isolation check
+        if (!ibt.getTenant().getId().equals(tenantId)) {
+            model.addAttribute(
+                    "error", "Access denied: IBT does not belong to current tenant.");
+            return "ibt/ibt-detail";
+        }
+
+        model.addAttribute("ibt", ibt);
+
+        // Query 2: Fetch vouchers with all associations (N+1 prevention)
+        List<Voucher> vouchers = List.of();
+        Transaction transaction = ibt.getReferenceTransaction();
+        if (transaction != null) {
+            vouchers = voucherRepository.findByTransactionIdWithGraph(transaction.getId());
+            model.addAttribute("transaction", transaction);
+        }
+
+        model.addAttribute("vouchers", vouchers);
+        model.addAttribute("voucherCount", vouchers.size());
+
+        // Separate vouchers by branch for grouped display
+        String fromBranchCode =
+                ibt.getFromBranch() != null ? ibt.getFromBranch().getBranchCode() : "";
+        String toBranchCode =
+                ibt.getToBranch() != null ? ibt.getToBranch().getBranchCode() : "";
+        List<Voucher> branchAVouchers =
+                vouchers.stream()
+                        .filter(
+                                v ->
+                                        v.getBranch() != null
+                                                && fromBranchCode.equals(
+                                                        v.getBranch().getBranchCode()))
+                        .toList();
+        List<Voucher> branchBVouchers =
+                vouchers.stream()
+                        .filter(
+                                v ->
+                                        v.getBranch() != null
+                                                && toBranchCode.equals(
+                                                        v.getBranch().getBranchCode()))
+                        .toList();
+        model.addAttribute("branchAVouchers", branchAVouchers);
+        model.addAttribute("branchBVouchers", branchBVouchers);
+
+        // Clearing GL balances (lightweight query — no lazy loading concern)
+        List<Account> clearingAccounts = ibtService.getIbcClearingAccounts(tenantId);
+        model.addAttribute("clearingAccounts", clearingAccounts);
 
         return "ibt/ibt-detail";
     }

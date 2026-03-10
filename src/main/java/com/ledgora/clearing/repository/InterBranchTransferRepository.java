@@ -5,6 +5,7 @@ import com.ledgora.common.enums.InterBranchTransferStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -83,6 +84,35 @@ public interface InterBranchTransferRepository
                     + "AND t.status NOT IN ('SETTLED') "
                     + "ORDER BY t.status, t.createdAt DESC")
     List<InterBranchTransfer> findUnsettledByTenantId(@Param("tenantId") Long tenantId);
+
+    // ===== Eager-fetch query for IBT detail screen (N+1 prevention) =====
+
+    /**
+     * Fetch a single InterBranchTransfer with all associations eagerly loaded in one query.
+     * Eliminates N+1 for the detail screen by JOIN FETCHing fromBranch, toBranch,
+     * referenceTransaction, createdBy, and approvedBy.
+     */
+    @Query(
+            "SELECT DISTINCT ibt FROM InterBranchTransfer ibt "
+                    + "LEFT JOIN FETCH ibt.fromBranch "
+                    + "LEFT JOIN FETCH ibt.toBranch "
+                    + "LEFT JOIN FETCH ibt.referenceTransaction "
+                    + "LEFT JOIN FETCH ibt.createdBy "
+                    + "LEFT JOIN FETCH ibt.approvedBy "
+                    + "LEFT JOIN FETCH ibt.tenant "
+                    + "WHERE ibt.id = :id")
+    Optional<InterBranchTransfer> findByIdWithGraph(@Param("id") Long id);
+
+    /**
+     * Find the IBT record linked to a specific reference transaction.
+     * Used when redirecting from POST /ibt/create (which returns a Transaction ID).
+     */
+    @Query(
+            "SELECT ibt FROM InterBranchTransfer ibt "
+                    + "WHERE ibt.referenceTransaction.id = :transactionId "
+                    + "AND ibt.tenant.id = :tenantId")
+    Optional<InterBranchTransfer> findByReferenceTransactionIdAndTenantId(
+            @Param("transactionId") Long transactionId, @Param("tenantId") Long tenantId);
 
     // ===== Paginated queries for IBT list screen =====
 
