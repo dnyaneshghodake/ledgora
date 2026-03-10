@@ -20,4 +20,12 @@ public interface FraudAlertRepository extends JpaRepository<FraudAlert, Long> {
             "SELECT COUNT(fa) FROM FraudAlert fa "
                     + "WHERE fa.tenant.id = :tenantId AND fa.status = 'OPEN'")
     long countOpenByTenantId(@Param("tenantId") Long tenantId);
+
+    // ===== Velocity fraud dashboard queries =====
+
+    /** Count fraud alerts by tenant and status (generic — OPEN, ACKNOWLEDGED, RESOLVED, etc.). */
+    long countByTenantIdAndStatus(Long tenantId, String status);
+
+    /** Fetch most recent fraud alerts for a tenant (all statuses, most recent first). */
+    List<FraudAlert> findTop20ByTenantIdOrderByCreatedAtDesc(Long tenantId);
 }
