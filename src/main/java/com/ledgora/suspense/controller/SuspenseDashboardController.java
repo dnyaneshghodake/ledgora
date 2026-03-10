@@ -63,7 +63,8 @@ public class SuspenseDashboardController {
         long openCaseCount = suspenseCaseRepository.countOpenByTenantId(tenantId);
 
         // KPI 2: Resolved case count
-        long resolvedCaseCount = suspenseCaseRepository.countByTenantIdAndStatus(tenantId, "RESOLVED");
+        long resolvedCaseCount =
+                suspenseCaseRepository.countByTenantIdAndStatus(tenantId, "RESOLVED");
 
         // KPI 3: Suspense GL net balance (from SUSPENSE_ACCOUNT type — NOT voucher derivation)
         BigDecimal suspenseGlNetBalance =
@@ -76,13 +77,11 @@ public class SuspenseDashboardController {
 
         // Computed flags
         boolean suspenseBalanced = suspenseGlNetBalance.compareTo(BigDecimal.ZERO) == 0;
-        boolean exposureMismatch =
-                suspenseGlNetBalance.compareTo(totalOpenSuspenseAmount) != 0;
+        boolean exposureMismatch = suspenseGlNetBalance.compareTo(totalOpenSuspenseAmount) != 0;
 
         // Aging: oldest open cases with associations eagerly fetched (N+1 prevention)
         List<SuspenseCase> allOpen = suspenseCaseRepository.findOldestOpenByTenantId(tenantId);
-        List<SuspenseCase> oldestOpenCases =
-                allOpen.size() > 10 ? allOpen.subList(0, 10) : allOpen;
+        List<SuspenseCase> oldestOpenCases = allOpen.size() > 10 ? allOpen.subList(0, 10) : allOpen;
 
         // Business date for aging calculation
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
