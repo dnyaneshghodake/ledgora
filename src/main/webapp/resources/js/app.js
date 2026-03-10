@@ -117,6 +117,22 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // ── Header real-time clock (optional) ──
+    var clockEl = document.getElementById('cbsClock');
+    if (clockEl) {
+        var pad2 = function(n) { return String(n).padStart(2, '0'); };
+        var tick = function() {
+            var now = new Date();
+            var hh = pad2(now.getHours());
+            var mm = pad2(now.getMinutes());
+            var ss = pad2(now.getSeconds());
+            clockEl.textContent = hh + ':' + mm + ':' + ss;
+            clockEl.setAttribute('datetime', now.toISOString());
+        };
+        tick();
+        setInterval(tick, 1000);
+    }
+
     // ── Auto-dismiss alerts after 5 seconds ──
     var alerts = document.querySelectorAll('.alert-dismissible');
     alerts.forEach(function(alert) {

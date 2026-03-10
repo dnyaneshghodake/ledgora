@@ -55,8 +55,8 @@
     --cbs-sidebar-active: #ffffff;
     --cbs-sidebar-section: rgba(255, 255, 255, 0.55);
 
-    --cbs-header-bg: var(--bank-surface);
-    --cbs-header-border: var(--bank-border);
+    --cbs-header-bg: var(--bank-primary);
+    --cbs-header-border: rgba(255, 255, 255, 0.12);
     --cbs-content-bg: var(--bank-bg);
     --cbs-footer-bg: #f7f9fc;
 
@@ -159,14 +159,53 @@ h1, h2, h3, h4, h5, h6 {
     height: var(--cbs-header-height);
     padding: 0 0.9rem;
     box-shadow: var(--ent-shadow-sm);
+    background: var(--bank-primary);
+    color: #fff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.cbs-header a {
+    color: #fff;
+}
+
+.cbs-header a:hover {
+    color: #fff;
+    text-decoration: none;
 }
 
 .cbs-header-brand {
     letter-spacing: 0.08em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
 }
 
-.cbs-header-brand i {
-    color: var(--bank-secondary);
+.cbs-bank-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    object-fit: contain;
+}
+
+/* Fallback if logo image fails to load — show bank icon from Bootstrap Icons */
+.cbs-bank-logo[src=""],
+.cbs-bank-logo:not([src]) {
+    display: none;
+}
+
+.cbs-header-brand .cbs-logo-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    font-size: 1.35rem;
+    color: #fff;
 }
 
 .cbs-header-left {
@@ -176,13 +215,35 @@ h1, h2, h3, h4, h5, h6 {
 .cbs-sidebar-toggle {
     font-size: 1.2rem;
     padding: 0.15rem 0.35rem;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+
+.cbs-sidebar-toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .cbs-branch-info,
 .cbs-business-date,
-.cbs-tenant-info {
-    padding: 0.2rem 0.6rem;
+.cbs-tenant-info,
+.cbs-realtime-clock {
+    padding: 0.22rem 0.6rem;
     border-radius: var(--ent-radius);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.cbs-realtime-clock {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.cbs-business-date strong {
+    color: #fff;
 }
 
 .cbs-status-indicator,
@@ -190,25 +251,93 @@ h1, h2, h3, h4, h5, h6 {
 .cbs-env-badge {
     padding: 0.18rem 0.5rem;
     border-radius: var(--ent-radius);
+    border: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .cbs-user-avatar i {
     font-size: 1.35rem;
+    color: rgba(255, 255, 255, 0.78);
 }
 
 .cbs-user-name {
     font-size: 0.9rem;
+    color: #fff;
+}
+
+.cbs-user-role .badge {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* Notifications bell icon */
+.cbs-notifications {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 50%;
+    color: #fff;
+    text-decoration: none;
+    transition: background 0.15s ease;
+}
+
+.cbs-notifications i {
+    font-size: 1.15rem;
+}
+
+.cbs-notifications:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.cbs-notifications .cbs-badge {
+    position: absolute;
+    top: -2px;
+    right: -4px;
+    font-size: 0.62rem;
+    padding: 0.12em 0.42em;
+    min-width: 1rem;
+    line-height: 1.2;
 }
 
 .cbs-logout-btn {
     padding: 0.3rem 0.7rem;
     border-radius: var(--ent-radius);
     font-size: 0.92rem;
-    border: 1px solid var(--bank-border);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: #fff;
+    background: transparent;
 }
 
 .cbs-logout-btn:hover {
-    border-color: rgba(180, 35, 24, 0.45);
+    background: rgba(180, 35, 24, 0.55);
+    border-color: rgba(180, 35, 24, 0.75);
+    color: #fff;
+}
+
+/* Header separator for dark background */
+.cbs-header .cbs-header-separator {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+/* Responsive: collapse center header items on small screens */
+@media (max-width: 1023.98px) {
+    .cbs-header-center {
+        display: none;
+    }
+
+    .cbs-header-brand-text {
+        display: none;
+    }
+
+    .cbs-user-details {
+        display: none;
+    }
+
+    .cbs-tenant-info span {
+        display: none;
+    }
 }
 
 .cbs-sidebar {

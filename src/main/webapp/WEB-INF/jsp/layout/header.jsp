@@ -23,13 +23,14 @@
 --%>
 
 <%-- CBS Top Header Bar --%>
-<header class="cbs-header" id="cbsHeader">
+<header class="cbs-header" id="cbsHeader" role="banner">
     <div class="cbs-header-left">
-        <button class="cbs-sidebar-toggle" id="sidebarToggle" type="button" title="Toggle Sidebar">
-            <i class="bi bi-list"></i>
+        <button class="cbs-sidebar-toggle" id="sidebarToggle" type="button" title="Toggle Sidebar" aria-label="Toggle sidebar navigation">
+            <i class="bi bi-list" aria-hidden="true"></i>
         </button>
-        <a href="${pageContext.request.contextPath}/dashboard" class="cbs-header-brand">
-            <i class="bi bi-bank2"></i>
+        <a href="${pageContext.request.contextPath}/dashboard" class="cbs-header-brand" aria-label="Go to dashboard">
+            <img class="cbs-bank-logo" src="${pageContext.request.contextPath}/resources/img/bank-logo.png" width="40" height="40" alt="Bank logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+            <span class="cbs-logo-fallback" style="display:none;" aria-hidden="true"><i class="bi bi-bank2"></i></span>
             <span class="cbs-header-brand-text">LEDGORA</span>
         </a>
     </div>
@@ -55,9 +56,9 @@
             </c:choose>
         </span>
         <span class="cbs-header-separator"></span>
-        <%-- Business Date --%>
-        <div class="cbs-business-date">
-            <i class="bi bi-calendar3"></i>
+        <%-- Business Date + Clock --%>
+        <div class="cbs-business-date" aria-label="Business date">
+            <i class="bi bi-calendar3" aria-hidden="true"></i>
             <span>Business Date:</span>
             <strong>
                 <c:choose>
@@ -65,6 +66,10 @@
                     <c:otherwise><%= new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date()) %></c:otherwise>
                 </c:choose>
             </strong>
+        </div>
+        <div class="cbs-realtime-clock" aria-label="Current time">
+            <i class="bi bi-clock" aria-hidden="true"></i>
+            <time id="cbsClock" datetime="" aria-live="polite">--:--:--</time>
         </div>
         <span class="cbs-header-separator"></span>
         <%-- Business Date Status --%>
@@ -139,8 +144,16 @@
                 </div>
             </c:if>
         </div>
+        <%-- Notifications / Pending Approvals --%>
+        <c:if test="${sessionScope.pendingApprovals != null && sessionScope.pendingApprovals > 0 && (sessionScope.isAdmin || sessionScope.isManager || sessionScope.isChecker)}">
+            <a href="${pageContext.request.contextPath}/approvals" class="cbs-notifications" aria-label="Pending approvals">
+                <i class="bi bi-bell" aria-hidden="true"></i>
+                <span class="cbs-badge" aria-label="Pending approvals count">${sessionScope.pendingApprovals}</span>
+            </a>
+        </c:if>
+
         <div class="cbs-user-info">
-            <div class="cbs-user-avatar">
+            <div class="cbs-user-avatar" aria-hidden="true">
                 <i class="bi bi-person-circle"></i>
             </div>
             <div class="cbs-user-details">
@@ -161,7 +174,7 @@
         </div>
         <form method="post" action="${pageContext.request.contextPath}/logout" class="d-inline m-0 p-0">
             <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-            <button type="submit" class="cbs-logout-btn" title="Sign Out">
+            <button type="submit" class="cbs-logout-btn" title="Sign Out" aria-label="Logout">
                 <i class="bi bi-box-arrow-right"></i>
                 <span>Logout</span>
             </button>
