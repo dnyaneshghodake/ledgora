@@ -1,10 +1,13 @@
 package com.ledgora.diagnostics.controller;
 
 import com.ledgora.diagnostics.dto.ConcurrencyAuditResult;
+import com.ledgora.diagnostics.dto.EnterpriseCertificationReport;
 import com.ledgora.diagnostics.dto.QueryPlanResult;
+import com.ledgora.diagnostics.service.CertificationRunnerService;
 import com.ledgora.diagnostics.service.ConcurrencyAuditService;
 import com.ledgora.diagnostics.service.QueryPlanAnalyzerService;
 import java.util.List;
+import java.util.Map;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,12 +30,15 @@ public class DiagnosticsController {
 
     private final QueryPlanAnalyzerService queryPlanAnalyzer;
     private final ConcurrencyAuditService concurrencyAuditService;
+    private final CertificationRunnerService certificationRunner;
 
     public DiagnosticsController(
             QueryPlanAnalyzerService queryPlanAnalyzer,
-            ConcurrencyAuditService concurrencyAuditService) {
+            ConcurrencyAuditService concurrencyAuditService,
+            CertificationRunnerService certificationRunner) {
         this.queryPlanAnalyzer = queryPlanAnalyzer;
         this.concurrencyAuditService = concurrencyAuditService;
+        this.certificationRunner = certificationRunner;
     }
 
     /**
@@ -58,5 +64,20 @@ public class DiagnosticsController {
     public ResponseEntity<ConcurrencyAuditResult> runConcurrencyAudit() {
         ConcurrencyAuditResult result = concurrencyAuditService.runAllChecks();
         return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Run full Enterprise CBS Certification: 6-step pipeline covering load generation, EOD, crash
+     * simulation, financial integrity, concurrency audit, and performance grading.
+     *
+     * <p>This is a long-running operation (minutes). Returns FAIL / PASS / ENTERPRISE_READY.
+     */
+    @PostMapping("/certification/run")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<EnterpriseCertificationReport> runCertification(
+            @org.springframework.web.bind.annotation.RequestBody Map<String, Object> params) {
+        Long tenantId = ((Number) params.getOrDefault("tenantId", 1)).longValue();
+        EnterpriseCertificationReport report = certificationRunner.runFullCertification(tenantId);
+        return ResponseEntity.ok(report);
     }
 }
