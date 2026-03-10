@@ -332,6 +332,13 @@ Important tables (non-exhaustive but core):
 - `scroll_sequences` (`src/main/java/com/ledgora/voucher/entity/ScrollSequence.java`) — concurrency-safe scroll number per tenant/branch/date
 - `inter_branch_transfers` (`src/main/java/com/ledgora/clearing/entity/InterBranchTransfer.java`) — IBT lifecycle tracking (INITIATED→SENT→RECEIVED→SETTLED/FAILED)
 - `branch_gl_mappings` (`src/main/java/com/ledgora/clearing/entity/BranchGlMapping.java`) — per-branch clearing GL configuration
+- `suspense_cases` (`src/main/java/com/ledgora/suspense/entity/SuspenseCase.java`) — suspense GL case lifecycle (OPEN→RESOLVED/REVERSED)
+- `suspense_gl_mappings` (`src/main/java/com/ledgora/suspense/entity/SuspenseGlMapping.java`) — tenant+channel→suspense account routing
+- `fraud_alerts` (`src/main/java/com/ledgora/fraud/entity/FraudAlert.java`) — velocity breach alerts with account freeze tracking
+- `velocity_limits` (`src/main/java/com/ledgora/fraud/entity/VelocityLimit.java`) — per-account/tenant velocity thresholds
+- `hard_transaction_limits` (`src/main/java/com/ledgora/approval/entity/HardTransactionLimit.java`) — absolute transaction ceilings per tenant+channel
+- `audit_logs` (`src/main/java/com/ledgora/audit/entity/AuditLog.java`) — immutable governance + financial event trail
+- `eod_processes` (`src/main/java/com/ledgora/eod/entity/EodProcess.java`) — crash-safe EOD state machine tracking
 - `exchange_rates` (`src/main/java/com/ledgora/currency/entity/ExchangeRate.java`)
 - `idempotency_keys` (`src/main/java/com/ledgora/idempotency/entity/IdempotencyKey.java`)
 - `system_dates` (`src/main/java/com/ledgora/common/entity/SystemDate.java`)

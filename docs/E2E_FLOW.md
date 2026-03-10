@@ -529,6 +529,59 @@ All voucher endpoints are protected by `@PreAuthorize`:
 
 Maker-checker enforcement: a checker cannot authorize their own voucher (enforced in `VoucherService.authorizeVoucher(...)`).
 
+## 9A) Governance Dashboards (read-only operational visibility)
+
+All governance dashboards are read-only — no record mutation. They provide CBS-grade operational monitoring for pre-EOD checks, fraud detection, and audit compliance.
+
+### 9A.1 Suspense GL Dashboard
+
+`GET /suspense/dashboard` — `SuspenseDashboardController` (OPERATIONS, ADMIN, MANAGER, AUDITOR)
+
+- KPI cards: open cases, resolved cases, suspense GL net balance (`SUSPENSE_ACCOUNT` type), open exposure (sum of open case amounts)
+- GL Control: RED if `suspenseGlNetBalance != 0` ("EOD will block"), ORANGE if GL ≠ case exposure (mismatch), GREEN if healthy
+- Aging table: top 10 oldest OPEN cases with color-coded age (T+1 blue, T+2 yellow/ESCALATE, T+3+ red/CRITICAL)
+- Performance: ≤3 SELECTs. JOIN FETCH on aging query prevents N+1.
+
+### 9A.2 Clearing Settlement Engine
+
+`GET /clearing/engine` — `ClearingEngineController` (OPERATIONS, ADMIN, MANAGER)
+
+- Settlement readiness gate: `settlementReady = (unsettledCount == 0 AND clearingGlNet == 0)`
+- KPI cards: unsettled IBT count, failed count, clearing GL net balance
+- Unsettled transfers table: top 20 oldest with branch codes and color-coded aging
+- Does NOT execute settlement — read-only monitoring only
+- Performance: ≤3 SELECTs. Reuses existing `findOldestUnsettledByTenantId` (JOIN FETCH).
+
+### 9A.3 Hard Transaction Ceiling Monitor
+
+`GET /risk/hard-ceiling` — `HardCeilingDashboardController` (OPERATIONS, ADMIN, MANAGER, AUDITOR)
+
+- KPI: today's violation count (uses tenant business date, not system clock)
+- Enforcement status: CLEAN (0), MONITOR (1-3), ALERT (>3)
+- Recent violations table: last 20 `HARD_LIMIT_EXCEEDED` audit events with timestamp, user, entity, details
+- Data source: `audit_logs` table with `action = 'HARD_LIMIT_EXCEEDED'`
+- Performance: 2 SELECTs. No N+1 (AuditLog has no lazy associations).
+
+### 9A.4 Velocity Fraud Risk Monitor
+
+`GET /risk/velocity` — `VelocityFraudDashboardController` (OPERATIONS, ADMIN, MANAGER, AUDITOR)
+
+- Fraud pressure level: LOW (0 alerts), MEDIUM (1-5), HIGH (>5)
+- KPI cards: open fraud alerts, accounts under review (`UNDER_REVIEW` status)
+- Recent alerts table: last 20 FraudAlert records with account, type, observed count/amount, threshold, status
+- Data source: `fraud_alerts` table + `accounts` table (UNDER_REVIEW count)
+- Performance: 3 SELECTs. No N+1 (FraudAlert scalar fields only in JSP).
+
+### 9A.5 Enterprise Audit Log Explorer
+
+`GET /audit/explorer` — `AuditExplorerController` (ADMIN, AUDITOR)
+
+- Searchable/filterable: date range, action (LIKE), username (LIKE), entity type (LIKE), entity ID (exact)
+- Paginated table: timestamp, username, action, entity, entity ID, old value (truncated), new value (truncated), IP address
+- Uses `JpaSpecificationExecutor` for composable filter queries — single paginated SELECT
+- All filters optional; tenant isolation always enforced as base predicate
+- Performance: 1 paginated SELECT (COUNT + data). No N+1.
+
 ## 10) Suggested E2E verification checklist
 
 A quick manual verification (dev/H2):
@@ -601,5 +654,10 @@ A quick manual verification (dev/H2):
 11. Validate EOD via `/eod/validate` then run EOD via `/eod/run`
 12. After EOD, use `/eod/day-begin` to open the day
 13. Test voucher detail view: go to `/vouchers/{id}` for any voucher
+14. **Test Suspense Dashboard:** go to `/suspense/dashboard` — verify KPI cards show 0 open cases and suspense GL balanced (green)
+15. **Test Clearing Engine:** go to `/clearing/engine` — verify settlement readiness shows green if no unsettled IBTs and clearing GL net = 0
+16. **Test Hard Ceiling Monitor:** go to `/risk/hard-ceiling` — verify today's violation count and enforcement status badge
+17. **Test Velocity Fraud Monitor:** go to `/risk/velocity` — verify pressure level (LOW if no open alerts) and accounts under review count
+18. **Test Audit Explorer:** go to `/audit/explorer` — verify filter panel works (try filtering by action `VOUCHER_POSTED`), verify pagination
 
 For additional data-level checks, use H2 console and the SQL in `README.md`, `docs/ibt-audit-sql-pack.sql`, `docs/suspense-audit-sql-pack.sql`, `docs/hard-ceiling-audit-sql-pack.sql`, `docs/velocity-fraud-audit-sql-pack.sql`, `docs/eod-state-machine-audit-sql-pack.sql`, and `docs/balance-reconciliation-audit-sql-pack.sql`.
