@@ -16,7 +16,19 @@ import com.ledgora.batch.repository.TransactionBatchRepository;
 import com.ledgora.batch.service.BatchService;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
-import com.ledgora.common.enums.*;
+import com.ledgora.common.enums.AccountStatus;
+import com.ledgora.common.enums.AccountType;
+import com.ledgora.common.enums.ApprovalStatus;
+import com.ledgora.common.enums.BatchStatus;
+import com.ledgora.common.enums.CustomerStatus;
+import com.ledgora.common.enums.DayStatus;
+import com.ledgora.common.enums.EntryType;
+import com.ledgora.common.enums.GLAccountType;
+import com.ledgora.common.enums.MakerCheckerStatus;
+import com.ledgora.common.enums.TransactionChannel;
+import com.ledgora.common.enums.TransactionStatus;
+import com.ledgora.common.enums.TransactionType;
+import com.ledgora.common.enums.VoucherDrCr;
 import com.ledgora.common.exception.BusinessDayClosedException;
 import com.ledgora.customer.entity.CustomerFreezeControl;
 import com.ledgora.customer.entity.CustomerMaster;
@@ -30,7 +42,6 @@ import com.ledgora.gl.repository.GeneralLedgerRepository;
 import com.ledgora.gl.service.CbsGlBalanceService;
 import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
-import com.ledgora.ledger.repository.LedgerJournalRepository;
 import com.ledgora.ledger.service.LedgerService;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
@@ -38,7 +49,6 @@ import com.ledgora.tenant.repository.TenantRepository;
 import com.ledgora.tenant.service.TenantService;
 import com.ledgora.transaction.dto.TransactionDTO;
 import com.ledgora.transaction.entity.Transaction;
-import com.ledgora.transaction.repository.TransactionRepository;
 import com.ledgora.transaction.service.TransactionService;
 import com.ledgora.voucher.entity.Voucher;
 import com.ledgora.voucher.repository.VoucherRepository;
@@ -95,8 +105,6 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @Autowired private CustomerFreezeControlRepository freezeControlRepository;
     @Autowired private VoucherRepository voucherRepository;
     @Autowired private LedgerEntryRepository ledgerEntryRepository;
-    @Autowired private LedgerJournalRepository journalRepository;
-    @Autowired private TransactionRepository transactionRepository;
     @Autowired private TransactionBatchRepository batchRepository;
     @Autowired private ApprovalRequestRepository approvalRequestRepository;
 
@@ -1135,8 +1143,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 6.1: Valid EOD - all conditions met, business date advances")
     void testValidEodAllConditionsMet() {
         // NOTE: No @Transactional — EOD state machine uses REQUIRES_NEW which needs committed data
-        Tenant tenant =
-                tenantService.createTenant("P6-EOD-OK", "EOD OK Bank", LocalDate.now());
+        Tenant tenant = tenantService.createTenant("P6-EOD-OK", "EOD OK Bank", LocalDate.now());
         LocalDate currentDate = tenant.getCurrentBusinessDate();
 
         try {
@@ -1268,8 +1275,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 6.5: After EOD close, transactions must be blocked")
     void testTransactionsBlockedAfterEodClose() {
         // NOTE: No @Transactional — EOD state machine uses REQUIRES_NEW which needs committed data
-        Tenant tenant =
-                tenantService.createTenant("P6-BLCK", "EOD Block Bank", LocalDate.now());
+        Tenant tenant = tenantService.createTenant("P6-BLCK", "EOD Block Bank", LocalDate.now());
 
         try {
             // Run EOD (no transactions, so it should pass)
@@ -1659,21 +1665,19 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
     private Account createAccountInTenant(
             Tenant tenant, Branch branch, String accNo, GeneralLedger gl) {
-        Account account =
-                accountRepository.save(
-                        Account.builder()
-                                .tenant(tenant)
-                                .accountNumber(accNo)
-                                .accountName("Account " + accNo)
-                                .accountType(AccountType.SAVINGS)
-                                .status(AccountStatus.ACTIVE)
-                                .balance(BigDecimal.ZERO)
-                                .currency("INR")
-                                .branch(branch)
-                                .homeBranch(branch)
-                                .glAccountCode(gl.getGlCode())
-                                .build());
-        return account;
+        return accountRepository.save(
+                Account.builder()
+                        .tenant(tenant)
+                        .accountNumber(accNo)
+                        .accountName("Account " + accNo)
+                        .accountType(AccountType.SAVINGS)
+                        .status(AccountStatus.ACTIVE)
+                        .balance(BigDecimal.ZERO)
+                        .currency("INR")
+                        .branch(branch)
+                        .homeBranch(branch)
+                        .glAccountCode(gl.getGlCode())
+                        .build());
     }
 
     private void seedBalance(Account account, BigDecimal amount) {

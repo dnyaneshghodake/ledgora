@@ -61,8 +61,7 @@ public interface InterBranchTransferRepository extends JpaRepository<InterBranch
             @Param("businessDate") LocalDate businessDate);
 
     /** Find all transfers for a tenant on a specific business date. */
-    List<InterBranchTransfer> findByTenantIdAndBusinessDate(
-            Long tenantId, LocalDate businessDate);
+    List<InterBranchTransfer> findByTenantIdAndBusinessDate(Long tenantId, LocalDate businessDate);
 
     /** Find all transfers for a tenant (ordered by creation date descending). */
     List<InterBranchTransfer> findByTenantIdOrderByCreatedAtDesc(Long tenantId);
