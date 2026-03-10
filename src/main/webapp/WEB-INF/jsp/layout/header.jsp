@@ -31,21 +31,35 @@
             <i class="bi bi-list" aria-hidden="true"></i>
         </button>
         <a href="${pageContext.request.contextPath}/dashboard" class="cbs-header-brand" aria-label="Go to dashboard">
-            <img class="cbs-bank-logo" src="${pageContext.request.contextPath}/resources/img/bank-logo.png" width="40" height="40" alt="Bank logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
-            <span class="cbs-logo-fallback" style="display:none;" aria-hidden="true"><i class="bi bi-bank2"></i></span>
+            <img class="cbs-bank-logo" src="${pageContext.request.contextPath}/resources/img/bank-logo.png" width="40" height="40" alt="Bank logo" onerror="this.classList.add('cbs-logo-hidden'); this.nextElementSibling.classList.add('cbs-logo-visible');">
+            <span class="cbs-logo-fallback" aria-hidden="true"><i class="bi bi-bank2"></i></span>
             <span class="cbs-header-brand-text">LEDGORA</span>
         </a>
     </div>
     <div class="cbs-header-center">
-        <%-- Branch Name --%>
+        <%-- SOL ID / Branch Name (Finacle: SOL ID is primary branch identifier) --%>
         <div class="cbs-branch-info" aria-label="Branch information">
             <i class="bi bi-geo-alt" aria-hidden="true"></i>
-            <span>Branch:</span>
+            <span>SOL:</span>
             <strong>
                 <c:choose>
-                    <c:when test="${not empty sessionScope.branchName}"><c:out value="${sessionScope.branchName}"/></c:when>
                     <c:when test="${not empty sessionScope.branchCode}"><c:out value="${sessionScope.branchCode}"/></c:when>
                     <c:otherwise>HQ</c:otherwise>
+                </c:choose>
+            </strong>
+            <c:if test="${not empty sessionScope.branchName}">
+                <span class="cbs-sol-name">(<c:out value="${sessionScope.branchName}"/>)</span>
+            </c:if>
+        </div>
+        <span class="cbs-header-separator"></span>
+        <%-- Base Currency (Finacle: operating currency context) --%>
+        <div class="cbs-currency-info" aria-label="Base currency">
+            <i class="bi bi-currency-exchange" aria-hidden="true"></i>
+            <span>CCY:</span>
+            <strong>
+                <c:choose>
+                    <c:when test="${not empty sessionScope.baseCurrency}"><c:out value="${sessionScope.baseCurrency}"/></c:when>
+                    <c:otherwise>INR</c:otherwise>
                 </c:choose>
             </strong>
         </div>
@@ -58,7 +72,7 @@
             </c:choose>
         </span>
         <span class="cbs-header-separator"></span>
-        <%-- Business Date + Clock --%>
+        <%-- Business Date --%>
         <div class="cbs-business-date" aria-label="Business date">
             <i class="bi bi-calendar3" aria-hidden="true"></i>
             <span>Business Date:</span>
@@ -68,10 +82,6 @@
                     <c:otherwise><%= new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date()) %></c:otherwise>
                 </c:choose>
             </strong>
-        </div>
-        <div class="cbs-realtime-clock" aria-label="Current time">
-            <i class="bi bi-clock" aria-hidden="true"></i>
-            <time id="cbsClock" datetime="" aria-live="polite">--:--:--</time>
         </div>
         <span class="cbs-header-separator"></span>
         <%-- Business Date Status --%>
@@ -146,6 +156,12 @@
                 </div>
             </c:if>
         </div>
+        <%-- Session Timeout Indicator (Finacle: PCI-DSS compliance) --%>
+        <div class="cbs-session-timer" id="cbsSessionTimer" aria-label="Session timeout" title="Session time remaining">
+            <i class="bi bi-hourglass-split" aria-hidden="true"></i>
+            <span id="cbsSessionCountdown">30:00</span>
+        </div>
+        <span class="cbs-header-separator"></span>
         <%-- Notifications / Pending Approvals --%>
         <c:if test="${sessionScope.pendingApprovals != null && sessionScope.pendingApprovals > 0 && (sessionScope.isAdmin || sessionScope.isManager || sessionScope.isChecker)}">
             <a href="${pageContext.request.contextPath}/approvals" class="cbs-notifications" aria-label="Pending approvals">
@@ -153,6 +169,25 @@
                 <span class="cbs-badge" aria-label="Pending approvals count">${sessionScope.pendingApprovals}</span>
             </a>
         </c:if>
+
+        <%-- Maker/Checker Mode Indicator (Finacle: prominent session-type display) --%>
+        <c:choose>
+            <c:when test="${sessionScope.isMaker && !sessionScope.isChecker}">
+                <span class="cbs-mode-indicator cbs-mode-maker" role="status" aria-label="Operating in Maker mode" title="Maker Session — entries require Checker authorization">
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i> MAKER
+                </span>
+            </c:when>
+            <c:when test="${sessionScope.isChecker && !sessionScope.isMaker}">
+                <span class="cbs-mode-indicator cbs-mode-checker" role="status" aria-label="Operating in Checker mode" title="Checker Session — authorize pending entries">
+                    <i class="bi bi-check2-square" aria-hidden="true"></i> CHECKER
+                </span>
+            </c:when>
+            <c:when test="${sessionScope.isMaker && sessionScope.isChecker}">
+                <span class="cbs-mode-indicator cbs-mode-dual" role="status" aria-label="Dual Maker/Checker mode" title="Dual Mode — Maker + Checker privileges">
+                    <i class="bi bi-arrow-left-right" aria-hidden="true"></i> DUAL
+                </span>
+            </c:when>
+        </c:choose>
 
         <div class="cbs-user-info">
             <div class="cbs-user-avatar" aria-hidden="true">
@@ -183,6 +218,18 @@
         </form>
     </div>
 </header>
+
+<%-- CBS Keyboard Shortcut Bar (Finacle-style function key hints) --%>
+<div class="cbs-shortcut-bar" id="cbsShortcutBar" role="toolbar" aria-label="Keyboard shortcuts">
+    <span class="cbs-shortcut-hint" title="Go to Dashboard"><kbd>Alt+D</kbd> Dashboard</span>
+    <span class="cbs-shortcut-hint" title="New Transaction"><kbd>Alt+T</kbd> New Txn</span>
+    <span class="cbs-shortcut-hint" title="Customer Lookup"><kbd>Alt+C</kbd> Customer</span>
+    <span class="cbs-shortcut-hint" title="Account Lookup"><kbd>Alt+A</kbd> Account</span>
+    <span class="cbs-shortcut-hint" title="Toggle Sidebar"><kbd>Alt+S</kbd> Sidebar</span>
+    <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager}">
+        <span class="cbs-shortcut-hint" title="Approval Queue"><kbd>Alt+P</kbd> Approvals</span>
+    </c:if>
+</div>
 
 <%-- CBS Sidebar --%>
 <%@ include file="sidebar.jsp" %>
