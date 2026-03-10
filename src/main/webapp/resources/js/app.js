@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setInterval(sessionTick, 1000);
 
         var lastResetTime = Date.now();
-        ['click', 'keypress', 'scroll'].forEach(function(evt) {
+        ['click', 'keypress', 'scroll', 'mousemove'].forEach(function(evt) {
             document.addEventListener(evt, function() {
                 var now = Date.now();
                 if (now - lastResetTime > 5000) {
