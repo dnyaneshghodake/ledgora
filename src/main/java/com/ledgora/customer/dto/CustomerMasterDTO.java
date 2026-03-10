@@ -83,9 +83,7 @@ public class CustomerMasterDTO {
     private String nationalId;
 
     @NotBlank(message = "PAN number is required")
-    @Pattern(
-            regexp = "^[A-Z]{5}[0-9]{4}[A-Z]$",
-            message = "PAN must match format: ABCDE1234F")
+    @Pattern(regexp = "^[A-Z]{5}[0-9]{4}[A-Z]$", message = "PAN must match format: ABCDE1234F")
     private String panNumber;
 
     @Pattern(regexp = "^$|^[0-9]{12}$", message = "Aadhaar must be exactly 12 digits")

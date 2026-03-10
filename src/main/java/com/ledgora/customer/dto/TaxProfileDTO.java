@@ -16,9 +16,7 @@ public class TaxProfileDTO {
     private Long id;
     private Long customerMasterId;
 
-    @Pattern(
-            regexp = "^$|^[A-Z]{5}[0-9]{4}[A-Z]$",
-            message = "PAN must match format: ABCDE1234F")
+    @Pattern(regexp = "^$|^[A-Z]{5}[0-9]{4}[A-Z]$", message = "PAN must match format: ABCDE1234F")
     private String panNumber;
 
     private String tanNumber;
