@@ -12,6 +12,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -75,7 +77,7 @@ public class DiagnosticsController {
     @PostMapping("/certification/run")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EnterpriseCertificationReport> runCertification(
-            @org.springframework.web.bind.annotation.RequestBody Map<String, Object> params) {
+            @RequestBody Map<String, Object> params) {
         Long tenantId = ((Number) params.getOrDefault("tenantId", 1)).longValue();
         EnterpriseCertificationReport report = certificationRunner.runFullCertification(tenantId);
         return ResponseEntity.ok(report);
