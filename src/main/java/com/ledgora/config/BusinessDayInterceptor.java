@@ -8,24 +8,25 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * Interceptor that blocks transactional POST requests when the business day is closed.
- * Checks session attribute 'businessDateStatus' and throws BusinessDayClosedException
- * for locked paths when status is CLOSED.
+ * Interceptor that blocks transactional POST requests when the business day is closed. Checks
+ * session attribute 'businessDateStatus' and throws BusinessDayClosedException for locked paths
+ * when status is CLOSED.
  */
 @Component
 public class BusinessDayInterceptor implements HandlerInterceptor {
 
     private static final String[] LOCKED_PATHS = {
-            "/vouchers/create",
-            "/accounts/create",
-            "/transactions/deposit",
-            "/transactions/withdraw",
-            "/transactions/transfer",
-            "/eod/run"
+        "/vouchers/create",
+        "/accounts/create",
+        "/transactions/deposit",
+        "/transactions/withdraw",
+        "/transactions/transfer",
+        "/eod/run"
     };
 
     @Override
-    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+    public boolean preHandle(
+            HttpServletRequest request, HttpServletResponse response, Object handler) {
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
             return true;
         }

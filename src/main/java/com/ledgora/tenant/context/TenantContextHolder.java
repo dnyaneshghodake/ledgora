@@ -1,8 +1,8 @@
 package com.ledgora.tenant.context;
 
 /**
- * ThreadLocal-based tenant context holder for multi-tenant isolation.
- * Set during request processing (via filter or interceptor).
+ * ThreadLocal-based tenant context holder for multi-tenant isolation. Set during request processing
+ * (via filter or interceptor).
  */
 public final class TenantContextHolder {
 
@@ -23,7 +23,8 @@ public final class TenantContextHolder {
     public static Long getRequiredTenantId() {
         Long tenantId = CURRENT_TENANT.get();
         if (tenantId == null) {
-            throw new IllegalStateException("No tenant context set. Ensure TenantContextHolder is populated before accessing tenant data.");
+            throw new IllegalStateException(
+                    "No tenant context set. Ensure TenantContextHolder is populated before accessing tenant data.");
         }
         return tenantId;
     }

@@ -4,25 +4,33 @@ import com.ledgora.auth.entity.User;
 import com.ledgora.common.enums.MakerCheckerStatus;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
-import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * Banking Calendar entity for RBI-grade calendar discipline.
- * Each date per tenant is classified as WORKING_DAY or HOLIDAY.
- * Calendar changes require maker-checker approval.
- * No backdated edits after EOD.
+ * Banking Calendar entity for RBI-grade calendar discipline. Each date per tenant is classified as
+ * WORKING_DAY or HOLIDAY. Calendar changes require maker-checker approval. No backdated edits after
+ * EOD.
  */
 @Entity
-@Table(name = "bank_calendar", indexes = {
-    @Index(name = "idx_bc_tenant_date", columnList = "tenant_id, calendar_date", unique = true),
-    @Index(name = "idx_bc_tenant", columnList = "tenant_id"),
-    @Index(name = "idx_bc_date", columnList = "calendar_date")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "bank_calendar",
+        indexes = {
+            @Index(
+                    name = "idx_bc_tenant_date",
+                    columnList = "tenant_id, calendar_date",
+                    unique = true),
+            @Index(name = "idx_bc_tenant", columnList = "tenant_id"),
+            @Index(name = "idx_bc_date", columnList = "calendar_date")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class BankCalendar {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

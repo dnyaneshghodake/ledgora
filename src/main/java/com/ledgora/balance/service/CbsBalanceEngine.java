@@ -5,23 +5,21 @@ import com.ledgora.account.entity.AccountBalance;
 import com.ledgora.account.repository.AccountBalanceRepository;
 import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.common.enums.VoucherDrCr;
+import java.math.BigDecimal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-
 /**
  * CBS Balance Engine - manages shadow, clearing, lien, and actual balances.
  *
- * Balance formulas:
- *   actual_total_balance     = SUM(ledger_entries)
- *   actual_cleared_balance   = actual_total_balance - uncleared_effect_balance
- *   shadow_total_balance     = actual_total_balance + pending_voucher_effect
- *   available_balance        = actual_cleared_balance - lien_balance - charge_hold_balance
+ * <p>Balance formulas: actual_total_balance = SUM(ledger_entries) actual_cleared_balance =
+ * actual_total_balance - uncleared_effect_balance shadow_total_balance = actual_total_balance +
+ * pending_voucher_effect available_balance = actual_cleared_balance - lien_balance -
+ * charge_hold_balance
  *
- * Never allow negative available_balance unless OD permitted.
+ * <p>Never allow negative available_balance unless OD permitted.
  */
 @Service
 public class CbsBalanceEngine {
@@ -30,15 +28,16 @@ public class CbsBalanceEngine {
     private final AccountBalanceRepository accountBalanceRepository;
     private final AccountRepository accountRepository;
 
-    public CbsBalanceEngine(AccountBalanceRepository accountBalanceRepository,
-                            AccountRepository accountRepository) {
+    public CbsBalanceEngine(
+            AccountBalanceRepository accountBalanceRepository,
+            AccountRepository accountRepository) {
         this.accountBalanceRepository = accountBalanceRepository;
         this.accountRepository = accountRepository;
     }
 
     /**
-     * Update shadow balance when a voucher is created (before posting).
-     * Shadow reflects pending financial effect.
+     * Update shadow balance when a voucher is created (before posting). Shadow reflects pending
+     * financial effect.
      */
     @Transactional
     public void updateShadowBalance(Long accountId, BigDecimal amount, VoucherDrCr drCr) {
@@ -47,13 +46,16 @@ public class CbsBalanceEngine {
         balance.setShadowTotalBalance(balance.getShadowTotalBalance().add(delta));
         recomputeAvailableBalance(balance);
         accountBalanceRepository.save(balance);
-        log.debug("Shadow balance updated for account {}: delta={}, shadow_total={}",
-                accountId, delta, balance.getShadowTotalBalance());
+        log.debug(
+                "Shadow balance updated for account {}: delta={}, shadow_total={}",
+                accountId,
+                delta,
+                balance.getShadowTotalBalance());
     }
 
     /**
-     * Update actual balance when a voucher is posted (creates ledger entry).
-     * Also reduces the shadow delta since the entry is now actual.
+     * Update actual balance when a voucher is posted (creates ledger entry). Also reduces the
+     * shadow delta since the entry is now actual.
      */
     @Transactional
     public void updateActualBalance(Long accountId, BigDecimal amount, VoucherDrCr drCr) {
@@ -73,13 +75,14 @@ public class CbsBalanceEngine {
 
         recomputeAvailableBalance(balance);
         accountBalanceRepository.save(balance);
-        log.debug("Actual balance updated for account {}: actual_total={}, shadow_total={}",
-                accountId, balance.getActualTotalBalance(), balance.getShadowTotalBalance());
+        log.debug(
+                "Actual balance updated for account {}: actual_total={}, shadow_total={}",
+                accountId,
+                balance.getActualTotalBalance(),
+                balance.getShadowTotalBalance());
     }
 
-    /**
-     * Update clearing balance (inward clearing instruments).
-     */
+    /** Update clearing balance (inward clearing instruments). */
     @Transactional
     public void updateClearingBalance(Long accountId, BigDecimal amount) {
         AccountBalance balance = getOrCreateAccountBalance(accountId);
@@ -89,13 +92,14 @@ public class CbsBalanceEngine {
                 balance.getActualTotalBalance().subtract(balance.getUnclearedEffectBalance()));
         recomputeAvailableBalance(balance);
         accountBalanceRepository.save(balance);
-        log.debug("Clearing balance updated for account {}: inward_clearing={}, uncleared={}",
-                accountId, balance.getInwardClearingBalance(), balance.getUnclearedEffectBalance());
+        log.debug(
+                "Clearing balance updated for account {}: inward_clearing={}, uncleared={}",
+                accountId,
+                balance.getInwardClearingBalance(),
+                balance.getUnclearedEffectBalance());
     }
 
-    /**
-     * Move clearing balance to actual (when instrument clears).
-     */
+    /** Move clearing balance to actual (when instrument clears). */
     @Transactional
     public void moveClearingToActual(Long accountId, BigDecimal amount) {
         AccountBalance balance = getOrCreateAccountBalance(accountId);
@@ -114,9 +118,7 @@ public class CbsBalanceEngine {
         log.debug("Clearing moved to actual for account {}: cleared_amount={}", accountId, amount);
     }
 
-    /**
-     * Apply a lien on an account.
-     */
+    /** Apply a lien on an account. */
     @Transactional
     public void applyLien(Long accountId, BigDecimal lienAmount) {
         AccountBalance balance = getOrCreateAccountBalance(accountId);
@@ -130,18 +132,23 @@ public class CbsBalanceEngine {
             balance.setLienBalance(balance.getLienBalance().subtract(lienAmount));
             recomputeAvailableBalance(balance);
             accountBalanceRepository.save(balance);
-            throw new RuntimeException("Insufficient available balance to apply lien of " + lienAmount
-                    + " on account " + accountId);
+            throw new RuntimeException(
+                    "Insufficient available balance to apply lien of "
+                            + lienAmount
+                            + " on account "
+                            + accountId);
         }
 
         accountBalanceRepository.save(balance);
-        log.info("Lien applied on account {}: lien_amount={}, total_lien={}, available={}",
-                accountId, lienAmount, balance.getLienBalance(), balance.getAvailableBalance());
+        log.info(
+                "Lien applied on account {}: lien_amount={}, total_lien={}, available={}",
+                accountId,
+                lienAmount,
+                balance.getLienBalance(),
+                balance.getAvailableBalance());
     }
 
-    /**
-     * Release a lien on an account.
-     */
+    /** Release a lien on an account. */
     @Transactional
     public void releaseLien(Long accountId, BigDecimal lienAmount) {
         AccountBalance balance = getOrCreateAccountBalance(accountId);
@@ -152,62 +159,77 @@ public class CbsBalanceEngine {
         balance.setLienBalance(newLien);
         recomputeAvailableBalance(balance);
         accountBalanceRepository.save(balance);
-        log.info("Lien released on account {}: released={}, remaining_lien={}, available={}",
-                accountId, lienAmount, balance.getLienBalance(), balance.getAvailableBalance());
+        log.info(
+                "Lien released on account {}: released={}, remaining_lien={}, available={}",
+                accountId,
+                lienAmount,
+                balance.getLienBalance(),
+                balance.getAvailableBalance());
     }
 
     /**
-     * Recompute available balance based on CBS formula:
-     * available_balance = actual_cleared_balance - lien_balance - charge_hold_balance
+     * Recompute available balance based on CBS formula: available_balance = actual_cleared_balance
+     * - lien_balance - charge_hold_balance
      */
     public void recomputeAvailableBalance(AccountBalance balance) {
-        BigDecimal available = balance.getActualClearedBalance()
-                .subtract(balance.getLienBalance())
-                .subtract(balance.getChargeHoldBalance());
+        BigDecimal available =
+                balance.getActualClearedBalance()
+                        .subtract(balance.getLienBalance())
+                        .subtract(balance.getChargeHoldBalance());
         balance.setAvailableBalance(available);
     }
 
-    /**
-     * Get the current CBS balance for an account.
-     */
+    /** Get the current CBS balance for an account. */
     public AccountBalance getCbsBalance(Long accountId) {
         return getOrCreateAccountBalance(accountId);
     }
 
-    /**
-     * Validate available balance is sufficient for a debit transaction.
-     */
+    /** Validate available balance is sufficient for a debit transaction. */
     public void validateSufficientBalance(Long accountId, BigDecimal amount) {
         AccountBalance balance = getOrCreateAccountBalance(accountId);
         recomputeAvailableBalance(balance);
         if (!Boolean.TRUE.equals(balance.getOdPermitted())
                 && balance.getAvailableBalance().compareTo(amount) < 0) {
-            throw new RuntimeException("Insufficient available balance on account " + accountId
-                    + ": available=" + balance.getAvailableBalance() + ", required=" + amount);
+            throw new RuntimeException(
+                    "Insufficient available balance on account "
+                            + accountId
+                            + ": available="
+                            + balance.getAvailableBalance()
+                            + ", required="
+                            + amount);
         }
     }
 
     private AccountBalance getOrCreateAccountBalance(Long accountId) {
-        return accountBalanceRepository.findByAccountId(accountId)
-                .orElseGet(() -> {
-                    Account account = accountRepository.findById(accountId)
-                            .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
-                    AccountBalance ab = AccountBalance.builder()
-                            .account(account)
-                            .ledgerBalance(BigDecimal.ZERO)
-                            .availableBalance(BigDecimal.ZERO)
-                            .holdAmount(BigDecimal.ZERO)
-                            .actualTotalBalance(BigDecimal.ZERO)
-                            .actualClearedBalance(BigDecimal.ZERO)
-                            .shadowTotalBalance(BigDecimal.ZERO)
-                            .shadowClearingBalance(BigDecimal.ZERO)
-                            .inwardClearingBalance(BigDecimal.ZERO)
-                            .unclearedEffectBalance(BigDecimal.ZERO)
-                            .lienBalance(BigDecimal.ZERO)
-                            .chargeHoldBalance(BigDecimal.ZERO)
-                            .odPermitted(false)
-                            .build();
-                    return accountBalanceRepository.save(ab);
-                });
+        return accountBalanceRepository
+                .findByAccountId(accountId)
+                .orElseGet(
+                        () -> {
+                            Account account =
+                                    accountRepository
+                                            .findById(accountId)
+                                            .orElseThrow(
+                                                    () ->
+                                                            new RuntimeException(
+                                                                    "Account not found: "
+                                                                            + accountId));
+                            AccountBalance ab =
+                                    AccountBalance.builder()
+                                            .account(account)
+                                            .ledgerBalance(BigDecimal.ZERO)
+                                            .availableBalance(BigDecimal.ZERO)
+                                            .holdAmount(BigDecimal.ZERO)
+                                            .actualTotalBalance(BigDecimal.ZERO)
+                                            .actualClearedBalance(BigDecimal.ZERO)
+                                            .shadowTotalBalance(BigDecimal.ZERO)
+                                            .shadowClearingBalance(BigDecimal.ZERO)
+                                            .inwardClearingBalance(BigDecimal.ZERO)
+                                            .unclearedEffectBalance(BigDecimal.ZERO)
+                                            .lienBalance(BigDecimal.ZERO)
+                                            .chargeHoldBalance(BigDecimal.ZERO)
+                                            .odPermitted(false)
+                                            .build();
+                            return accountBalanceRepository.save(ab);
+                        });
     }
 }

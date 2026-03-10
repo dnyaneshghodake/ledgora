@@ -2,23 +2,29 @@ package com.ledgora.customer.entity;
 
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
-import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * CBS-grade Customer Tax Profile for RBI compliance.
- * Stores PAN, TAN, GST and other tax identification details.
+ * CBS-grade Customer Tax Profile for RBI compliance. Stores PAN, TAN, GST and other tax
+ * identification details.
  */
 @Entity
-@Table(name = "customer_tax_profile", indexes = {
-    @Index(name = "idx_ctp_customer", columnList = "customer_master_id"),
-    @Index(name = "idx_ctp_tenant", columnList = "tenant_id"),
-    @Index(name = "idx_ctp_pan", columnList = "pan_number")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "customer_tax_profile",
+        indexes = {
+            @Index(name = "idx_ctp_customer", columnList = "customer_master_id"),
+            @Index(name = "idx_ctp_tenant", columnList = "tenant_id"),
+            @Index(name = "idx_ctp_pan", columnList = "pan_number")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class CustomerTaxProfile {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

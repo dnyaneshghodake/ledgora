@@ -1,24 +1,22 @@
 package com.ledgora.settlement.controller;
 
 import com.ledgora.common.entity.SystemDate;
+import com.ledgora.common.enums.SettlementStatus;
 import com.ledgora.common.service.BusinessDateService;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.settlement.entity.Settlement;
 import com.ledgora.settlement.service.SettlementService;
-import com.ledgora.common.enums.SettlementStatus;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.util.List;
-
 /**
- * Settlement Dashboard Controller - TASK 4
- * Provides settlement status panel and 7-step progress visualization.
- * No business logic modifications - UI wiring only.
+ * Settlement Dashboard Controller - TASK 4 Provides settlement status panel and 7-step progress
+ * visualization. No business logic modifications - UI wiring only.
  */
 @Controller
 @RequestMapping("/settlement")
@@ -28,9 +26,10 @@ public class SettlementDashboardController {
     private final BusinessDateService businessDateService;
     private final LedgerEntryRepository ledgerEntryRepository;
 
-    public SettlementDashboardController(SettlementService settlementService,
-                                          BusinessDateService businessDateService,
-                                          LedgerEntryRepository ledgerEntryRepository) {
+    public SettlementDashboardController(
+            SettlementService settlementService,
+            BusinessDateService businessDateService,
+            LedgerEntryRepository ledgerEntryRepository) {
         this.settlementService = settlementService;
         this.businessDateService = businessDateService;
         this.ledgerEntryRepository = ledgerEntryRepository;
@@ -54,7 +53,8 @@ public class SettlementDashboardController {
         model.addAttribute("totalCredits", totalCredits);
 
         // Last settlement info
-        List<Settlement> completedSettlements = settlementService.getSettlementsByStatus(SettlementStatus.COMPLETED);
+        List<Settlement> completedSettlements =
+                settlementService.getSettlementsByStatus(SettlementStatus.COMPLETED);
         if (!completedSettlements.isEmpty()) {
             Settlement lastSettlement = completedSettlements.get(completedSettlements.size() - 1);
             model.addAttribute("lastSettlement", lastSettlement);
@@ -62,8 +62,10 @@ public class SettlementDashboardController {
         }
 
         // Pending settlements
-        List<Settlement> pendingSettlements = settlementService.getSettlementsByStatus(SettlementStatus.PENDING);
-        List<Settlement> inProgressSettlements = settlementService.getSettlementsByStatus(SettlementStatus.IN_PROGRESS);
+        List<Settlement> pendingSettlements =
+                settlementService.getSettlementsByStatus(SettlementStatus.PENDING);
+        List<Settlement> inProgressSettlements =
+                settlementService.getSettlementsByStatus(SettlementStatus.IN_PROGRESS);
         model.addAttribute("pendingCount", pendingSettlements.size());
         model.addAttribute("inProgressCount", inProgressSettlements.size());
 

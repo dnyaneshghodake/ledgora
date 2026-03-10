@@ -5,42 +5,55 @@ import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
 import com.ledgora.common.enums.LedgerAccountType;
 import jakarta.persistence.LockModeType;
+import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
-import java.util.List;
-import java.util.Optional;
 
 @Repository
 public interface AccountRepository extends JpaRepository<Account, Long> {
     Optional<Account> findByAccountNumber(String accountNumber);
+
     Boolean existsByAccountNumber(String accountNumber);
+
     List<Account> findByStatus(AccountStatus status);
+
     List<Account> findByAccountType(AccountType accountType);
+
     List<Account> findByBranchCode(String branchCode);
+
     List<Account> findByCustomerNameContainingIgnoreCase(String customerName);
 
     Optional<Account> findByAccountNumberAndTenantId(String accountNumber, Long tenantId);
+
     List<Account> findByTenantId(Long tenantId);
+
     List<Account> findByTenantIdAndStatus(Long tenantId, AccountStatus status);
+
     List<Account> findByTenantIdAndAccountType(Long tenantId, AccountType accountType);
 
-    @Query("SELECT a FROM Account a WHERE a.tenant.id = :tenantId AND LOWER(a.customerName) LIKE LOWER(CONCAT('%', :customerName, '%'))")
-    List<Account> findByTenantIdAndCustomerNameContainingIgnoreCase(@Param("tenantId") Long tenantId, @Param("customerName") String customerName);
+    @Query(
+            "SELECT a FROM Account a WHERE a.tenant.id = :tenantId AND LOWER(a.customerName) LIKE LOWER(CONCAT('%', :customerName, '%'))")
+    List<Account> findByTenantIdAndCustomerNameContainingIgnoreCase(
+            @Param("tenantId") Long tenantId, @Param("customerName") String customerName);
 
-    @Query("SELECT a FROM Account a WHERE a.tenant.id = :tenantId AND (LOWER(a.accountNumber) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(a.accountName) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(a.customerName) LIKE LOWER(CONCAT('%', :query, '%')))")
+    @Query(
+            "SELECT a FROM Account a WHERE a.tenant.id = :tenantId AND (LOWER(a.accountNumber) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(a.accountName) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(a.customerName) LIKE LOWER(CONCAT('%', :query, '%')))")
     List<Account> searchByTenantId(@Param("tenantId") Long tenantId, @Param("query") String query);
 
     @Query("SELECT a FROM Account a WHERE a.status = :status AND a.accountType = :type")
-    List<Account> findByStatusAndType(@Param("status") AccountStatus status, @Param("type") AccountType type);
+    List<Account> findByStatusAndType(
+            @Param("status") AccountStatus status, @Param("type") AccountType type);
 
     @Query("SELECT COUNT(a) FROM Account a WHERE a.status = :status")
     long countByStatus(@Param("status") AccountStatus status);
 
     // PART 2: Hierarchy support
     List<Account> findByParentAccountId(Long parentAccountId);
+
     List<Account> findByLedgerAccountType(LedgerAccountType ledgerAccountType);
 
     // PART 8: Pessimistic locking for financial operations
@@ -53,8 +66,10 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     Optional<Account> findByAccountNumberWithLock(@Param("accountNumber") String accountNumber);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT a FROM Account a WHERE a.accountNumber = :accountNumber AND a.tenant.id = :tenantId")
-    Optional<Account> findByAccountNumberWithLockAndTenantId(@Param("accountNumber") String accountNumber, @Param("tenantId") Long tenantId);
+    @Query(
+            "SELECT a FROM Account a WHERE a.accountNumber = :accountNumber AND a.tenant.id = :tenantId")
+    Optional<Account> findByAccountNumberWithLockAndTenantId(
+            @Param("accountNumber") String accountNumber, @Param("tenantId") Long tenantId);
 
     Optional<Account> findFirstByTenantIdAndGlAccountCode(Long tenantId, String glAccountCode);
 
@@ -62,6 +77,8 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     @Query("SELECT a FROM Account a WHERE a.customer.customerId = :customerId")
     List<Account> findByCustomerId(@Param("customerId") Long customerId);
 
-    @Query("SELECT a FROM Account a WHERE a.tenant.id = :tenantId AND a.customer.customerId = :customerId")
-    List<Account> findByTenantIdAndCustomerId(@Param("tenantId") Long tenantId, @Param("customerId") Long customerId);
+    @Query(
+            "SELECT a FROM Account a WHERE a.tenant.id = :tenantId AND a.customer.customerId = :customerId")
+    List<Account> findByTenantIdAndCustomerId(
+            @Param("tenantId") Long tenantId, @Param("customerId") Long customerId);
 }

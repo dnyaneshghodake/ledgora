@@ -5,22 +5,28 @@ import com.ledgora.common.enums.BatchType;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
 import jakarta.persistence.Version;
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.*;
 
-/**
- * Transaction batch entity for grouping transactions by channel, tenant, and business date.
- */
+/** Transaction batch entity for grouping transactions by channel, tenant, and business date. */
 @Entity
-@Table(name = "transaction_batches", indexes = {
-    @Index(name = "idx_batch_tenant_type_date", columnList = "tenant_id, batch_type, business_date"),
-    @Index(name = "idx_batch_status", columnList = "status")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "transaction_batches",
+        indexes = {
+            @Index(
+                    name = "idx_batch_tenant_type_date",
+                    columnList = "tenant_id, batch_type, business_date"),
+            @Index(name = "idx_batch_status", columnList = "status")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class TransactionBatch {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

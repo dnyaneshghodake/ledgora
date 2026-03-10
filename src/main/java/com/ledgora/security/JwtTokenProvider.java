@@ -2,14 +2,13 @@ package com.ledgora.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import java.security.Key;
+import java.util.Date;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
-
-import java.security.Key;
-import java.util.Date;
-import java.util.Map;
 
 @Component
 public class JwtTokenProvider {
@@ -38,20 +37,19 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    /**
-     * Generate token with tenant_id and tenant_scope claims for multi-tenant support.
-     */
-    public String generateTokenWithTenant(Authentication authentication, Long tenantId, String tenantScope) {
+    /** Generate token with tenant_id and tenant_scope claims for multi-tenant support. */
+    public String generateTokenWithTenant(
+            Authentication authentication, Long tenantId, String tenantScope) {
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + jwtExpiration);
 
         return Jwts.builder()
                 .setSubject(userDetails.getUsername())
-                .addClaims(Map.of(
-                        "tenant_id", tenantId,
-                        "tenant_scope", tenantScope
-                ))
+                .addClaims(
+                        Map.of(
+                                "tenant_id", tenantId,
+                                "tenant_scope", tenantScope))
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
@@ -63,9 +61,7 @@ public class JwtTokenProvider {
         return claims.getSubject();
     }
 
-    /**
-     * Extract tenant_id from JWT token.
-     */
+    /** Extract tenant_id from JWT token. */
     public Long getTenantIdFromToken(String token) {
         Claims claims = getClaims(token);
         Object tenantId = claims.get("tenant_id");
@@ -75,9 +71,7 @@ public class JwtTokenProvider {
         return null;
     }
 
-    /**
-     * Extract tenant_scope from JWT token.
-     */
+    /** Extract tenant_scope from JWT token. */
     public String getTenantScopeFromToken(String token) {
         Claims claims = getClaims(token);
         return (String) claims.get("tenant_scope");
@@ -93,10 +87,7 @@ public class JwtTokenProvider {
 
     public boolean validateToken(String token) {
         try {
-            Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
-                    .build()
-                    .parseClaimsJws(token);
+            Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
             return false;

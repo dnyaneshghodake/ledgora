@@ -4,17 +4,14 @@ import com.ledgora.common.enums.OwnershipType;
 import com.ledgora.ownership.entity.AccountOwnership;
 import com.ledgora.ownership.service.AccountOwnershipService;
 import com.ledgora.tenant.context.TenantContextHolder;
+import java.math.BigDecimal;
+import java.util.List;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.math.BigDecimal;
-import java.util.List;
-
-/**
- * Controller for Account Ownership management.
- */
+/** Controller for Account Ownership management. */
 @Controller
 @RequestMapping("/ownership")
 public class AccountOwnershipController {
@@ -37,7 +34,8 @@ public class AccountOwnershipController {
     @GetMapping("/account/{accountId}")
     public String listByAccount(@PathVariable Long accountId, Model model) {
         Long tenantId = TenantContextHolder.getRequiredTenantId();
-        List<AccountOwnership> ownerships = ownershipService.getOwnershipsByAccount(accountId, tenantId);
+        List<AccountOwnership> ownerships =
+                ownershipService.getOwnershipsByAccount(accountId, tenantId);
         model.addAttribute("ownerships", ownerships);
         model.addAttribute("accountId", accountId);
         return "ownership/ownership-account";
@@ -46,23 +44,30 @@ public class AccountOwnershipController {
     @GetMapping("/customer/{customerMasterId}")
     public String listByCustomer(@PathVariable Long customerMasterId, Model model) {
         Long tenantId = TenantContextHolder.getRequiredTenantId();
-        List<AccountOwnership> ownerships = ownershipService.getOwnershipsByCustomer(customerMasterId, tenantId);
+        List<AccountOwnership> ownerships =
+                ownershipService.getOwnershipsByCustomer(customerMasterId, tenantId);
         model.addAttribute("ownerships", ownerships);
         model.addAttribute("customerMasterId", customerMasterId);
         return "ownership/ownership-customer";
     }
 
     @PostMapping("/create")
-    public String createOwnership(@RequestParam("accountId") Long accountId,
-                                   @RequestParam("customerMasterId") Long customerMasterId,
-                                   @RequestParam("ownershipType") String ownershipType,
-                                   @RequestParam("ownershipPercentage") BigDecimal ownershipPercentage,
-                                   @RequestParam(value = "isOperational", defaultValue = "true") boolean isOperational,
-                                   RedirectAttributes redirectAttributes) {
+    public String createOwnership(
+            @RequestParam("accountId") Long accountId,
+            @RequestParam("customerMasterId") Long customerMasterId,
+            @RequestParam("ownershipType") String ownershipType,
+            @RequestParam("ownershipPercentage") BigDecimal ownershipPercentage,
+            @RequestParam(value = "isOperational", defaultValue = "true") boolean isOperational,
+            RedirectAttributes redirectAttributes) {
         try {
             Long tenantId = TenantContextHolder.getRequiredTenantId();
-            ownershipService.createOwnership(tenantId, accountId, customerMasterId,
-                    OwnershipType.valueOf(ownershipType), ownershipPercentage, isOperational);
+            ownershipService.createOwnership(
+                    tenantId,
+                    accountId,
+                    customerMasterId,
+                    OwnershipType.valueOf(ownershipType),
+                    ownershipPercentage,
+                    isOperational);
             redirectAttributes.addFlashAttribute("success", "Ownership submitted for approval.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());

@@ -7,24 +7,30 @@ import com.ledgora.common.enums.LienType;
 import com.ledgora.common.enums.MakerCheckerStatus;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * Account Lien entity for lien management.
- * Lien reduces available balance. Creation/release require maker-checker.
+ * Account Lien entity for lien management. Lien reduces available balance. Creation/release require
+ * maker-checker.
  */
 @Entity
-@Table(name = "account_liens", indexes = {
-    @Index(name = "idx_lien_account", columnList = "account_id"),
-    @Index(name = "idx_lien_tenant", columnList = "tenant_id"),
-    @Index(name = "idx_lien_status", columnList = "status")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "account_liens",
+        indexes = {
+            @Index(name = "idx_lien_account", columnList = "account_id"),
+            @Index(name = "idx_lien_tenant", columnList = "tenant_id"),
+            @Index(name = "idx_lien_status", columnList = "status")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class AccountLien {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

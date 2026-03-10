@@ -10,26 +10,27 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import java.io.IOException;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
-
 @Component
-public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthenticationSuccessHandler {
+public class CustomAuthenticationSuccessHandler
+        extends SavedRequestAwareAuthenticationSuccessHandler {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final UserRepository userRepository;
     private final TenantService tenantService;
 
-    public CustomAuthenticationSuccessHandler(JwtTokenProvider jwtTokenProvider,
-                                              UserRepository userRepository,
-                                              TenantService tenantService) {
+    public CustomAuthenticationSuccessHandler(
+            JwtTokenProvider jwtTokenProvider,
+            UserRepository userRepository,
+            TenantService tenantService) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.userRepository = userRepository;
         this.tenantService = tenantService;
@@ -38,8 +39,9 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
     }
 
     @Override
-    public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
-                                        Authentication authentication) throws IOException, ServletException {
+    public void onAuthenticationSuccess(
+            HttpServletRequest request, HttpServletResponse response, Authentication authentication)
+            throws IOException, ServletException {
         HttpSession session = request.getSession();
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
 
@@ -47,26 +49,27 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
         session.setAttribute("username", userDetails.getUsername());
 
         // Store user roles in session for role-based JSP rendering (header.jsp / dashboard.jsp)
-        List<String> roles = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .collect(Collectors.toList());
+        List<String> roles =
+                authentication.getAuthorities().stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .collect(Collectors.toList());
         session.setAttribute("userRoles", roles);
 
         // Convenience booleans for simpler JSP checks (e.g. sessionScope.isAdmin)
-        session.setAttribute("isAdmin",    roles.contains("ROLE_ADMIN"));
-        session.setAttribute("isManager",  roles.contains("ROLE_MANAGER"));
-        session.setAttribute("isTeller",   roles.contains("ROLE_TELLER"));
+        session.setAttribute("isAdmin", roles.contains("ROLE_ADMIN"));
+        session.setAttribute("isManager", roles.contains("ROLE_MANAGER"));
+        session.setAttribute("isTeller", roles.contains("ROLE_TELLER"));
         session.setAttribute("isCustomer", roles.contains("ROLE_CUSTOMER"));
 
         // CBS-specific role flags
-        session.setAttribute("isMaker",         roles.contains("ROLE_MAKER"));
-        session.setAttribute("isChecker",       roles.contains("ROLE_CHECKER"));
+        session.setAttribute("isMaker", roles.contains("ROLE_MAKER"));
+        session.setAttribute("isChecker", roles.contains("ROLE_CHECKER"));
         session.setAttribute("isBranchManager", roles.contains("ROLE_BRANCH_MANAGER"));
-        session.setAttribute("isTenantAdmin",   roles.contains("ROLE_TENANT_ADMIN"));
-        session.setAttribute("isSuperAdmin",    roles.contains("ROLE_SUPER_ADMIN"));
-        session.setAttribute("isAuditor",       roles.contains("ROLE_AUDITOR"));
-        session.setAttribute("isOperations",    roles.contains("ROLE_OPERATIONS"));
-        session.setAttribute("isAtmSystem",     roles.contains("ROLE_ATM_SYSTEM"));
+        session.setAttribute("isTenantAdmin", roles.contains("ROLE_TENANT_ADMIN"));
+        session.setAttribute("isSuperAdmin", roles.contains("ROLE_SUPER_ADMIN"));
+        session.setAttribute("isAuditor", roles.contains("ROLE_AUDITOR"));
+        session.setAttribute("isOperations", roles.contains("ROLE_OPERATIONS"));
+        session.setAttribute("isAtmSystem", roles.contains("ROLE_ATM_SYSTEM"));
 
         // Resolve tenant context from User entity and generate JWT with tenant claims
         User user = userRepository.findByUsername(userDetails.getUsername()).orElse(null);
@@ -74,10 +77,14 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
         String tenantScopeStr = TenantScope.SINGLE.name();
         if (user != null && user.getTenant() != null) {
             tenantId = user.getTenant().getId();
-            tenantScopeStr = user.getTenantScope() != null ? user.getTenantScope().name() : TenantScope.SINGLE.name();
+            tenantScopeStr =
+                    user.getTenantScope() != null
+                            ? user.getTenantScope().name()
+                            : TenantScope.SINGLE.name();
             // Set tenant context for the current request
             TenantContextHolder.setTenantId(tenantId);
-            // Fetch tenant eagerly via service to avoid LazyInitializationException (open-in-view=false)
+            // Fetch tenant eagerly via service to avoid LazyInitializationException
+            // (open-in-view=false)
             Tenant tenant = tenantService.getTenantById(tenantId);
             // Store tenant info in session for JSP access
             session.setAttribute("tenantId", tenantId);
@@ -91,7 +98,8 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
                 session.setAttribute("businessDateStatus", tenant.getDayStatus().name());
             }
         }
-        // Populate available tenants list for MULTI-scope users (tenant switch dropdown in header.jsp)
+        // Populate available tenants list for MULTI-scope users (tenant switch dropdown in
+        // header.jsp)
         if (TenantScope.MULTI.name().equals(tenantScopeStr)) {
             try {
                 List<Tenant> activeTenants = tenantService.getAllActiveTenants();
@@ -101,7 +109,8 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
             }
         }
 
-        // Store branch info in session (use branchCode string field to avoid lazy proxy on Branch entity)
+        // Store branch info in session (use branchCode string field to avoid lazy proxy on Branch
+        // entity)
         if (user != null) {
             if (user.getBranchCode() != null) {
                 session.setAttribute("branchCode", user.getBranchCode());
@@ -120,7 +129,9 @@ public class CustomAuthenticationSuccessHandler extends SavedRequestAwareAuthent
         // Generate JWT with tenant claims so TenantContextHolder is populated on every request
         String token;
         if (tenantId != null) {
-            token = jwtTokenProvider.generateTokenWithTenant(authentication, tenantId, tenantScopeStr);
+            token =
+                    jwtTokenProvider.generateTokenWithTenant(
+                            authentication, tenantId, tenantScopeStr);
         } else {
             token = jwtTokenProvider.generateToken(authentication);
         }

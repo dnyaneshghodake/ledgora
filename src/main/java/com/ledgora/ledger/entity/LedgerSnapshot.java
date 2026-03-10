@@ -1,23 +1,28 @@
 package com.ledgora.ledger.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * PART 5: Ledger snapshot for performance optimization.
- * Stores point-in-time balance snapshots per account.
- * Balance queries combine: snapshot_balance + entries after snapshot.
+ * PART 5: Ledger snapshot for performance optimization. Stores point-in-time balance snapshots per
+ * account. Balance queries combine: snapshot_balance + entries after snapshot.
  */
 @Entity
-@Table(name = "ledger_snapshots", indexes = {
-    @Index(name = "idx_snapshot_account_date", columnList = "account_id, snapshot_date")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "ledger_snapshots",
+        indexes = {
+            @Index(name = "idx_snapshot_account_date", columnList = "account_id, snapshot_date")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class LedgerSnapshot {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "account_id", nullable = false)

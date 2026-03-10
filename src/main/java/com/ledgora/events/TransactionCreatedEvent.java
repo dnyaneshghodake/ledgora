@@ -4,8 +4,8 @@ import com.ledgora.transaction.entity.Transaction;
 import org.springframework.context.ApplicationEvent;
 
 /**
- * PART 3: Domain event published when a transaction is created.
- * Triggers ledger posting via LedgerEventListener.
+ * PART 3: Domain event published when a transaction is created. Triggers ledger posting via
+ * LedgerEventListener.
  */
 public class TransactionCreatedEvent extends ApplicationEvent {
     private final Transaction transaction;

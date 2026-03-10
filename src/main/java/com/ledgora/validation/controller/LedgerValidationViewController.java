@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
- * PART 6: JSP controller for ledger validation admin views.
- * Provides browser-accessible pages for ledger health monitoring.
+ * PART 6: JSP controller for ledger validation admin views. Provides browser-accessible pages for
+ * ledger health monitoring.
  */
 @Controller
 @RequestMapping("/admin/ledger")

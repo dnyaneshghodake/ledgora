@@ -10,6 +10,12 @@ import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,17 +24,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-
 /**
- * CBS Admin Controller - manages tenant, branch, user, and audit screens.
- * All endpoints require ADMIN role.
+ * CBS Admin Controller - manages tenant, branch, user, and audit screens. All endpoints require
+ * ADMIN role.
  */
 @Controller
 @RequestMapping("/admin")
@@ -42,12 +40,13 @@ public class AdminController {
     private final AuditService auditService;
     private final PasswordEncoder passwordEncoder;
 
-    public AdminController(TenantService tenantService,
-                           BranchRepository branchRepository,
-                           UserRepository userRepository,
-                           RoleRepository roleRepository,
-                           AuditService auditService,
-                           PasswordEncoder passwordEncoder) {
+    public AdminController(
+            TenantService tenantService,
+            BranchRepository branchRepository,
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            AuditService auditService,
+            PasswordEncoder passwordEncoder) {
         this.tenantService = tenantService;
         this.branchRepository = branchRepository;
         this.userRepository = userRepository;
@@ -66,14 +65,16 @@ public class AdminController {
     }
 
     @PostMapping("/tenants/create")
-    public String createTenant(@RequestParam String tenantCode,
-                               @RequestParam String tenantName,
-                               RedirectAttributes redirectAttributes) {
+    public String createTenant(
+            @RequestParam String tenantCode,
+            @RequestParam String tenantName,
+            RedirectAttributes redirectAttributes) {
         try {
             tenantService.createTenant(tenantCode, tenantName, LocalDate.now());
             redirectAttributes.addFlashAttribute("message", "Tenant created: " + tenantName);
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Failed to create tenant: " + e.getMessage());
+            redirectAttributes.addFlashAttribute(
+                    "error", "Failed to create tenant: " + e.getMessage());
         }
         return "redirect:/admin/tenants";
     }
@@ -88,24 +89,27 @@ public class AdminController {
     }
 
     @PostMapping("/branches/create")
-    public String createBranch(@RequestParam String branchCode,
-                               @RequestParam String name,
-                               @RequestParam(required = false) String address,
-                               RedirectAttributes redirectAttributes) {
+    public String createBranch(
+            @RequestParam String branchCode,
+            @RequestParam String name,
+            @RequestParam(required = false) String address,
+            RedirectAttributes redirectAttributes) {
         try {
             if (branchRepository.findByBranchCode(branchCode).isPresent()) {
                 throw new RuntimeException("Branch code already exists: " + branchCode);
             }
-            Branch branch = Branch.builder()
-                    .branchCode(branchCode)
-                    .name(name)
-                    .address(address)
-                    .isActive(true)
-                    .build();
+            Branch branch =
+                    Branch.builder()
+                            .branchCode(branchCode)
+                            .name(name)
+                            .address(address)
+                            .isActive(true)
+                            .build();
             branchRepository.save(branch);
             redirectAttributes.addFlashAttribute("message", "Branch created: " + name);
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Failed to create branch: " + e.getMessage());
+            redirectAttributes.addFlashAttribute(
+                    "error", "Failed to create branch: " + e.getMessage());
         }
         return "redirect:/admin/branches";
     }
@@ -122,7 +126,8 @@ public class AdminController {
     }
 
     @GetMapping("/users/{id}/edit")
-    public String editUserForm(@PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
+    public String editUserForm(
+            @PathVariable Long id, Model model, RedirectAttributes redirectAttributes) {
         Optional<User> userOpt = userRepository.findById(id);
         if (userOpt.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "User not found.");
@@ -135,15 +140,18 @@ public class AdminController {
     }
 
     @PostMapping("/users/{id}/edit")
-    public String editUser(@PathVariable Long id,
-                           @RequestParam String fullName,
-                           @RequestParam String email,
-                           @RequestParam(required = false) String branchCode,
-                           @RequestParam(required = false) String password,
-                           RedirectAttributes redirectAttributes) {
+    public String editUser(
+            @PathVariable Long id,
+            @RequestParam String fullName,
+            @RequestParam String email,
+            @RequestParam(required = false) String branchCode,
+            @RequestParam(required = false) String password,
+            RedirectAttributes redirectAttributes) {
         try {
-            User user = userRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+            User user =
+                    userRepository
+                            .findById(id)
+                            .orElseThrow(() -> new RuntimeException("User not found"));
             user.setFullName(fullName);
             user.setEmail(email);
             user.setBranchCode(branchCode);
@@ -152,11 +160,17 @@ public class AdminController {
             }
             userRepository.save(user);
             String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
-            auditService.logEvent(null, "USER_UPDATED", "USER", user.getId(),
-                    "User updated by admin: " + currentUser, null);
+            auditService.logEvent(
+                    null,
+                    "USER_UPDATED",
+                    "USER",
+                    user.getId(),
+                    "User updated by admin: " + currentUser,
+                    null);
             redirectAttributes.addFlashAttribute("message", "User updated: " + user.getUsername());
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Failed to update user: " + e.getMessage());
+            redirectAttributes.addFlashAttribute(
+                    "error", "Failed to update user: " + e.getMessage());
         }
         return "redirect:/admin/users";
     }
@@ -164,17 +178,26 @@ public class AdminController {
     @PostMapping("/users/{id}/toggle")
     public String toggleUser(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
-            User user = userRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+            User user =
+                    userRepository
+                            .findById(id)
+                            .orElseThrow(() -> new RuntimeException("User not found"));
             user.setIsActive(!user.getIsActive());
             userRepository.save(user);
             String status = user.getIsActive() ? "activated" : "deactivated";
             String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
-            auditService.logEvent(null, "USER_STATUS_TOGGLED", "USER", user.getId(),
-                    "User " + status + " by admin: " + currentUser, null);
-            redirectAttributes.addFlashAttribute("message", "User " + status + ": " + user.getUsername());
+            auditService.logEvent(
+                    null,
+                    "USER_STATUS_TOGGLED",
+                    "USER",
+                    user.getId(),
+                    "User " + status + " by admin: " + currentUser,
+                    null);
+            redirectAttributes.addFlashAttribute(
+                    "message", "User " + status + ": " + user.getUsername());
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Failed to toggle user: " + e.getMessage());
+            redirectAttributes.addFlashAttribute(
+                    "error", "Failed to toggle user: " + e.getMessage());
         }
         return "redirect:/admin/users";
     }
@@ -182,24 +205,36 @@ public class AdminController {
     @PostMapping("/users/{id}/delete")
     public String deleteUser(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
-            User user = userRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+            User user =
+                    userRepository
+                            .findById(id)
+                            .orElseThrow(() -> new RuntimeException("User not found"));
             // Prevent self-deletion
-            String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+            String currentUsername =
+                    SecurityContextHolder.getContext().getAuthentication().getName();
             if (user.getUsername().equals(currentUsername)) {
                 redirectAttributes.addFlashAttribute("error", "Cannot delete your own account.");
                 return "redirect:/admin/users";
             }
-            // Soft-delete: deactivate instead of hard-delete to preserve audit trail and FK integrity
+            // Soft-delete: deactivate instead of hard-delete to preserve audit trail and FK
+            // integrity
             // Users are referenced by Voucher (maker/checker), Transaction (performedBy),
-            // Account (createdBy/approvedBy), ApprovalRequest (requestedBy/approvedBy), AuditLog (userId)
+            // Account (createdBy/approvedBy), ApprovalRequest (requestedBy/approvedBy), AuditLog
+            // (userId)
             user.setIsActive(false);
             userRepository.save(user);
-            auditService.logEvent(null, "USER_DEACTIVATED", "USER", user.getId(),
-                    "User deactivated (soft-delete) by admin: " + currentUsername, null);
-            redirectAttributes.addFlashAttribute("message", "User deactivated: " + user.getUsername());
+            auditService.logEvent(
+                    null,
+                    "USER_DEACTIVATED",
+                    "USER",
+                    user.getId(),
+                    "User deactivated (soft-delete) by admin: " + currentUsername,
+                    null);
+            redirectAttributes.addFlashAttribute(
+                    "message", "User deactivated: " + user.getUsername());
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Failed to deactivate user: " + e.getMessage());
+            redirectAttributes.addFlashAttribute(
+                    "error", "Failed to deactivate user: " + e.getMessage());
         }
         return "redirect:/admin/users";
     }
@@ -215,20 +250,29 @@ public class AdminController {
     }
 
     @PostMapping("/roles/{id}/edit")
-    public String editRole(@PathVariable Long id,
-                           @RequestParam String description,
-                           RedirectAttributes redirectAttributes) {
+    public String editRole(
+            @PathVariable Long id,
+            @RequestParam String description,
+            RedirectAttributes redirectAttributes) {
         try {
-            Role role = roleRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Role not found"));
+            Role role =
+                    roleRepository
+                            .findById(id)
+                            .orElseThrow(() -> new RuntimeException("Role not found"));
             role.setDescription(description);
             roleRepository.save(role);
             String currentUser = SecurityContextHolder.getContext().getAuthentication().getName();
-            auditService.logEvent(null, "ROLE_UPDATED", "ROLE", role.getId(),
-                    "Role description updated by admin: " + currentUser, null);
+            auditService.logEvent(
+                    null,
+                    "ROLE_UPDATED",
+                    "ROLE",
+                    role.getId(),
+                    "Role description updated by admin: " + currentUser,
+                    null);
             redirectAttributes.addFlashAttribute("message", "Role updated: " + role.getName());
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Failed to update role: " + e.getMessage());
+            redirectAttributes.addFlashAttribute(
+                    "error", "Failed to update role: " + e.getMessage());
         }
         return "redirect:/admin/users";
     }
@@ -236,24 +280,37 @@ public class AdminController {
     @PostMapping("/roles/{id}/delete")
     public String deleteRole(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
-            Role role = roleRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Role not found"));
+            Role role =
+                    roleRepository
+                            .findById(id)
+                            .orElseThrow(() -> new RuntimeException("Role not found"));
             // Check if any users still have this role assigned using a count query
             // instead of loading all users into memory
             long usersWithRoleCount = userRepository.countByRolesContaining(role);
             if (usersWithRoleCount > 0) {
-                redirectAttributes.addFlashAttribute("error",
-                        "Cannot delete role " + role.getName() + ": still assigned to "
-                        + usersWithRoleCount + " user(s). Remove the role from all users first.");
+                redirectAttributes.addFlashAttribute(
+                        "error",
+                        "Cannot delete role "
+                                + role.getName()
+                                + ": still assigned to "
+                                + usersWithRoleCount
+                                + " user(s). Remove the role from all users first.");
                 return "redirect:/admin/users";
             }
             roleRepository.delete(role);
-            String currentUsername = SecurityContextHolder.getContext().getAuthentication().getName();
-            auditService.logEvent(null, "ROLE_DELETED", "ROLE", role.getId(),
-                    "Role deleted by admin: " + currentUsername, null);
+            String currentUsername =
+                    SecurityContextHolder.getContext().getAuthentication().getName();
+            auditService.logEvent(
+                    null,
+                    "ROLE_DELETED",
+                    "ROLE",
+                    role.getId(),
+                    "Role deleted by admin: " + currentUsername,
+                    null);
             redirectAttributes.addFlashAttribute("message", "Role deleted: " + role.getName());
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Failed to delete role: " + e.getMessage());
+            redirectAttributes.addFlashAttribute(
+                    "error", "Failed to delete role: " + e.getMessage());
         }
         return "redirect:/admin/users";
     }
@@ -263,9 +320,10 @@ public class AdminController {
     private static final int AUDIT_PAGE_SIZE = 50;
 
     @GetMapping("/audit")
-    public String viewAuditLogs(@RequestParam(required = false) String entity,
-                                @RequestParam(defaultValue = "0") int page,
-                                Model model) {
+    public String viewAuditLogs(
+            @RequestParam(required = false) String entity,
+            @RequestParam(defaultValue = "0") int page,
+            Model model) {
         Pageable pageable = PageRequest.of(page, AUDIT_PAGE_SIZE);
         Page<AuditLog> logPage;
         if (entity != null && !entity.isBlank()) {

@@ -2,13 +2,12 @@ package com.ledgora.branch.service;
 
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
+import java.util.List;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.Optional;
 
 @Service
 public class BranchService {
@@ -25,12 +24,13 @@ public class BranchService {
         if (branchRepository.existsByBranchCode(branchCode)) {
             throw new RuntimeException("Branch code already exists: " + branchCode);
         }
-        Branch branch = Branch.builder()
-                .branchCode(branchCode)
-                .name(name)
-                .address(address)
-                .isActive(true)
-                .build();
+        Branch branch =
+                Branch.builder()
+                        .branchCode(branchCode)
+                        .name(name)
+                        .address(address)
+                        .isActive(true)
+                        .build();
         Branch saved = branchRepository.save(branch);
         log.info("Branch created: {} - {}", saved.getBranchCode(), saved.getName());
         return saved;

@@ -3,17 +3,21 @@ package com.ledgora.gl.entity;
 import com.ledgora.common.enums.GLAccountType;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import lombok.*;
 
 @Entity
-@Table(name = "general_ledgers", indexes = {
-    @Index(name = "idx_gl_tenant", columnList = "tenant_id")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "general_ledgers",
+        indexes = {@Index(name = "idx_gl_tenant", columnList = "tenant_id")})
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class GeneralLedger {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -3,22 +3,27 @@ package com.ledgora.customer.entity;
 import com.ledgora.auth.entity.User;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
-import lombok.*;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * CBS-grade Customer Freeze Control entity.
- * Controls debit freeze and credit freeze at customer level.
- * Freeze propagates to all accounts owned by the customer.
+ * CBS-grade Customer Freeze Control entity. Controls debit freeze and credit freeze at customer
+ * level. Freeze propagates to all accounts owned by the customer.
  */
 @Entity
-@Table(name = "customer_freeze_control", indexes = {
-    @Index(name = "idx_cfc_customer", columnList = "customer_master_id"),
-    @Index(name = "idx_cfc_tenant", columnList = "tenant_id")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "customer_freeze_control",
+        indexes = {
+            @Index(name = "idx_cfc_customer", columnList = "customer_master_id"),
+            @Index(name = "idx_cfc_tenant", columnList = "tenant_id")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class CustomerFreezeControl {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

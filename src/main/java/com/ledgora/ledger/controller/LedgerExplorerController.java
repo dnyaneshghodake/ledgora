@@ -4,6 +4,13 @@ import com.ledgora.common.service.BusinessDateService;
 import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.ledger.repository.LedgerJournalRepository;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -13,18 +20,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 /**
- * Ledger Explorer Controller - TASK 3
- * Provides read-only access to the immutable ledger entries (system of record).
- * No business logic modifications - UI wiring only.
+ * Ledger Explorer Controller - TASK 3 Provides read-only access to the immutable ledger entries
+ * (system of record). No business logic modifications - UI wiring only.
  */
 @Controller
 @RequestMapping("/ledger")
@@ -34,9 +32,10 @@ public class LedgerExplorerController {
     private final LedgerJournalRepository ledgerJournalRepository;
     private final BusinessDateService businessDateService;
 
-    public LedgerExplorerController(LedgerEntryRepository ledgerEntryRepository,
-                                     LedgerJournalRepository ledgerJournalRepository,
-                                     BusinessDateService businessDateService) {
+    public LedgerExplorerController(
+            LedgerEntryRepository ledgerEntryRepository,
+            LedgerJournalRepository ledgerJournalRepository,
+            BusinessDateService businessDateService) {
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.ledgerJournalRepository = ledgerJournalRepository;
         this.businessDateService = businessDateService;
@@ -46,9 +45,15 @@ public class LedgerExplorerController {
     public String explorer(
             @RequestParam(value = "glCode", required = false) String glCode,
             @RequestParam(value = "accountNumber", required = false) String accountNumber,
-            @RequestParam(value = "dateFrom", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
-            @RequestParam(value = "dateTo", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
-            @RequestParam(value = "businessDate", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate businessDate,
+            @RequestParam(value = "dateFrom", required = false)
+                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate dateFrom,
+            @RequestParam(value = "dateTo", required = false)
+                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate dateTo,
+            @RequestParam(value = "businessDate", required = false)
+                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate businessDate,
             Model model) {
 
         List<LedgerEntry> entries;
@@ -101,9 +106,7 @@ public class LedgerExplorerController {
         return "ledger/explorer";
     }
 
-    /**
-     * AJAX endpoint to fetch journal details for modal display.
-     */
+    /** AJAX endpoint to fetch journal details for modal display. */
     @GetMapping("/journal/{journalId}/entries")
     @ResponseBody
     public Map<String, Object> getJournalEntries(@PathVariable Long journalId) {
@@ -126,22 +129,25 @@ public class LedgerExplorerController {
         }
 
         // Build a simple list of maps for JSON response
-        List<Map<String, Object>> entryList = entries.stream()
-                .filter(e -> e.getEntryType() != null && e.getAmount() != null)
-                .map(e -> {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", e.getId());
-            map.put("entryType", e.getEntryType().name());
-            map.put("amount", e.getAmount());
-            map.put("currency", e.getCurrency());
-            map.put("glAccountCode", e.getGlAccountCode());
-            map.put("narration", e.getNarration());
-            map.put("balanceAfter", e.getBalanceAfter());
-            if (e.getAccount() != null) {
-                map.put("accountNumber", e.getAccount().getAccountNumber());
-            }
-            return map;
-        }).toList();
+        List<Map<String, Object>> entryList =
+                entries.stream()
+                        .filter(e -> e.getEntryType() != null && e.getAmount() != null)
+                        .map(
+                                e -> {
+                                    Map<String, Object> map = new HashMap<>();
+                                    map.put("id", e.getId());
+                                    map.put("entryType", e.getEntryType().name());
+                                    map.put("amount", e.getAmount());
+                                    map.put("currency", e.getCurrency());
+                                    map.put("glAccountCode", e.getGlAccountCode());
+                                    map.put("narration", e.getNarration());
+                                    map.put("balanceAfter", e.getBalanceAfter());
+                                    if (e.getAccount() != null) {
+                                        map.put("accountNumber", e.getAccount().getAccountNumber());
+                                    }
+                                    return map;
+                                })
+                        .toList();
 
         result.put("entries", entryList);
         result.put("totalDebits", totalDebits);

@@ -7,8 +7,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * PART 14: Observability - metrics configuration.
- * Exposes metrics for transaction throughput, ledger posting latency, and settlement duration.
+ * PART 14: Observability - metrics configuration. Exposes metrics for transaction throughput,
+ * ledger posting latency, and settlement duration.
  */
 @Configuration
 public class LedgoraMetricsConfig {

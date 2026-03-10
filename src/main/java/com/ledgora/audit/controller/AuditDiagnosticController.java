@@ -7,18 +7,16 @@ import com.ledgora.customer.repository.CustomerFreezeControlRepository;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.service.TenantService;
+import java.time.LocalDate;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import java.time.LocalDate;
-
 /**
- * Audit Diagnostic Dashboard Controller.
- * Provides read-only governance visibility for AUDITOR role.
- * Displays system control statuses: freeze enforcement, holiday enforcement,
- * maker-checker, ledger immutability, batch status, and business date.
+ * Audit Diagnostic Dashboard Controller. Provides read-only governance visibility for AUDITOR role.
+ * Displays system control statuses: freeze enforcement, holiday enforcement, maker-checker, ledger
+ * immutability, batch status, and business date.
  */
 @Controller
 @RequestMapping("/audit")
@@ -30,11 +28,12 @@ public class AuditDiagnosticController {
     private final LedgerEntryRepository ledgerEntryRepository;
     private final TenantService tenantService;
 
-    public AuditDiagnosticController(CustomerFreezeControlRepository freezeControlRepository,
-                                      BankCalendarService calendarService,
-                                      ApprovalRequestRepository approvalRequestRepository,
-                                      LedgerEntryRepository ledgerEntryRepository,
-                                      TenantService tenantService) {
+    public AuditDiagnosticController(
+            CustomerFreezeControlRepository freezeControlRepository,
+            BankCalendarService calendarService,
+            ApprovalRequestRepository approvalRequestRepository,
+            LedgerEntryRepository ledgerEntryRepository,
+            TenantService tenantService) {
         this.freezeControlRepository = freezeControlRepository;
         this.calendarService = calendarService;
         this.approvalRequestRepository = approvalRequestRepository;
@@ -48,7 +47,9 @@ public class AuditDiagnosticController {
 
         // Freeze enforcement - active if freeze control records exist in the system
         long frozenCustomerCount = freezeControlRepository.count();
-        model.addAttribute("freezeEnforcementActive", true); // Freeze enforcement is always active in the system
+        model.addAttribute(
+                "freezeEnforcementActive",
+                true); // Freeze enforcement is always active in the system
         model.addAttribute("frozenCustomerCount", frozenCustomerCount);
         model.addAttribute("frozenAccountCount", 0L); // Account freeze is at account entity level
 
@@ -66,7 +67,8 @@ public class AuditDiagnosticController {
 
         // Maker-Checker enforcement
         model.addAttribute("makerCheckerActive", true); // Maker-checker is always enforced
-        long pendingApprovalCount = approvalRequestRepository.findByStatus(ApprovalStatus.PENDING).size();
+        long pendingApprovalCount =
+                approvalRequestRepository.findByStatus(ApprovalStatus.PENDING).size();
         long approvedCount = approvalRequestRepository.findByStatus(ApprovalStatus.APPROVED).size();
         long rejectedCount = approvalRequestRepository.findByStatus(ApprovalStatus.REJECTED).size();
         model.addAttribute("pendingApprovalCount", pendingApprovalCount);

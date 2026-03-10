@@ -2,10 +2,13 @@ package com.ledgora.transaction.dto;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
-import lombok.*;
 import java.math.BigDecimal;
+import lombok.*;
 
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class TransactionDTO {
     private Long id;
     private String transactionRef;

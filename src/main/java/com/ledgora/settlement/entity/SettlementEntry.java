@@ -2,14 +2,18 @@ package com.ledgora.settlement.entity;
 
 import com.ledgora.account.entity.Account;
 import jakarta.persistence.*;
-import lombok.*;
 import java.math.BigDecimal;
+import lombok.*;
 
 @Entity
 @Table(name = "settlement_entries")
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class SettlementEntry {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

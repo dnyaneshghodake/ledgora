@@ -11,23 +11,28 @@ import com.ledgora.customer.entity.Customer;
 import com.ledgora.customer.entity.CustomerMaster;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * PART 2: Account entity with fintech-style ledger account support.
- * Supports hierarchical relationships for Chart of Accounts structure.
- * Multi-tenant aware.
+ * PART 2: Account entity with fintech-style ledger account support. Supports hierarchical
+ * relationships for Chart of Accounts structure. Multi-tenant aware.
  */
 @Entity
-@Table(name = "accounts", indexes = {
-    @Index(name = "idx_account_number", columnList = "account_number"),
-    @Index(name = "idx_account_tenant", columnList = "tenant_id")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "accounts",
+        indexes = {
+            @Index(name = "idx_account_number", columnList = "account_number"),
+            @Index(name = "idx_account_tenant", columnList = "tenant_id")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Account {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -50,11 +55,10 @@ public class Account {
     private AccountStatus status = AccountStatus.ACTIVE;
 
     /**
-     * PERFORMANCE CACHE ONLY — not the source of truth.
-     * True balance = SUM(ledger credits) - SUM(ledger debits) per account.
-     * This field is maintained by TransactionService posting methods for read performance.
-     * Consistency is validated by LedgerValidatorService (scheduled every 5 min).
-     * Never use this field for financial decisions without cross-checking ledger.
+     * PERFORMANCE CACHE ONLY — not the source of truth. True balance = SUM(ledger credits) -
+     * SUM(ledger debits) per account. This field is maintained by TransactionService posting
+     * methods for read performance. Consistency is validated by LedgerValidatorService (scheduled
+     * every 5 min). Never use this field for financial decisions without cross-checking ledger.
      */
     @Column(name = "balance", precision = 19, scale = 4, nullable = false)
     @Builder.Default

@@ -1,21 +1,27 @@
 package com.ledgora.currency.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.*;
 
-/**
- * PART 6: Exchange rate entity for multi-currency support.
- */
+/** PART 6: Exchange rate entity for multi-currency support. */
 @Entity
-@Table(name = "exchange_rates", indexes = {
-    @Index(name = "idx_exchange_rate_pair_date", columnList = "currency_from, currency_to, effective_date")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "exchange_rates",
+        indexes = {
+            @Index(
+                    name = "idx_exchange_rate_pair_date",
+                    columnList = "currency_from, currency_to, effective_date")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ExchangeRate {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "currency_from", length = 3, nullable = false)

@@ -1,14 +1,15 @@
 package com.ledgora.reporting.dto;
 
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import lombok.*;
 
-/**
- * PART 10: Liquidity Report DTO.
- */
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+/** PART 10: Liquidity Report DTO. */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class LiquidityReport {
     private LocalDate reportDate;
     private BigDecimal totalAssets;
@@ -19,7 +20,10 @@ public class LiquidityReport {
     private BigDecimal liquidityRatio;
     private List<LiquidityLine> details;
 
-    @Data @NoArgsConstructor @AllArgsConstructor @Builder
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
     public static class LiquidityLine {
         private String glCode;
         private String glName;

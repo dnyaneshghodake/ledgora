@@ -2,20 +2,22 @@ package com.ledgora.tenant.entity;
 
 import com.ledgora.common.enums.DayStatus;
 import jakarta.persistence.*;
-import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.*;
 
-/**
- * Multi-tenant entity. Each tenant has its own business date and day status.
- */
+/** Multi-tenant entity. Each tenant has its own business date and day status. */
 @Entity
-@Table(name = "tenants", indexes = {
-    @Index(name = "idx_tenant_code", columnList = "tenant_code", unique = true)
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "tenants",
+        indexes = {@Index(name = "idx_tenant_code", columnList = "tenant_code", unique = true)})
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Tenant {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "tenant_code", length = 20, nullable = false, unique = true)

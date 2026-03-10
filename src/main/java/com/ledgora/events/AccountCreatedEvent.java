@@ -3,9 +3,7 @@ package com.ledgora.events;
 import com.ledgora.account.entity.Account;
 import org.springframework.context.ApplicationEvent;
 
-/**
- * PART 3: Domain event published when an account is created.
- */
+/** PART 3: Domain event published when an account is created. */
 public class AccountCreatedEvent extends ApplicationEvent {
     private final Account account;
 

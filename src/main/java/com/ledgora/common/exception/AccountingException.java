@@ -3,13 +3,11 @@ package com.ledgora.common.exception;
 /**
  * Accounting integrity violation exception.
  *
- * Thrown when a double-entry accounting invariant is violated:
- * - totalDebit != totalCredit at posting time
- * - Unbalanced journal attempted
- * - Ledger integrity check failed
+ * <p>Thrown when a double-entry accounting invariant is violated: - totalDebit != totalCredit at
+ * posting time - Unbalanced journal attempted - Ledger integrity check failed
  *
- * This exception triggers a full transaction rollback.
- * No ledger entries, no balance updates, no batch total changes.
+ * <p>This exception triggers a full transaction rollback. No ledger entries, no balance updates, no
+ * batch total changes.
  */
 public class AccountingException extends RuntimeException {
 

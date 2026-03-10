@@ -9,20 +9,18 @@ import com.ledgora.common.enums.ApprovalStatus;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
-
 /**
- * Maker-Checker approval service.
- * Manages the lifecycle of approval requests for high-value operations.
- * All approval requests are tenant-scoped for multi-tenant isolation.
+ * Maker-Checker approval service. Manages the lifecycle of approval requests for high-value
+ * operations. All approval requests are tenant-scoped for multi-tenant isolation.
  */
 @Service
 public class ApprovalService {
@@ -33,19 +31,18 @@ public class ApprovalService {
     private final AuditService auditService;
     private final TenantRepository tenantRepository;
 
-    public ApprovalService(ApprovalRequestRepository approvalRepository,
-                           UserRepository userRepository,
-                           AuditService auditService,
-                           TenantRepository tenantRepository) {
+    public ApprovalService(
+            ApprovalRequestRepository approvalRepository,
+            UserRepository userRepository,
+            AuditService auditService,
+            TenantRepository tenantRepository) {
         this.approvalRepository = approvalRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
         this.tenantRepository = tenantRepository;
     }
 
-    /**
-     * Submit a new approval request (maker step).
-     */
+    /** Submit a new approval request (maker step). */
     @Transactional
     public ApprovalRequest submitForApproval(String entityType, Long entityId, String requestData) {
         User currentUser = getCurrentUser();
@@ -59,39 +56,53 @@ public class ApprovalService {
             log.warn("No tenant context set for approval request: {} {}", entityType, entityId);
         }
 
-        ApprovalRequest request = ApprovalRequest.builder()
-                .entityType(entityType)
-                .entityId(entityId)
-                .requestData(requestData)
-                .requestedBy(currentUser)
-                .tenant(tenant)
-                .status(ApprovalStatus.PENDING)
-                .build();
+        ApprovalRequest request =
+                ApprovalRequest.builder()
+                        .entityType(entityType)
+                        .entityId(entityId)
+                        .requestData(requestData)
+                        .requestedBy(currentUser)
+                        .tenant(tenant)
+                        .status(ApprovalStatus.PENDING)
+                        .build();
 
         ApprovalRequest saved = approvalRepository.save(request);
         Long userId = currentUser != null ? currentUser.getId() : null;
-        auditService.logEvent(userId, "APPROVAL_REQUESTED", entityType, entityId,
-                "Approval requested for " + entityType + " ID: " + entityId, null);
+        auditService.logEvent(
+                userId,
+                "APPROVAL_REQUESTED",
+                entityType,
+                entityId,
+                "Approval requested for " + entityType + " ID: " + entityId,
+                null);
 
-        log.info("Approval request submitted: {} {} by user {}", entityType, entityId,
+        log.info(
+                "Approval request submitted: {} {} by user {}",
+                entityType,
+                entityId,
                 currentUser != null ? currentUser.getUsername() : "system");
         return saved;
     }
 
-    /**
-     * Approve a pending request (checker step).
-     */
+    /** Approve a pending request (checker step). */
     @Transactional
     public ApprovalRequest approve(Long requestId, String remarks) {
-        ApprovalRequest request = approvalRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Approval request not found: " + requestId));
+        ApprovalRequest request =
+                approvalRepository
+                        .findById(requestId)
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "Approval request not found: " + requestId));
 
         if (request.getStatus() != ApprovalStatus.PENDING) {
-            throw new RuntimeException("Approval request is not pending. Current status: " + request.getStatus());
+            throw new RuntimeException(
+                    "Approval request is not pending. Current status: " + request.getStatus());
         }
 
         User currentUser = getCurrentUser();
-        if (request.getRequestedBy() != null && currentUser != null
+        if (request.getRequestedBy() != null
+                && currentUser != null
                 && request.getRequestedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Cannot approve your own request (maker-checker violation)");
         }
@@ -103,24 +114,35 @@ public class ApprovalService {
 
         ApprovalRequest saved = approvalRepository.save(request);
         Long userId = currentUser != null ? currentUser.getId() : null;
-        auditService.logEvent(userId, "APPROVAL_APPROVED", request.getEntityType(), request.getEntityId(),
-                "Approved: " + remarks, null);
+        auditService.logEvent(
+                userId,
+                "APPROVAL_APPROVED",
+                request.getEntityType(),
+                request.getEntityId(),
+                "Approved: " + remarks,
+                null);
 
-        log.info("Approval request {} approved by {}", requestId,
+        log.info(
+                "Approval request {} approved by {}",
+                requestId,
                 currentUser != null ? currentUser.getUsername() : "system");
         return saved;
     }
 
-    /**
-     * Reject a pending request.
-     */
+    /** Reject a pending request. */
     @Transactional
     public ApprovalRequest reject(Long requestId, String remarks) {
-        ApprovalRequest request = approvalRepository.findById(requestId)
-                .orElseThrow(() -> new RuntimeException("Approval request not found: " + requestId));
+        ApprovalRequest request =
+                approvalRepository
+                        .findById(requestId)
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "Approval request not found: " + requestId));
 
         if (request.getStatus() != ApprovalStatus.PENDING) {
-            throw new RuntimeException("Approval request is not pending. Current status: " + request.getStatus());
+            throw new RuntimeException(
+                    "Approval request is not pending. Current status: " + request.getStatus());
         }
 
         User currentUser = getCurrentUser();
@@ -131,10 +153,17 @@ public class ApprovalService {
 
         ApprovalRequest saved = approvalRepository.save(request);
         Long userId = currentUser != null ? currentUser.getId() : null;
-        auditService.logEvent(userId, "APPROVAL_REJECTED", request.getEntityType(), request.getEntityId(),
-                "Rejected: " + remarks, null);
+        auditService.logEvent(
+                userId,
+                "APPROVAL_REJECTED",
+                request.getEntityType(),
+                request.getEntityId(),
+                "Rejected: " + remarks,
+                null);
 
-        log.info("Approval request {} rejected by {}", requestId,
+        log.info(
+                "Approval request {} rejected by {}",
+                requestId,
                 currentUser != null ? currentUser.getUsername() : "system");
         return saved;
     }

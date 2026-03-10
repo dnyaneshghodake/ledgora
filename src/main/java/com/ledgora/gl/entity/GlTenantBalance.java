@@ -2,22 +2,28 @@ package com.ledgora.gl.entity;
 
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
-import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * GL Tenant Balance - tracks GL balance at tenant level.
- * Aggregate of all branch-level GL balances for a tenant.
+ * GL Tenant Balance - tracks GL balance at tenant level. Aggregate of all branch-level GL balances
+ * for a tenant.
  */
 @Entity
-@Table(name = "gl_tenant_balances", indexes = {
-    @Index(name = "idx_gltb_composite", columnList = "tenant_id, gl_id", unique = true),
-    @Index(name = "idx_gltb_tenant", columnList = "tenant_id")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "gl_tenant_balances",
+        indexes = {
+            @Index(name = "idx_gltb_composite", columnList = "tenant_id, gl_id", unique = true),
+            @Index(name = "idx_gltb_tenant", columnList = "tenant_id")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class GlTenantBalance {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

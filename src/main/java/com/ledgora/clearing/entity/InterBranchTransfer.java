@@ -6,31 +6,34 @@ import com.ledgora.common.enums.InterBranchTransferStatus;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.transaction.entity.Transaction;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
  * Inter-Branch Clearing Transfer record.
  *
- * RBI Requirement: Each branch must independently balance its books.
- * When funds move between branches, the system must:
- *   1. Post Branch A leg: DR Customer A, CR IBC_OUT_A (Branch A balanced)
- *   2. Post Branch B leg: DR IBC_IN_B, CR Customer B (Branch B balanced)
- *   3. Settlement: DR IBC_IN, CR IBC_OUT (clearing zeroed)
+ * <p>RBI Requirement: Each branch must independently balance its books. When funds move between
+ * branches, the system must: 1. Post Branch A leg: DR Customer A, CR IBC_OUT_A (Branch A balanced)
+ * 2. Post Branch B leg: DR IBC_IN_B, CR Customer B (Branch B balanced) 3. Settlement: DR IBC_IN, CR
+ * IBC_OUT (clearing zeroed)
  *
- * This entity tracks the lifecycle of each inter-branch movement.
+ * <p>This entity tracks the lifecycle of each inter-branch movement.
  */
 @Entity
-@Table(name = "inter_branch_transfers", indexes = {
-    @Index(name = "idx_ibt_tenant_date", columnList = "tenant_id, business_date"),
-    @Index(name = "idx_ibt_status", columnList = "status"),
-    @Index(name = "idx_ibt_from_branch", columnList = "from_branch_id"),
-    @Index(name = "idx_ibt_to_branch", columnList = "to_branch_id")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "inter_branch_transfers",
+        indexes = {
+            @Index(name = "idx_ibt_tenant_date", columnList = "tenant_id, business_date"),
+            @Index(name = "idx_ibt_status", columnList = "status"),
+            @Index(name = "idx_ibt_from_branch", columnList = "from_branch_id"),
+            @Index(name = "idx_ibt_to_branch", columnList = "to_branch_id")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class InterBranchTransfer {
 
     @Id

@@ -8,9 +8,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * PART 6: Admin endpoint for ledger validation.
- * GET /admin/ledger/validate -> HEALTHY, WARNING, CORRUPTED
- * Restricted to ADMIN role via SecurityConfig.
+ * PART 6: Admin endpoint for ledger validation. GET /admin/ledger/validate -> HEALTHY, WARNING,
+ * CORRUPTED Restricted to ADMIN role via SecurityConfig.
  */
 @RestController
 @RequestMapping("/admin/ledger")

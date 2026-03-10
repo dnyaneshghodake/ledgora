@@ -3,7 +3,9 @@ package com.ledgora.auth.dto;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
-@Data @NoArgsConstructor @AllArgsConstructor
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class RegisterRequest {
     @NotBlank(message = "Username is required")
     @Size(min = 3, max = 50, message = "Username must be between 3 and 50 characters")

@@ -10,18 +10,16 @@ import com.ledgora.payment.repository.PaymentInstructionRepository;
 import com.ledgora.transaction.dto.TransactionDTO;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.service.TransactionService;
+import java.util.List;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
-
 /**
- * PART 7: Payment instruction engine.
- * Manages the lifecycle of payment instructions: INITIATED -> AUTHORIZED -> SETTLED / FAILED.
- * Payment instructions create ledger transactions when settled.
+ * PART 7: Payment instruction engine. Manages the lifecycle of payment instructions: INITIATED ->
+ * AUTHORIZED -> SETTLED / FAILED. Payment instructions create ledger transactions when settled.
  */
 @Service
 public class PaymentService {
@@ -32,27 +30,40 @@ public class PaymentService {
     private final TransactionService transactionService;
     private final IdempotencyService idempotencyService;
 
-    public PaymentService(PaymentInstructionRepository paymentRepository,
-                          AccountRepository accountRepository,
-                          TransactionService transactionService,
-                          IdempotencyService idempotencyService) {
+    public PaymentService(
+            PaymentInstructionRepository paymentRepository,
+            AccountRepository accountRepository,
+            TransactionService transactionService,
+            IdempotencyService idempotencyService) {
         this.paymentRepository = paymentRepository;
         this.accountRepository = accountRepository;
         this.transactionService = transactionService;
         this.idempotencyService = idempotencyService;
     }
 
-    /**
-     * Create a new payment instruction.
-     */
+    /** Create a new payment instruction. */
     @Transactional
-    public PaymentInstruction initiatePayment(Long sourceAccountId, Long destAccountId,
-                                               java.math.BigDecimal amount, String currency,
-                                               String description, String idempotencyKey) {
-        Account source = accountRepository.findById(sourceAccountId)
-                .orElseThrow(() -> new RuntimeException("Source account not found: " + sourceAccountId));
-        Account dest = accountRepository.findById(destAccountId)
-                .orElseThrow(() -> new RuntimeException("Destination account not found: " + destAccountId));
+    public PaymentInstruction initiatePayment(
+            Long sourceAccountId,
+            Long destAccountId,
+            java.math.BigDecimal amount,
+            String currency,
+            String description,
+            String idempotencyKey) {
+        Account source =
+                accountRepository
+                        .findById(sourceAccountId)
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "Source account not found: " + sourceAccountId));
+        Account dest =
+                accountRepository
+                        .findById(destAccountId)
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "Destination account not found: " + destAccountId));
 
         if (source.getStatus() != AccountStatus.ACTIVE) {
             throw new RuntimeException("Source account is not active");
@@ -61,32 +72,38 @@ public class PaymentService {
             throw new RuntimeException("Destination account is not active");
         }
 
-        PaymentInstruction payment = PaymentInstruction.builder()
-                .sourceAccount(source)
-                .destinationAccount(dest)
-                .amount(amount)
-                .currency(currency != null ? currency : "INR")
-                .status(PaymentStatus.INITIATED)
-                .description(description)
-                .idempotencyKey(idempotencyKey)
-                .build();
+        PaymentInstruction payment =
+                PaymentInstruction.builder()
+                        .sourceAccount(source)
+                        .destinationAccount(dest)
+                        .amount(amount)
+                        .currency(currency != null ? currency : "INR")
+                        .status(PaymentStatus.INITIATED)
+                        .description(description)
+                        .idempotencyKey(idempotencyKey)
+                        .build();
 
         payment = paymentRepository.save(payment);
-        log.info("Payment instruction initiated: {} from {} to {} amount {}",
-                payment.getId(), source.getAccountNumber(), dest.getAccountNumber(), amount);
+        log.info(
+                "Payment instruction initiated: {} from {} to {} amount {}",
+                payment.getId(),
+                source.getAccountNumber(),
+                dest.getAccountNumber(),
+                amount);
         return payment;
     }
 
-    /**
-     * Authorize a payment instruction.
-     */
+    /** Authorize a payment instruction. */
     @Transactional
     public PaymentInstruction authorizePayment(Long paymentId) {
-        PaymentInstruction payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
+        PaymentInstruction payment =
+                paymentRepository
+                        .findById(paymentId)
+                        .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
 
         if (payment.getStatus() != PaymentStatus.INITIATED) {
-            throw new RuntimeException("Payment cannot be authorized. Current status: " + payment.getStatus());
+            throw new RuntimeException(
+                    "Payment cannot be authorized. Current status: " + payment.getStatus());
         }
 
         payment.setStatus(PaymentStatus.AUTHORIZED);
@@ -95,34 +112,43 @@ public class PaymentService {
         return payment;
     }
 
-    /**
-     * Settle a payment instruction - creates the ledger transaction.
-     */
+    /** Settle a payment instruction - creates the ledger transaction. */
     @Transactional
     public PaymentInstruction settlePayment(Long paymentId) {
-        PaymentInstruction payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
+        PaymentInstruction payment =
+                paymentRepository
+                        .findById(paymentId)
+                        .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
 
         if (payment.getStatus() != PaymentStatus.AUTHORIZED) {
-            throw new RuntimeException("Payment cannot be settled. Current status: " + payment.getStatus());
+            throw new RuntimeException(
+                    "Payment cannot be settled. Current status: " + payment.getStatus());
         }
 
         try {
             // Create transaction via TransactionService
-            TransactionDTO dto = TransactionDTO.builder()
-                    .transactionType("TRANSFER")
-                    .amount(payment.getAmount())
-                    .currency(payment.getCurrency())
-                    .sourceAccountNumber(payment.getSourceAccount().getAccountNumber())
-                    .destinationAccountNumber(payment.getDestinationAccount().getAccountNumber())
-                    .description(payment.getDescription() != null ? payment.getDescription() : "Payment settlement")
-                    .build();
+            TransactionDTO dto =
+                    TransactionDTO.builder()
+                            .transactionType("TRANSFER")
+                            .amount(payment.getAmount())
+                            .currency(payment.getCurrency())
+                            .sourceAccountNumber(payment.getSourceAccount().getAccountNumber())
+                            .destinationAccountNumber(
+                                    payment.getDestinationAccount().getAccountNumber())
+                            .description(
+                                    payment.getDescription() != null
+                                            ? payment.getDescription()
+                                            : "Payment settlement")
+                            .build();
 
             Transaction txn = transactionService.transfer(dto);
             payment.setTransaction(txn);
             payment.setStatus(PaymentStatus.SETTLED);
             payment = paymentRepository.save(payment);
-            log.info("Payment instruction settled: {} -> transaction {}", paymentId, txn.getTransactionRef());
+            log.info(
+                    "Payment instruction settled: {} -> transaction {}",
+                    paymentId,
+                    txn.getTransactionRef());
 
         } catch (Exception e) {
             payment.setStatus(PaymentStatus.FAILED);
@@ -134,13 +160,13 @@ public class PaymentService {
         return payment;
     }
 
-    /**
-     * Fail a payment instruction.
-     */
+    /** Fail a payment instruction. */
     @Transactional
     public PaymentInstruction failPayment(Long paymentId, String reason) {
-        PaymentInstruction payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
+        PaymentInstruction payment =
+                paymentRepository
+                        .findById(paymentId)
+                        .orElseThrow(() -> new RuntimeException("Payment not found: " + paymentId));
 
         payment.setStatus(PaymentStatus.FAILED);
         payment.setDescription(payment.getDescription() + " | Failed: " + reason);

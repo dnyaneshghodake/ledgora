@@ -3,15 +3,19 @@ package com.ledgora.settlement.entity;
 import com.ledgora.auth.entity.User;
 import com.ledgora.common.enums.SettlementStatus;
 import jakarta.persistence.*;
-import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.*;
 
 @Entity
 @Table(name = "settlements")
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Settlement {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "settlement_ref", length = 30, nullable = false, unique = true)

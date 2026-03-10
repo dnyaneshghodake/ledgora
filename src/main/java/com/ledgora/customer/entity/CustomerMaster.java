@@ -7,25 +7,33 @@ import com.ledgora.common.enums.FreezeLevel;
 import com.ledgora.common.enums.MakerCheckerStatus;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
-import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.*;
 
 /**
- * CBS-grade Customer Master entity.
- * Unique customer_number per tenant, no hard delete allowed.
+ * CBS-grade Customer Master entity. Unique customer_number per tenant, no hard delete allowed.
  * Maker-checker required for create/modify.
  */
 @Entity
-@Table(name = "customer_master", indexes = {
-    @Index(name = "idx_cm_tenant_custno", columnList = "tenant_id, customer_number", unique = true),
-    @Index(name = "idx_cm_tenant", columnList = "tenant_id"),
-    @Index(name = "idx_cm_status", columnList = "status"),
-    @Index(name = "idx_cm_national_id", columnList = "national_id")
-})
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Table(
+        name = "customer_master",
+        indexes = {
+            @Index(
+                    name = "idx_cm_tenant_custno",
+                    columnList = "tenant_id, customer_number",
+                    unique = true),
+            @Index(name = "idx_cm_tenant", columnList = "tenant_id"),
+            @Index(name = "idx_cm_status", columnList = "status"),
+            @Index(name = "idx_cm_national_id", columnList = "national_id")
+        })
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class CustomerMaster {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)

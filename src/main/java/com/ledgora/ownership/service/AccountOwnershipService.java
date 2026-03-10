@@ -15,18 +15,17 @@ import com.ledgora.ownership.entity.AccountOwnership;
 import com.ledgora.ownership.repository.AccountOwnershipRepository;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
+import java.math.BigDecimal;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
-import java.util.List;
-
 /**
- * Service for managing Customer-Account ownership relationships.
- * Enforces ownership rules per RBI guidelines.
+ * Service for managing Customer-Account ownership relationships. Enforces ownership rules per RBI
+ * guidelines.
  */
 @Service
 public class AccountOwnershipService {
@@ -40,13 +39,14 @@ public class AccountOwnershipService {
     private final AuditService auditService;
     private final UserRepository userRepository;
 
-    public AccountOwnershipService(AccountOwnershipRepository ownershipRepository,
-                                    AccountRepository accountRepository,
-                                    CustomerMasterRepository customerMasterRepository,
-                                    TenantService tenantService,
-                                    ApprovalService approvalService,
-                                    AuditService auditService,
-                                    UserRepository userRepository) {
+    public AccountOwnershipService(
+            AccountOwnershipRepository ownershipRepository,
+            AccountRepository accountRepository,
+            CustomerMasterRepository customerMasterRepository,
+            TenantService tenantService,
+            ApprovalService approvalService,
+            AuditService auditService,
+            UserRepository userRepository) {
         this.ownershipRepository = ownershipRepository;
         this.accountRepository = accountRepository;
         this.customerMasterRepository = customerMasterRepository;
@@ -56,93 +56,132 @@ public class AccountOwnershipService {
         this.userRepository = userRepository;
     }
 
-    /**
-     * Create ownership link (maker step). Requires approval.
-     */
+    /** Create ownership link (maker step). Requires approval. */
     @Transactional
-    public AccountOwnership createOwnership(Long tenantId, Long accountId, Long customerMasterId,
-                                             OwnershipType ownershipType, BigDecimal ownershipPercentage,
-                                             boolean isOperational) {
-        Account account = accountRepository.findById(accountId)
-                .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
-        CustomerMaster customer = customerMasterRepository.findById(customerMasterId)
-                .orElseThrow(() -> new RuntimeException("Customer not found: " + customerMasterId));
+    public AccountOwnership createOwnership(
+            Long tenantId,
+            Long accountId,
+            Long customerMasterId,
+            OwnershipType ownershipType,
+            BigDecimal ownershipPercentage,
+            boolean isOperational) {
+        Account account =
+                accountRepository
+                        .findById(accountId)
+                        .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
+        CustomerMaster customer =
+                customerMasterRepository
+                        .findById(customerMasterId)
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "Customer not found: " + customerMasterId));
 
         // No cross-tenant linking
-        if (!account.getTenant().getId().equals(tenantId) || !customer.getTenant().getId().equals(tenantId)) {
+        if (!account.getTenant().getId().equals(tenantId)
+                || !customer.getTenant().getId().equals(tenantId)) {
             throw new RuntimeException("Cross-tenant account-customer linking is not allowed");
         }
 
         // GL_ACCOUNT & INTERNAL_ACCOUNT cannot link to customers
-        if (account.getAccountType() == AccountType.GL_ACCOUNT || account.getAccountType() == AccountType.INTERNAL_ACCOUNT) {
-            throw new RuntimeException("GL_ACCOUNT and INTERNAL_ACCOUNT cannot be linked to customers");
+        if (account.getAccountType() == AccountType.GL_ACCOUNT
+                || account.getAccountType() == AccountType.INTERNAL_ACCOUNT) {
+            throw new RuntimeException(
+                    "GL_ACCOUNT and INTERNAL_ACCOUNT cannot be linked to customers");
         }
 
         // SAVINGS/CURRENT require at least one PRIMARY owner
         if (ownershipType != OwnershipType.PRIMARY) {
             AccountType acctType = account.getAccountType();
             if (acctType == AccountType.SAVINGS || acctType == AccountType.CURRENT) {
-                List<AccountOwnership> primaries = ownershipRepository
-                        .findApprovedByAccountIdAndOwnershipType(accountId, OwnershipType.PRIMARY);
+                List<AccountOwnership> primaries =
+                        ownershipRepository.findApprovedByAccountIdAndOwnershipType(
+                                accountId, OwnershipType.PRIMARY);
                 if (primaries.isEmpty()) {
-                    throw new RuntimeException("SAVINGS/CURRENT accounts require a PRIMARY owner before adding other ownership types");
+                    throw new RuntimeException(
+                            "SAVINGS/CURRENT accounts require a PRIMARY owner before adding other ownership types");
                 }
             }
         }
 
         // Validate ownership percentage
-        if (ownershipPercentage.compareTo(BigDecimal.ZERO) <= 0 || ownershipPercentage.compareTo(new BigDecimal("100")) > 0) {
+        if (ownershipPercentage.compareTo(BigDecimal.ZERO) <= 0
+                || ownershipPercentage.compareTo(new BigDecimal("100")) > 0) {
             throw new RuntimeException("Ownership percentage must be between 0 and 100");
         }
 
         // Check total ownership doesn't exceed 100%
-        BigDecimal currentTotal = ownershipRepository.sumApprovedOwnershipPercentageByAccountId(accountId);
+        BigDecimal currentTotal =
+                ownershipRepository.sumApprovedOwnershipPercentageByAccountId(accountId);
         if (currentTotal.add(ownershipPercentage).compareTo(new BigDecimal("100")) > 0) {
-            throw new RuntimeException("Total ownership percentage would exceed 100%. Current: " + currentTotal);
+            throw new RuntimeException(
+                    "Total ownership percentage would exceed 100%. Current: " + currentTotal);
         }
 
         Tenant tenant = tenantService.getTenantById(tenantId);
         User currentUser = getCurrentUser();
 
-        AccountOwnership ownership = AccountOwnership.builder()
-                .tenant(tenant)
-                .account(account)
-                .customerMaster(customer)
-                .ownershipType(ownershipType)
-                .ownershipPercentage(ownershipPercentage)
-                .isOperational(isOperational)
-                .approvalStatus(MakerCheckerStatus.PENDING)
-                .createdBy(currentUser)
-                .build();
+        AccountOwnership ownership =
+                AccountOwnership.builder()
+                        .tenant(tenant)
+                        .account(account)
+                        .customerMaster(customer)
+                        .ownershipType(ownershipType)
+                        .ownershipPercentage(ownershipPercentage)
+                        .isOperational(isOperational)
+                        .approvalStatus(MakerCheckerStatus.PENDING)
+                        .createdBy(currentUser)
+                        .build();
 
         AccountOwnership saved = ownershipRepository.save(ownership);
 
-        approvalService.submitForApproval("ACCOUNT_OWNERSHIP", saved.getId(),
-                "Ownership: account=" + account.getAccountNumber() + " customer=" + customer.getCustomerNumber()
-                        + " type=" + ownershipType + " pct=" + ownershipPercentage);
+        approvalService.submitForApproval(
+                "ACCOUNT_OWNERSHIP",
+                saved.getId(),
+                "Ownership: account="
+                        + account.getAccountNumber()
+                        + " customer="
+                        + customer.getCustomerNumber()
+                        + " type="
+                        + ownershipType
+                        + " pct="
+                        + ownershipPercentage);
 
         Long userId = currentUser != null ? currentUser.getId() : null;
-        auditService.logEvent(userId, "OWNERSHIP_CREATE", "ACCOUNT_OWNERSHIP", saved.getId(),
-                "Ownership created for account " + account.getAccountNumber(), null);
+        auditService.logEvent(
+                userId,
+                "OWNERSHIP_CREATE",
+                "ACCOUNT_OWNERSHIP",
+                saved.getId(),
+                "Ownership created for account " + account.getAccountNumber(),
+                null);
 
-        log.info("Ownership created (PENDING): account={}, customer={}, type={}",
-                account.getAccountNumber(), customer.getCustomerNumber(), ownershipType);
+        log.info(
+                "Ownership created (PENDING): account={}, customer={}, type={}",
+                account.getAccountNumber(),
+                customer.getCustomerNumber(),
+                ownershipType);
         return saved;
     }
 
     @Transactional
     public AccountOwnership approveOwnership(Long ownershipId) {
-        AccountOwnership ownership = ownershipRepository.findById(ownershipId)
-                .orElseThrow(() -> new RuntimeException("Ownership not found: " + ownershipId));
+        AccountOwnership ownership =
+                ownershipRepository
+                        .findById(ownershipId)
+                        .orElseThrow(
+                                () -> new RuntimeException("Ownership not found: " + ownershipId));
 
         if (ownership.getApprovalStatus() != MakerCheckerStatus.PENDING) {
             throw new RuntimeException("Ownership is not pending approval");
         }
 
         User currentUser = getCurrentUser();
-        if (ownership.getCreatedBy() != null && currentUser != null
+        if (ownership.getCreatedBy() != null
+                && currentUser != null
                 && ownership.getCreatedBy().getId().equals(currentUser.getId())) {
-            throw new RuntimeException("Cannot approve your own ownership request (maker-checker violation)");
+            throw new RuntimeException(
+                    "Cannot approve your own ownership request (maker-checker violation)");
         }
 
         ownership.setApprovalStatus(MakerCheckerStatus.APPROVED);
@@ -152,8 +191,11 @@ public class AccountOwnershipService {
 
     @Transactional
     public AccountOwnership rejectOwnership(Long ownershipId) {
-        AccountOwnership ownership = ownershipRepository.findById(ownershipId)
-                .orElseThrow(() -> new RuntimeException("Ownership not found: " + ownershipId));
+        AccountOwnership ownership =
+                ownershipRepository
+                        .findById(ownershipId)
+                        .orElseThrow(
+                                () -> new RuntimeException("Ownership not found: " + ownershipId));
         ownership.setApprovalStatus(MakerCheckerStatus.REJECTED);
         return ownershipRepository.save(ownership);
     }
@@ -163,11 +205,13 @@ public class AccountOwnershipService {
     }
 
     public List<AccountOwnership> getOwnershipsByCustomer(Long customerMasterId, Long tenantId) {
-        return ownershipRepository.findApprovedByCustomerMasterIdAndTenantId(customerMasterId, tenantId);
+        return ownershipRepository.findApprovedByCustomerMasterIdAndTenantId(
+                customerMasterId, tenantId);
     }
 
     public List<AccountOwnership> getPendingOwnerships(Long tenantId) {
-        return ownershipRepository.findByTenantIdAndApprovalStatus(tenantId, MakerCheckerStatus.PENDING);
+        return ownershipRepository.findByTenantIdAndApprovalStatus(
+                tenantId, MakerCheckerStatus.PENDING);
     }
 
     private User getCurrentUser() {

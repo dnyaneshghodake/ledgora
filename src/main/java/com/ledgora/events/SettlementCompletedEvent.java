@@ -3,9 +3,7 @@ package com.ledgora.events;
 import com.ledgora.settlement.entity.Settlement;
 import org.springframework.context.ApplicationEvent;
 
-/**
- * PART 3: Domain event published when settlement is completed.
- */
+/** PART 3: Domain event published when settlement is completed. */
 public class SettlementCompletedEvent extends ApplicationEvent {
     private final Settlement settlement;
 
