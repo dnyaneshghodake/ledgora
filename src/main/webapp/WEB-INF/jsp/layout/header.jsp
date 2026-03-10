@@ -48,6 +48,13 @@
                 </c:choose>
             </strong>
         </div>
+        <%-- Environment Badge --%>
+        <span class="cbs-env-badge cbs-env-${not empty sessionScope.environment ? sessionScope.environment.toLowerCase() : 'dev'}">
+            <c:choose>
+                <c:when test="${not empty sessionScope.environment}"><c:out value="${sessionScope.environment}"/></c:when>
+                <c:otherwise>DEV</c:otherwise>
+            </c:choose>
+        </span>
         <span class="cbs-header-separator"></span>
         <%-- Business Date + Day Status (combined) --%>
         <div class="cbs-business-date" aria-label="Business date">
@@ -75,6 +82,29 @@
         </div>
     </div>
     <div class="cbs-header-right">
+        <%-- Tenant Switch (MULTI scope only) --%>
+        <c:if test="${sessionScope.tenantScope == 'MULTI'}">
+            <div class="dropdown">
+                <button class="btn btn-sm btn-outline-light dropdown-toggle cbs-tenant-switch-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Switch tenant">
+                    <i class="bi bi-building" aria-hidden="true"></i>
+                    <c:choose>
+                        <c:when test="${not empty sessionScope.tenantName}"><c:out value="${sessionScope.tenantName}"/></c:when>
+                        <c:otherwise>Tenant</c:otherwise>
+                    </c:choose>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <c:forEach var="t" items="${sessionScope.availableTenants}">
+                        <li>
+                            <form method="post" action="${pageContext.request.contextPath}/tenant/switch" class="m-0">
+                                <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
+                                <input type="hidden" name="tenantId" value="${t.id}">
+                                <button type="submit" class="dropdown-item"><c:out value="${t.tenantName}"/> (<c:out value="${t.tenantCode}"/>)</button>
+                            </form>
+                        </li>
+                    </c:forEach>
+                </ul>
+            </div>
+        </c:if>
         <%-- Session Timer --%>
         <div class="cbs-session-timer" id="cbsSessionTimer" aria-label="Session timeout" title="Session time remaining">
             <i class="bi bi-hourglass-split" aria-hidden="true"></i>
