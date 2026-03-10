@@ -180,7 +180,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Only handle Alt+Key combinations
         if (!e.altKey || e.ctrlKey || e.metaKey) return;
 
-        var ctx = window.location.pathname.substring(0, window.location.pathname.indexOf('/', 1) + 1) || '/';
+        var ctx = '/';
         var handled = false;
 
         switch (e.key.toLowerCase()) {
