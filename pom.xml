@@ -11,7 +11,6 @@
         <relativePath/>
     </parent>
 
-
     <groupId>com.ledgora</groupId>
     <artifactId>ledgora</artifactId>
     <version>0.0.1-SNAPSHOT</version>
@@ -22,6 +21,7 @@
     <properties>
         <java.version>17</java.version>
         <jjwt.version>0.11.5</jjwt.version>
+        <spotless.version>2.43.0</spotless.version>
     </properties>
 
     <dependencies>
@@ -165,6 +165,57 @@
                         </path>
                     </annotationProcessorPaths>
                 </configuration>
+            </plugin>
+
+            <!-- Spotless: code formatting enforcement -->
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+                <configuration>
+                    <!-- Java source formatting -->
+                    <java>
+                        <includes>
+                            <include>src/main/java/**/*.java</include>
+                            <include>src/test/java/**/*.java</include>
+                        </includes>
+                        <!-- Remove unused imports -->
+                        <removeUnusedImports/>
+                        <!-- Import ordering: java, javax/jakarta, then everything else -->
+                        <importOrder>
+                            <order>java,javax,jakarta,org,com,</order>
+                        </importOrder>
+                        <!-- Trailing whitespace and final newline -->
+                        <trimTrailingWhitespace/>
+                        <endWithNewline/>
+                        <!-- Google Java Format (4-space indent variant) -->
+                        <googleJavaFormat>
+                            <version>1.19.2</version>
+                            <style>AOSP</style>
+                        </googleJavaFormat>
+                    </java>
+
+                    <!-- POM formatting -->
+                    <pom>
+                        <includes>
+                            <include>pom.xml</include>
+                        </includes>
+                        <sortPom>
+                            <expandEmptyElements>false</expandEmptyElements>
+                            <nrOfIndentSpace>4</nrOfIndentSpace>
+                        </sortPom>
+                    </pom>
+                </configuration>
+                <executions>
+                    <!-- Fail build on formatting violations during verify phase -->
+                    <execution>
+                        <id>spotless-check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
