@@ -9,8 +9,64 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Repository for immutable ledger journals.
+ *
+ * CBS Rule: LedgerJournals must NEVER be deleted or updated.
+ * The delete methods inherited from JpaRepository are overridden to throw exceptions.
+ * Corrections must be made via reversal entries (opposite DR/CR postings).
+ */
 @Repository
 public interface LedgerJournalRepository extends JpaRepository<LedgerJournal, Long> {
+
+    /** @deprecated CBS: Ledger journals are immutable. Use reversal entries instead. */
+    @Override
+    default void deleteById(Long id) {
+        throw new UnsupportedOperationException("CBS violation: Ledger journals cannot be deleted. Use reversal entries.");
+    }
+
+    /** @deprecated CBS: Ledger journals are immutable. Use reversal entries instead. */
+    @Override
+    default void delete(LedgerJournal entity) {
+        throw new UnsupportedOperationException("CBS violation: Ledger journals cannot be deleted. Use reversal entries.");
+    }
+
+    /** @deprecated CBS: Ledger journals are immutable. Use reversal entries instead. */
+    @Override
+    default void deleteAll() {
+        throw new UnsupportedOperationException("CBS violation: Ledger journals cannot be deleted. Use reversal entries.");
+    }
+
+    /** @deprecated CBS: Ledger journals are immutable. Use reversal entries instead. */
+    @Override
+    default void deleteAllById(Iterable<? extends Long> ids) {
+        throw new UnsupportedOperationException("CBS violation: Ledger journals cannot be deleted. Use reversal entries.");
+    }
+
+    /** @deprecated CBS: Ledger journals are immutable. Use reversal entries instead. */
+    @Override
+    default void deleteAll(Iterable<? extends LedgerJournal> entities) {
+        throw new UnsupportedOperationException("CBS violation: Ledger journals cannot be deleted. Use reversal entries.");
+    }
+
+    /** @deprecated CBS: Ledger journals are immutable. Use reversal entries instead. */
+    @Override
+    default void deleteAllInBatch() {
+        throw new UnsupportedOperationException("CBS violation: Ledger journals cannot be deleted. Use reversal entries.");
+    }
+
+    /** @deprecated CBS: Ledger journals are immutable. Use reversal entries instead. */
+    @Override
+    default void deleteAllByIdInBatch(Iterable<Long> ids) {
+        throw new UnsupportedOperationException("CBS violation: Ledger journals cannot be deleted. Use reversal entries.");
+    }
+
+    /** @deprecated CBS: Ledger journals are immutable. Use reversal entries instead. */
+    @Override
+    default void deleteAllInBatch(Iterable<LedgerJournal> entities) {
+        throw new UnsupportedOperationException("CBS violation: Ledger journals cannot be deleted. Use reversal entries.");
+    }
+
     List<LedgerJournal> findByTransactionId(Long transactionId);
     List<LedgerJournal> findByBusinessDate(LocalDate businessDate);
 

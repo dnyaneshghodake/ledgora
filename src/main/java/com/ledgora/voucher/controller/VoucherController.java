@@ -241,6 +241,10 @@ public class VoucherController {
     @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
     public String postVoucher(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
+            // RBI-F7: Validate business day is OPEN before allowing voucher posting
+            Long tenantId = TenantContextHolder.getRequiredTenantId();
+            tenantService.validateBusinessDayOpen(tenantId);
+
             Voucher posted = voucherService.postVoucher(id);
             redirectAttributes.addFlashAttribute("message",
                     "Voucher " + posted.getVoucherNumber() + " posted to ledger.");

@@ -316,6 +316,10 @@ public class VoucherService {
      */
     @Transactional
     public Voucher postVoucher(Long voucherId, Transaction linkedTransaction) {
+        Long tenantId = requireTenantId();
+        // RBI-F1: Fetch with tenant isolation first, then acquire pessimistic lock
+        voucherRepository.findByIdAndTenantId(voucherId, tenantId)
+                .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
         Voucher voucher = voucherRepository.findByIdWithLock(voucherId)
                 .orElseThrow(() -> new RuntimeException("Voucher not found: " + voucherId));
 

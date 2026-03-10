@@ -123,12 +123,6 @@ public class EodValidationService {
             errors.add("EOD blocked: " + pendingTxns + " transaction(s) pending approval for tenant " + tenantId);
         }
 
-        // NEW: Check all batches are balanced before EOD
-        if (!batchService.areAllBatchesClosed(tenantId, businessDate)) {
-            errors.add("EOD blocked: open batches exist for business date " + businessDate
-                    + ". Close all batches before running EOD.");
-        }
-
         // 7. Branch GL balanced - checked if CbsGlBalanceService is tracking balances
         // 8. Tenant GL balanced
         if (!cbsGlBalanceService.isTenantGlBalanced(tenantId)) {
