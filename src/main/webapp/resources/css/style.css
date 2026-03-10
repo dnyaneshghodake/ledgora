@@ -513,6 +513,22 @@ body.cbs-sidebar-collapsed .cbs-shortcut-bar {
     box-shadow: 0 1px 0 #cbd5e1;
 }
 
+/* CBS Record Count Summary (above tables) */
+.cbs-record-count {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.78rem;
+    color: #64748b;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 0;
+}
+
+.cbs-record-count strong {
+    color: var(--cbs-primary);
+}
+
 /* Holiday banner (moved from inline styles) */
 .cbs-holiday-banner {
     background: #dc2626;

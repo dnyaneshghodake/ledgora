@@ -37,6 +37,7 @@
     <div class="card-body">
         <c:choose>
             <c:when test="${not empty transactions}">
+                <%@ include file="../layout/record-count.jsp" %>
                 <div class="table-responsive">
                     <table class="table table-hover table-sm">
                         <thead class="table-light">
