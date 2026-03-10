@@ -327,7 +327,16 @@ public class DataInitializer implements CommandLineRunner {
                 "teller3@ledgora.com", "+91-9000000030", branch2, Set.of(tellerRole),
                 secondTenant, TenantScope.SINGLE);
 
-        log.info("  [Users] 16 users ready (admin, superadmin, tenantadmin, branchmgr1, manager, teller1-3, customer1-4, maker1, checker1, ops1, auditor1)");
+        // ── SYSTEM_AUTO pseudo-user — used as checker for STP auto-authorized flows ──
+        // Cannot login via UI (isActive=false prevents authentication).
+        // Ensures maker != checker audit trail for all auto-authorized vouchers.
+        Role systemRole = roleRepository.findByName(RoleName.ROLE_SYSTEM)
+                .orElseThrow(() -> new RuntimeException("ROLE_SYSTEM not found"));
+        createUserIfMissing("SYSTEM_AUTO", "SYSTEM_AUTO_NO_LOGIN_" + java.util.UUID.randomUUID(),
+                "System Auto-Authorization", "system@ledgora.internal", "+00-0000000000",
+                hqBranch, Set.of(systemRole), defaultTenant, TenantScope.MULTI);
+
+        log.info("  [Users] 17 users ready (admin, superadmin, tenantadmin, branchmgr1, manager, teller1-3, customer1-4, maker1, checker1, ops1, auditor1, SYSTEM_AUTO)");
     }
 
     /**

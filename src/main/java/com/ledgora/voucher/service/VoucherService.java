@@ -4,6 +4,7 @@ import com.ledgora.account.entity.Account;
 import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.audit.service.AuditService;
 import com.ledgora.auth.entity.User;
+import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.batch.entity.TransactionBatch;
 import com.ledgora.batch.repository.TransactionBatchRepository;
 import com.ledgora.balance.service.CbsBalanceEngine;
@@ -67,6 +68,7 @@ public class VoucherService {
     private final CbsCustomerValidationService customerValidationService;
     private final GlBalanceService glBalanceService;
     private final AuditService auditService;
+    private final UserRepository userRepository;
 
     public VoucherService(VoucherRepository voucherRepository,
                           ScrollSequenceRepository scrollSequenceRepository,
@@ -79,7 +81,8 @@ public class VoucherService {
                           TransactionBatchRepository transactionBatchRepository,
                           CbsCustomerValidationService customerValidationService,
                           GlBalanceService glBalanceService,
-                          AuditService auditService) {
+                          AuditService auditService,
+                          UserRepository userRepository) {
         this.voucherRepository = voucherRepository;
         this.scrollSequenceRepository = scrollSequenceRepository;
         this.accountRepository = accountRepository;
@@ -92,6 +95,7 @@ public class VoucherService {
         this.customerValidationService = customerValidationService;
         this.glBalanceService = glBalanceService;
         this.auditService = auditService;
+        this.userRepository = userRepository;
     }
 
     /**
@@ -269,11 +273,9 @@ public class VoucherService {
     /**
      * RBI-F4/F9: System auto-authorize a voucher for straight-through processing (e.g. teller deposits).
      *
-     * Records the maker as checker (STP = no separate human checker) but uses the
-     * authorizationRemarks field to tag this as system-auto — never mutates narration.
-     *
-     * NOTE: RBI recommends a dedicated SYSTEM_AUTO pseudo-user as checker.
-     * If one is seeded in DataInitializer, pass that user instead of `maker`.
+     * Uses the dedicated SYSTEM_AUTO pseudo-user as checker to ensure maker != checker
+     * in the audit trail. Falls back to maker if SYSTEM_AUTO is not seeded.
+     * Authorization metadata goes to the dedicated authorizationRemarks field — narration is never mutated.
      */
     @Transactional
     public Voucher systemAuthorizeVoucher(Long voucherId, User maker) {
@@ -288,17 +290,22 @@ public class VoucherService {
             throw new RuntimeException("Voucher already authorized: " + voucherId);
         }
 
+        // RBI-F4: Resolve SYSTEM_AUTO pseudo-user as checker (maker != checker for audit trail)
+        User systemAutoUser = userRepository.findByUsername("SYSTEM_AUTO").orElse(null);
+        User checker = systemAutoUser != null ? systemAutoUser : maker;
+
         voucher.setAuthFlag("Y");
-        // RBI-F4: Record maker as checker for STP; tag via authorizationRemarks (not narration)
-        voucher.setChecker(maker);
+        voucher.setChecker(checker);
         // RBI-F9: Authorization metadata goes to dedicated field, narration stays immutable
         voucher.setAuthorizationRemarks("SYSTEM_AUTO_AUTHORIZED by "
-                + (maker != null ? maker.getUsername() : "SYSTEM")
+                + (checker != null ? checker.getUsername() : "SYSTEM")
+                + " for maker=" + (maker != null ? maker.getUsername() : "N/A")
                 + " at " + LocalDateTime.now());
         voucher = voucherRepository.save(voucher);
 
-        log.info("Voucher system-auto-authorized: id={}, maker={}", voucherId,
-                maker != null ? maker.getUsername() : "SYSTEM");
+        log.info("Voucher system-auto-authorized: id={}, checker={}, maker={}", voucherId,
+                checker != null ? checker.getUsername() : "SYSTEM",
+                maker != null ? maker.getUsername() : "N/A");
 
         return voucher;
     }

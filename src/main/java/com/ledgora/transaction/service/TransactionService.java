@@ -699,14 +699,12 @@ public class TransactionService {
     }
 
     /**
-     * CBS: Server-side validation that transaction amount is positive.
+     * CBS: Server-side validation that transaction amount is positive and scale ≤ 2.
      * Never trust client-side validation alone for financial operations.
+     * Uses centralized RbiFieldValidator as the final defense before persistence.
      */
     private void validateAmountPositive(BigDecimal amount) {
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new com.ledgora.common.exception.InvalidTransactionAmountException(
-                    "Transaction amount must be positive. Received: " + amount);
-        }
+        com.ledgora.common.validation.RbiFieldValidator.validateTransactionAmount(amount);
     }
 
     private void validateAccountActive(Account account) {
