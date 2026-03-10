@@ -287,6 +287,23 @@ INITIATED → SENT → RECEIVED → SETTLED
 
 EOD blocks if any transfers are not `SETTLED` or `FAILED`.
 
+### 5A.8 IBT UI endpoints
+
+From `IbtController` (`src/main/java/com/ledgora/ibt/controller/IbtController.java`):
+
+- `GET /ibt` — paginated IBT list with status/date/branch filters (MAKER, CHECKER, OPERATIONS, ADMIN, MANAGER, AUDITOR). Uses `JpaSpecificationExecutor` for composable filter queries against `InterBranchTransfer` (canonical aggregate — no Transaction table derivation).
+- `GET /ibt/create` — IBT initiation form (MAKER, ADMIN, MANAGER, TELLER). Pre-validates cross-branch via AJAX account lookup showing branch codes.
+- `POST /ibt/create` — validates source ≠ destination branch, delegates to `TransactionService.transfer()` which auto-detects cross-branch and routes through 4-voucher IBC clearing. Redirects to `/ibt/{transactionId}`.
+- `GET /ibt/{id}` — IBT detail view (MAKER, CHECKER, OPERATIONS, ADMIN, MANAGER, AUDITOR). Accepts both IBT ID (from list) and Transaction ID (from create redirect). Uses 2-query strategy for N+1 prevention:
+  - Query 1: `InterBranchTransferRepository.findByIdWithGraph()` — JOIN FETCH for IBT + fromBranch + toBranch + referenceTransaction + createdBy + approvedBy + tenant
+  - Query 2: `VoucherRepository.findByTransactionIdWithGraph()` — JOIN FETCH for vouchers + branch + account + ledgerEntry + glAccount + maker + checker
+  - Total: 2 SQL SELECTs, zero lazy loading in JSP. Vouchers grouped by branch (Branch A / Branch B) for visual clarity.
+- `GET /ibt/reconciliation` — CBS-grade reconciliation dashboard (OPERATIONS, ADMIN, MANAGER, AUDITOR). Read-only. Shows:
+  - KPI cards: unsettled count (INITIATED+SENT+RECEIVED), failed count, clearing GL net balance (from `CLEARING_ACCOUNT` type — not voucher derivation), clearing status (BALANCED/IMBALANCE)
+  - Clearing net status alert (red if non-zero, green if balanced — maps to EOD gate)
+  - Aging table: top 5 oldest unsettled IBTs with color-coded age (T+1 blue, T+2 yellow/ESCALATE, T+3+ red/CRITICAL)
+  - Per-branch clearing account balances (IBC-OUT/IBC-IN with ZERO/NON-ZERO badges)
+
 ## 5B) Suspense GL parking flow
 
 When a posting partially fails (e.g., debit leg succeeds but credit leg fails due to account freeze), the system routes the failed leg to a Suspense GL to preserve double-entry integrity. This is managed by `SuspenseResolutionService`.
@@ -548,10 +565,20 @@ A quick manual verification (dev/H2):
    ```
 8. Go to `/batches` and verify batches exist for your channels
 9. Close/settle batches using UI actions
-10. **Test inter-branch transfer (IBT):**
-    - Create accounts at different branches (e.g., BR001 and BR002)
-    - Perform a transfer between them via `/transactions/transfer`
-    - Verify 4 vouchers were created (2 per branch):
+10. **Test inter-branch transfer (IBT) via dedicated UI:**
+    - Go to `/ibt/create` and select accounts at different branches (e.g., BR001 and BR002)
+    - Verify the cross-branch detection banner appears (green "Cross-branch detected" indicator)
+    - Submit the transfer — system redirects to `/ibt/{id}` detail view
+    - On the detail view, verify:
+      - IBT record shows status progression (INITIATED → SENT → RECEIVED)
+      - 4 vouchers displayed grouped by branch (Branch A: DR Customer + CR IBC_OUT; Branch B: DR IBC_IN + CR Customer)
+      - Clearing GL panel shows IBC-OUT/IBC-IN balances
+    - Go to `/ibt` list and verify the new transfer appears with correct status badge
+    - Go to `/ibt/reconciliation` and verify:
+      - KPI cards show correct unsettled/failed counts
+      - Clearing GL net balance (should be 0 if both legs posted)
+      - Clearing status shows BALANCED (green)
+    - Also verify via H2 console:
       ```sql
       select v.id, v.voucher_number, v.dr_cr, v.transaction_amount,
              v.account_id, a.branch_code, v.narration

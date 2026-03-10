@@ -275,6 +275,16 @@ Examples:
 - `GET /vouchers/posted` — posted list (all operational roles)
 - `GET /vouchers/cancelled` — cancelled list (all operational roles)
 
+### Inter-Branch Transfer (IBT)
+
+From `IbtController` (`src/main/java/com/ledgora/ibt/controller/IbtController.java`):
+
+- `GET /ibt` — paginated list with status/date/branch filters (MAKER, CHECKER, OPERATIONS, ADMIN, MANAGER, AUDITOR)
+- `GET /ibt/create` — IBT initiation form (MAKER, ADMIN, MANAGER, TELLER)
+- `POST /ibt/create` — validate cross-branch + delegate to `TransactionService.transfer()` (same roles)
+- `GET /ibt/{id}` — detail view: IBT header, branch-grouped voucher breakdown, ledger entries, clearing GL (MAKER, CHECKER, OPERATIONS, ADMIN, MANAGER, AUDITOR)
+- `GET /ibt/reconciliation` — CBS reconciliation dashboard: KPIs, clearing GL net, aging table (OPERATIONS, ADMIN, MANAGER, AUDITOR)
+
 ### Reports
 
 - `GET /reports` (`src/main/java/com/ledgora/reporting/controller/ReportingController.java:25-29`)
@@ -312,6 +322,8 @@ Important tables (non-exhaustive but core):
 - `settlements`, `settlement_entries` (`src/main/java/com/ledgora/settlement/entity/*`)
 - `vouchers` (`src/main/java/com/ledgora/voucher/entity/Voucher.java`) — CBS voucher lifecycle (create→authorize→post→cancel)
 - `scroll_sequences` (`src/main/java/com/ledgora/voucher/entity/ScrollSequence.java`) — concurrency-safe scroll number per tenant/branch/date
+- `inter_branch_transfers` (`src/main/java/com/ledgora/clearing/entity/InterBranchTransfer.java`) — IBT lifecycle tracking (INITIATED→SENT→RECEIVED→SETTLED/FAILED)
+- `branch_gl_mappings` (`src/main/java/com/ledgora/clearing/entity/BranchGlMapping.java`) — per-branch clearing GL configuration
 - `exchange_rates` (`src/main/java/com/ledgora/currency/entity/ExchangeRate.java`)
 - `idempotency_keys` (`src/main/java/com/ledgora/idempotency/entity/IdempotencyKey.java`)
 - `system_dates` (`src/main/java/com/ledgora/common/entity/SystemDate.java`)
@@ -392,6 +404,26 @@ select sum(total_debit) as total_dr, sum(total_credit) as total_cr,
 from vouchers
 where post_flag = 'Y' and cancel_flag = 'N'
   and posting_date = CURRENT_DATE;
+```
+
+### Check IBT records
+
+```sql
+select id, status, amount, currency, business_date,
+       from_branch_id, to_branch_id, reference_transaction_id
+from inter_branch_transfers
+order by id desc;
+```
+
+### Check clearing GL net balance (must be zero before EOD)
+
+```sql
+select a.account_number, a.account_name, a.balance,
+       case when a.balance = 0 then 'ZERO' else 'NON-ZERO' end as status
+from accounts a
+where a.account_type = 'CLEARING_ACCOUNT'
+   or a.account_number like 'IBC-%'
+order by a.account_number;
 ```
 
 ## Security Notes
