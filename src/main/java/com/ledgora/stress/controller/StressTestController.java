@@ -1,8 +1,10 @@
 package com.ledgora.stress.controller;
 
 import com.ledgora.stress.dto.EodPerformanceResult;
+import com.ledgora.stress.dto.LockContentionResult;
 import com.ledgora.stress.service.EodLoadGeneratorService;
 import com.ledgora.stress.service.EodPerformanceRunner;
+import com.ledgora.stress.service.LockContentionSimulator;
 import com.ledgora.tenant.context.TenantContextHolder;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -41,11 +43,15 @@ public class StressTestController {
 
     private final EodLoadGeneratorService loadGenerator;
     private final EodPerformanceRunner performanceRunner;
+    private final LockContentionSimulator lockContentionSimulator;
 
     public StressTestController(
-            EodLoadGeneratorService loadGenerator, EodPerformanceRunner performanceRunner) {
+            EodLoadGeneratorService loadGenerator,
+            EodPerformanceRunner performanceRunner,
+            LockContentionSimulator lockContentionSimulator) {
         this.loadGenerator = loadGenerator;
         this.performanceRunner = performanceRunner;
+        this.lockContentionSimulator = lockContentionSimulator;
     }
 
     @PostMapping("/eod")
@@ -86,6 +92,43 @@ public class StressTestController {
                 performanceRunner.runEodPerformanceTest(tenantId, resultBuilder);
 
         TenantContextHolder.clear();
+
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Lock contention simulation: concurrent posting threads + optional parallel EOD.
+     *
+     * <p>Usage: POST /stress/lock-contention with JSON body:
+     *
+     * <pre>
+     * {
+     *   "tenantId": 1,
+     *   "threads": 4,
+     *   "transactionsPerThread": 50,
+     *   "triggerEod": true
+     * }
+     * </pre>
+     */
+    @PostMapping("/lock-contention")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<LockContentionResult> runLockContentionTest(
+            @RequestBody Map<String, Object> params) {
+
+        Long tenantId = ((Number) params.getOrDefault("tenantId", 1)).longValue();
+        int threads = ((Number) params.getOrDefault("threads", 4)).intValue();
+        int txnsPerThread = ((Number) params.getOrDefault("transactionsPerThread", 50)).intValue();
+        boolean triggerEod = Boolean.TRUE.equals(params.getOrDefault("triggerEod", true));
+
+        log.info(
+                "Lock contention test initiated: tenant={} threads={} txns/thread={} eod={}",
+                tenantId,
+                threads,
+                txnsPerThread,
+                triggerEod);
+
+        LockContentionResult result =
+                lockContentionSimulator.simulate(tenantId, threads, txnsPerThread, triggerEod);
 
         return ResponseEntity.ok(result);
     }
