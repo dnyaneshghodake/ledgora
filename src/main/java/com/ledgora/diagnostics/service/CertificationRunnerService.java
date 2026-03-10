@@ -93,8 +93,12 @@ public class CertificationRunnerService {
                             .ibtTransfersGenerated(ibtCount)
                             .loadGenerationTimeMs(loadEnd - loadStart);
             eodResult = performanceRunner.runEodPerformanceTest(tenantId, builder);
-            steps.add("STEP 2: COMPLETE — EOD " + (eodResult.isSuccess() ? "SUCCESS" : "FAILED")
-                    + " in " + eodResult.getExecutionTimeMs() + "ms");
+            steps.add(
+                    "STEP 2: COMPLETE — EOD "
+                            + (eodResult.isSuccess() ? "SUCCESS" : "FAILED")
+                            + " in "
+                            + eodResult.getExecutionTimeMs()
+                            + "ms");
         } catch (Exception e) {
             steps.add("STEP 2: FAILED — " + e.getMessage());
             violations.add("EOD_EXECUTION_FAILED: " + e.getMessage());
@@ -108,9 +112,11 @@ public class CertificationRunnerService {
         ChaosEodResult chaosResult = null;
         try {
             chaosResult = chaosEodTester.runChaosTest(tenantId, "BATCH_CLOSED");
-            steps.add("STEP 3: COMPLETE — crash="
-                    + chaosResult.isCrashSimulated() + " resume="
-                    + chaosResult.isResumeSucceeded());
+            steps.add(
+                    "STEP 3: COMPLETE — crash="
+                            + chaosResult.isCrashSimulated()
+                            + " resume="
+                            + chaosResult.isResumeSucceeded());
         } catch (Exception e) {
             steps.add("STEP 3: FAILED — " + e.getMessage());
             violations.add("CRASH_SIMULATION_FAILED: " + e.getMessage());
@@ -124,8 +130,12 @@ public class CertificationRunnerService {
         ConcurrencyAuditResult auditResult = null;
         try {
             auditResult = concurrencyAuditService.runAllChecks();
-            steps.add("STEP 4-5: COMPLETE — " + auditResult.getPassedChecks()
-                    + "/" + auditResult.getTotalChecks() + " checks passed");
+            steps.add(
+                    "STEP 4-5: COMPLETE — "
+                            + auditResult.getPassedChecks()
+                            + "/"
+                            + auditResult.getTotalChecks()
+                            + " checks passed");
             if (!auditResult.getViolations().isEmpty()) {
                 violations.addAll(auditResult.getViolations());
             }
@@ -157,8 +167,14 @@ public class CertificationRunnerService {
         boolean eodOk = eodResult != null && eodResult.isSuccess();
         boolean perfOk = eodTime > 0 && eodTime < EOD_THRESHOLD_MS;
 
-        boolean allPass = ledgerOk && clearingOk && suspenseOk && ibtOk && orphanOk
-                && concurrencyOk && (crashOk || chaosResult == null);
+        boolean allPass =
+                ledgerOk
+                        && clearingOk
+                        && suspenseOk
+                        && ibtOk
+                        && orphanOk
+                        && concurrencyOk
+                        && (crashOk || chaosResult == null);
 
         String grade;
         if (!allPass) {
@@ -169,33 +185,35 @@ public class CertificationRunnerService {
             grade = "PASS";
         }
 
-        EnterpriseCertificationReport report = EnterpriseCertificationReport.builder()
-                .totalTransactions(5000)
-                .totalVouchers(eodResult != null ? eodResult.getTotalVouchers() : 0)
-                .totalIbtTransfers(ibtCount)
-                .totalSuspenseCases(eodResult != null ? eodResult.getTotalSuspenseCases() : 0)
-                .ledgerBalanced(ledgerOk)
-                .clearingNetZero(clearingOk)
-                .suspenseZero(suspenseOk)
-                .ibtIntegrity(ibtOk)
-                .noOrphanEntries(orphanOk)
-                .concurrencySafe(concurrencyOk)
-                .noNegativeBalances(negOk)
-                .noDuplicateVouchers(dupOk)
-                .noPartialIbtReversal(partialOk)
-                .noStuckEod(stuckOk)
-                .crashRecoverySafe(crashOk)
-                .eodResumeSucceeded(crashOk)
-                .singletonEodEnforced(singletonOk)
-                .totalExecutionTimeMs(totalTime)
-                .eodExecutionTimeMs(eodTime)
-                .loadGenerationTimeMs(loadEnd - loadStart)
-                .deadlocksRecovered(0)
-                .performanceWithinThreshold(perfOk)
-                .finalGrade(grade)
-                .violations(violations)
-                .stepResults(steps)
-                .build();
+        EnterpriseCertificationReport report =
+                EnterpriseCertificationReport.builder()
+                        .totalTransactions(5000)
+                        .totalVouchers(eodResult != null ? eodResult.getTotalVouchers() : 0)
+                        .totalIbtTransfers(ibtCount)
+                        .totalSuspenseCases(
+                                eodResult != null ? eodResult.getTotalSuspenseCases() : 0)
+                        .ledgerBalanced(ledgerOk)
+                        .clearingNetZero(clearingOk)
+                        .suspenseZero(suspenseOk)
+                        .ibtIntegrity(ibtOk)
+                        .noOrphanEntries(orphanOk)
+                        .concurrencySafe(concurrencyOk)
+                        .noNegativeBalances(negOk)
+                        .noDuplicateVouchers(dupOk)
+                        .noPartialIbtReversal(partialOk)
+                        .noStuckEod(stuckOk)
+                        .crashRecoverySafe(crashOk)
+                        .eodResumeSucceeded(crashOk)
+                        .singletonEodEnforced(singletonOk)
+                        .totalExecutionTimeMs(totalTime)
+                        .eodExecutionTimeMs(eodTime)
+                        .loadGenerationTimeMs(loadEnd - loadStart)
+                        .deadlocksRecovered(0)
+                        .performanceWithinThreshold(perfOk)
+                        .finalGrade(grade)
+                        .violations(violations)
+                        .stepResults(steps)
+                        .build();
 
         log.info(report.toSummary());
         clearContext();
@@ -208,7 +226,8 @@ public class CertificationRunnerService {
                         new UsernamePasswordAuthenticationToken(
                                 "certification-runner",
                                 "N/A",
-                                List.of(new SimpleGrantedAuthority("ROLE_ADMIN"),
+                                List.of(
+                                        new SimpleGrantedAuthority("ROLE_ADMIN"),
                                         new SimpleGrantedAuthority("ROLE_TELLER"))));
         TenantContextHolder.setTenantId(tenantId);
     }

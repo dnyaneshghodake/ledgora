@@ -13,7 +13,7 @@
     TENANT_ADMIN   -> All branch screens
     SUPER_ADMIN    -> All tenants
 --%>
-<aside class="cbs-sidebar" id="cbsSidebar">
+<aside class="cbs-sidebar" id="cbsSidebar" role="navigation" aria-label="Main sidebar navigation">
     <nav class="cbs-sidebar-nav">
         <ul class="cbs-nav-list">
 

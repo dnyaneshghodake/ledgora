@@ -76,10 +76,7 @@ public class EodLoadGeneratorService {
      * @return number of IBT transfers actually generated
      */
     public int generateLoad(
-            Long tenantId,
-            int accountCount,
-            int transactionCount,
-            int ibtRatioPercent) {
+            Long tenantId, int accountCount, int transactionCount, int ibtRatioPercent) {
 
         // Setup security context for TransactionService
         SecurityContextHolder.getContext()
@@ -93,8 +90,7 @@ public class EodLoadGeneratorService {
         Tenant tenant =
                 tenantRepository
                         .findById(tenantId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Tenant not found: " + tenantId));
+                        .orElseThrow(() -> new RuntimeException("Tenant not found: " + tenantId));
 
         // Get or create branches
         List<Branch> branches = branchRepository.findAll();
@@ -148,7 +144,10 @@ public class EodLoadGeneratorService {
             seedBalance(account, new BigDecimal("100000.00"));
             generatedAccounts.add(account);
         }
-        log.info("Stress: {} accounts created/seeded across {} branches", accountCount, branches.size());
+        log.info(
+                "Stress: {} accounts created/seeded across {} branches",
+                accountCount,
+                branches.size());
 
         // Step 2: Generate transactions
         int ibtCount = 0;

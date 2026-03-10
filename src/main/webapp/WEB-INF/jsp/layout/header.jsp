@@ -3,11 +3,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow"/>
     <title>Ledgora - Core Banking Platform</title>
     <link href="${pageContext.request.contextPath}/resources/css/bootstrap.min.css" rel="stylesheet">
     <link href="${pageContext.request.contextPath}/resources/css/bootstrap-icons.css" rel="stylesheet">
     <link href="${pageContext.request.contextPath}/resources/css/style.css" rel="stylesheet">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/resources/css/enterprise-theme.css"/>
     <meta name="_csrf" content="${_csrf.token}"/>
     <meta name="_csrf_header" content="${_csrf.headerName}"/>
 </head>
@@ -22,20 +25,21 @@
 --%>
 
 <%-- CBS Top Header Bar --%>
-<header class="cbs-header" id="cbsHeader">
+<header class="cbs-header" id="cbsHeader" role="banner">
     <div class="cbs-header-left">
-        <button class="cbs-sidebar-toggle" id="sidebarToggle" type="button" title="Toggle Sidebar">
-            <i class="bi bi-list"></i>
+        <button class="cbs-sidebar-toggle" id="sidebarToggle" type="button" title="Toggle Sidebar" aria-label="Toggle sidebar navigation">
+            <i class="bi bi-list" aria-hidden="true"></i>
         </button>
-        <a href="${pageContext.request.contextPath}/dashboard" class="cbs-header-brand">
-            <i class="bi bi-bank2"></i>
+        <a href="${pageContext.request.contextPath}/dashboard" class="cbs-header-brand" aria-label="Go to dashboard">
+            <img class="cbs-bank-logo" src="${pageContext.request.contextPath}/resources/img/bank-logo.png" width="40" height="40" alt="Bank logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+            <span class="cbs-logo-fallback" style="display:none;" aria-hidden="true"><i class="bi bi-bank2"></i></span>
             <span class="cbs-header-brand-text">LEDGORA</span>
         </a>
     </div>
     <div class="cbs-header-center">
         <%-- Branch Name --%>
-        <div class="cbs-branch-info">
-            <i class="bi bi-geo-alt"></i>
+        <div class="cbs-branch-info" aria-label="Branch information">
+            <i class="bi bi-geo-alt" aria-hidden="true"></i>
             <span>Branch:</span>
             <strong>
                 <c:choose>
@@ -47,16 +51,16 @@
         </div>
         <span class="cbs-header-separator"></span>
         <%-- Environment Badge --%>
-        <span class="cbs-env-badge cbs-env-dev">
+        <span class="cbs-env-badge cbs-env-${not empty sessionScope.environment ? sessionScope.environment.toLowerCase() : 'dev'}" aria-label="Environment">
             <c:choose>
                 <c:when test="${not empty sessionScope.environment}"><c:out value="${sessionScope.environment}"/></c:when>
                 <c:otherwise>DEV</c:otherwise>
             </c:choose>
         </span>
         <span class="cbs-header-separator"></span>
-        <%-- Business Date --%>
-        <div class="cbs-business-date">
-            <i class="bi bi-calendar3"></i>
+        <%-- Business Date + Clock --%>
+        <div class="cbs-business-date" aria-label="Business date">
+            <i class="bi bi-calendar3" aria-hidden="true"></i>
             <span>Business Date:</span>
             <strong>
                 <c:choose>
@@ -65,21 +69,25 @@
                 </c:choose>
             </strong>
         </div>
+        <div class="cbs-realtime-clock" aria-label="Current time">
+            <i class="bi bi-clock" aria-hidden="true"></i>
+            <time id="cbsClock" datetime="" aria-live="polite">--:--:--</time>
+        </div>
         <span class="cbs-header-separator"></span>
         <%-- Business Date Status --%>
-        <div class="cbs-date-status">
+        <div class="cbs-date-status" aria-label="Business day status">
             <c:choose>
                 <c:when test="${sessionScope.businessDateStatus == 'OPEN'}">
-                    <span class="cbs-status-indicator cbs-status-open"><i class="bi bi-circle-fill"></i> OPEN</span>
+                    <span class="cbs-status-indicator cbs-status-open" role="status" aria-label="Business day is open"><i class="bi bi-circle-fill" aria-hidden="true"></i> OPEN</span>
                 </c:when>
                 <c:when test="${sessionScope.businessDateStatus == 'DAY_CLOSING'}">
-                    <span class="cbs-status-indicator cbs-status-closing"><i class="bi bi-circle-fill"></i> DAY_CLOSING</span>
+                    <span class="cbs-status-indicator cbs-status-closing" role="status" aria-label="Business day is closing"><i class="bi bi-circle-fill" aria-hidden="true"></i> DAY_CLOSING</span>
                 </c:when>
                 <c:when test="${sessionScope.businessDateStatus == 'CLOSED'}">
-                    <span class="cbs-status-indicator cbs-status-closed"><i class="bi bi-circle-fill"></i> CLOSED</span>
+                    <span class="cbs-status-indicator cbs-status-closed" role="status" aria-label="Business day is closed"><i class="bi bi-circle-fill" aria-hidden="true"></i> CLOSED</span>
                 </c:when>
                 <c:otherwise>
-                    <span class="cbs-status-indicator cbs-status-open"><i class="bi bi-circle-fill"></i> OPEN</span>
+                    <span class="cbs-status-indicator cbs-status-open" role="status" aria-label="Business day is open"><i class="bi bi-circle-fill" aria-hidden="true"></i> OPEN</span>
                 </c:otherwise>
             </c:choose>
         </div>
@@ -88,18 +96,18 @@
         <div class="cbs-ledger-health">
             <c:choose>
                 <c:when test="${sessionScope.ledgerHealth == 'WARNING'}">
-                    <span class="cbs-health-badge cbs-health-warning" title="Ledger Health: WARNING">
-                        <i class="bi bi-exclamation-triangle-fill"></i> WARNING
+                    <span class="cbs-health-badge cbs-health-warning" role="status" aria-label="Ledger health warning" title="Ledger Health: WARNING">
+                        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i> WARNING
                     </span>
                 </c:when>
                 <c:when test="${sessionScope.ledgerHealth == 'CORRUPTED'}">
-                    <span class="cbs-health-badge cbs-health-corrupted" title="Ledger Health: CORRUPTED">
-                        <i class="bi bi-x-octagon-fill"></i> CORRUPTED
+                    <span class="cbs-health-badge cbs-health-corrupted" role="alert" aria-label="Ledger corrupted" title="Ledger Health: CORRUPTED">
+                        <i class="bi bi-x-octagon-fill" aria-hidden="true"></i> CORRUPTED
                     </span>
                 </c:when>
                 <c:otherwise>
-                    <span class="cbs-health-badge cbs-health-healthy" title="Ledger Health: HEALTHY">
-                        <i class="bi bi-shield-check"></i> HEALTHY
+                    <span class="cbs-health-badge cbs-health-healthy" role="status" aria-label="Ledger healthy" title="Ledger Health: HEALTHY">
+                        <i class="bi bi-shield-check" aria-hidden="true"></i> HEALTHY
                     </span>
                 </c:otherwise>
             </c:choose>
@@ -107,8 +115,8 @@
     </div>
     <div class="cbs-header-right">
         <%-- Tenant Context Display --%>
-        <div class="cbs-tenant-info">
-            <i class="bi bi-building"></i>
+        <div class="cbs-tenant-info" aria-label="Tenant context">
+            <i class="bi bi-building" aria-hidden="true"></i>
             <c:choose>
                 <c:when test="${not empty sessionScope.tenantName}">
                     <span><c:out value="${sessionScope.tenantName}"/></span>
@@ -121,7 +129,7 @@
             <%-- Tenant Switch Dropdown (for MULTI tenant users) --%>
             <c:if test="${sessionScope.tenantScope == 'MULTI'}">
                 <div class="dropdown d-inline-block">
-                    <button class="btn btn-sm btn-outline-light dropdown-toggle cbs-tenant-switch-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <button class="btn btn-sm btn-outline-light dropdown-toggle cbs-tenant-switch-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true" aria-label="Switch tenant">
                         Switch Tenant
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
@@ -138,8 +146,16 @@
                 </div>
             </c:if>
         </div>
+        <%-- Notifications / Pending Approvals --%>
+        <c:if test="${sessionScope.pendingApprovals != null && sessionScope.pendingApprovals > 0 && (sessionScope.isAdmin || sessionScope.isManager || sessionScope.isChecker)}">
+            <a href="${pageContext.request.contextPath}/approvals" class="cbs-notifications" aria-label="Pending approvals">
+                <i class="bi bi-bell" aria-hidden="true"></i>
+                <span class="cbs-badge" aria-label="Pending approvals count">${sessionScope.pendingApprovals}</span>
+            </a>
+        </c:if>
+
         <div class="cbs-user-info">
-            <div class="cbs-user-avatar">
+            <div class="cbs-user-avatar" aria-hidden="true">
                 <i class="bi bi-person-circle"></i>
             </div>
             <div class="cbs-user-details">
@@ -160,7 +176,7 @@
         </div>
         <form method="post" action="${pageContext.request.contextPath}/logout" class="d-inline m-0 p-0">
             <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-            <button type="submit" class="cbs-logout-btn" title="Sign Out">
+            <button type="submit" class="cbs-logout-btn" title="Sign Out" aria-label="Logout">
                 <i class="bi bi-box-arrow-right"></i>
                 <span>Logout</span>
             </button>
@@ -173,7 +189,7 @@
 
 <%-- Holiday System-Wide Red Banner --%>
 <c:if test="${sessionScope.isHoliday == true}">
-<div class="cbs-holiday-banner" id="holidayBanner">
+<div class="cbs-holiday-banner" id="holidayBanner" role="alert" aria-live="assertive">
     <i class="bi bi-calendar-x-fill"></i>
     <strong>BANK HOLIDAY</strong>
     <span class="mx-2">|</span>
@@ -187,7 +203,7 @@
 
 <%-- Business Day Closed Banner --%>
 <c:if test="${sessionScope.businessDateStatus == 'CLOSED'}">
-<div class="cbs-eod-banner" id="eodBanner">
+<div class="cbs-eod-banner" id="eodBanner" role="alert" aria-live="assertive">
     <div class="cbs-eod-banner-content">
         <i class="bi bi-exclamation-triangle-fill"></i>
         <span>Business Day Closed &mdash; No transactions allowed until next business day is opened.</span>
@@ -196,7 +212,7 @@
 </c:if>
 
 <%-- CBS Main Content Area --%>
-<main class="cbs-main" id="cbsMain">
+<main class="cbs-main" id="cbsMain" role="main">
     <%-- Breadcrumb Navigation --%>
     <c:if test="${not empty breadcrumb}">
     <nav aria-label="breadcrumb" class="cbs-breadcrumb-nav">

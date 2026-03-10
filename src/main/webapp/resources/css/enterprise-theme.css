@@ -1,0 +1,594 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Ledgora - Enterprise Finacle-Style Theme (Density + Neutral Surfaces)
+   Loaded AFTER bootstrap.min.css and style.css
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* -----------------------------------------------------------------------
+   1) Root variables (bank palette + surfaces + status colors)
+   ----------------------------------------------------------------------- */
+:root {
+    /* Finacle-style conservative palette */
+    --bank-primary: #002147;
+    --bank-secondary: #004080;
+    --bank-accent: #0a8f08;
+
+    --bank-bg: #f5f5f5;
+    --bank-border: #d6dbe3;
+    --bank-surface: #ffffff;
+    --bank-text: #1f2937;
+
+    /* Status colors (high contrast, banking-safe) */
+    --status-success: var(--bank-accent);
+    --status-warning: #b45309;
+    --status-danger: #b42318;
+    --status-info: #1e40af;
+
+    /* Typography + density knobs */
+    --ent-font-size: 14px;
+    --ent-line-height: 1.35;
+    --ent-radius: 4px;
+    --ent-pad-y: 0.28rem;
+    --ent-pad-x: 0.6rem;
+
+    /* Shadows */
+    --ent-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+    --ent-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Map existing CBS variables to enterprise palette (keeps layout intact) */
+:root {
+    /* Bridge existing CBS variables to the enterprise palette */
+    --cbs-primary: var(--bank-primary);
+    --cbs-primary-light: var(--bank-secondary);
+    --cbs-primary-dark: #001633;
+
+    --cbs-accent: var(--bank-accent);
+    --cbs-accent-hover: #087a08;
+
+    --cbs-sidebar-width: 260px;
+    --cbs-header-height: 54px;
+    --cbs-footer-height: 40px;
+
+    --cbs-sidebar-bg: var(--bank-primary);
+    --cbs-sidebar-hover-bg: rgba(255, 255, 255, 0.08);
+    --cbs-sidebar-text: rgba(255, 255, 255, 0.78);
+    --cbs-sidebar-active: #ffffff;
+    --cbs-sidebar-section: rgba(255, 255, 255, 0.55);
+
+    --cbs-header-bg: var(--bank-primary);
+    --cbs-header-border: rgba(255, 255, 255, 0.12);
+    --cbs-content-bg: var(--bank-bg);
+    --cbs-footer-bg: #f7f9fc;
+
+    /* Enterprise layout constraints */
+    --ent-min-width: 1024px;
+    --ent-content-max: 1600px;
+}
+
+/* -----------------------------------------------------------------------
+   2) Safe Bootstrap overrides (compact density)
+   ----------------------------------------------------------------------- */
+body {
+    font-size: var(--ent-font-size);
+    line-height: var(--ent-line-height);
+    color: var(--bank-text);
+    background-color: var(--bank-bg);
+    font-family: Inter, Roboto, Helvetica, Arial, sans-serif;
+    min-width: var(--ent-min-width);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--bank-text);
+}
+
+/* Buttons + inputs */
+.btn {
+    padding: var(--ent-pad-y) 0.6rem;
+    border-radius: var(--ent-radius);
+    font-size: 0.92rem;
+    line-height: 1.2;
+}
+
+.btn.btn-sm {
+    padding: 0.18rem 0.5rem;
+    font-size: 0.88rem;
+}
+
+.form-control,
+.form-select {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.92rem;
+    border-radius: var(--ent-radius);
+}
+
+.form-label {
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem;
+    color: #374151;
+}
+
+.alert {
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--ent-radius);
+}
+
+.badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+}
+
+/* High-contrast notification badge for approvals/alerts */
+.cbs-badge {
+    background: #b42318;
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.dropdown-menu {
+    border-radius: var(--ent-radius);
+    box-shadow: var(--ent-shadow-md);
+    border: 1px solid var(--bank-border);
+}
+
+.dropdown-item {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.92rem;
+}
+
+/* Cards */
+.card {
+    border-radius: var(--ent-radius);
+    box-shadow: var(--ent-shadow-sm);
+    border: 1px solid var(--bank-border);
+}
+
+.card-header {
+    padding: 0.45rem 0.75rem;
+}
+
+.card-body {
+    padding: 0.75rem;
+}
+
+/* -----------------------------------------------------------------------
+   3) Layout: compact header/sidebar/content without markup changes
+   ----------------------------------------------------------------------- */
+.cbs-header {
+    height: var(--cbs-header-height);
+    padding: 0 0.9rem;
+    box-shadow: var(--ent-shadow-sm);
+    background: var(--bank-primary);
+    color: #fff;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.cbs-header a {
+    color: #fff;
+}
+
+.cbs-header a:hover {
+    color: #fff;
+    text-decoration: none;
+}
+
+.cbs-header-brand {
+    letter-spacing: 0.08em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.cbs-bank-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    object-fit: contain;
+}
+
+/* Fallback if logo image fails to load — show bank icon from Bootstrap Icons */
+.cbs-bank-logo[src=""],
+.cbs-bank-logo:not([src]) {
+    display: none;
+}
+
+.cbs-header-brand .cbs-logo-fallback {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    font-size: 1.35rem;
+    color: #fff;
+}
+
+.cbs-header-left {
+    gap: 0.5rem;
+}
+
+.cbs-sidebar-toggle {
+    font-size: 1.2rem;
+    padding: 0.15rem 0.35rem;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #fff;
+}
+
+.cbs-sidebar-toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.cbs-branch-info,
+.cbs-business-date,
+.cbs-tenant-info,
+.cbs-realtime-clock {
+    padding: 0.22rem 0.6rem;
+    border-radius: var(--ent-radius);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.cbs-realtime-clock {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.cbs-business-date strong {
+    color: #fff;
+}
+
+.cbs-status-indicator,
+.cbs-health-badge,
+.cbs-env-badge {
+    padding: 0.18rem 0.5rem;
+    border-radius: var(--ent-radius);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    font-size: 0.75rem;
+}
+
+/* Header right section spacing for dark header */
+.cbs-header-right {
+    gap: 0.65rem;
+}
+
+.cbs-user-avatar i {
+    font-size: 1.35rem;
+    color: rgba(255, 255, 255, 0.78);
+}
+
+.cbs-user-name {
+    font-size: 0.9rem;
+    color: #fff;
+}
+
+.cbs-user-role .badge {
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+/* Notifications bell icon */
+.cbs-notifications {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 50%;
+    color: #fff;
+    text-decoration: none;
+    transition: background 0.15s ease;
+}
+
+.cbs-notifications i {
+    font-size: 1.15rem;
+}
+
+.cbs-notifications:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.cbs-notifications .cbs-badge {
+    position: absolute;
+    top: -2px;
+    right: -4px;
+    font-size: 0.62rem;
+    padding: 0.12em 0.42em;
+    min-width: 1rem;
+    line-height: 1.2;
+}
+
+.cbs-logout-btn {
+    padding: 0.3rem 0.7rem;
+    border-radius: var(--ent-radius);
+    font-size: 0.92rem;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    color: #fff;
+    background: transparent;
+}
+
+.cbs-logout-btn:hover {
+    background: rgba(180, 35, 24, 0.55);
+    border-color: rgba(180, 35, 24, 0.75);
+    color: #fff;
+}
+
+/* Header separator for dark background */
+.cbs-header .cbs-header-separator {
+    background: rgba(255, 255, 255, 0.18);
+}
+
+/* Responsive: collapse center header items on small screens */
+@media (max-width: 1023.98px) {
+    .cbs-header-center {
+        display: none;
+    }
+
+    .cbs-header-brand-text {
+        display: none;
+    }
+
+    .cbs-user-details {
+        display: none;
+    }
+
+    .cbs-tenant-info span {
+        display: none;
+    }
+}
+
+.cbs-sidebar {
+    width: var(--cbs-sidebar-width);
+    background: linear-gradient(180deg, var(--bank-primary) 0%, #001a3a 100%);
+}
+
+/* Responsive: collapse sidebar to mini-icons under 1024px */
+@media (max-width: 1023.98px) {
+    :root {
+        --cbs-sidebar-width: 72px;
+    }
+
+    .cbs-nav-group-toggle > span,
+    .cbs-nav-link > span {
+        display: none;
+    }
+
+    .cbs-nav-arrow {
+        display: none;
+    }
+
+    .cbs-nav-link,
+    .cbs-nav-group-toggle {
+        justify-content: center;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .cbs-nav-submenu .cbs-nav-link {
+        padding-left: 0.75rem;
+    }
+
+    .cbs-sidebar-footer {
+        display: none;
+    }
+}
+
+.cbs-sidebar-nav {
+    padding: 0.35rem 0;
+}
+
+.cbs-nav-section {
+    padding: 0.9rem 1rem 0.35rem;
+    font-size: 0.62rem;
+}
+
+.cbs-nav-link {
+    padding: 0.45rem 0.85rem;
+    font-size: 0.92rem;
+    border-radius: var(--ent-radius);
+    min-height: 2.1rem;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cbs-nav-link:hover {
+    background: rgba(255, 255, 255, 0.09);
+}
+
+.cbs-nav-link.active {
+    background: var(--bank-secondary);
+}
+
+.cbs-nav-group-toggle {
+    padding: 0.55rem 1rem;
+    font-size: 0.92rem;
+    cursor: pointer;
+}
+
+.cbs-nav-arrow {
+    transition: transform 0.2s ease;
+}
+
+.cbs-nav-group.open > .cbs-nav-group-toggle .cbs-nav-arrow {
+    transform: rotate(180deg);
+}
+
+.cbs-nav-submenu .cbs-nav-link {
+    padding: 0.35rem 0.7rem 0.35rem 2.55rem;
+}
+
+.cbs-main {
+    margin-left: var(--cbs-sidebar-width);
+    margin-top: var(--cbs-header-height);
+    min-height: calc(100vh - var(--cbs-header-height) - var(--cbs-footer-height));
+    overflow-y: auto;
+}
+
+.cbs-content {
+    padding: 1.25rem;
+    max-width: var(--ent-content-max);
+}
+
+.cbs-footer {
+    height: var(--cbs-footer-height);
+}
+
+.cbs-footer-content {
+    font-size: 0.85rem;
+}
+
+.cbs-footer-version {
+    font-weight: 700;
+    color: var(--bank-primary);
+    letter-spacing: 0.04em;
+}
+
+/* -----------------------------------------------------------------------
+   4) Table styling: compact + enterprise grid + numeric alignment utility
+   ----------------------------------------------------------------------- */
+.table {
+    margin-bottom: 0.75rem;
+}
+
+.table > :not(caption) > * > * {
+    padding: 0.35rem 0.55rem;
+}
+
+.table thead th {
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    background: var(--bank-bg);
+    border-bottom: 2px solid var(--bank-border);
+    color: var(--bank-primary);
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.table tbody td {
+    border-color: rgba(214, 219, 227, 0.8);
+    vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0, 64, 128, 0.04);
+    cursor: pointer;
+}
+
+/* Utility: use class="cbs-numeric" on numeric headers/cells */
+.cbs-numeric,
+.table td.text-end,
+.table th.text-end,
+.table td.numeric,
+.table th.numeric,
+.table td.amount,
+.table th.amount,
+.table td.balance,
+.table th.balance {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+}
+
+/* -----------------------------------------------------------------------
+   5) Status colors wired to existing header badges
+   ----------------------------------------------------------------------- */
+.cbs-status-open {
+    background: rgba(10, 143, 8, 0.12);
+    color: var(--status-success);
+}
+
+.cbs-status-closing {
+    background: rgba(180, 83, 9, 0.14);
+    color: var(--status-warning);
+}
+
+.cbs-status-closed {
+    background: rgba(180, 35, 24, 0.12);
+    color: var(--status-danger);
+}
+
+.cbs-health-healthy {
+    background: rgba(10, 143, 8, 0.12);
+    color: var(--status-success);
+}
+
+.cbs-health-warning {
+    background: rgba(180, 83, 9, 0.14);
+    color: var(--status-warning);
+}
+
+.cbs-health-corrupted {
+    background: rgba(180, 35, 24, 0.12);
+    color: var(--status-danger);
+}
+
+/* -----------------------------------------------------------------------
+   6) Utility classes — spacing, borders, shadows
+   Consistent across header/sidebar/content for Finacle-style dashboards.
+   ----------------------------------------------------------------------- */
+
+/* Spacing */
+.ent-p-0  { padding: 0 !important; }
+.ent-p-1  { padding: 0.25rem !important; }
+.ent-p-2  { padding: 0.5rem !important; }
+.ent-p-3  { padding: 0.75rem !important; }
+.ent-p-4  { padding: 1rem !important; }
+.ent-p-5  { padding: 1.25rem !important; }
+
+.ent-m-0  { margin: 0 !important; }
+.ent-m-1  { margin: 0.25rem !important; }
+.ent-m-2  { margin: 0.5rem !important; }
+.ent-m-3  { margin: 0.75rem !important; }
+.ent-m-4  { margin: 1rem !important; }
+.ent-m-5  { margin: 1.25rem !important; }
+
+.ent-mt-0 { margin-top: 0 !important; }
+.ent-mt-2 { margin-top: 0.5rem !important; }
+.ent-mt-3 { margin-top: 0.75rem !important; }
+.ent-mb-0 { margin-bottom: 0 !important; }
+.ent-mb-2 { margin-bottom: 0.5rem !important; }
+.ent-mb-3 { margin-bottom: 0.75rem !important; }
+
+/* Borders */
+.ent-border      { border: 1px solid var(--bank-border) !important; }
+.ent-border-top  { border-top: 1px solid var(--bank-border) !important; }
+.ent-border-btm  { border-bottom: 1px solid var(--bank-border) !important; }
+.ent-border-none { border: none !important; }
+
+/* Shadows */
+.ent-shadow-sm   { box-shadow: var(--ent-shadow-sm) !important; }
+.ent-shadow-md   { box-shadow: var(--ent-shadow-md) !important; }
+.ent-shadow-none { box-shadow: none !important; }
+
+/* Surface helpers */
+.ent-surface  { background: var(--bank-surface); }
+.ent-bg       { background: var(--bank-bg); }
+.ent-bg-primary { background: var(--bank-primary); color: #fff; }
+
+/* Text */
+.ent-text-muted   { color: #64748b; }
+.ent-text-primary { color: var(--bank-primary); }
+.ent-text-success { color: var(--status-success); }
+.ent-text-danger  { color: var(--status-danger); }
+.ent-text-warning { color: var(--status-warning); }
+
+/* Radius */
+.ent-rounded { border-radius: var(--ent-radius) !important; }
+
+/* Focus ring for accessibility */
+.cbs-nav-link:focus-visible,
+.cbs-nav-group-toggle:focus-visible,
+.btn:focus-visible,
+.form-control:focus-visible,
+.form-select:focus-visible {
+    outline: 2px solid var(--bank-secondary);
+    outline-offset: 2px;
+}

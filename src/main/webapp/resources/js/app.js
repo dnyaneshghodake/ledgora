@@ -117,6 +117,40 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // ── Header real-time clock ──
+    // Updates every second. aria-live is set to "off" on the visible element
+    // to prevent screen readers from announcing every tick. A separate
+    // sr-only span could be updated every 60s if audible time is needed.
+    var clockEl = document.getElementById('cbsClock');
+    if (clockEl) {
+        clockEl.setAttribute('aria-live', 'off');
+        var pad2 = function(n) { return String(n).padStart(2, '0'); };
+        var tick = function() {
+            var now = new Date();
+            var hh = pad2(now.getHours());
+            var mm = pad2(now.getMinutes());
+            var ss = pad2(now.getSeconds());
+            clockEl.textContent = hh + ':' + mm + ':' + ss;
+            clockEl.setAttribute('datetime', now.toISOString());
+        };
+        tick();
+        setInterval(tick, 1000);
+    }
+
+    // ── Keyboard accessibility: Escape closes open dropdowns ──
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            var openDropdowns = document.querySelectorAll('.dropdown-menu.show');
+            openDropdowns.forEach(function(menu) {
+                var toggle = menu.previousElementSibling;
+                if (toggle && typeof bootstrap !== 'undefined') {
+                    var dd = bootstrap.Dropdown.getInstance(toggle);
+                    if (dd) dd.hide();
+                }
+            });
+        }
+    });
+
     // ── Auto-dismiss alerts after 5 seconds ──
     var alerts = document.querySelectorAll('.alert-dismissible');
     alerts.forEach(function(alert) {

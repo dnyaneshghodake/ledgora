@@ -80,10 +80,14 @@ public class ProductionLoadGenerator {
     public LoadGeneratorResult generate(
             Long tenantId, int threads, int targetTps, int durationSeconds, int ibtRatioPercent) {
 
-        List<Account> accounts = accountRepository.findByTenantId(tenantId).stream()
-                .filter(a -> a.getBalance() != null
-                        && a.getBalance().compareTo(new BigDecimal("100")) > 0)
-                .toList();
+        List<Account> accounts =
+                accountRepository.findByTenantId(tenantId).stream()
+                        .filter(
+                                a ->
+                                        a.getBalance() != null
+                                                && a.getBalance().compareTo(new BigDecimal("100"))
+                                                        > 0)
+                        .toList();
 
         if (accounts.size() < 2) {
             return LoadGeneratorResult.builder()
@@ -120,133 +124,158 @@ public class ProductionLoadGenerator {
         long startTime = System.currentTimeMillis();
 
         // Rate limiter refill thread — releases targetTps permits every second
-        executor.submit(() -> {
-            try {
-                startGate.await();
-                long elapsed = 0;
-                while (elapsed < durationMs) {
-                    rateLimiter.release(targetTps);
-                    Thread.sleep(1000);
-                    elapsed = System.currentTimeMillis() - startTime;
-                }
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-            }
-            // Release extra permits to unblock any waiting threads at shutdown
-            rateLimiter.release(threads * 10);
-        });
+        executor.submit(
+                () -> {
+                    try {
+                        startGate.await();
+                        long elapsed = 0;
+                        while (elapsed < durationMs) {
+                            rateLimiter.release(targetTps);
+                            Thread.sleep(1000);
+                            elapsed = System.currentTimeMillis() - startTime;
+                        }
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                    }
+                    // Release extra permits to unblock any waiting threads at shutdown
+                    rateLimiter.release(threads * 10);
+                });
 
         // Worker threads
         for (int t = 0; t < threads; t++) {
             final int threadNum = t;
-            executor.submit(() -> {
-                SecurityContextHolder.getContext()
-                        .setAuthentication(
-                                new UsernamePasswordAuthenticationToken(
-                                        "load-" + threadNum,
-                                        "N/A",
-                                        List.of(new SimpleGrantedAuthority("ROLE_TELLER"))));
-                TenantContextHolder.setTenantId(tenantId);
+            executor.submit(
+                    () -> {
+                        SecurityContextHolder.getContext()
+                                .setAuthentication(
+                                        new UsernamePasswordAuthenticationToken(
+                                                "load-" + threadNum,
+                                                "N/A",
+                                                List.of(
+                                                        new SimpleGrantedAuthority(
+                                                                "ROLE_TELLER"))));
+                        TenantContextHolder.setTenantId(tenantId);
 
-                try {
-                    startGate.await();
-                    Random rng = new Random(threadNum * 37L + System.nanoTime());
-
-                    while (System.currentTimeMillis() - startTime < durationMs) {
-                        // Acquire rate limiter permit
-                        if (!rateLimiter.tryAcquire(2, TimeUnit.SECONDS)) {
-                            break; // duration likely expired
-                        }
-
-                        long txStart = System.currentTimeMillis();
                         try {
-                            int roll = rng.nextInt(100);
-                            Account target = accounts.get(rng.nextInt(accounts.size()));
-                            BigDecimal amount = new BigDecimal(rng.nextInt(900) + 100)
-                                    .setScale(2, RoundingMode.HALF_UP);
-                            String ref = "LOAD-" + threadNum + "-" + System.nanoTime();
+                            startGate.await();
+                            Random rng = new Random(threadNum * 37L + System.nanoTime());
 
-                            if (roll < 40) {
-                                // 40% deposits
-                                transactionService.deposit(
-                                        TransactionDTO.builder()
-                                                .transactionType("DEPOSIT")
-                                                .destinationAccountNumber(target.getAccountNumber())
-                                                .amount(amount)
-                                                .currency("INR")
-                                                .channel(TransactionChannel.TELLER.name())
-                                                .clientReferenceId(ref)
-                                                .description("Load deposit")
-                                                .narration("Load test deposit")
-                                                .build());
-                                deposits.incrementAndGet();
-                            } else if (roll < 70) {
-                                // 30% withdrawals
-                                transactionService.withdraw(
-                                        TransactionDTO.builder()
-                                                .transactionType("WITHDRAWAL")
-                                                .sourceAccountNumber(target.getAccountNumber())
-                                                .amount(new BigDecimal(rng.nextInt(90) + 10)
-                                                        .setScale(2, RoundingMode.HALF_UP))
-                                                .currency("INR")
-                                                .channel(TransactionChannel.TELLER.name())
-                                                .clientReferenceId(ref)
-                                                .description("Load withdrawal")
-                                                .narration("Load test withdrawal")
-                                                .build());
-                                withdrawals.incrementAndGet();
-                            } else {
-                                // 30% transfers (25% same-branch + 5% IBT)
-                                Account dst = accounts.get(rng.nextInt(accounts.size()));
-                                while (dst.getAccountNumber().equals(target.getAccountNumber())) {
-                                    dst = accounts.get(rng.nextInt(accounts.size()));
+                            while (System.currentTimeMillis() - startTime < durationMs) {
+                                // Acquire rate limiter permit
+                                if (!rateLimiter.tryAcquire(2, TimeUnit.SECONDS)) {
+                                    break; // duration likely expired
                                 }
 
-                                boolean doIbt = rng.nextInt(100) < ibtRatioPercent
-                                        && branches.size() >= 2;
-                                if (doIbt) {
-                                    // Pick from different branch
-                                    Account ibtDst = findAccountOnDifferentBranch(
-                                            accounts, target, branches);
-                                    if (ibtDst != null) {
-                                        dst = ibtDst;
-                                        ibts.incrementAndGet();
+                                long txStart = System.currentTimeMillis();
+                                try {
+                                    int roll = rng.nextInt(100);
+                                    Account target = accounts.get(rng.nextInt(accounts.size()));
+                                    BigDecimal amount =
+                                            new BigDecimal(rng.nextInt(900) + 100)
+                                                    .setScale(2, RoundingMode.HALF_UP);
+                                    String ref = "LOAD-" + threadNum + "-" + System.nanoTime();
+
+                                    if (roll < 40) {
+                                        // 40% deposits
+                                        transactionService.deposit(
+                                                TransactionDTO.builder()
+                                                        .transactionType("DEPOSIT")
+                                                        .destinationAccountNumber(
+                                                                target.getAccountNumber())
+                                                        .amount(amount)
+                                                        .currency("INR")
+                                                        .channel(TransactionChannel.TELLER.name())
+                                                        .clientReferenceId(ref)
+                                                        .description("Load deposit")
+                                                        .narration("Load test deposit")
+                                                        .build());
+                                        deposits.incrementAndGet();
+                                    } else if (roll < 70) {
+                                        // 30% withdrawals
+                                        transactionService.withdraw(
+                                                TransactionDTO.builder()
+                                                        .transactionType("WITHDRAWAL")
+                                                        .sourceAccountNumber(
+                                                                target.getAccountNumber())
+                                                        .amount(
+                                                                new BigDecimal(rng.nextInt(90) + 10)
+                                                                        .setScale(
+                                                                                2,
+                                                                                RoundingMode
+                                                                                        .HALF_UP))
+                                                        .currency("INR")
+                                                        .channel(TransactionChannel.TELLER.name())
+                                                        .clientReferenceId(ref)
+                                                        .description("Load withdrawal")
+                                                        .narration("Load test withdrawal")
+                                                        .build());
+                                        withdrawals.incrementAndGet();
+                                    } else {
+                                        // 30% transfers (25% same-branch + 5% IBT)
+                                        Account dst = accounts.get(rng.nextInt(accounts.size()));
+                                        while (dst.getAccountNumber()
+                                                .equals(target.getAccountNumber())) {
+                                            dst = accounts.get(rng.nextInt(accounts.size()));
+                                        }
+
+                                        boolean doIbt =
+                                                rng.nextInt(100) < ibtRatioPercent
+                                                        && branches.size() >= 2;
+                                        if (doIbt) {
+                                            // Pick from different branch
+                                            Account ibtDst =
+                                                    findAccountOnDifferentBranch(
+                                                            accounts, target, branches);
+                                            if (ibtDst != null) {
+                                                dst = ibtDst;
+                                                ibts.incrementAndGet();
+                                            }
+                                        }
+
+                                        transactionService.transfer(
+                                                TransactionDTO.builder()
+                                                        .transactionType("TRANSFER")
+                                                        .sourceAccountNumber(
+                                                                target.getAccountNumber())
+                                                        .destinationAccountNumber(
+                                                                dst.getAccountNumber())
+                                                        .amount(
+                                                                new BigDecimal(rng.nextInt(90) + 10)
+                                                                        .setScale(
+                                                                                2,
+                                                                                RoundingMode
+                                                                                        .HALF_UP))
+                                                        .currency("INR")
+                                                        .channel(TransactionChannel.BATCH.name())
+                                                        .clientReferenceId(ref)
+                                                        .description("Load transfer")
+                                                        .narration("Load test transfer")
+                                                        .build());
+                                        transfers.incrementAndGet();
                                     }
+                                    succeeded.incrementAndGet();
+                                } catch (Exception e) {
+                                    failed.incrementAndGet();
+                                    classifyError(
+                                            e,
+                                            balanceErrors,
+                                            velocityErrors,
+                                            ceilingErrors,
+                                            lockErrors,
+                                            otherErrors);
                                 }
 
-                                transactionService.transfer(
-                                        TransactionDTO.builder()
-                                                .transactionType("TRANSFER")
-                                                .sourceAccountNumber(target.getAccountNumber())
-                                                .destinationAccountNumber(dst.getAccountNumber())
-                                                .amount(new BigDecimal(rng.nextInt(90) + 10)
-                                                        .setScale(2, RoundingMode.HALF_UP))
-                                                .currency("INR")
-                                                .channel(TransactionChannel.BATCH.name())
-                                                .clientReferenceId(ref)
-                                                .description("Load transfer")
-                                                .narration("Load test transfer")
-                                                .build());
-                                transfers.incrementAndGet();
+                                long txTime = System.currentTimeMillis() - txStart;
+                                latencies.add(txTime);
                             }
-                            succeeded.incrementAndGet();
-                        } catch (Exception e) {
-                            failed.incrementAndGet();
-                            classifyError(e, balanceErrors, velocityErrors, ceilingErrors,
-                                    lockErrors, otherErrors);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                        } finally {
+                            TenantContextHolder.clear();
+                            SecurityContextHolder.clearContext();
+                            doneLatch.countDown();
                         }
-
-                        long txTime = System.currentTimeMillis() - txStart;
-                        latencies.add(txTime);
-                    }
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                } finally {
-                    TenantContextHolder.clear();
-                    SecurityContextHolder.clearContext();
-                    doneLatch.countDown();
-                }
-            });
+                    });
         }
 
         // Go!
@@ -268,34 +297,38 @@ public class ProductionLoadGenerator {
 
         int total = succeeded.get() + failed.get();
         double actualTps = total > 0 ? (total * 1000.0) / totalDuration : 0;
-        long avg = sorted.isEmpty() ? 0 : sorted.stream().mapToLong(Long::longValue).sum() / sorted.size();
+        long avg =
+                sorted.isEmpty()
+                        ? 0
+                        : sorted.stream().mapToLong(Long::longValue).sum() / sorted.size();
 
-        LoadGeneratorResult result = LoadGeneratorResult.builder()
-                .threadCount(threads)
-                .targetTps(targetTps)
-                .durationSeconds(durationSeconds)
-                .totalAttempted(total)
-                .totalSucceeded(succeeded.get())
-                .totalFailed(failed.get())
-                .depositCount(deposits.get())
-                .withdrawalCount(withdrawals.get())
-                .transferCount(transfers.get())
-                .ibtCount(ibts.get())
-                .actualTps(actualTps)
-                .totalDurationMs(totalDuration)
-                .avgLatencyMs(avg)
-                .p50LatencyMs(percentile(sorted, 50))
-                .p95LatencyMs(percentile(sorted, 95))
-                .p99LatencyMs(percentile(sorted, 99))
-                .maxLatencyMs(sorted.isEmpty() ? 0 : sorted.get(sorted.size() - 1))
-                .minLatencyMs(sorted.isEmpty() ? 0 : sorted.get(0))
-                .errorRate(total > 0 ? (double) failed.get() / total : 0)
-                .insufficientBalanceErrors(balanceErrors.get())
-                .velocityBreachErrors(velocityErrors.get())
-                .hardCeilingErrors(ceilingErrors.get())
-                .lockContentionErrors(lockErrors.get())
-                .otherErrors(otherErrors.get())
-                .build();
+        LoadGeneratorResult result =
+                LoadGeneratorResult.builder()
+                        .threadCount(threads)
+                        .targetTps(targetTps)
+                        .durationSeconds(durationSeconds)
+                        .totalAttempted(total)
+                        .totalSucceeded(succeeded.get())
+                        .totalFailed(failed.get())
+                        .depositCount(deposits.get())
+                        .withdrawalCount(withdrawals.get())
+                        .transferCount(transfers.get())
+                        .ibtCount(ibts.get())
+                        .actualTps(actualTps)
+                        .totalDurationMs(totalDuration)
+                        .avgLatencyMs(avg)
+                        .p50LatencyMs(percentile(sorted, 50))
+                        .p95LatencyMs(percentile(sorted, 95))
+                        .p99LatencyMs(percentile(sorted, 99))
+                        .maxLatencyMs(sorted.isEmpty() ? 0 : sorted.get(sorted.size() - 1))
+                        .minLatencyMs(sorted.isEmpty() ? 0 : sorted.get(0))
+                        .errorRate(total > 0 ? (double) failed.get() / total : 0)
+                        .insufficientBalanceErrors(balanceErrors.get())
+                        .velocityBreachErrors(velocityErrors.get())
+                        .hardCeilingErrors(ceilingErrors.get())
+                        .lockContentionErrors(lockErrors.get())
+                        .otherErrors(otherErrors.get())
+                        .build();
 
         log.info(result.toSummary());
         return result;
@@ -311,8 +344,7 @@ public class ProductionLoadGenerator {
             List<Account> accounts, Account source, List<Branch> branches) {
         Long sourceBranchId = source.getBranch() != null ? source.getBranch().getId() : null;
         return accounts.stream()
-                .filter(a -> a.getBranch() != null
-                        && !a.getBranch().getId().equals(sourceBranchId))
+                .filter(a -> a.getBranch() != null && !a.getBranch().getId().equals(sourceBranchId))
                 .findFirst()
                 .orElse(null);
     }
@@ -325,8 +357,10 @@ public class ProductionLoadGenerator {
             AtomicInteger lock,
             AtomicInteger other) {
         String msg = (e.getMessage() != null ? e.getMessage() : "").toUpperCase();
-        String cause = e.getCause() != null && e.getCause().getMessage() != null
-                ? e.getCause().getMessage().toUpperCase() : "";
+        String cause =
+                e.getCause() != null && e.getCause().getMessage() != null
+                        ? e.getCause().getMessage().toUpperCase()
+                        : "";
         String combined = msg + " " + cause;
 
         if (combined.contains("INSUFFICIENT") || combined.contains("BALANCE")) {
@@ -335,7 +369,8 @@ public class ProductionLoadGenerator {
             velocity.incrementAndGet();
         } else if (combined.contains("HARD_LIMIT") || combined.contains("CEILING")) {
             ceiling.incrementAndGet();
-        } else if (combined.contains("LOCK") || combined.contains("DEADLOCK")
+        } else if (combined.contains("LOCK")
+                || combined.contains("DEADLOCK")
                 || combined.contains("PESSIMISTIC")) {
             lock.incrementAndGet();
         } else {

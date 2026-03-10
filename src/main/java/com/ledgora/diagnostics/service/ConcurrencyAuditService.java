@@ -70,7 +70,9 @@ public class ConcurrencyAuditService {
         long orphanCount = countOrphanEntries();
         boolean noOrphans = orphanCount == 0;
         if (noOrphans) passed++;
-        else violations.add("ORPHAN_ENTRIES: " + orphanCount + " ledger entries without transaction");
+        else
+            violations.add(
+                    "ORPHAN_ENTRIES: " + orphanCount + " ledger entries without transaction");
 
         // Check 6: No stuck RUNNING EOD processes
         total++;
@@ -84,7 +86,11 @@ public class ConcurrencyAuditService {
         long staleCount = countStalePendingVouchers();
         boolean noStale = staleCount == 0;
         if (noStale) passed++;
-        else violations.add("STALE_VOUCHERS: " + staleCount + " approved-but-unposted voucher(s) older than 30 min");
+        else
+            violations.add(
+                    "STALE_VOUCHERS: "
+                            + staleCount
+                            + " approved-but-unposted voucher(s) older than 30 min");
 
         // Check 8: No duplicate voucher numbers
         total++;
@@ -110,28 +116,29 @@ public class ConcurrencyAuditService {
 
         boolean integrity = passed == total;
 
-        ConcurrencyAuditResult result = ConcurrencyAuditResult.builder()
-                .financialIntegrity(integrity)
-                .ledgerBalanced(ledgerBalanced)
-                .clearingGlZero(clearingGlZero)
-                .suspenseGlZero(suspenseGlZero)
-                .noNegativeBalances(noNegative)
-                .noOrphanEntries(noOrphans)
-                .noStuckEodProcesses(noStuck)
-                .noStalePendingVouchers(noStale)
-                .noDuplicateVoucherNumbers(noDups)
-                .noPartialIbtReversals(noPartialIbt)
-                .allIbtHaveFourVouchers(allIbtFour)
-                .allBatchesBalanced(batchesBalanced)
-                .orphanEntryCount(orphanCount)
-                .negativeBalanceCount(negCount)
-                .stuckEodCount(stuckCount)
-                .stalePendingVoucherCount(staleCount)
-                .duplicateVoucherNumberCount(dupCount)
-                .totalChecks(total)
-                .passedChecks(passed)
-                .violations(violations)
-                .build();
+        ConcurrencyAuditResult result =
+                ConcurrencyAuditResult.builder()
+                        .financialIntegrity(integrity)
+                        .ledgerBalanced(ledgerBalanced)
+                        .clearingGlZero(clearingGlZero)
+                        .suspenseGlZero(suspenseGlZero)
+                        .noNegativeBalances(noNegative)
+                        .noOrphanEntries(noOrphans)
+                        .noStuckEodProcesses(noStuck)
+                        .noStalePendingVouchers(noStale)
+                        .noDuplicateVoucherNumbers(noDups)
+                        .noPartialIbtReversals(noPartialIbt)
+                        .allIbtHaveFourVouchers(allIbtFour)
+                        .allBatchesBalanced(batchesBalanced)
+                        .orphanEntryCount(orphanCount)
+                        .negativeBalanceCount(negCount)
+                        .stuckEodCount(stuckCount)
+                        .stalePendingVoucherCount(staleCount)
+                        .duplicateVoucherNumberCount(dupCount)
+                        .totalChecks(total)
+                        .passedChecks(passed)
+                        .violations(violations)
+                        .build();
 
         log.info(result.toSummary());
         return result;
@@ -139,10 +146,11 @@ public class ConcurrencyAuditService {
 
     private boolean checkLedgerBalanced(List<String> violations) {
         try {
-            var row = jdbc.queryForMap(
-                    "SELECT COALESCE(SUM(CASE WHEN entry_type='DEBIT' THEN amount ELSE 0 END),0) AS dr, "
-                            + "COALESCE(SUM(CASE WHEN entry_type='CREDIT' THEN amount ELSE 0 END),0) AS cr "
-                            + "FROM ledger_entries");
+            var row =
+                    jdbc.queryForMap(
+                            "SELECT COALESCE(SUM(CASE WHEN entry_type='DEBIT' THEN amount ELSE 0 END),0) AS dr, "
+                                    + "COALESCE(SUM(CASE WHEN entry_type='CREDIT' THEN amount ELSE 0 END),0) AS cr "
+                                    + "FROM ledger_entries");
             var dr = (Number) row.get("DR");
             var cr = (Number) row.get("CR");
             boolean balanced = dr.doubleValue() == cr.doubleValue();
@@ -156,9 +164,10 @@ public class ConcurrencyAuditService {
 
     private boolean checkClearingGlZero(List<String> violations) {
         try {
-            var sum = jdbc.queryForObject(
-                    "SELECT COALESCE(SUM(balance),0) FROM accounts WHERE account_type='CLEARING_ACCOUNT'",
-                    Number.class);
+            var sum =
+                    jdbc.queryForObject(
+                            "SELECT COALESCE(SUM(balance),0) FROM accounts WHERE account_type='CLEARING_ACCOUNT'",
+                            Number.class);
             boolean zero = sum != null && sum.doubleValue() == 0.0;
             if (!zero) violations.add("CLEARING_GL_NON_ZERO: " + sum);
             return zero;
@@ -170,9 +179,10 @@ public class ConcurrencyAuditService {
 
     private boolean checkSuspenseGlZero(List<String> violations) {
         try {
-            var sum = jdbc.queryForObject(
-                    "SELECT COALESCE(SUM(balance),0) FROM accounts WHERE account_type='SUSPENSE_ACCOUNT'",
-                    Number.class);
+            var sum =
+                    jdbc.queryForObject(
+                            "SELECT COALESCE(SUM(balance),0) FROM accounts WHERE account_type='SUSPENSE_ACCOUNT'",
+                            Number.class);
             boolean zero = sum != null && sum.doubleValue() == 0.0;
             if (!zero) violations.add("SUSPENSE_GL_NON_ZERO: " + sum);
             return zero;
@@ -184,10 +194,11 @@ public class ConcurrencyAuditService {
 
     private long countNegativeBalances() {
         try {
-            var count = jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM accounts WHERE balance < 0 "
-                            + "AND account_type IN ('SAVINGS','CURRENT','CUSTOMER_ACCOUNT')",
-                    Long.class);
+            var count =
+                    jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM accounts WHERE balance < 0 "
+                                    + "AND account_type IN ('SAVINGS','CURRENT','CUSTOMER_ACCOUNT')",
+                            Long.class);
             return count != null ? count : 0;
         } catch (Exception e) {
             return -1;
@@ -196,9 +207,10 @@ public class ConcurrencyAuditService {
 
     private long countOrphanEntries() {
         try {
-            var count = jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM ledger_entries WHERE transaction_id IS NULL",
-                    Long.class);
+            var count =
+                    jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM ledger_entries WHERE transaction_id IS NULL",
+                            Long.class);
             return count != null ? count : 0;
         } catch (Exception e) {
             return -1;
@@ -207,9 +219,10 @@ public class ConcurrencyAuditService {
 
     private long countStuckEodProcesses() {
         try {
-            var count = jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM eod_processes WHERE status = 'RUNNING'",
-                    Long.class);
+            var count =
+                    jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM eod_processes WHERE status = 'RUNNING'",
+                            Long.class);
             return count != null ? count : 0;
         } catch (Exception e) {
             return -1;
@@ -218,11 +231,12 @@ public class ConcurrencyAuditService {
 
     private long countStalePendingVouchers() {
         try {
-            var count = jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM vouchers "
-                            + "WHERE auth_flag='Y' AND post_flag='N' AND cancel_flag='N' "
-                            + "AND created_at < DATEADD('MINUTE', -30, CURRENT_TIMESTAMP)",
-                    Long.class);
+            var count =
+                    jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM vouchers "
+                                    + "WHERE auth_flag='Y' AND post_flag='N' AND cancel_flag='N' "
+                                    + "AND created_at < DATEADD('MINUTE', -30, CURRENT_TIMESTAMP)",
+                            Long.class);
             return count != null ? count : 0;
         } catch (Exception e) {
             return 0; // DATEADD syntax may differ — treat as 0
@@ -231,12 +245,13 @@ public class ConcurrencyAuditService {
 
     private long countDuplicateVoucherNumbers() {
         try {
-            var count = jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM ("
-                            + "SELECT voucher_number FROM vouchers "
-                            + "GROUP BY voucher_number HAVING COUNT(*) > 1"
-                            + ")",
-                    Long.class);
+            var count =
+                    jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM ("
+                                    + "SELECT voucher_number FROM vouchers "
+                                    + "GROUP BY voucher_number HAVING COUNT(*) > 1"
+                                    + ")",
+                            Long.class);
             return count != null ? count : 0;
         } catch (Exception e) {
             return -1;
@@ -246,18 +261,23 @@ public class ConcurrencyAuditService {
     private boolean checkNoPartialIbtReversals(List<String> violations) {
         try {
             // IBT transactions should have all vouchers cancelled or none
-            var partials = jdbc.queryForObject(
-                    "SELECT COUNT(DISTINCT v.transaction_id) FROM vouchers v "
-                            + "JOIN inter_branch_transfers ibt ON ibt.reference_transaction_id = v.transaction_id "
-                            + "WHERE v.transaction_id IN ("
-                            + "  SELECT transaction_id FROM vouchers "
-                            + "  GROUP BY transaction_id "
-                            + "  HAVING SUM(CASE WHEN cancel_flag='Y' THEN 1 ELSE 0 END) > 0 "
-                            + "  AND SUM(CASE WHEN cancel_flag='Y' THEN 1 ELSE 0 END) < COUNT(*)"
-                            + ")",
-                    Long.class);
+            var partials =
+                    jdbc.queryForObject(
+                            "SELECT COUNT(DISTINCT v.transaction_id) FROM vouchers v "
+                                    + "JOIN inter_branch_transfers ibt ON ibt.reference_transaction_id = v.transaction_id "
+                                    + "WHERE v.transaction_id IN ("
+                                    + "  SELECT transaction_id FROM vouchers "
+                                    + "  GROUP BY transaction_id "
+                                    + "  HAVING SUM(CASE WHEN cancel_flag='Y' THEN 1 ELSE 0 END) > 0 "
+                                    + "  AND SUM(CASE WHEN cancel_flag='Y' THEN 1 ELSE 0 END) < COUNT(*)"
+                                    + ")",
+                            Long.class);
             boolean ok = partials == null || partials == 0;
-            if (!ok) violations.add("PARTIAL_IBT_REVERSAL: " + partials + " IBT transaction(s) partially cancelled");
+            if (!ok)
+                violations.add(
+                        "PARTIAL_IBT_REVERSAL: "
+                                + partials
+                                + " IBT transaction(s) partially cancelled");
             return ok;
         } catch (Exception e) {
             return true; // Table may not exist in all configs
@@ -266,13 +286,15 @@ public class ConcurrencyAuditService {
 
     private boolean checkAllIbtHaveFourVouchers(List<String> violations) {
         try {
-            var bad = jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM inter_branch_transfers ibt "
-                            + "WHERE ibt.status NOT IN ('FAILED') "
-                            + "AND (SELECT COUNT(*) FROM vouchers v WHERE v.transaction_id = ibt.reference_transaction_id) != 4",
-                    Long.class);
+            var bad =
+                    jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM inter_branch_transfers ibt "
+                                    + "WHERE ibt.status NOT IN ('FAILED') "
+                                    + "AND (SELECT COUNT(*) FROM vouchers v WHERE v.transaction_id = ibt.reference_transaction_id) != 4",
+                            Long.class);
             boolean ok = bad == null || bad == 0;
-            if (!ok) violations.add("IBT_VOUCHER_COUNT: " + bad + " IBT(s) without exactly 4 vouchers");
+            if (!ok)
+                violations.add("IBT_VOUCHER_COUNT: " + bad + " IBT(s) without exactly 4 vouchers");
             return ok;
         } catch (Exception e) {
             return true;
@@ -281,13 +303,18 @@ public class ConcurrencyAuditService {
 
     private boolean checkBatchesBalanced(List<String> violations) {
         try {
-            var unbalanced = jdbc.queryForObject(
-                    "SELECT COUNT(*) FROM transaction_batches "
-                            + "WHERE status IN ('CLOSED','SETTLED') "
-                            + "AND total_debit != total_credit",
-                    Long.class);
+            var unbalanced =
+                    jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM transaction_batches "
+                                    + "WHERE status IN ('CLOSED','SETTLED') "
+                                    + "AND total_debit != total_credit",
+                            Long.class);
             boolean ok = unbalanced == null || unbalanced == 0;
-            if (!ok) violations.add("UNBALANCED_BATCHES: " + unbalanced + " closed/settled batch(es) with DR!=CR");
+            if (!ok)
+                violations.add(
+                        "UNBALANCED_BATCHES: "
+                                + unbalanced
+                                + " closed/settled batch(es) with DR!=CR");
             return ok;
         } catch (Exception e) {
             return true;
