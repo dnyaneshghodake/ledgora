@@ -1,18 +1,17 @@
 # Ledgora — RBI Governance & Compliance Control Layer
 
-**Document Version:** 2.5
+**Document Version:** 2.6
 **System:** Ledgora CBS (Spring Boot 3.2.3)
-**Commit Baseline:** PR #41 — CBS Enhancement (IBT + Suspense GL + Hard Ceilings + Velocity Fraud)
-**Previous Versions:** 2.4, 2.3, 2.2, 2.1, 2.0, 1.0
-**Standard Applied:** RBI Master Direction on IT Governance (2023), Banking Regulation Act §10/§35A, IS Audit Guidelines, CBS Accounting Standard, RBI Risk Appetite Framework, RBI Master Direction on Fraud Risk Management (2023)
+**Commit Baseline:** PR #41 — CBS Enhancement (IBT + Suspense GL + Hard Ceilings + Velocity Fraud + EOD State Machine)
+**Previous Versions:** 2.5, 2.4, 2.3, 2.2, 2.1, 2.0, 1.0
+**Standard Applied:** RBI Master Direction on IT Governance (2023), Banking Regulation Act §10/§35A, IS Audit Guidelines, CBS Accounting Standard, RBI Risk Appetite Framework, RBI Master Direction on Fraud Risk Management (2023), RBI IT Framework — Business Continuity
 
-> **Version 2.5 Changes:** Velocity Fraud Engine: `VelocityLimit` entity (`velocity_limits` table), `FraudAlert` entity (`fraud_alerts` table), `VelocityFraudEngine` service (60-min window, count + amount checks, account freeze to `UNDER_REVIEW`, FraudAlert creation), `UNDER_REVIEW` account status, Micrometer `ledgora.velocity.blocked` metric, integrated into `deposit()`/`withdraw()`/`transfer()`, audit SQL pack (6 queries). Closes G4/FR-06. See §1.10 for change log.
+> **Version 2.6 Changes:** Crash-safe EOD state machine: `EodProcess` entity (`eod_processes` table), `EodStateMachineService` (5-phase execution with `REQUIRES_NEW` per phase), crash recovery via `findIncompleteProcesses()`, stuck detection (>30 min), double execution prevention (unique constraint), audit SQL pack (6 queries). See §1.11 for change log.
+> **Version 2.5 Changes:** Velocity Fraud Engine. Closes G4/FR-06. See §1.10.
 > **Version 2.4 Changes:** Hard Transaction Ceiling. Addresses FR-05. See §1.9.
-> **Version 2.3 Changes:** Suspense GL. Closes G1. See §1.8.
-> **Version 2.2 Changes:** CBS-grade IBT upgrade. See §1.7.
-> **Version 2.1 / 2.0:** UI governance fixes, core governance fixes.
+> **Version 2.3 / 2.2 / 2.1 / 2.0:** Suspense GL (G1), IBT upgrade, UI fixes, core fixes.
 > Items marked ✅ Resolved were previously identified as gaps and have been addressed in code.
-> See §1.6–§1.10 for full change logs.
+> See §1.6–§1.11 for full change logs.
 
 ---
 
@@ -131,6 +130,7 @@
 | `SuspenseResolutionService` | Suspense GL management — account resolution, case lifecycle, maker-checker resolution, EOD suspense check | `resolveSuspenseAccount()`, `createSuspenseCase()`, `resolveCase()`, `reverseCase()`, `validateSuspenseForEod()` |
 | `HardTransactionCeilingService` | Absolute hard transaction ceiling — non-bypassable limit enforcement before any persistence, governance audit logging, metric emission | `enforceHardCeiling(tenantId, channel, amount, userId)` — throws `GovernanceException(HARD_LIMIT_EXCEEDED)` |
 | `VelocityFraudEngine` | Proactive velocity fraud detection — 60-min window count + amount check, account freeze, FraudAlert creation, metric emission | `evaluateVelocity(tenant, account, amount, userId)` — throws `GovernanceException(VELOCITY_LIMIT_EXCEEDED)` |
+| `EodStateMachineService` | Crash-safe EOD execution — 5-phase state machine with independent commits, restart recovery, stuck detection, double execution prevention | `executeEod(tenantId)`, `findIncompleteProcesses()`, `findStuckProcesses()` |
 
 ### 1.6 PR #40 Change Log — Gaps Addressed
 
@@ -194,6 +194,17 @@ Summary of all governance gaps identified and addressed in PR #40 (Feature Enhan
 | **G4-STATUS** | `UNDER_REVIEW` added to `AccountStatus` enum. Accounts frozen by velocity engine are blocked from further transactions by existing `validateAccountActive()` check. | ✅ Resolved |
 | **G4-INT** | `TransactionService.deposit()`, `withdraw()`, `transfer()` all call `evaluateVelocity()` after account validation and before transaction persistence. | ✅ Resolved |
 | **G4-SQL** | Velocity fraud audit SQL pack: 6 queries (real-time velocity snapshot, open alerts, under-review accounts, config check, dashboard summary, breach trail). See `docs/velocity-fraud-audit-sql-pack.sql`. | ✅ Resolved |
+
+### 1.11 PR #41 Change Log — EOD State Machine (v2.6)
+
+| Item | Description | Status |
+|---|---|---|
+| **EOD-SM** | Crash-safe EOD state machine implemented. `EodProcess` entity with `eod_processes` table (tenant_id, business_date, phase, status, last_updated). Unique constraint prevents double execution. `@Version` for optimistic locking. | ✅ Implemented |
+| **EOD-SM-SVC** | `EodStateMachineService`: 5-phase execution (VALIDATED → DAY_CLOSING → BATCH_CLOSED → SETTLED → DATE_ADVANCED). Each phase uses `@Transactional(propagation = REQUIRES_NEW)` for independent commit. | ✅ Implemented |
+| **EOD-SM-RECOVERY** | `findIncompleteProcesses()` returns all RUNNING processes for restart recovery. Failed processes can be retried — they resume from the failed phase. | ✅ Implemented |
+| **EOD-SM-STUCK** | `findStuckProcesses()` detects processes idle > 30 minutes in same phase. EOD-SM-02 SQL provides manual stuck detection. | ✅ Implemented |
+| **EOD-SM-DELEGATE** | `EodValidationService.runEod()` refactored to delegate to `EodStateMachineService.executeEod()`. Existing controller and UI unchanged. | ✅ Implemented |
+| **EOD-SM-AUDIT** | Audit events: `EOD_STARTED`, `EOD_COMPLETED`, `EOD_FAILED` logged to `audit_logs`. SQL pack with 6 queries. See `docs/eod-state-machine-audit-sql-pack.sql`. | ✅ Implemented |
 
 ---
 

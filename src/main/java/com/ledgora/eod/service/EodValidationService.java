@@ -49,6 +49,7 @@ public class EodValidationService {
             interBranchClearingService;
     private final com.ledgora.clearing.service.IbtService ibtService;
     private final com.ledgora.suspense.service.SuspenseResolutionService suspenseResolutionService;
+    private final EodStateMachineService eodStateMachineService;
 
     public EodValidationService(
             VoucherRepository voucherRepository,
@@ -62,7 +63,8 @@ public class EodValidationService {
             TransactionRepository transactionRepository,
             com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService,
             com.ledgora.clearing.service.IbtService ibtService,
-            com.ledgora.suspense.service.SuspenseResolutionService suspenseResolutionService) {
+            com.ledgora.suspense.service.SuspenseResolutionService suspenseResolutionService,
+            EodStateMachineService eodStateMachineService) {
         this.voucherRepository = voucherRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.accountBalanceRepository = accountBalanceRepository;
@@ -75,6 +77,7 @@ public class EodValidationService {
         this.interBranchClearingService = interBranchClearingService;
         this.ibtService = ibtService;
         this.suspenseResolutionService = suspenseResolutionService;
+        this.eodStateMachineService = eodStateMachineService;
     }
 
     /**
@@ -213,50 +216,24 @@ public class EodValidationService {
     }
 
     /**
-     * Run EOD process: validate, then close and advance the business day. Blocks if validation
-     * fails.
+     * Run EOD process using the crash-safe state machine.
+     *
+     * <p>Delegates to {@link EodStateMachineService} which executes each phase in its own
+     * transaction. On crash/restart, incomplete EOD is detected and resumed from the last successful
+     * phase. Double execution is prevented via unique constraint on (tenant_id, business_date).
+     *
+     * <p>Legacy single-transaction EOD is replaced by phase-by-phase execution: VALIDATED →
+     * DAY_CLOSING → BATCH_CLOSED → SETTLED → DATE_ADVANCED
+     *
+     * @see EodStateMachineService#executeEod(Long)
      */
-    @Transactional
     public void runEod(Long tenantId) {
-        Tenant tenant =
-                tenantRepository
-                        .findById(tenantId)
-                        .orElseThrow(() -> new RuntimeException("Tenant not found: " + tenantId));
+        eodStateMachineService.executeEod(tenantId);
+    }
 
-        LocalDate businessDate = tenant.getCurrentBusinessDate();
-
-        // Pre-flight validation (advisory — may pass but concurrent txn could sneak in)
-        List<String> errors = validateEod(tenantId, businessDate);
-        if (!errors.isEmpty()) {
-            throw new RuntimeException("EOD validation failed: " + String.join("; ", errors));
-        }
-
-        // Step 1: Start day closing (blocks new transactions via validateBusinessDayOpen)
-        tenantService.startDayClosing(tenantId);
-
-        // Step 1b: Re-validate after blocking new transactions to close TOCTOU gap.
-        // Any concurrent transaction that sneaked in between pre-flight and day-closing
-        // will now be detected.
-        List<String> postLockErrors = validateEod(tenantId, businessDate);
-        if (!postLockErrors.isEmpty()) {
-            throw new RuntimeException(
-                    "EOD validation failed after day-closing lock: "
-                            + String.join("; ", postLockErrors));
-        }
-
-        // Step 2: Close all open batches for the business date
-        batchService.closeAllBatches(tenantId, businessDate);
-
-        // Step 3: Settle all closed batches (validates debit == credit per batch)
-        batchService.settleAllBatches(tenantId, businessDate);
-
-        // Step 4: Close day and advance to next business date (sets CLOSED, requires Day Begin)
-        tenantService.closeDayAndAdvance(tenantId);
-
-        log.info(
-                "EOD completed for tenant {}: business date {} closed. Next date requires Day Begin.",
-                tenantId,
-                businessDate);
+    /** Get the state machine service (for controller access to recovery methods). */
+    public EodStateMachineService getStateMachine() {
+        return eodStateMachineService;
     }
 
     /** Check if EOD can be run (all validations pass). */

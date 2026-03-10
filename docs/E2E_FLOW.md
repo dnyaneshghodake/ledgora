@@ -401,15 +401,36 @@ Ledgora models day lifecycle with per-tenant `dayStatus` (`OPEN`, `DAY_CLOSING`,
 - **suspense cases** — no open `SuspenseCase` records with amount exceeding tolerance threshold (default: 0), via `SuspenseResolutionService.validateSuspenseForEod()`
 - tenant GL balanced via `CbsGlBalanceService`
 
-### 7.2 EOD run
+### 7.2 EOD run (crash-safe state machine)
 
-`EodValidationService.runEod(tenantId)` performs (`EodValidationService.java:141-168`):
+`EodValidationService.runEod(tenantId)` delegates to `EodStateMachineService.executeEod()` which executes each phase in its own `@Transactional(propagation = REQUIRES_NEW)` boundary. Crash between phases is safe — on restart, the process resumes from the last committed phase.
 
-1. Validate pre-checks
-2. `tenantService.startDayClosing(tenantId)` (blocks posting)
-3. Close all batches for business date (`batchService.closeAllBatches(...)`)
-4. Settle all closed batches (`batchService.settleAllBatches(...)`)
-5. Close day and advance date (`tenantService.closeDayAndAdvance(tenantId)`)
+**Phase progression:**
+
+```
+VALIDATED → DAY_CLOSING → BATCH_CLOSED → SETTLED → DATE_ADVANCED
+```
+
+| Phase | What it does | Commits independently |
+|---|---|---|
+| `VALIDATED` | Run all EOD pre-checks (`validateEod()`) | ✅ |
+| `DAY_CLOSING` | `startDayClosing()` + re-validate (TOCTOU) | ✅ |
+| `BATCH_CLOSED` | `closeAllBatches()` | ✅ |
+| `SETTLED` | `settleAllBatches()` | ✅ |
+| `DATE_ADVANCED` | `closeDayAndAdvance()` + mark COMPLETED | ✅ |
+
+**State tracking:** `eod_processes` table with unique constraint `(tenant_id, business_date)`:
+- `status`: RUNNING → COMPLETED or FAILED
+- `phase`: current/last phase
+- `last_updated`: used for stuck detection (> 30 minutes = stuck alert)
+
+**Safety guarantees:**
+- **Double execution prevented**: unique constraint blocks second EOD for same date
+- **Crash recovery**: on restart, `findIncompleteProcesses()` returns all RUNNING processes for resumption
+- **Stuck detection**: `findStuckProcesses()` returns processes idle > 30 minutes
+- **Failed retry**: FAILED processes can be retried — they resume from the failed phase
+
+**Audit events:** `EOD_STARTED`, `EOD_COMPLETED`, `EOD_FAILED` logged to `audit_logs` with `entity_type = EOD_PROCESS`.
 
 ### 7.3 EOD UI endpoints
 
@@ -554,4 +575,4 @@ A quick manual verification (dev/H2):
 12. After EOD, use `/eod/day-begin` to open the day
 13. Test voucher detail view: go to `/vouchers/{id}` for any voucher
 
-For additional data-level checks, use H2 console and the SQL in `README.md`, `docs/ibt-audit-sql-pack.sql`, `docs/suspense-audit-sql-pack.sql`, `docs/hard-ceiling-audit-sql-pack.sql`, and `docs/velocity-fraud-audit-sql-pack.sql`.
+For additional data-level checks, use H2 console and the SQL in `README.md`, `docs/ibt-audit-sql-pack.sql`, `docs/suspense-audit-sql-pack.sql`, `docs/hard-ceiling-audit-sql-pack.sql`, `docs/velocity-fraud-audit-sql-pack.sql`, and `docs/eod-state-machine-audit-sql-pack.sql`.
