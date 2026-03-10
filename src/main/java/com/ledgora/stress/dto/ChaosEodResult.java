@@ -6,9 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Structured result of a chaos EOD state machine test.
- */
+/** Structured result of a chaos EOD state machine test. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -37,18 +35,38 @@ public class ChaosEodResult {
                 + "╔══════════════════════════════════════════════════╗\n"
                 + "║       CHAOS EOD STATE MACHINE SUMMARY            ║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
-                + "║ Crash after phase: " + pad(crashAfterPhase) + "║\n"
-                + "║ Crash simulated:   " + pad(crashSimulated) + "║\n"
-                + "║ Resume attempted:  " + pad(resumeAttempted) + "║\n"
-                + "║ Resume succeeded:  " + pad(resumeSucceeded) + "║\n"
+                + "║ Crash after phase: "
+                + pad(crashAfterPhase)
+                + "║\n"
+                + "║ Crash simulated:   "
+                + pad(crashSimulated)
+                + "║\n"
+                + "║ Resume attempted:  "
+                + pad(resumeAttempted)
+                + "║\n"
+                + "║ Resume succeeded:  "
+                + pad(resumeSucceeded)
+                + "║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
                 + "║ Post-Recovery Validation                        ║\n"
-                + "║ Ledger balanced:     " + pad(ledgerBalanced ? "VERIFIED ✅" : "FAILED ❌") + "║\n"
-                + "║ No dup vouchers:     " + pad(noDuplicateVouchers ? "VERIFIED ✅" : "FAILED ❌") + "║\n"
-                + "║ No stuck RUNNING:    " + pad(noStuckRunning ? "VERIFIED ✅" : "FAILED ❌") + "║\n"
-                + "║ Clearing GL zero:    " + pad(clearingGlZero ? "VERIFIED ✅" : "FAILED ❌") + "║\n"
-                + "║ Suspense GL zero:    " + pad(suspenseGlZero ? "VERIFIED ✅" : "FAILED ❌") + "║\n"
-                + "║ EOD completed:       " + pad(eodCompleted ? "YES ✅" : "NO ❌") + "║\n"
+                + "║ Ledger balanced:     "
+                + pad(ledgerBalanced ? "VERIFIED ✅" : "FAILED ❌")
+                + "║\n"
+                + "║ No dup vouchers:     "
+                + pad(noDuplicateVouchers ? "VERIFIED ✅" : "FAILED ❌")
+                + "║\n"
+                + "║ No stuck RUNNING:    "
+                + pad(noStuckRunning ? "VERIFIED ✅" : "FAILED ❌")
+                + "║\n"
+                + "║ Clearing GL zero:    "
+                + pad(clearingGlZero ? "VERIFIED ✅" : "FAILED ❌")
+                + "║\n"
+                + "║ Suspense GL zero:    "
+                + pad(suspenseGlZero ? "VERIFIED ✅" : "FAILED ❌")
+                + "║\n"
+                + "║ EOD completed:       "
+                + pad(eodCompleted ? "YES ✅" : "NO ❌")
+                + "║\n"
                 + "╚══════════════════════════════════════════════════╝";
     }
 

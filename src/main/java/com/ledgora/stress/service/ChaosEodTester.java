@@ -41,8 +41,8 @@ import org.springframework.stereotype.Service;
  *   <li>Verifying post-recovery integrity: ledger balanced, no duplicates, no stuck processes
  * </ol>
  *
- * <p>The EOD state machine's own resume logic handles the actual recovery. This tester only
- * creates the "crashed" precondition and then validates the outcome.
+ * <p>The EOD state machine's own resume logic handles the actual recovery. This tester only creates
+ * the "crashed" precondition and then validates the outcome.
  */
 @Service
 @Profile("stress")
@@ -87,8 +87,10 @@ public class ChaosEodTester {
         setupContext(tenantId);
         List<String> events = new ArrayList<>();
 
-        Tenant tenant = tenantRepository.findById(tenantId)
-                .orElseThrow(() -> new RuntimeException("Tenant not found: " + tenantId));
+        Tenant tenant =
+                tenantRepository
+                        .findById(tenantId)
+                        .orElseThrow(() -> new RuntimeException("Tenant not found: " + tenantId));
         LocalDate bizDate = tenant.getCurrentBusinessDate();
 
         // Capture pre-test state
@@ -107,9 +109,8 @@ public class ChaosEodTester {
 
         // Phase 2: Simulate crash by manufacturing a FAILED EodProcess
         boolean crashSimulated = false;
-        EodPhase targetPhase = crashAfterPhase != null
-                ? EodPhase.valueOf(crashAfterPhase)
-                : EodPhase.DAY_CLOSING;
+        EodPhase targetPhase =
+                crashAfterPhase != null ? EodPhase.valueOf(crashAfterPhase) : EodPhase.DAY_CLOSING;
 
         // Refresh tenant (date may have advanced)
         tenant = tenantRepository.findById(tenantId).orElseThrow();
@@ -133,19 +134,22 @@ public class ChaosEodTester {
 
         if (existingProcess.isEmpty()) {
             // Create a FAILED EodProcess at the target phase to simulate crash
-            EodProcess crashedProcess = EodProcess.builder()
-                    .tenant(tenant)
-                    .businessDate(bizDate)
-                    .phase(targetPhase)
-                    .status("FAILED")
-                    .failureReason("CHAOS_TEST: Simulated crash after " + targetPhase)
-                    .build();
+            EodProcess crashedProcess =
+                    EodProcess.builder()
+                            .tenant(tenant)
+                            .businessDate(bizDate)
+                            .phase(targetPhase)
+                            .status("FAILED")
+                            .failureReason("CHAOS_TEST: Simulated crash after " + targetPhase)
+                            .build();
             eodProcessRepository.save(crashedProcess);
             crashSimulated = true;
             events.add("Manufactured FAILED EodProcess at phase " + targetPhase);
         } else if ("FAILED".equals(existingProcess.get().getStatus())) {
             crashSimulated = true;
-            events.add("Existing FAILED EodProcess found at phase " + existingProcess.get().getPhase());
+            events.add(
+                    "Existing FAILED EodProcess found at phase "
+                            + existingProcess.get().getPhase());
         } else {
             events.add("EodProcess exists with status: " + existingProcess.get().getStatus());
         }
@@ -190,35 +194,38 @@ public class ChaosEodTester {
         events.add("Running processes: " + runningProcesses.size());
 
         // Clearing GL zero
-        BigDecimal clearingNet = accountRepository.sumBalanceByTenantIdAndAccountType(
-                tenantId, AccountType.CLEARING_ACCOUNT);
+        BigDecimal clearingNet =
+                accountRepository.sumBalanceByTenantIdAndAccountType(
+                        tenantId, AccountType.CLEARING_ACCOUNT);
         boolean clearingGlZero = clearingNet.compareTo(BigDecimal.ZERO) == 0;
 
         // Suspense GL zero
-        BigDecimal suspenseNet = accountRepository.sumBalanceByTenantIdAndAccountType(
-                tenantId, AccountType.SUSPENSE_ACCOUNT);
+        BigDecimal suspenseNet =
+                accountRepository.sumBalanceByTenantIdAndAccountType(
+                        tenantId, AccountType.SUSPENSE_ACCOUNT);
         boolean suspenseGlZero = suspenseNet.compareTo(BigDecimal.ZERO) == 0;
 
         // EOD completed check
         Optional<EodProcess> finalProcess =
                 eodProcessRepository.findByTenantIdAndBusinessDate(tenantId, bizDate);
-        boolean eodCompleted = finalProcess.isPresent()
-                && "COMPLETED".equals(finalProcess.get().getStatus());
+        boolean eodCompleted =
+                finalProcess.isPresent() && "COMPLETED".equals(finalProcess.get().getStatus());
 
-        ChaosEodResult result = ChaosEodResult.builder()
-                .crashAfterPhase(crashAfterPhase != null ? crashAfterPhase : "DAY_CLOSING")
-                .crashSimulated(crashSimulated)
-                .resumeAttempted(resumeAttempted)
-                .resumeSucceeded(resumeSucceeded)
-                .resumeFailureReason(resumeFailure)
-                .ledgerBalanced(ledgerBalanced)
-                .noDuplicateVouchers(noDuplicateVouchers)
-                .noStuckRunning(noStuckRunning)
-                .clearingGlZero(clearingGlZero)
-                .suspenseGlZero(suspenseGlZero)
-                .eodCompleted(eodCompleted)
-                .events(events)
-                .build();
+        ChaosEodResult result =
+                ChaosEodResult.builder()
+                        .crashAfterPhase(crashAfterPhase != null ? crashAfterPhase : "DAY_CLOSING")
+                        .crashSimulated(crashSimulated)
+                        .resumeAttempted(resumeAttempted)
+                        .resumeSucceeded(resumeSucceeded)
+                        .resumeFailureReason(resumeFailure)
+                        .ledgerBalanced(ledgerBalanced)
+                        .noDuplicateVouchers(noDuplicateVouchers)
+                        .noStuckRunning(noStuckRunning)
+                        .clearingGlZero(clearingGlZero)
+                        .suspenseGlZero(suspenseGlZero)
+                        .eodCompleted(eodCompleted)
+                        .events(events)
+                        .build();
 
         log.info(result.toSummary());
         clearContext();

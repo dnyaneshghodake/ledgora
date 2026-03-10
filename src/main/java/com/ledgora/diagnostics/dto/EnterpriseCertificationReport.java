@@ -6,9 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Enterprise CBS Certification Report — structured output of the full certification pipeline.
- */
+/** Enterprise CBS Certification Report — structured output of the full certification pipeline. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -82,10 +80,16 @@ public class EnterpriseCertificationReport {
         sb.append("║   Singleton EOD:      ").append(flag(singletonEodEnforced, 35)).append("║\n");
         sb.append("╠══════════════════════════════════════════════════════════╣\n");
         sb.append("║ Performance                                              ║\n");
-        sb.append("║   Total Time:         ").append(pad(totalExecutionTimeMs + "ms", 35)).append("║\n");
-        sb.append("║   EOD Time:           ").append(pad(eodExecutionTimeMs + "ms", 35)).append("║\n");
+        sb.append("║   Total Time:         ")
+                .append(pad(totalExecutionTimeMs + "ms", 35))
+                .append("║\n");
+        sb.append("║   EOD Time:           ")
+                .append(pad(eodExecutionTimeMs + "ms", 35))
+                .append("║\n");
         sb.append("║   Deadlocks:          ").append(pad(deadlocksRecovered, 35)).append("║\n");
-        sb.append("║   Within Threshold:   ").append(flag(performanceWithinThreshold, 35)).append("║\n");
+        sb.append("║   Within Threshold:   ")
+                .append(flag(performanceWithinThreshold, 35))
+                .append("║\n");
         sb.append("╠══════════════════════════════════════════════════════════╣\n");
         sb.append("║                                                          ║\n");
         sb.append("║   FINAL GRADE:  ").append(pad(finalGrade, 41)).append("║\n");

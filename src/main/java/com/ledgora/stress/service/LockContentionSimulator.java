@@ -11,7 +11,6 @@ import com.ledgora.transaction.service.TransactionService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -78,8 +77,10 @@ public class LockContentionSimulator {
 
         List<Account> accounts =
                 accountRepository.findByTenantId(tenantId).stream()
-                        .filter(a -> a.getBalance() != null
-                                && a.getBalance().compareTo(BigDecimal.ZERO) > 0)
+                        .filter(
+                                a ->
+                                        a.getBalance() != null
+                                                && a.getBalance().compareTo(BigDecimal.ZERO) > 0)
                         .toList();
 
         if (accounts.size() < 2) {
@@ -112,73 +113,94 @@ public class LockContentionSimulator {
         // Submit posting threads
         for (int t = 0; t < threads; t++) {
             final int threadNum = t;
-            executor.submit(() -> {
-                try {
-                    // Each thread needs its own security + tenant context
-                    SecurityContextHolder.getContext()
-                            .setAuthentication(
-                                    new UsernamePasswordAuthenticationToken(
-                                            "stress-thread-" + threadNum,
-                                            "N/A",
-                                            List.of(new SimpleGrantedAuthority("ROLE_TELLER"))));
-                    TenantContextHolder.setTenantId(tenantId);
-
-                    startGate.await(); // wait for all threads to be ready
-                    Random rng = new Random(threadNum * 31L);
-
-                    for (int i = 0; i < transactionsPerThread; i++) {
-                        long txStart = System.currentTimeMillis();
+            executor.submit(
+                    () -> {
                         try {
-                            Account src = accounts.get(rng.nextInt(accounts.size()));
-                            Account dst = accounts.get(rng.nextInt(accounts.size()));
-                            while (dst.getAccountNumber().equals(src.getAccountNumber())) {
-                                dst = accounts.get(rng.nextInt(accounts.size()));
+                            // Each thread needs its own security + tenant context
+                            SecurityContextHolder.getContext()
+                                    .setAuthentication(
+                                            new UsernamePasswordAuthenticationToken(
+                                                    "stress-thread-" + threadNum,
+                                                    "N/A",
+                                                    List.of(
+                                                            new SimpleGrantedAuthority(
+                                                                    "ROLE_TELLER"))));
+                            TenantContextHolder.setTenantId(tenantId);
+
+                            startGate.await(); // wait for all threads to be ready
+                            Random rng = new Random(threadNum * 31L);
+
+                            for (int i = 0; i < transactionsPerThread; i++) {
+                                long txStart = System.currentTimeMillis();
+                                try {
+                                    Account src = accounts.get(rng.nextInt(accounts.size()));
+                                    Account dst = accounts.get(rng.nextInt(accounts.size()));
+                                    while (dst.getAccountNumber().equals(src.getAccountNumber())) {
+                                        dst = accounts.get(rng.nextInt(accounts.size()));
+                                    }
+                                    BigDecimal amount =
+                                            new BigDecimal(rng.nextInt(90) + 10)
+                                                    .setScale(2, RoundingMode.HALF_UP);
+
+                                    transactionService.transfer(
+                                            TransactionDTO.builder()
+                                                    .transactionType("TRANSFER")
+                                                    .sourceAccountNumber(src.getAccountNumber())
+                                                    .destinationAccountNumber(
+                                                            dst.getAccountNumber())
+                                                    .amount(amount)
+                                                    .currency("INR")
+                                                    .channel(TransactionChannel.BATCH.name())
+                                                    .clientReferenceId(
+                                                            "LOCK-T"
+                                                                    + threadNum
+                                                                    + "-"
+                                                                    + i
+                                                                    + "-"
+                                                                    + System.nanoTime())
+                                                    .description("Lock contention test")
+                                                    .narration("Thread " + threadNum + " txn " + i)
+                                                    .build());
+                                    succeeded.incrementAndGet();
+                                } catch (Exception e) {
+                                    failed.incrementAndGet();
+                                    classifyException(
+                                            e,
+                                            lockWaits,
+                                            deadlocks,
+                                            lockTimeouts,
+                                            events,
+                                            threadNum,
+                                            i);
+                                }
+
+                                long txTime = System.currentTimeMillis() - txStart;
+                                totalTime.addAndGet(txTime);
+                                maxTime.updateAndGet(cur -> Math.max(cur, txTime));
+                                minTime.updateAndGet(cur -> Math.min(cur, txTime));
+                                if (txTime > SLOW_THRESHOLD_MS) {
+                                    slowTxns.incrementAndGet();
+                                    events.add(
+                                            "SLOW_TXN: thread="
+                                                    + threadNum
+                                                    + " txn="
+                                                    + i
+                                                    + " time="
+                                                    + txTime
+                                                    + "ms");
+                                }
+
+                                // Random sleep to simulate realistic spacing
+                                Thread.sleep(rng.nextInt(46) + 5);
                             }
-                            BigDecimal amount = new BigDecimal(rng.nextInt(90) + 10)
-                                    .setScale(2, RoundingMode.HALF_UP);
-
-                            transactionService.transfer(
-                                    TransactionDTO.builder()
-                                            .transactionType("TRANSFER")
-                                            .sourceAccountNumber(src.getAccountNumber())
-                                            .destinationAccountNumber(dst.getAccountNumber())
-                                            .amount(amount)
-                                            .currency("INR")
-                                            .channel(TransactionChannel.BATCH.name())
-                                            .clientReferenceId(
-                                                    "LOCK-T" + threadNum + "-" + i + "-"
-                                                            + System.nanoTime())
-                                            .description("Lock contention test")
-                                            .narration("Thread " + threadNum + " txn " + i)
-                                            .build());
-                            succeeded.incrementAndGet();
-                        } catch (Exception e) {
-                            failed.incrementAndGet();
-                            classifyException(e, lockWaits, deadlocks, lockTimeouts, events,
-                                    threadNum, i);
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                        } finally {
+                            TenantContextHolder.clear();
+                            SecurityContextHolder.clearContext();
+                            doneLatch.countDown();
                         }
-
-                        long txTime = System.currentTimeMillis() - txStart;
-                        totalTime.addAndGet(txTime);
-                        maxTime.updateAndGet(cur -> Math.max(cur, txTime));
-                        minTime.updateAndGet(cur -> Math.min(cur, txTime));
-                        if (txTime > SLOW_THRESHOLD_MS) {
-                            slowTxns.incrementAndGet();
-                            events.add("SLOW_TXN: thread=" + threadNum + " txn=" + i
-                                    + " time=" + txTime + "ms");
-                        }
-
-                        // Random sleep to simulate realistic spacing
-                        Thread.sleep(rng.nextInt(46) + 5);
-                    }
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                } finally {
-                    TenantContextHolder.clear();
-                    SecurityContextHolder.clearContext();
-                    doneLatch.countDown();
-                }
-            });
+                    });
         }
 
         // EOD thread (optional — fires midway through posting)
@@ -188,34 +210,39 @@ public class LockContentionSimulator {
 
         Future<?> eodFuture = null;
         if (triggerEod) {
-            eodFuture = executor.submit(() -> {
-                try {
-                    SecurityContextHolder.getContext()
-                            .setAuthentication(
-                                    new UsernamePasswordAuthenticationToken(
-                                            "stress-eod",
-                                            "N/A",
-                                            List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
-                    TenantContextHolder.setTenantId(tenantId);
+            eodFuture =
+                    executor.submit(
+                            () -> {
+                                try {
+                                    SecurityContextHolder.getContext()
+                                            .setAuthentication(
+                                                    new UsernamePasswordAuthenticationToken(
+                                                            "stress-eod",
+                                                            "N/A",
+                                                            List.of(
+                                                                    new SimpleGrantedAuthority(
+                                                                            "ROLE_ADMIN"))));
+                                    TenantContextHolder.setTenantId(tenantId);
 
-                    // Wait for posting threads to start, then delay slightly
-                    startGate.await();
-                    Thread.sleep(500);
+                                    // Wait for posting threads to start, then delay slightly
+                                    startGate.await();
+                                    Thread.sleep(500);
 
-                    eodResult[0] = true;
-                    long eodStart = System.currentTimeMillis();
-                    eodValidationService.runEod(tenantId);
-                    eodResult[1] = true;
-                    eodTime[0] = System.currentTimeMillis() - eodStart;
-                } catch (Exception e) {
-                    eodTime[0] = System.currentTimeMillis();
-                    eodFailure[0] = e.getClass().getSimpleName() + ": " + e.getMessage();
-                    events.add("EOD_FAILED: " + eodFailure[0]);
-                } finally {
-                    TenantContextHolder.clear();
-                    SecurityContextHolder.clearContext();
-                }
-            });
+                                    eodResult[0] = true;
+                                    long eodStart = System.currentTimeMillis();
+                                    eodValidationService.runEod(tenantId);
+                                    eodResult[1] = true;
+                                    eodTime[0] = System.currentTimeMillis() - eodStart;
+                                } catch (Exception e) {
+                                    eodTime[0] = System.currentTimeMillis();
+                                    eodFailure[0] =
+                                            e.getClass().getSimpleName() + ": " + e.getMessage();
+                                    events.add("EOD_FAILED: " + eodFailure[0]);
+                                } finally {
+                                    TenantContextHolder.clear();
+                                    SecurityContextHolder.clearContext();
+                                }
+                            });
         }
 
         // Release all threads simultaneously
@@ -239,26 +266,27 @@ public class LockContentionSimulator {
         long avgTime = totalSucceeded > 0 ? totalTime.get() / totalSucceeded : 0;
         long actualMin = minTime.get() == Long.MAX_VALUE ? 0 : minTime.get();
 
-        LockContentionResult result = LockContentionResult.builder()
-                .threadCount(threads)
-                .transactionsPerThread(transactionsPerThread)
-                .totalTransactionsAttempted(totalAttempted)
-                .totalTransactionsSucceeded(totalSucceeded)
-                .totalTransactionsFailed(failed.get())
-                .totalDurationMs(simulationEnd - simulationStart)
-                .avgTransactionTimeMs(avgTime)
-                .maxTransactionTimeMs(maxTime.get())
-                .minTransactionTimeMs(actualMin)
-                .lockWaitOccurrences(lockWaits.get())
-                .deadlockCount(deadlocks.get())
-                .lockTimeoutCount(lockTimeouts.get())
-                .slowTransactionCount(slowTxns.get())
-                .eodAttempted(eodResult[0])
-                .eodSucceeded(eodResult[1])
-                .eodExecutionTimeMs(eodTime[0])
-                .eodFailureReason(eodFailure[0])
-                .contentionEvents(new ArrayList<>(events))
-                .build();
+        LockContentionResult result =
+                LockContentionResult.builder()
+                        .threadCount(threads)
+                        .transactionsPerThread(transactionsPerThread)
+                        .totalTransactionsAttempted(totalAttempted)
+                        .totalTransactionsSucceeded(totalSucceeded)
+                        .totalTransactionsFailed(failed.get())
+                        .totalDurationMs(simulationEnd - simulationStart)
+                        .avgTransactionTimeMs(avgTime)
+                        .maxTransactionTimeMs(maxTime.get())
+                        .minTransactionTimeMs(actualMin)
+                        .lockWaitOccurrences(lockWaits.get())
+                        .deadlockCount(deadlocks.get())
+                        .lockTimeoutCount(lockTimeouts.get())
+                        .slowTransactionCount(slowTxns.get())
+                        .eodAttempted(eodResult[0])
+                        .eodSucceeded(eodResult[1])
+                        .eodExecutionTimeMs(eodTime[0])
+                        .eodFailureReason(eodFailure[0])
+                        .contentionEvents(new ArrayList<>(events))
+                        .build();
 
         log.info(result.toSummary());
         return result;
@@ -274,9 +302,10 @@ public class LockContentionSimulator {
             int txnNum) {
 
         String msg = e.getMessage() != null ? e.getMessage().toUpperCase() : "";
-        String cause = e.getCause() != null && e.getCause().getMessage() != null
-                ? e.getCause().getMessage().toUpperCase()
-                : "";
+        String cause =
+                e.getCause() != null && e.getCause().getMessage() != null
+                        ? e.getCause().getMessage().toUpperCase()
+                        : "";
         String combined = msg + " " + cause;
 
         if (combined.contains("DEADLOCK")) {
@@ -289,13 +318,20 @@ public class LockContentionSimulator {
             lockWaits.incrementAndGet();
             events.add("LOCK_TIMEOUT: thread=" + threadNum + " txn=" + txnNum);
             log.warn("LOCK_CONTENTION_DETECTED: Lock timeout thread={} txn={}", threadNum, txnNum);
-        } else if (combined.contains("LOCK") || combined.contains("PESSIMISTIC")
+        } else if (combined.contains("LOCK")
+                || combined.contains("PESSIMISTIC")
                 || combined.contains("COULD NOT ACQUIRE")) {
             lockWaits.incrementAndGet();
-            events.add("LOCK_WAIT: thread=" + threadNum + " txn=" + txnNum
-                    + " — " + e.getClass().getSimpleName());
+            events.add(
+                    "LOCK_WAIT: thread="
+                            + threadNum
+                            + " txn="
+                            + txnNum
+                            + " — "
+                            + e.getClass().getSimpleName());
             log.warn("LOCK_CONTENTION_DETECTED: Lock wait thread={} txn={}", threadNum, txnNum);
         }
-        // Non-lock failures (insufficient balance, frozen, etc.) are expected and not logged as contention
+        // Non-lock failures (insufficient balance, frozen, etc.) are expected and not logged as
+        // contention
     }
 }

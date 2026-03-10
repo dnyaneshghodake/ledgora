@@ -25,18 +25,20 @@ import org.springframework.stereotype.Service;
  * {@link EodValidationService#runEod(Long)} with timing + statistics capture.
  *
  * <p>Performance metrics captured:
+ *
  * <ul>
- *   <li>Wall-clock execution time (ms)</li>
- *   <li>Hibernate prepareStatementCount</li>
- *   <li>Hibernate entityLoadCount</li>
- *   <li>Hibernate queryExecutionCount</li>
+ *   <li>Wall-clock execution time (ms)
+ *   <li>Hibernate prepareStatementCount
+ *   <li>Hibernate entityLoadCount
+ *   <li>Hibernate queryExecutionCount
  * </ul>
  *
  * <p>Post-EOD validation:
+ *
  * <ul>
- *   <li>Clearing GL net = 0</li>
- *   <li>Suspense GL net = 0</li>
- *   <li>EOD completed without exception</li>
+ *   <li>Clearing GL net = 0
+ *   <li>Suspense GL net = 0
+ *   <li>EOD completed without exception
  * </ul>
  */
 @Service

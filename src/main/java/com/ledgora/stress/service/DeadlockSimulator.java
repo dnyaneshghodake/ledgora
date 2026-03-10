@@ -38,14 +38,16 @@ import org.springframework.stereotype.Service;
  *   Thread B: transfer(Account Y → Account X)  // locks Y then X
  * </pre>
  *
- * <p>When both threads acquire their first lock simultaneously (via CountDownLatch synchronization),
- * a deadlock occurs. The database engine (H2/SQL Server) detects it and aborts one thread.
+ * <p>When both threads acquire their first lock simultaneously (via CountDownLatch
+ * synchronization), a deadlock occurs. The database engine (H2/SQL Server) detects it and aborts
+ * one thread.
  *
  * <p>After the deadlock, the harness verifies:
+ *
  * <ul>
- *   <li>No partial vouchers were committed (atomicity preserved)</li>
- *   <li>Ledger entries remain balanced (double-entry intact)</li>
- *   <li>Batch totals are consistent</li>
+ *   <li>No partial vouchers were committed (atomicity preserved)
+ *   <li>Ledger entries remain balanced (double-entry intact)
+ *   <li>Batch totals are consistent
  * </ul>
  *
  * <p>Does NOT modify any production service logic. Uses existing TransactionService.transfer().
@@ -88,12 +90,14 @@ public class DeadlockSimulator {
             Long tenantId, String accountNumberA, String accountNumberB, int rounds) {
 
         // Validate accounts exist
-        Account acctA = accountRepository
-                .findByAccountNumberAndTenantId(accountNumberA, tenantId)
-                .orElse(null);
-        Account acctB = accountRepository
-                .findByAccountNumberAndTenantId(accountNumberB, tenantId)
-                .orElse(null);
+        Account acctA =
+                accountRepository
+                        .findByAccountNumberAndTenantId(accountNumberA, tenantId)
+                        .orElse(null);
+        Account acctB =
+                accountRepository
+                        .findByAccountNumberAndTenantId(accountNumberB, tenantId)
+                        .orElse(null);
 
         if (acctA == null || acctB == null) {
             return DeadlockSimulationResult.builder()
@@ -104,8 +108,10 @@ public class DeadlockSimulator {
 
         // Capture pre-simulation state for verification
         LocalDate bizDate = tenantService.getCurrentBusinessDate(tenantId);
-        BigDecimal preDebits = ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(bizDate, tenantId);
-        BigDecimal preCredits = ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(bizDate, tenantId);
+        BigDecimal preDebits =
+                ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(bizDate, tenantId);
+        BigDecimal preCredits =
+                ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(bizDate, tenantId);
         long preVoucherCount = voucherRepository.count();
 
         AtomicInteger deadlockCount = new AtomicInteger(0);
@@ -123,62 +129,66 @@ public class DeadlockSimulator {
             final int r = round;
 
             // Thread A: transfer X → Y
-            executor.submit(() -> {
-                setupContext("deadlock-A", tenantId);
-                readyGate.countDown();
-                try {
-                    startGate.await();
-                    transactionService.transfer(
-                            TransactionDTO.builder()
-                                    .transactionType("TRANSFER")
-                                    .sourceAccountNumber(accountNumberA)
-                                    .destinationAccountNumber(accountNumberB)
-                                    .amount(amount)
-                                    .currency("INR")
-                                    .channel(TransactionChannel.BATCH.name())
-                                    .clientReferenceId("DL-A-" + r + "-" + System.nanoTime())
-                                    .description("Deadlock sim A→B round " + r)
-                                    .narration("Deadlock test")
-                                    .build());
-                    succeeded.incrementAndGet();
-                    threadAOutcome.set("SUCCESS");
-                } catch (Exception e) {
-                    failed.incrementAndGet();
-                    String outcome = classifyDeadlock(e, deadlockCount);
-                    threadAOutcome.set(outcome);
-                } finally {
-                    clearContext();
-                }
-            });
+            executor.submit(
+                    () -> {
+                        setupContext("deadlock-A", tenantId);
+                        readyGate.countDown();
+                        try {
+                            startGate.await();
+                            transactionService.transfer(
+                                    TransactionDTO.builder()
+                                            .transactionType("TRANSFER")
+                                            .sourceAccountNumber(accountNumberA)
+                                            .destinationAccountNumber(accountNumberB)
+                                            .amount(amount)
+                                            .currency("INR")
+                                            .channel(TransactionChannel.BATCH.name())
+                                            .clientReferenceId(
+                                                    "DL-A-" + r + "-" + System.nanoTime())
+                                            .description("Deadlock sim A→B round " + r)
+                                            .narration("Deadlock test")
+                                            .build());
+                            succeeded.incrementAndGet();
+                            threadAOutcome.set("SUCCESS");
+                        } catch (Exception e) {
+                            failed.incrementAndGet();
+                            String outcome = classifyDeadlock(e, deadlockCount);
+                            threadAOutcome.set(outcome);
+                        } finally {
+                            clearContext();
+                        }
+                    });
 
             // Thread B: transfer Y → X (reverse lock order)
-            executor.submit(() -> {
-                setupContext("deadlock-B", tenantId);
-                readyGate.countDown();
-                try {
-                    startGate.await();
-                    transactionService.transfer(
-                            TransactionDTO.builder()
-                                    .transactionType("TRANSFER")
-                                    .sourceAccountNumber(accountNumberB)
-                                    .destinationAccountNumber(accountNumberA)
-                                    .amount(amount)
-                                    .currency("INR")
-                                    .channel(TransactionChannel.BATCH.name())
-                                    .clientReferenceId("DL-B-" + r + "-" + System.nanoTime())
-                                    .description("Deadlock sim B→A round " + r)
-                                    .narration("Deadlock test")
-                                    .build());
-                    succeeded.incrementAndGet();
-                    threadBOutcome.set("SUCCESS");
-                } catch (Exception e) {
-                    failed.incrementAndGet();
-                    String outcome = classifyDeadlock(e, deadlockCount);
-                    threadBOutcome.set(outcome);
-                } finally {
-                    clearContext();
-                }
-            });
+            executor.submit(
+                    () -> {
+                        setupContext("deadlock-B", tenantId);
+                        readyGate.countDown();
+                        try {
+                            startGate.await();
+                            transactionService.transfer(
+                                    TransactionDTO.builder()
+                                            .transactionType("TRANSFER")
+                                            .sourceAccountNumber(accountNumberB)
+                                            .destinationAccountNumber(accountNumberA)
+                                            .amount(amount)
+                                            .currency("INR")
+                                            .channel(TransactionChannel.BATCH.name())
+                                            .clientReferenceId(
+                                                    "DL-B-" + r + "-" + System.nanoTime())
+                                            .description("Deadlock sim B→A round " + r)
+                                            .narration("Deadlock test")
+                                            .build());
+                            succeeded.incrementAndGet();
+                            threadBOutcome.set("SUCCESS");
+                        } catch (Exception e) {
+                            failed.incrementAndGet();
+                            String outcome = classifyDeadlock(e, deadlockCount);
+                            threadBOutcome.set(outcome);
+                        } finally {
+                            clearContext();
+                        }
+                    });
 
             // Wait for both threads ready, then release simultaneously
             try {
@@ -192,8 +202,10 @@ public class DeadlockSimulator {
         }
 
         // === Recovery Verification ===
-        BigDecimal postDebits = ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(bizDate, tenantId);
-        BigDecimal postCredits = ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(bizDate, tenantId);
+        BigDecimal postDebits =
+                ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(bizDate, tenantId);
+        BigDecimal postCredits =
+                ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(bizDate, tenantId);
         long postVoucherCount = voucherRepository.count();
 
         boolean ledgerBalanced = postDebits.compareTo(postCredits) == 0;
@@ -212,20 +224,21 @@ public class DeadlockSimulator {
         details.append(" | Post: DR=").append(postDebits).append(" CR=").append(postCredits);
         details.append(" | Voucher delta=").append(voucherDelta);
 
-        DeadlockSimulationResult result = DeadlockSimulationResult.builder()
-                .deadlockTriggered(deadlockCount.get() > 0)
-                .deadlockCount(deadlockCount.get())
-                .totalAttempts(rounds * 2)
-                .successfulTransactions(succeeded.get())
-                .failedTransactions(failed.get())
-                .threadAOutcome(threadAOutcome.get())
-                .threadBOutcome(threadBOutcome.get())
-                .ledgerBalanced(ledgerBalanced)
-                .noPartialVouchers(noPartialVouchers)
-                .batchTotalsIntact(batchTotalsIntact)
-                .systemRecovered(systemRecovered)
-                .verificationDetails(details.toString())
-                .build();
+        DeadlockSimulationResult result =
+                DeadlockSimulationResult.builder()
+                        .deadlockTriggered(deadlockCount.get() > 0)
+                        .deadlockCount(deadlockCount.get())
+                        .totalAttempts(rounds * 2)
+                        .successfulTransactions(succeeded.get())
+                        .failedTransactions(failed.get())
+                        .threadAOutcome(threadAOutcome.get())
+                        .threadBOutcome(threadBOutcome.get())
+                        .ledgerBalanced(ledgerBalanced)
+                        .noPartialVouchers(noPartialVouchers)
+                        .batchTotalsIntact(batchTotalsIntact)
+                        .systemRecovered(systemRecovered)
+                        .verificationDetails(details.toString())
+                        .build();
 
         log.info(result.toSummary());
         return result;
@@ -233,8 +246,10 @@ public class DeadlockSimulator {
 
     private String classifyDeadlock(Exception e, AtomicInteger deadlockCount) {
         String msg = e.getMessage() != null ? e.getMessage().toUpperCase() : "";
-        String cause = e.getCause() != null && e.getCause().getMessage() != null
-                ? e.getCause().getMessage().toUpperCase() : "";
+        String cause =
+                e.getCause() != null && e.getCause().getMessage() != null
+                        ? e.getCause().getMessage().toUpperCase()
+                        : "";
         String combined = msg + " " + cause;
 
         if (combined.contains("DEADLOCK")) {

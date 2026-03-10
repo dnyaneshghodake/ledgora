@@ -6,9 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Structured result of a concurrency model validation audit.
- */
+/** Structured result of a concurrency model validation audit. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -44,20 +42,46 @@ public class ConcurrencyAuditResult {
                 + "╔══════════════════════════════════════════════════╗\n"
                 + "║     CONCURRENCY MODEL VALIDATION AUDIT           ║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
-                + "║ Overall:           " + pad(financialIntegrity ? "PASS ✅" : "FAIL ❌") + "║\n"
-                + "║ Checks:            " + pad(passedChecks + "/" + totalChecks) + "║\n"
+                + "║ Overall:           "
+                + pad(financialIntegrity ? "PASS ✅" : "FAIL ❌")
+                + "║\n"
+                + "║ Checks:            "
+                + pad(passedChecks + "/" + totalChecks)
+                + "║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
-                + "║ Ledger balanced:     " + flag(ledgerBalanced) + "║\n"
-                + "║ Clearing GL zero:    " + flag(clearingGlZero) + "║\n"
-                + "║ Suspense GL zero:    " + flag(suspenseGlZero) + "║\n"
-                + "║ No negative bal:     " + flag(noNegativeBalances) + "║\n"
-                + "║ No orphan entries:   " + flag(noOrphanEntries) + "║\n"
-                + "║ No stuck EOD:        " + flag(noStuckEodProcesses) + "║\n"
-                + "║ No stale vouchers:   " + flag(noStalePendingVouchers) + "║\n"
-                + "║ No dup voucher#:     " + flag(noDuplicateVoucherNumbers) + "║\n"
-                + "║ No partial IBT rev:  " + flag(noPartialIbtReversals) + "║\n"
-                + "║ All IBT have 4 vch:  " + flag(allIbtHaveFourVouchers) + "║\n"
-                + "║ All batches balanced: " + flag(allBatchesBalanced) + "║\n"
+                + "║ Ledger balanced:     "
+                + flag(ledgerBalanced)
+                + "║\n"
+                + "║ Clearing GL zero:    "
+                + flag(clearingGlZero)
+                + "║\n"
+                + "║ Suspense GL zero:    "
+                + flag(suspenseGlZero)
+                + "║\n"
+                + "║ No negative bal:     "
+                + flag(noNegativeBalances)
+                + "║\n"
+                + "║ No orphan entries:   "
+                + flag(noOrphanEntries)
+                + "║\n"
+                + "║ No stuck EOD:        "
+                + flag(noStuckEodProcesses)
+                + "║\n"
+                + "║ No stale vouchers:   "
+                + flag(noStalePendingVouchers)
+                + "║\n"
+                + "║ No dup voucher#:     "
+                + flag(noDuplicateVoucherNumbers)
+                + "║\n"
+                + "║ No partial IBT rev:  "
+                + flag(noPartialIbtReversals)
+                + "║\n"
+                + "║ All IBT have 4 vch:  "
+                + flag(allIbtHaveFourVouchers)
+                + "║\n"
+                + "║ All batches balanced: "
+                + flag(allBatchesBalanced)
+                + "║\n"
                 + "╚══════════════════════════════════════════════════╝";
     }
 

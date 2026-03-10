@@ -15,8 +15,8 @@ import org.springframework.stereotype.Service;
  * Analyzes execution plans for critical CBS queries to detect performance risks.
  *
  * <p>Active only in the "stress" profile. Uses JDBC {@code EXPLAIN} to capture query plans from the
- * database engine (H2 or PostgreSQL compatible). Parses plan output for risk indicators: TABLE SCAN,
- * SEQ SCAN, missing index usage.
+ * database engine (H2 or PostgreSQL compatible). Parses plan output for risk indicators: TABLE
+ * SCAN, SEQ SCAN, missing index usage.
  *
  * <p>Critical queries cover: EOD validation, IBT reconciliation, suspense dashboard, clearing
  * engine, hard ceiling monitoring, and audit exploration.
@@ -134,7 +134,8 @@ public class QueryPlanAnalyzerService {
             riskLevel = "LOW";
         }
 
-        String riskDetails = risks.isEmpty() ? "No risk indicators detected" : String.join("; ", risks);
+        String riskDetails =
+                risks.isEmpty() ? "No risk indicators detected" : String.join("; ", risks);
 
         return QueryPlanResult.builder()
                 .queryName(queryName)

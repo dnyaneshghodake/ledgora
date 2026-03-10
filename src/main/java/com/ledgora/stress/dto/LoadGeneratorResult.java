@@ -5,9 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-/**
- * Structured result of a production-style multi-thread load generation run.
- */
+/** Structured result of a production-style multi-thread load generation run. */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -54,36 +52,81 @@ public class LoadGeneratorResult {
                 + "╔══════════════════════════════════════════════════╗\n"
                 + "║     PRODUCTION LOAD GENERATOR SUMMARY            ║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
-                + "║ Config: " + threadCount + " threads, target " + targetTps + " TPS"
-                + " ".repeat(Math.max(0, 22 - String.valueOf(targetTps).length())) + "║\n"
+                + "║ Config: "
+                + threadCount
+                + " threads, target "
+                + targetTps
+                + " TPS"
+                + " ".repeat(Math.max(0, 22 - String.valueOf(targetTps).length()))
+                + "║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
                 + "║ Volume                                          ║\n"
-                + "║   Total:       " + pad(totalAttempted) + "║\n"
-                + "║   Succeeded:   " + pad(totalSucceeded) + "║\n"
-                + "║   Failed:      " + pad(totalFailed) + "║\n"
-                + "║   Deposits:    " + pad(depositCount) + "║\n"
-                + "║   Withdrawals: " + pad(withdrawalCount) + "║\n"
-                + "║   Transfers:   " + pad(transferCount) + "║\n"
-                + "║   IBTs:        " + pad(ibtCount) + "║\n"
+                + "║   Total:       "
+                + pad(totalAttempted)
+                + "║\n"
+                + "║   Succeeded:   "
+                + pad(totalSucceeded)
+                + "║\n"
+                + "║   Failed:      "
+                + pad(totalFailed)
+                + "║\n"
+                + "║   Deposits:    "
+                + pad(depositCount)
+                + "║\n"
+                + "║   Withdrawals: "
+                + pad(withdrawalCount)
+                + "║\n"
+                + "║   Transfers:   "
+                + pad(transferCount)
+                + "║\n"
+                + "║   IBTs:        "
+                + pad(ibtCount)
+                + "║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
                 + "║ Throughput                                      ║\n"
-                + "║   Actual TPS:  " + pad(String.format("%.1f", actualTps)) + "║\n"
-                + "║   Duration:    " + pad(totalDurationMs + "ms") + "║\n"
+                + "║   Actual TPS:  "
+                + pad(String.format("%.1f", actualTps))
+                + "║\n"
+                + "║   Duration:    "
+                + pad(totalDurationMs + "ms")
+                + "║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
                 + "║ Latency (ms)                                    ║\n"
-                + "║   Avg:         " + pad(avgLatencyMs) + "║\n"
-                + "║   P50:         " + pad(p50LatencyMs) + "║\n"
-                + "║   P95:         " + pad(p95LatencyMs) + "║\n"
-                + "║   P99:         " + pad(p99LatencyMs) + "║\n"
-                + "║   Max:         " + pad(maxLatencyMs) + "║\n"
+                + "║   Avg:         "
+                + pad(avgLatencyMs)
+                + "║\n"
+                + "║   P50:         "
+                + pad(p50LatencyMs)
+                + "║\n"
+                + "║   P95:         "
+                + pad(p95LatencyMs)
+                + "║\n"
+                + "║   P99:         "
+                + pad(p99LatencyMs)
+                + "║\n"
+                + "║   Max:         "
+                + pad(maxLatencyMs)
+                + "║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
                 + "║ Errors                                          ║\n"
-                + "║   Rate:        " + pad(String.format("%.2f%%", errorRate * 100)) + "║\n"
-                + "║   Balance:     " + pad(insufficientBalanceErrors) + "║\n"
-                + "║   Velocity:    " + pad(velocityBreachErrors) + "║\n"
-                + "║   Ceiling:     " + pad(hardCeilingErrors) + "║\n"
-                + "║   Lock:        " + pad(lockContentionErrors) + "║\n"
-                + "║   Other:       " + pad(otherErrors) + "║\n"
+                + "║   Rate:        "
+                + pad(String.format("%.2f%%", errorRate * 100))
+                + "║\n"
+                + "║   Balance:     "
+                + pad(insufficientBalanceErrors)
+                + "║\n"
+                + "║   Velocity:    "
+                + pad(velocityBreachErrors)
+                + "║\n"
+                + "║   Ceiling:     "
+                + pad(hardCeilingErrors)
+                + "║\n"
+                + "║   Lock:        "
+                + pad(lockContentionErrors)
+                + "║\n"
+                + "║   Other:       "
+                + pad(otherErrors)
+                + "║\n"
                 + "╚══════════════════════════════════════════════════╝";
     }
 

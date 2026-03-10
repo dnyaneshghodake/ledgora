@@ -49,28 +49,60 @@ public class EodPerformanceResult {
                 + "║          EOD PERFORMANCE SUMMARY                ║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
                 + "║ Load Generation                                 ║\n"
-                + "║   Accounts:       " + pad(accountsGenerated) + "║\n"
-                + "║   Transactions:   " + pad(transactionsGenerated) + "║\n"
-                + "║   IBT Transfers:  " + pad(ibtTransfersGenerated) + "║\n"
-                + "║   Gen Time (ms):  " + pad(loadGenerationTimeMs) + "║\n"
+                + "║   Accounts:       "
+                + pad(accountsGenerated)
+                + "║\n"
+                + "║   Transactions:   "
+                + pad(transactionsGenerated)
+                + "║\n"
+                + "║   IBT Transfers:  "
+                + pad(ibtTransfersGenerated)
+                + "║\n"
+                + "║   Gen Time (ms):  "
+                + pad(loadGenerationTimeMs)
+                + "║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
                 + "║ Pre-EOD State                                   ║\n"
-                + "║   Vouchers:       " + pad(totalVouchers) + "║\n"
-                + "║   Ledger Entries:  " + pad(totalLedgerEntries) + "║\n"
-                + "║   Transactions:   " + pad(totalTransactions) + "║\n"
-                + "║   IBT Records:    " + pad(totalIbtTransfers) + "║\n"
-                + "║   Suspense Cases:  " + pad(totalSuspenseCases) + "║\n"
+                + "║   Vouchers:       "
+                + pad(totalVouchers)
+                + "║\n"
+                + "║   Ledger Entries:  "
+                + pad(totalLedgerEntries)
+                + "║\n"
+                + "║   Transactions:   "
+                + pad(totalTransactions)
+                + "║\n"
+                + "║   IBT Records:    "
+                + pad(totalIbtTransfers)
+                + "║\n"
+                + "║   Suspense Cases:  "
+                + pad(totalSuspenseCases)
+                + "║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
                 + "║ EOD Execution                                   ║\n"
-                + "║   Time (ms):      " + pad(executionTimeMs) + "║\n"
-                + "║   SQL Statements:  " + pad(sqlStatementCount) + "║\n"
-                + "║   Entity Loads:    " + pad(entityLoadCount) + "║\n"
-                + "║   Query Count:     " + pad(queryExecutionCount) + "║\n"
+                + "║   Time (ms):      "
+                + pad(executionTimeMs)
+                + "║\n"
+                + "║   SQL Statements:  "
+                + pad(sqlStatementCount)
+                + "║\n"
+                + "║   Entity Loads:    "
+                + pad(entityLoadCount)
+                + "║\n"
+                + "║   Query Count:     "
+                + pad(queryExecutionCount)
+                + "║\n"
                 + "╠══════════════════════════════════════════════════╣\n"
                 + "║ Validation                                      ║\n"
-                + "║   Clearing GL:     " + pad(clearingGlZero ? "ZERO ✅" : "NON-ZERO ❌") + "║\n"
-                + "║   Suspense GL:     " + pad(suspenseGlZero ? "ZERO ✅" : "NON-ZERO ❌") + "║\n"
-                + "║   Status:          " + pad(success ? "SUCCESS ✅" : "FAILURE ❌") + "║\n"
+                + "║   Clearing GL:     "
+                + pad(clearingGlZero ? "ZERO ✅" : "NON-ZERO ❌")
+                + "║\n"
+                + "║   Suspense GL:     "
+                + pad(suspenseGlZero ? "ZERO ✅" : "NON-ZERO ❌")
+                + "║\n"
+                + "║   Status:          "
+                + pad(success ? "SUCCESS ✅" : "FAILURE ❌")
+                + "║\n"
                 + (failureReason != null ? "║   Reason: " + failureReason + "\n" : "")
                 + "╚══════════════════════════════════════════════════╝";
     }
