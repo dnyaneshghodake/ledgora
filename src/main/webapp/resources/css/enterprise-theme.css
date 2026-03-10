@@ -252,6 +252,12 @@ h1, h2, h3, h4, h5, h6 {
     padding: 0.18rem 0.5rem;
     border-radius: var(--ent-radius);
     border: 1px solid rgba(255, 255, 255, 0.14);
+    font-size: 0.75rem;
+}
+
+/* Header right section spacing for dark header */
+.cbs-header-right {
+    gap: 0.65rem;
 }
 
 .cbs-user-avatar i {
