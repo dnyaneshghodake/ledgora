@@ -222,8 +222,6 @@ public class TransactionService {
                         .build();
         transaction = transactionRepository.save(transaction);
 
-        Long userId = currentUser != null ? currentUser.getId() : null;
-
         if (autoAuth) {
             // Auto-authorized: post immediately
             postDepositLedger(transaction, account, tenant, currentUser, businessDate, batch, dto);
@@ -341,8 +339,6 @@ public class TransactionService {
                         .batch(batch)
                         .build();
         transaction = transactionRepository.save(transaction);
-
-        Long userId = currentUser != null ? currentUser.getId() : null;
 
         if (autoAuth) {
             postWithdrawalLedger(
@@ -472,8 +468,6 @@ public class TransactionService {
                         .batch(batch)
                         .build();
         transaction = transactionRepository.save(transaction);
-
-        Long userId = currentUser != null ? currentUser.getId() : null;
 
         if (autoAuth) {
             postTransferLedger(

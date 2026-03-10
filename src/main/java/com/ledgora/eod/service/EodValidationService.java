@@ -49,7 +49,7 @@ public class EodValidationService {
             interBranchClearingService;
     private final com.ledgora.clearing.service.IbtService ibtService;
     private final com.ledgora.suspense.service.SuspenseResolutionService suspenseResolutionService;
-    private final EodStateMachineService eodStateMachineService;
+    private final org.springframework.context.ApplicationContext applicationContext;
 
     public EodValidationService(
             VoucherRepository voucherRepository,
@@ -64,7 +64,7 @@ public class EodValidationService {
             com.ledgora.clearing.service.InterBranchClearingService interBranchClearingService,
             com.ledgora.clearing.service.IbtService ibtService,
             com.ledgora.suspense.service.SuspenseResolutionService suspenseResolutionService,
-            EodStateMachineService eodStateMachineService) {
+            org.springframework.context.ApplicationContext applicationContext) {
         this.voucherRepository = voucherRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.accountBalanceRepository = accountBalanceRepository;
@@ -77,7 +77,7 @@ public class EodValidationService {
         this.interBranchClearingService = interBranchClearingService;
         this.ibtService = ibtService;
         this.suspenseResolutionService = suspenseResolutionService;
-        this.eodStateMachineService = eodStateMachineService;
+        this.applicationContext = applicationContext;
     }
 
     /**
@@ -228,12 +228,12 @@ public class EodValidationService {
      * @see EodStateMachineService#executeEod(Long)
      */
     public void runEod(Long tenantId) {
-        eodStateMachineService.executeEod(tenantId);
+        applicationContext.getBean(EodStateMachineService.class).executeEod(tenantId);
     }
 
     /** Get the state machine service (for controller access to recovery methods). */
     public EodStateMachineService getStateMachine() {
-        return eodStateMachineService;
+        return applicationContext.getBean(EodStateMachineService.class);
     }
 
     /** Check if EOD can be run (all validations pass). */

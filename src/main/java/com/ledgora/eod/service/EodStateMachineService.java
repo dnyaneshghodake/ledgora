@@ -44,6 +44,7 @@ public class EodStateMachineService {
     private final TenantRepository tenantRepository;
     private final BatchService batchService;
     private final AuditService auditService;
+    private final org.springframework.context.ApplicationContext applicationContext;
 
     public EodStateMachineService(
             EodProcessRepository eodProcessRepository,
@@ -51,13 +52,23 @@ public class EodStateMachineService {
             TenantService tenantService,
             TenantRepository tenantRepository,
             BatchService batchService,
-            AuditService auditService) {
+            AuditService auditService,
+            org.springframework.context.ApplicationContext applicationContext) {
         this.eodProcessRepository = eodProcessRepository;
         this.eodValidationService = eodValidationService;
         this.tenantService = tenantService;
         this.tenantRepository = tenantRepository;
         this.batchService = batchService;
         this.auditService = auditService;
+        this.applicationContext = applicationContext;
+    }
+
+    /**
+     * Get the proxied instance of this service to ensure @Transactional(REQUIRES_NEW) is honored on
+     * internal method calls. Spring proxy-based AOP only intercepts calls through the proxy.
+     */
+    private EodStateMachineService self() {
+        return applicationContext.getBean(EodStateMachineService.class);
     }
 
     /**
@@ -108,14 +119,14 @@ public class EodStateMachineService {
                     process.getPhase());
         } else {
             // Start fresh
-            process = createNewProcess(tenant, businessDate);
+            process = self().createNewProcess(tenant, businessDate);
         }
 
         // Execute phases from current position
         try {
             executeFromPhase(process, tenantId, businessDate);
         } catch (Exception e) {
-            markFailed(process, e.getMessage());
+            self().markFailed(process, e.getMessage());
             throw e;
         }
     }
@@ -168,30 +179,31 @@ public class EodStateMachineService {
 
     private void executeFromPhase(EodProcess process, Long tenantId, LocalDate businessDate) {
         EodPhase currentPhase = process.getPhase();
+        EodStateMachineService proxy = self();
 
         // Phase 1: VALIDATED — run pre-checks
         if (currentPhase.ordinal() <= EodPhase.VALIDATED.ordinal()) {
-            runPhaseValidated(process, tenantId, businessDate);
+            proxy.runPhaseValidated(process, tenantId, businessDate);
         }
 
         // Phase 2: DAY_CLOSING — lock the business day
         if (currentPhase.ordinal() <= EodPhase.DAY_CLOSING.ordinal()) {
-            runPhaseDayClosing(process, tenantId, businessDate);
+            proxy.runPhaseDayClosing(process, tenantId, businessDate);
         }
 
         // Phase 3: BATCH_CLOSED — close all batches
         if (currentPhase.ordinal() <= EodPhase.BATCH_CLOSED.ordinal()) {
-            runPhaseBatchClosed(process, tenantId, businessDate);
+            proxy.runPhaseBatchClosed(process, tenantId, businessDate);
         }
 
         // Phase 4: SETTLED — settle all batches
         if (currentPhase.ordinal() <= EodPhase.SETTLED.ordinal()) {
-            runPhaseSettled(process, tenantId, businessDate);
+            proxy.runPhaseSettled(process, tenantId, businessDate);
         }
 
         // Phase 5: DATE_ADVANCED — advance business date
         if (currentPhase.ordinal() <= EodPhase.DATE_ADVANCED.ordinal()) {
-            runPhaseDateAdvanced(process, tenantId);
+            proxy.runPhaseDateAdvanced(process, tenantId);
         }
     }
 
@@ -205,7 +217,7 @@ public class EodStateMachineService {
                     "EOD validation failed: " + String.join("; ", errors));
         }
 
-        advancePhase(process, EodPhase.DAY_CLOSING);
+        updatePhase(process.getId(), EodPhase.DAY_CLOSING);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -222,7 +234,7 @@ public class EodStateMachineService {
                             + String.join("; ", postLockErrors));
         }
 
-        advancePhase(process, EodPhase.BATCH_CLOSED);
+        updatePhase(process.getId(), EodPhase.BATCH_CLOSED);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -231,7 +243,7 @@ public class EodStateMachineService {
 
         batchService.closeAllBatches(tenantId, businessDate);
 
-        advancePhase(process, EodPhase.SETTLED);
+        updatePhase(process.getId(), EodPhase.SETTLED);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -240,7 +252,7 @@ public class EodStateMachineService {
 
         batchService.settleAllBatches(tenantId, businessDate);
 
-        advancePhase(process, EodPhase.DATE_ADVANCED);
+        updatePhase(process.getId(), EodPhase.DATE_ADVANCED);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -278,16 +290,19 @@ public class EodStateMachineService {
                 process.getBusinessDate());
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void advancePhase(EodProcess process, EodPhase nextPhase) {
-        process =
+    /**
+     * Update the phase of an EodProcess within the caller's transaction. This is called from within
+     * REQUIRES_NEW phase methods, so it participates in their transaction — no proxy needed.
+     */
+    private void updatePhase(Long processId, EodPhase nextPhase) {
+        EodProcess process =
                 eodProcessRepository
-                        .findById(process.getId())
+                        .findById(processId)
                         .orElseThrow(
-                                () -> new RuntimeException("EodProcess not found: " + process.getId()));
+                                () -> new RuntimeException("EodProcess not found: " + processId));
         process.setPhase(nextPhase);
         eodProcessRepository.save(process);
-        log.info("EOD phase advanced to {} for process {}", nextPhase, process.getId());
+        log.info("EOD phase advanced to {} for process {}", nextPhase, processId);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
