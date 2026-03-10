@@ -263,9 +263,7 @@ public class EodStateMachineService {
                 eodProcessRepository
                         .findById(processId)
                         .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "EodProcess not found: " + processId));
+                                () -> new RuntimeException("EodProcess not found: " + processId));
         process.setPhase(EodPhase.DATE_ADVANCED);
         process.setStatus("COMPLETED");
         process.setCompletedAt(LocalDateTime.now());
@@ -311,9 +309,7 @@ public class EodStateMachineService {
                 eodProcessRepository
                         .findById(processId)
                         .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "EodProcess not found: " + processId));
+                                () -> new RuntimeException("EodProcess not found: " + processId));
         process.setStatus("FAILED");
         process.setFailureReason(
                 reason != null && reason.length() > 2000 ? reason.substring(0, 2000) : reason);
