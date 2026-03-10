@@ -1,0 +1,293 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Ledgora - Enterprise Finacle-Style Theme (Density + Neutral Surfaces)
+   Loaded AFTER bootstrap.min.css and style.css
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* -----------------------------------------------------------------------
+   1) Root variables (bank palette + surfaces + status colors)
+   ----------------------------------------------------------------------- */
+:root {
+    --bank-primary: #003a70;
+    --bank-bg: #eef2f6;
+    --bank-border: #cfd7e3;
+    --bank-surface: #ffffff;
+    --bank-text: #1f2937;
+
+    --status-success: #1f7a3f;
+    --status-warning: #b45309;
+    --status-danger: #b42318;
+    --status-info: #1e40af;
+
+    /* Density knobs */
+    --ent-font-size: 13px;
+    --ent-radius: 4px;
+    --ent-pad-y: 0.25rem;
+    --ent-pad-x: 0.5rem;
+}
+
+/* Map existing CBS variables to enterprise palette (keeps layout intact) */
+:root {
+    --cbs-primary: var(--bank-primary);
+    --cbs-primary-light: #1e4f85;
+    --cbs-primary-dark: #00284d;
+
+    --cbs-accent: #0b5ed7;
+    --cbs-accent-hover: #0a58ca;
+
+    --cbs-sidebar-width: 240px;
+    --cbs-header-height: 46px;
+    --cbs-footer-height: 36px;
+
+    --cbs-sidebar-bg: #0b2f55;
+    --cbs-sidebar-hover-bg: rgba(255, 255, 255, 0.08);
+    --cbs-sidebar-text: rgba(255, 255, 255, 0.72);
+    --cbs-sidebar-active: #ffffff;
+    --cbs-sidebar-section: rgba(255, 255, 255, 0.55);
+
+    --cbs-header-bg: var(--bank-surface);
+    --cbs-header-border: var(--bank-border);
+    --cbs-content-bg: var(--bank-bg);
+    --cbs-footer-bg: #f7f9fc;
+}
+
+/* -----------------------------------------------------------------------
+   2) Safe Bootstrap overrides (compact density)
+   ----------------------------------------------------------------------- */
+body {
+    font-size: var(--ent-font-size);
+    color: var(--bank-text);
+    background-color: var(--bank-bg);
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--bank-text);
+}
+
+/* Buttons + inputs */
+.btn {
+    padding: var(--ent-pad-y) 0.6rem;
+    border-radius: var(--ent-radius);
+    font-size: 0.92rem;
+    line-height: 1.2;
+}
+
+.btn.btn-sm {
+    padding: 0.18rem 0.5rem;
+    font-size: 0.88rem;
+}
+
+.form-control,
+.form-select {
+    padding: 0.3rem 0.55rem;
+    font-size: 0.92rem;
+    border-radius: var(--ent-radius);
+}
+
+.form-label {
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem;
+    color: #374151;
+}
+
+.alert {
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--ent-radius);
+}
+
+.badge {
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.dropdown-menu {
+    border-radius: var(--ent-radius);
+}
+
+.dropdown-item {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.92rem;
+}
+
+/* Cards */
+.card {
+    border-radius: var(--ent-radius);
+}
+
+.card-header {
+    padding: 0.45rem 0.75rem;
+}
+
+.card-body {
+    padding: 0.75rem;
+}
+
+/* -----------------------------------------------------------------------
+   3) Layout: compact header/sidebar/content without markup changes
+   ----------------------------------------------------------------------- */
+.cbs-header {
+    height: var(--cbs-header-height);
+    padding: 0 0.75rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.cbs-header-brand {
+    font-size: 1.05rem;
+}
+
+.cbs-header-left {
+    gap: 0.5rem;
+}
+
+.cbs-sidebar-toggle {
+    font-size: 1.2rem;
+    padding: 0.15rem 0.35rem;
+}
+
+.cbs-branch-info,
+.cbs-business-date,
+.cbs-tenant-info {
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--ent-radius);
+}
+
+.cbs-status-indicator,
+.cbs-health-badge,
+.cbs-env-badge {
+    padding: 0.18rem 0.5rem;
+    border-radius: var(--ent-radius);
+}
+
+.cbs-user-avatar i {
+    font-size: 1.35rem;
+}
+
+.cbs-user-name {
+    font-size: 0.9rem;
+}
+
+.cbs-logout-btn {
+    padding: 0.25rem 0.6rem;
+    border-radius: var(--ent-radius);
+    font-size: 0.9rem;
+}
+
+.cbs-sidebar {
+    width: var(--cbs-sidebar-width);
+}
+
+.cbs-sidebar-nav {
+    padding: 0.35rem 0;
+}
+
+.cbs-nav-section {
+    padding: 0.9rem 1rem 0.35rem;
+    font-size: 0.62rem;
+}
+
+.cbs-nav-link {
+    padding: 0.4rem 0.7rem;
+    font-size: 0.9rem;
+    border-radius: var(--ent-radius);
+    min-height: 1.95rem;
+}
+
+.cbs-nav-group-toggle {
+    padding: 0.45rem 1rem;
+    font-size: 0.9rem;
+}
+
+.cbs-nav-submenu .cbs-nav-link {
+    padding: 0.35rem 0.7rem 0.35rem 2.55rem;
+}
+
+.cbs-main {
+    margin-left: var(--cbs-sidebar-width);
+    margin-top: var(--cbs-header-height);
+    min-height: calc(100vh - var(--cbs-header-height) - var(--cbs-footer-height));
+}
+
+.cbs-content {
+    padding: 1rem;
+}
+
+.cbs-footer {
+    height: var(--cbs-footer-height);
+}
+
+.cbs-footer-content {
+    font-size: 0.85rem;
+}
+
+/* -----------------------------------------------------------------------
+   4) Table styling: compact + enterprise grid + numeric alignment utility
+   ----------------------------------------------------------------------- */
+.table {
+    margin-bottom: 0.75rem;
+}
+
+.table > :not(caption) > * > * {
+    padding: 0.35rem 0.55rem;
+}
+
+.table thead th {
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    background: var(--bank-surface);
+    border-bottom: 1px solid var(--bank-border);
+    color: #334155;
+}
+
+.table tbody td {
+    border-color: rgba(207, 215, 227, 0.8);
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(11, 94, 215, 0.035);
+}
+
+/* Utility: use class="cbs-numeric" on numeric headers/cells */
+.cbs-numeric,
+.table td.text-end,
+.table th.text-end,
+.table td.numeric,
+.table th.numeric,
+.table td.amount,
+.table th.amount,
+.table td.balance,
+.table th.balance {
+    text-align: right !important;
+    font-variant-numeric: tabular-nums;
+}
+
+/* -----------------------------------------------------------------------
+   Status colors wired to existing header badges
+   ----------------------------------------------------------------------- */
+.cbs-status-open {
+    background: rgba(31, 122, 63, 0.12);
+    color: var(--status-success);
+}
+
+.cbs-status-closing {
+    background: rgba(180, 83, 9, 0.14);
+    color: var(--status-warning);
+}
+
+.cbs-status-closed {
+    background: rgba(180, 35, 24, 0.12);
+    color: var(--status-danger);
+}
+
+.cbs-health-healthy {
+    background: rgba(31, 122, 63, 0.12);
+    color: var(--status-success);
+}
+
+.cbs-health-warning {
+    background: rgba(180, 83, 9, 0.14);
+    color: var(--status-warning);
+}
+
+.cbs-health-corrupted {
+    background: rgba(180, 35, 24, 0.12);
+    color: var(--status-danger);
+}

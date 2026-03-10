@@ -36,6 +36,11 @@
     footer.jsp  - Closes main area, footer, scripts, closes HTML
     base.jsp    - This documentation file
 
+  Theme CSS:
+    - bootstrap.min.css
+    - style.css
+    - enterprise-theme.css (loaded AFTER bootstrap + style to safely override for enterprise density)
+
   Standalone Pages (no sidebar layout):
     - /auth/login.jsp
     - /auth/register.jsp
