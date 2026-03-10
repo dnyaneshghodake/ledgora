@@ -39,4 +39,14 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
     Page<AuditLog> findByTenantIdAndActionOrderByTimestampDesc(
             Long tenantId, String action, Pageable pageable);
+
+    // ===== Governance dashboard queries =====
+
+    /** Count audit events by tenant, action, and time range (e.g., today's hard ceiling violations). */
+    long countByTenantIdAndActionAndTimestampBetween(
+            Long tenantId, String action, LocalDateTime start, LocalDateTime end);
+
+    /** Fetch most recent audit events for a specific action (e.g., last 20 hard ceiling violations). */
+    List<AuditLog> findTop20ByTenantIdAndActionOrderByTimestampDesc(
+            Long tenantId, String action);
 }
