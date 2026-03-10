@@ -1,9 +1,11 @@
 package com.ledgora.stress.controller;
 
+import com.ledgora.stress.dto.ChaosEodResult;
 import com.ledgora.stress.dto.DeadlockSimulationResult;
 import com.ledgora.stress.dto.EodPerformanceResult;
 import com.ledgora.stress.dto.LoadGeneratorResult;
 import com.ledgora.stress.dto.LockContentionResult;
+import com.ledgora.stress.service.ChaosEodTester;
 import com.ledgora.stress.service.DeadlockSimulator;
 import com.ledgora.stress.service.EodLoadGeneratorService;
 import com.ledgora.stress.service.EodPerformanceRunner;
@@ -50,18 +52,21 @@ public class StressTestController {
     private final LockContentionSimulator lockContentionSimulator;
     private final DeadlockSimulator deadlockSimulator;
     private final ProductionLoadGenerator productionLoadGenerator;
+    private final ChaosEodTester chaosEodTester;
 
     public StressTestController(
             EodLoadGeneratorService loadGenerator,
             EodPerformanceRunner performanceRunner,
             LockContentionSimulator lockContentionSimulator,
             DeadlockSimulator deadlockSimulator,
-            ProductionLoadGenerator productionLoadGenerator) {
+            ProductionLoadGenerator productionLoadGenerator,
+            ChaosEodTester chaosEodTester) {
         this.loadGenerator = loadGenerator;
         this.performanceRunner = performanceRunner;
         this.lockContentionSimulator = lockContentionSimulator;
         this.deadlockSimulator = deadlockSimulator;
         this.productionLoadGenerator = productionLoadGenerator;
+        this.chaosEodTester = chaosEodTester;
     }
 
     @PostMapping("/eod")
@@ -216,6 +221,38 @@ public class StressTestController {
 
         LoadGeneratorResult result =
                 productionLoadGenerator.generate(tenantId, threads, targetTps, duration, ibtRatio);
+
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Chaos EOD test: simulate crash at a specific phase and verify resume + integrity.
+     *
+     * <p>Usage: POST /stress/chaos-eod with JSON body:
+     *
+     * <pre>
+     * {
+     *   "tenantId": 1,
+     *   "crashAfterPhase": "DAY_CLOSING"
+     * }
+     * </pre>
+     *
+     * <p>Valid phases: VALIDATED, DAY_CLOSING, BATCH_CLOSED, SETTLED
+     */
+    @PostMapping("/chaos-eod")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ChaosEodResult> runChaosEodTest(
+            @RequestBody Map<String, Object> params) {
+
+        Long tenantId = ((Number) params.getOrDefault("tenantId", 1)).longValue();
+        String crashAfterPhase = (String) params.getOrDefault("crashAfterPhase", "DAY_CLOSING");
+
+        log.info(
+                "Chaos EOD test initiated: tenant={} crashAfterPhase={}",
+                tenantId,
+                crashAfterPhase);
+
+        ChaosEodResult result = chaosEodTester.runChaosTest(tenantId, crashAfterPhase);
 
         return ResponseEntity.ok(result);
     }
