@@ -2,11 +2,13 @@ package com.ledgora.stress.controller;
 
 import com.ledgora.stress.dto.DeadlockSimulationResult;
 import com.ledgora.stress.dto.EodPerformanceResult;
+import com.ledgora.stress.dto.LoadGeneratorResult;
 import com.ledgora.stress.dto.LockContentionResult;
 import com.ledgora.stress.service.DeadlockSimulator;
 import com.ledgora.stress.service.EodLoadGeneratorService;
 import com.ledgora.stress.service.EodPerformanceRunner;
 import com.ledgora.stress.service.LockContentionSimulator;
+import com.ledgora.stress.service.ProductionLoadGenerator;
 import com.ledgora.tenant.context.TenantContextHolder;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -47,16 +49,19 @@ public class StressTestController {
     private final EodPerformanceRunner performanceRunner;
     private final LockContentionSimulator lockContentionSimulator;
     private final DeadlockSimulator deadlockSimulator;
+    private final ProductionLoadGenerator productionLoadGenerator;
 
     public StressTestController(
             EodLoadGeneratorService loadGenerator,
             EodPerformanceRunner performanceRunner,
             LockContentionSimulator lockContentionSimulator,
-            DeadlockSimulator deadlockSimulator) {
+            DeadlockSimulator deadlockSimulator,
+            ProductionLoadGenerator productionLoadGenerator) {
         this.loadGenerator = loadGenerator;
         this.performanceRunner = performanceRunner;
         this.lockContentionSimulator = lockContentionSimulator;
         this.deadlockSimulator = deadlockSimulator;
+        this.productionLoadGenerator = productionLoadGenerator;
     }
 
     @PostMapping("/eod")
@@ -171,6 +176,46 @@ public class StressTestController {
 
         DeadlockSimulationResult result =
                 deadlockSimulator.simulate(tenantId, accountA, accountB, rounds);
+
+        return ResponseEntity.ok(result);
+    }
+
+    /**
+     * Production-style load test with rate limiting and workload mix.
+     *
+     * <p>Usage: POST /stress/load with JSON body:
+     *
+     * <pre>
+     * {
+     *   "tenantId": 1,
+     *   "threads": 10,
+     *   "targetTps": 50,
+     *   "durationSeconds": 30,
+     *   "ibtRatio": 15
+     * }
+     * </pre>
+     */
+    @PostMapping("/load")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<LoadGeneratorResult> runProductionLoad(
+            @RequestBody Map<String, Object> params) {
+
+        Long tenantId = ((Number) params.getOrDefault("tenantId", 1)).longValue();
+        int threads = ((Number) params.getOrDefault("threads", 10)).intValue();
+        int targetTps = ((Number) params.getOrDefault("targetTps", 50)).intValue();
+        int duration = ((Number) params.getOrDefault("durationSeconds", 30)).intValue();
+        int ibtRatio = ((Number) params.getOrDefault("ibtRatio", 15)).intValue();
+
+        log.info(
+                "Production load test: tenant={} threads={} tps={} duration={}s ibt={}%",
+                tenantId,
+                threads,
+                targetTps,
+                duration,
+                ibtRatio);
+
+        LoadGeneratorResult result =
+                productionLoadGenerator.generate(tenantId, threads, targetTps, duration, ibtRatio);
 
         return ResponseEntity.ok(result);
     }
