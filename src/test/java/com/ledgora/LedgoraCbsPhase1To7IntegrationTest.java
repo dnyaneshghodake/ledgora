@@ -23,6 +23,7 @@ import com.ledgora.customer.entity.CustomerMaster;
 import com.ledgora.customer.repository.CustomerFreezeControlRepository;
 import com.ledgora.customer.repository.CustomerMasterRepository;
 import com.ledgora.customer.service.CbsCustomerValidationService;
+import com.ledgora.eod.repository.EodProcessRepository;
 import com.ledgora.eod.service.EodValidationService;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
@@ -81,6 +82,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @Autowired private CbsBalanceEngine cbsBalanceEngine;
     @Autowired private CbsGlBalanceService cbsGlBalanceService;
     @Autowired private EodValidationService eodValidationService;
+    @Autowired private EodProcessRepository eodProcessRepository;
     @Autowired private CbsCustomerValidationService customerValidationService;
 
     @Autowired private TenantRepository tenantRepository;
@@ -1157,6 +1159,10 @@ class LedgoraCbsPhase1To7IntegrationTest {
                     "Day status must be CLOSED after EOD (requires explicit Day Begin to re-open)");
         } finally {
             // Manual cleanup since no @Transactional rollback
+            // Delete child EodProcess records before tenant (FK constraint)
+            eodProcessRepository
+                    .findByTenantIdAndBusinessDate(tenant.getId(), currentDate)
+                    .ifPresent(eodProcessRepository::delete);
             tenantRepository.deleteById(tenant.getId());
         }
     }
@@ -1291,6 +1297,10 @@ class LedgoraCbsPhase1To7IntegrationTest {
                     "Transactions must be blocked when day is in DAY_CLOSING status");
         } finally {
             // Manual cleanup since no @Transactional rollback
+            // Delete child EodProcess records before tenant (FK constraint)
+            eodProcessRepository
+                    .findByTenantIdAndBusinessDate(tenant.getId(), LocalDate.now())
+                    .ifPresent(eodProcessRepository::delete);
             tenantRepository.deleteById(tenant.getId());
         }
     }
