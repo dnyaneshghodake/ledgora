@@ -8,8 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * CBS DataSeeder: Module 2 — Branch (SOL) seeding.
- * Seeds HQ001, BR001, BR002 with Finacle-grade branchName + tenant linkage.
+ * CBS DataSeeder: Module 2 — Branch (SOL) seeding. Seeds HQ001, BR001, BR002 with Finacle-grade
+ * branchName + tenant linkage.
  */
 @Component
 public class BranchDataSeeder {

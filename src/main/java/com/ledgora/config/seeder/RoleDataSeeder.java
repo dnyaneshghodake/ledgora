@@ -8,8 +8,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * CBS DataSeeder: Module 1 — Role seeding.
- * Seeds all CBS roles (ADMIN, MANAGER, TELLER, CUSTOMER, MAKER, CHECKER, etc.).
+ * CBS DataSeeder: Module 1 — Role seeding. Seeds all CBS roles (ADMIN, MANAGER, TELLER, CUSTOMER,
+ * MAKER, CHECKER, etc.).
  */
 @Component
 public class RoleDataSeeder {

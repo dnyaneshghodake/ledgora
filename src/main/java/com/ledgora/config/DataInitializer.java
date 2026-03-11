@@ -11,13 +11,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Slim orchestrator for CBS data seeding. Delegates to module-wise seeders
- * in dependency order. Each seeder is idempotent (checks before creating).
+ * Slim orchestrator for CBS data seeding. Delegates to module-wise seeders in dependency order.
+ * Each seeder is idempotent (checks before creating).
  *
- * <p>Execution order:
- * 0. Tenants → 1. Roles → 2. Branches → 3. Users → 4. GL Hierarchy →
- * 5. Business Date → 6. Customers & Accounts → 7. Transactions & Ledger →
- * 8. Exchange Rates → 9. Idempotency Keys → 10. CBS CustomerMaster + Tax
+ * <p>Execution order: 0. Tenants → 1. Roles → 2. Branches → 3. Users → 4. GL Hierarchy → 5.
+ * Business Date → 6. Customers & Accounts → 7. Transactions & Ledger → 8. Exchange Rates → 9.
+ * Idempotency Keys → 10. CBS CustomerMaster + Tax
  */
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -113,55 +112,3 @@ public class DataInitializer implements CommandLineRunner {
         log.info("═══════════════════════════════════════════════════════════");
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

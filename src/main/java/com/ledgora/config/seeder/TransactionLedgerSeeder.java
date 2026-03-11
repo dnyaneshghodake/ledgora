@@ -21,8 +21,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * CBS DataSeeder: Module 7 — Sample Transactions + Ledger Journals + Entries.
- * Ensures SUM(debits) = SUM(credits) for every journal (double-entry).
+ * CBS DataSeeder: Module 7 — Sample Transactions + Ledger Journals + Entries. Ensures SUM(debits) =
+ * SUM(credits) for every journal (double-entry).
  */
 @Component
 public class TransactionLedgerSeeder {
@@ -62,58 +62,151 @@ public class TransactionLedgerSeeder {
             return;
         }
 
-        txnAndJournal(tenant, teller, biz, "DEP-SEED-0001", TransactionType.DEPOSIT, TransactionChannel.TELLER,
-                null, rSav, new BigDecimal("10000.0000"), "Opening Deposit - Rajesh Savings",
-                "1100", "2110", new BigDecimal("60000.0000"), new BigDecimal("60000.0000"));
+        txnAndJournal(
+                tenant,
+                teller,
+                biz,
+                "DEP-SEED-0001",
+                TransactionType.DEPOSIT,
+                TransactionChannel.TELLER,
+                null,
+                rSav,
+                new BigDecimal("10000.0000"),
+                "Opening Deposit - Rajesh Savings",
+                "1100",
+                "2110",
+                new BigDecimal("60000.0000"),
+                new BigDecimal("60000.0000"));
 
-        txnAndJournal(tenant, teller, biz, "DEP-SEED-0002", TransactionType.DEPOSIT, TransactionChannel.TELLER,
-                null, pSav, new BigDecimal("15000.0000"), "Opening Deposit - Priya Savings",
-                "1100", "2110", new BigDecimal("90000.0000"), new BigDecimal("90000.0000"));
+        txnAndJournal(
+                tenant,
+                teller,
+                biz,
+                "DEP-SEED-0002",
+                TransactionType.DEPOSIT,
+                TransactionChannel.TELLER,
+                null,
+                pSav,
+                new BigDecimal("15000.0000"),
+                "Opening Deposit - Priya Savings",
+                "1100",
+                "2110",
+                new BigDecimal("90000.0000"),
+                new BigDecimal("90000.0000"));
 
-        txnAndJournal(tenant, teller, biz, "TRF-SEED-0001", TransactionType.TRANSFER, TransactionChannel.ONLINE,
-                rSav, pSav, new BigDecimal("5000.0000"), "Internal Transfer - Rajesh to Priya",
-                "2100", "2100", new BigDecimal("55000.0000"), new BigDecimal("95000.0000"));
+        txnAndJournal(
+                tenant,
+                teller,
+                biz,
+                "TRF-SEED-0001",
+                TransactionType.TRANSFER,
+                TransactionChannel.ONLINE,
+                rSav,
+                pSav,
+                new BigDecimal("5000.0000"),
+                "Internal Transfer - Rajesh to Priya",
+                "2100",
+                "2100",
+                new BigDecimal("55000.0000"),
+                new BigDecimal("95000.0000"));
 
-        txnAndJournal(tenant, teller, biz, "WDR-SEED-0001", TransactionType.WITHDRAWAL, TransactionChannel.ATM,
-                rCur, null, new BigDecimal("2000.0000"), "ATM Withdrawal - Rajesh Current",
-                "2100", "1100", new BigDecimal("148000.0000"), new BigDecimal("148000.0000"));
+        txnAndJournal(
+                tenant,
+                teller,
+                biz,
+                "WDR-SEED-0001",
+                TransactionType.WITHDRAWAL,
+                TransactionChannel.ATM,
+                rCur,
+                null,
+                new BigDecimal("2000.0000"),
+                "ATM Withdrawal - Rajesh Current",
+                "2100",
+                "1100",
+                new BigDecimal("148000.0000"),
+                new BigDecimal("148000.0000"));
 
         log.info("  [Transactions] 4 sample transactions with balanced ledger journals created");
     }
 
-    private void txnAndJournal(Tenant tenant, User teller, LocalDate biz,
-                               String ref, TransactionType type, TransactionChannel channel,
-                               Account src, Account dst, BigDecimal amt, String desc,
-                               String drGl, String crGl,
-                               BigDecimal drBalAfter, BigDecimal crBalAfter) {
-        Transaction txn = Transaction.builder()
-                .transactionRef(ref).transactionType(type).status(TransactionStatus.COMPLETED)
-                .amount(amt).currency("INR").channel(channel)
-                .sourceAccount(src).destinationAccount(dst)
-                .description(desc).narration(desc)
-                .businessDate(biz).performedBy(teller).tenant(tenant).build();
+    private void txnAndJournal(
+            Tenant tenant,
+            User teller,
+            LocalDate biz,
+            String ref,
+            TransactionType type,
+            TransactionChannel channel,
+            Account src,
+            Account dst,
+            BigDecimal amt,
+            String desc,
+            String drGl,
+            String crGl,
+            BigDecimal drBalAfter,
+            BigDecimal crBalAfter) {
+        Transaction txn =
+                Transaction.builder()
+                        .transactionRef(ref)
+                        .transactionType(type)
+                        .status(TransactionStatus.COMPLETED)
+                        .amount(amt)
+                        .currency("INR")
+                        .channel(channel)
+                        .sourceAccount(src)
+                        .destinationAccount(dst)
+                        .description(desc)
+                        .narration(desc)
+                        .businessDate(biz)
+                        .performedBy(teller)
+                        .tenant(tenant)
+                        .build();
         txn = transactionRepository.save(txn);
 
         Account account = dst != null ? dst : src;
         GeneralLedger debitGL = glRepository.findByGlCode(drGl).orElse(null);
         GeneralLedger creditGL = glRepository.findByGlCode(crGl).orElse(null);
 
-        LedgerJournal journal = LedgerJournal.builder()
-                .transaction(txn).tenant(tenant).description(desc).businessDate(biz).build();
+        LedgerJournal journal =
+                LedgerJournal.builder()
+                        .transaction(txn)
+                        .tenant(tenant)
+                        .description(desc)
+                        .businessDate(biz)
+                        .build();
         journal = journalRepository.save(journal);
 
-        entryRepository.save(LedgerEntry.builder()
-                .journal(journal).transaction(txn).tenant(tenant).account(account)
-                .glAccount(debitGL).glAccountCode(drGl).entryType(EntryType.DEBIT)
-                .amount(amt).balanceAfter(drBalAfter).currency("INR")
-                .businessDate(biz).postingTime(LocalDateTime.now())
-                .narration(desc + " [DEBIT]").build());
+        entryRepository.save(
+                LedgerEntry.builder()
+                        .journal(journal)
+                        .transaction(txn)
+                        .tenant(tenant)
+                        .account(account)
+                        .glAccount(debitGL)
+                        .glAccountCode(drGl)
+                        .entryType(EntryType.DEBIT)
+                        .amount(amt)
+                        .balanceAfter(drBalAfter)
+                        .currency("INR")
+                        .businessDate(biz)
+                        .postingTime(LocalDateTime.now())
+                        .narration(desc + " [DEBIT]")
+                        .build());
 
-        entryRepository.save(LedgerEntry.builder()
-                .journal(journal).transaction(txn).tenant(tenant).account(account)
-                .glAccount(creditGL).glAccountCode(crGl).entryType(EntryType.CREDIT)
-                .amount(amt).balanceAfter(crBalAfter).currency("INR")
-                .businessDate(biz).postingTime(LocalDateTime.now())
-                .narration(desc + " [CREDIT]").build());
+        entryRepository.save(
+                LedgerEntry.builder()
+                        .journal(journal)
+                        .transaction(txn)
+                        .tenant(tenant)
+                        .account(account)
+                        .glAccount(creditGL)
+                        .glAccountCode(crGl)
+                        .entryType(EntryType.CREDIT)
+                        .amount(amt)
+                        .balanceAfter(crBalAfter)
+                        .currency("INR")
+                        .businessDate(biz)
+                        .postingTime(LocalDateTime.now())
+                        .narration(desc + " [CREDIT]")
+                        .build());
     }
 }

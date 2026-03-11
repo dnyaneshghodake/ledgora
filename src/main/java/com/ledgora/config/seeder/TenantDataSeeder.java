@@ -9,8 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * CBS DataSeeder: Module 0 — Tenant seeding.
- * Seeds default and secondary tenants for multi-tenancy.
+ * CBS DataSeeder: Module 0 — Tenant seeding. Seeds default and secondary tenants for multi-tenancy.
  */
 @Component
 public class TenantDataSeeder {

@@ -53,10 +53,7 @@ public class AccountMasterController {
         Account account =
                 accountService
                         .getAccountById(id)
-                        .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "Account not found: " + id));
+                        .orElseThrow(() -> new RuntimeException("Account not found: " + id));
 
         Long tenantId = TenantContextHolder.getRequiredTenantId();
 
@@ -89,8 +86,7 @@ public class AccountMasterController {
                 "accountType",
                 account.getAccountType() != null ? account.getAccountType().name() : "");
         model.addAttribute(
-                "accountStatus",
-                account.getStatus() != null ? account.getStatus().name() : "");
+                "accountStatus", account.getStatus() != null ? account.getStatus().name() : "");
         model.addAttribute("currency", account.getCurrency());
         model.addAttribute("glAccountCode", account.getGlAccountCode());
         model.addAttribute(
@@ -132,8 +128,7 @@ public class AccountMasterController {
                                         m.put(
                                                 "customerNumber",
                                                 o.getCustomerMaster() != null
-                                                        ? o.getCustomerMaster()
-                                                                .getCustomerNumber()
+                                                        ? o.getCustomerMaster().getCustomerNumber()
                                                         : "--");
                                         m.put(
                                                 "customerName",
@@ -172,8 +167,7 @@ public class AccountMasterController {
 
         // Balance data
         try {
-            AccountBalance balance =
-                    accountBalanceRepository.findByAccountId(id).orElse(null);
+            AccountBalance balance = accountBalanceRepository.findByAccountId(id).orElse(null);
             model.addAttribute("balance", balance);
         } catch (Exception e) {
             model.addAttribute("balance", null);
@@ -267,8 +261,7 @@ public class AccountMasterController {
 
     /** Approve account from master view (checker step). */
     @PostMapping("/{id}/master/approve")
-    public String approveAccount(
-            @PathVariable Long id, RedirectAttributes redirectAttributes) {
+    public String approveAccount(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             accountService.approveAccount(id);
             redirectAttributes.addFlashAttribute("message", "Account approved successfully");
@@ -280,8 +273,7 @@ public class AccountMasterController {
 
     /** Reject account from master view (checker step). */
     @PostMapping("/{id}/master/reject")
-    public String rejectAccount(
-            @PathVariable Long id, RedirectAttributes redirectAttributes) {
+    public String rejectAccount(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             accountService.rejectAccount(id);
             redirectAttributes.addFlashAttribute("message", "Account rejected");

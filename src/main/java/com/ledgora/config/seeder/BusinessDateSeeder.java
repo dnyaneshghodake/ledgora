@@ -9,8 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * CBS DataSeeder: Module 5 — Business Date seeding.
- * Seeds current business date with OPEN status.
+ * CBS DataSeeder: Module 5 — Business Date seeding. Seeds current business date with OPEN status.
  */
 @Component
 public class BusinessDateSeeder {

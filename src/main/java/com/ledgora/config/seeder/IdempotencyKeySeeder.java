@@ -7,8 +7,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * CBS DataSeeder: Module 9 — Idempotency Key seeding.
- * Seeds sample idempotency keys for testing deduplication.
+ * CBS DataSeeder: Module 9 — Idempotency Key seeding. Seeds sample idempotency keys for testing
+ * deduplication.
  */
 @Component
 public class IdempotencyKeySeeder {

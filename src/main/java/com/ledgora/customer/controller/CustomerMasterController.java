@@ -172,8 +172,7 @@ public class CustomerMasterController {
 
     /** Approve customer from master view (checker step). */
     @PostMapping("/{id}/master/approve")
-    public String approveCustomer(
-            @PathVariable Long id, RedirectAttributes redirectAttributes) {
+    public String approveCustomer(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             customerService.approveCustomer(id);
             redirectAttributes.addFlashAttribute("message", "Customer approved successfully");
@@ -185,8 +184,7 @@ public class CustomerMasterController {
 
     /** Reject customer from master view (checker step). */
     @PostMapping("/{id}/master/reject")
-    public String rejectCustomer(
-            @PathVariable Long id, RedirectAttributes redirectAttributes) {
+    public String rejectCustomer(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             customerService.rejectCustomer(id);
             redirectAttributes.addFlashAttribute("message", "Customer rejected");

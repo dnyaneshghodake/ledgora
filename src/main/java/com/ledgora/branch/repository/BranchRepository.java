@@ -20,8 +20,7 @@ public interface BranchRepository extends JpaRepository<Branch, Long> {
     @Query("SELECT b FROM Branch b WHERE b.tenant.id = :tenantId")
     List<Branch> findByTenantId(@Param("tenantId") Long tenantId);
 
-    @Query(
-            "SELECT b FROM Branch b WHERE b.tenant.id = :tenantId AND b.branchCode = :branchCode")
+    @Query("SELECT b FROM Branch b WHERE b.tenant.id = :tenantId AND b.branchCode = :branchCode")
     Optional<Branch> findByTenantIdAndBranchCode(
             @Param("tenantId") Long tenantId, @Param("branchCode") String branchCode);
 }

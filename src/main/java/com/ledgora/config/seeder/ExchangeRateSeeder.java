@@ -9,8 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * CBS DataSeeder: Module 8 — Exchange Rate seeding.
- * Seeds USD/INR/EUR/GBP pairs for multi-currency support.
+ * CBS DataSeeder: Module 8 — Exchange Rate seeding. Seeds USD/INR/EUR/GBP pairs for multi-currency
+ * support.
  */
 @Component
 public class ExchangeRateSeeder {

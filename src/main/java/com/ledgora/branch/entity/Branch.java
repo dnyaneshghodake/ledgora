@@ -6,8 +6,8 @@ import java.time.LocalDateTime;
 import lombok.*;
 
 /**
- * CBS-grade Branch (SOL) entity. Each branch belongs to a tenant. branchCode is the SOL ID
- * (unique per tenant). branchName is the display name used across all Finacle-style screens.
+ * CBS-grade Branch (SOL) entity. Each branch belongs to a tenant. branchCode is the SOL ID (unique
+ * per tenant). branchName is the display name used across all Finacle-style screens.
  */
 @Entity
 @Table(
