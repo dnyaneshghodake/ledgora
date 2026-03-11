@@ -74,24 +74,27 @@ public class AccountService {
         String resolvedGlCode;
 
         if (dto.getProductId() != null) {
-            product = productRepository.findById(dto.getProductId())
+            com.ledgora.product.entity.Product loadedProduct = productRepository.findById(dto.getProductId())
                     .orElseThrow(() -> new RuntimeException("Product not found: " + dto.getProductId()));
-            if (!tenantId.equals(product.getTenant().getId())) {
+            if (!tenantId.equals(loadedProduct.getTenant().getId())) {
                 throw new RuntimeException("Cross-tenant product access is not allowed");
             }
-            if (product.getStatus() != com.ledgora.common.enums.ProductStatus.ACTIVE) {
-                throw new RuntimeException("Product " + product.getProductCode() + " is not ACTIVE");
+            if (loadedProduct.getStatus() != com.ledgora.common.enums.ProductStatus.ACTIVE) {
+                throw new RuntimeException("Product " + loadedProduct.getProductCode() + " is not ACTIVE");
             }
+            product = loadedProduct;
 
-            effectiveVersion = productVersionRepository
-                    .findEffectiveVersion(product.getId(), java.time.LocalDate.now())
+            com.ledgora.product.entity.ProductVersion loadedVersion = productVersionRepository
+                    .findEffectiveVersion(loadedProduct.getId(), java.time.LocalDate.now())
                     .orElseThrow(() -> new RuntimeException(
-                            "No effective version for product " + product.getProductCode()));
+                            "No effective version for product " + loadedProduct.getProductCode()));
+            effectiveVersion = loadedVersion;
 
-            glMapping = productGlMappingRepository
-                    .findByProductVersionId(effectiveVersion.getId())
+            com.ledgora.product.entity.ProductGlMapping loadedMapping = productGlMappingRepository
+                    .findByProductVersionId(loadedVersion.getId())
                     .orElseThrow(() -> new RuntimeException(
-                            "GL mapping missing for product version " + effectiveVersion.getVersionNumber()));
+                            "GL mapping missing for product version " + loadedVersion.getVersionNumber()));
+            glMapping = loadedMapping;
 
             // Derive account type from product type
             resolvedType = switch (product.getProductType()) {
