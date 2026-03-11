@@ -212,12 +212,7 @@ public class AccountService {
     }
 
     public Optional<Account> getAccountById(Long id) {
-        return accountRepository
-                .findById(id)
-                .filter(
-                        a ->
-                                a.getTenant() != null
-                                        && requireTenantId().equals(a.getTenant().getId()));
+        return accountRepository.findByIdAndTenantId(id, requireTenantId());
     }
 
     public Optional<Account> getAccountByNumber(String accountNumber) {
@@ -396,29 +391,21 @@ public class AccountService {
     }
 
     public long countByStatus(AccountStatus status) {
-        return accountRepository.countByStatus(status);
+        return accountRepository.countByTenantIdAndStatus(requireTenantId(), status);
     }
 
     public long countAll() {
-        return accountRepository.count();
+        return accountRepository.findByTenantId(requireTenantId()).size();
     }
 
     private Account requireAccount(Long accountId) {
-        Account account =
-                accountRepository
-                        .findById(accountId)
-                        .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "Account not found with id: " + accountId));
         Long tenantId = requireTenantId();
-        if (account.getTenant() == null || account.getTenant().getId() == null) {
-            throw new RuntimeException("Account tenant missing for account: " + accountId);
-        }
-        if (!tenantId.equals(account.getTenant().getId())) {
-            throw new RuntimeException("Cross-tenant account access is not allowed");
-        }
-        return account;
+        return accountRepository
+                .findByIdAndTenantId(accountId, tenantId)
+                .orElseThrow(
+                        () ->
+                                new RuntimeException(
+                                        "Account not found with id: " + accountId));
     }
 
     private Long requireTenantId() {

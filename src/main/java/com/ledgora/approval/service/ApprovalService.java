@@ -84,16 +84,10 @@ public class ApprovalService {
         return saved;
     }
 
-    /** Approve a pending request (checker step). */
+    /** Approve a pending request (checker step). Tenant-isolated. */
     @Transactional
     public ApprovalRequest approve(Long requestId, String remarks) {
-        ApprovalRequest request =
-                approvalRepository
-                        .findById(requestId)
-                        .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "Approval request not found: " + requestId));
+        ApprovalRequest request = findByIdWithTenantIsolation(requestId);
 
         if (request.getStatus() != ApprovalStatus.PENDING) {
             throw new RuntimeException(
@@ -129,16 +123,10 @@ public class ApprovalService {
         return saved;
     }
 
-    /** Reject a pending request. */
+    /** Reject a pending request. Tenant-isolated. */
     @Transactional
     public ApprovalRequest reject(Long requestId, String remarks) {
-        ApprovalRequest request =
-                approvalRepository
-                        .findById(requestId)
-                        .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "Approval request not found: " + requestId));
+        ApprovalRequest request = findByIdWithTenantIsolation(requestId);
 
         if (request.getStatus() != ApprovalStatus.PENDING) {
             throw new RuntimeException(
@@ -169,19 +157,42 @@ public class ApprovalService {
     }
 
     public List<ApprovalRequest> getPendingRequests() {
-        return approvalRepository.findByStatus(ApprovalStatus.PENDING);
+        Long tenantId = requireTenantId();
+        return approvalRepository.findByTenant_IdAndStatus(tenantId, ApprovalStatus.PENDING);
     }
 
     public List<ApprovalRequest> getByEntityType(String entityType, ApprovalStatus status) {
-        return approvalRepository.findByEntityTypeAndStatus(entityType, status);
+        Long tenantId = requireTenantId();
+        return approvalRepository.findByTenant_IdAndEntityTypeAndStatus(
+                tenantId, entityType, status);
     }
 
     public Optional<ApprovalRequest> getById(Long id) {
-        return approvalRepository.findById(id);
+        Long tenantId = requireTenantId();
+        return approvalRepository.findByIdAndTenant_Id(id, tenantId);
     }
 
     public List<ApprovalRequest> getAllRequests() {
-        return approvalRepository.findAll();
+        Long tenantId = requireTenantId();
+        return approvalRepository.findByTenant_Id(tenantId);
+    }
+
+    /**
+     * Tenant-isolated lookup by ID. Throws if not found or belongs to a different tenant.
+     * Used by approve() and reject() to prevent cross-tenant approval manipulation.
+     */
+    private ApprovalRequest findByIdWithTenantIsolation(Long requestId) {
+        Long tenantId = requireTenantId();
+        return approvalRepository
+                .findByIdAndTenant_Id(requestId, tenantId)
+                .orElseThrow(
+                        () ->
+                                new RuntimeException(
+                                        "Approval request not found: " + requestId));
+    }
+
+    private Long requireTenantId() {
+        return TenantContextHolder.getRequiredTenantId();
     }
 
     private User getCurrentUser() {

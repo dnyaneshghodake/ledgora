@@ -50,26 +50,36 @@ public class BalanceReconciliationService {
     private final AccountRepository accountRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final ReconciliationExceptionRepository exceptionRepository;
+    private final com.ledgora.tenant.repository.TenantRepository tenantRepository;
 
     public BalanceReconciliationService(
             AccountRepository accountRepository,
             LedgerEntryRepository ledgerEntryRepository,
-            ReconciliationExceptionRepository exceptionRepository) {
+            ReconciliationExceptionRepository exceptionRepository,
+            com.ledgora.tenant.repository.TenantRepository tenantRepository) {
         this.accountRepository = accountRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.exceptionRepository = exceptionRepository;
+        this.tenantRepository = tenantRepository;
     }
 
     /**
-     * Scheduled reconciliation — runs every 5 minutes. Lightweight: processes all accounts for
-     * tenant ID 1 (default tenant). In production, this would iterate all active tenants.
+     * Scheduled reconciliation — runs every 5 minutes. Iterates all active tenants to ensure
+     * every tenant's account balances are validated against the ledger.
      */
     @Scheduled(fixedRate = 300000) // 5 minutes
     public void scheduledReconciliation() {
-        try {
-            reconcileTenant(1L, LocalDate.now());
-        } catch (Exception e) {
-            log.error("Scheduled reconciliation failed: {}", e.getMessage());
+        List<com.ledgora.tenant.entity.Tenant> activeTenants =
+                tenantRepository.findByStatus("ACTIVE");
+        for (com.ledgora.tenant.entity.Tenant tenant : activeTenants) {
+            try {
+                reconcileTenant(tenant.getId(), LocalDate.now());
+            } catch (Exception e) {
+                log.error(
+                        "Scheduled reconciliation failed for tenant {}: {}",
+                        tenant.getId(),
+                        e.getMessage());
+            }
         }
     }
 

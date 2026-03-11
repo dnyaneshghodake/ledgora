@@ -161,10 +161,11 @@ public class NpaClassificationService {
                 .count();
     }
 
-    /** Check if a specific account is NPA. */
+    /** Check if a specific account is NPA (tenant-isolated). */
     public boolean isNpa(Long accountId) {
+        Long tenantId = com.ledgora.tenant.context.TenantContextHolder.getRequiredTenantId();
         return accountRepository
-                .findById(accountId)
+                .findByIdAndTenantId(accountId, tenantId)
                 .map(a -> Boolean.TRUE.equals(a.getNpaFlag()))
                 .orElse(false);
     }

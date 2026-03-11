@@ -147,12 +147,7 @@ public class CustomerService {
     }
 
     public Optional<Customer> getCustomerById(Long id) {
-        return customerRepository
-                .findById(id)
-                .filter(
-                        c ->
-                                c.getTenant() != null
-                                        && requireTenantId().equals(c.getTenant().getId()));
+        return customerRepository.findByIdAndTenantId(id, requireTenantId());
     }
 
     public Optional<Customer> getCustomerByNationalId(String nationalId) {
@@ -274,21 +269,13 @@ public class CustomerService {
         return saved;
     }
 
-    /** Tenant-safe customer lookup. Throws if not found or cross-tenant. */
+    /** Tenant-safe customer lookup. Throws if not found or belongs to a different tenant. */
     private Customer requireCustomer(Long customerId) {
-        Customer customer =
-                customerRepository
-                        .findById(customerId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Customer not found: " + customerId));
         Long tenantId = requireTenantId();
-        if (customer.getTenant() == null || customer.getTenant().getId() == null) {
-            throw new RuntimeException("Customer tenant missing for customer: " + customerId);
-        }
-        if (!tenantId.equals(customer.getTenant().getId())) {
-            throw new RuntimeException("Cross-tenant customer access is not allowed");
-        }
-        return customer;
+        return customerRepository
+                .findByIdAndTenantId(customerId, tenantId)
+                .orElseThrow(
+                        () -> new RuntimeException("Customer not found: " + customerId));
     }
 
     private Long requireTenantId() {
