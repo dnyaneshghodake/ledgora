@@ -54,4 +54,15 @@ public interface AuditLogRepository
      * Fetch most recent audit events for a specific action (e.g., last 20 hard ceiling violations).
      */
     List<AuditLog> findTop20ByTenantIdAndActionOrderByTimestampDesc(Long tenantId, String action);
+
+    // ===== Hash chain queries =====
+
+    /** Find the most recent audit log entry for a tenant (for hash chain linking). */
+    java.util.Optional<AuditLog> findTopByTenantIdOrderByIdDesc(Long tenantId);
+
+    /** Find audit entries with broken hash chain (for integrity verification). */
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT a FROM AuditLog a WHERE a.tenantId = :tenantId AND a.hash IS NOT NULL ORDER BY a.id ASC")
+    List<AuditLog> findHashedEntriesByTenantIdOrderByIdAsc(
+            @org.springframework.data.repository.query.Param("tenantId") Long tenantId);
 }

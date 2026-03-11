@@ -41,15 +41,27 @@ public class TransactionController {
     @GetMapping
     public String listTransactions(
             @RequestParam(value = "accountNumber", required = false) String accountNumber,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
             Model model) {
+        StringBuilder qs = new StringBuilder();
         if (accountNumber != null && !accountNumber.isEmpty()) {
+            qs.append("&accountNumber=").append(accountNumber);
             model.addAttribute(
                     "transactions",
                     transactionService.getTransactionsByAccountNumber(accountNumber));
             model.addAttribute("accountNumber", accountNumber);
         } else {
-            model.addAttribute("transactions", transactionService.getAllTransactions());
+            org.springframework.data.domain.Page<com.ledgora.transaction.entity.Transaction>
+                    txnPage = transactionService.getAllTransactionsPaged(page, size);
+            model.addAttribute("transactions", txnPage.getContent());
+            model.addAttribute("currentPage", txnPage.getNumber());
+            model.addAttribute("totalPages", txnPage.getTotalPages());
+            model.addAttribute("totalElements", txnPage.getTotalElements());
+            model.addAttribute("pageSize", size);
         }
+        model.addAttribute("baseUrl", "/transactions");
+        model.addAttribute("queryString", qs.toString());
         return "transaction/transactions";
     }
 

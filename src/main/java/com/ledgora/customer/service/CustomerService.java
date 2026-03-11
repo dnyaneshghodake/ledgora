@@ -116,11 +116,7 @@ public class CustomerService {
 
     @Transactional
     public Customer updateCustomer(Long customerId, CustomerDTO dto) {
-        Customer customer =
-                customerRepository
-                        .findById(customerId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Customer not found: " + customerId));
+        Customer customer = requireCustomer(customerId);
 
         if (dto.getFirstName() != null) customer.setFirstName(dto.getFirstName());
         if (dto.getLastName() != null) customer.setLastName(dto.getLastName());
@@ -135,11 +131,7 @@ public class CustomerService {
 
     @Transactional
     public Customer updateKycStatus(Long customerId, String kycStatus) {
-        Customer customer =
-                customerRepository
-                        .findById(customerId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Customer not found: " + customerId));
+        Customer customer = requireCustomer(customerId);
         customer.setKycStatus(kycStatus);
         log.info("Customer {} KYC status updated to {}", customerId, kycStatus);
         return customerRepository.save(customer);
@@ -149,8 +141,19 @@ public class CustomerService {
         return customerRepository.findByTenantId(requireTenantId());
     }
 
+    public org.springframework.data.domain.Page<Customer> getAllCustomersPaged(int page, int size) {
+        return customerRepository.findByTenantId(
+                requireTenantId(),
+                org.springframework.data.domain.PageRequest.of(page, size));
+    }
+
     public Optional<Customer> getCustomerById(Long id) {
-        return customerRepository.findById(id);
+        return customerRepository
+                .findById(id)
+                .filter(
+                        c ->
+                                c.getTenant() != null
+                                        && requireTenantId().equals(c.getTenant().getId()));
     }
 
     public Optional<Customer> getCustomerByNationalId(String nationalId) {
@@ -169,32 +172,47 @@ public class CustomerService {
         return customerRepository.countByTenantId(requireTenantId());
     }
 
+    /**
+     * Update freeze status on customer. Persists freezeLevel and freezeReason on the Customer
+     * entity and writes an audit trail for governance.
+     */
     @Transactional
     public Customer updateFreezeStatus(Long customerId, String freezeLevel, String freezeReason) {
-        Customer customer =
-                customerRepository
-                        .findById(customerId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Customer not found: " + customerId));
-        // Store freeze info in address field suffix for now (Customer entity doesn't have freeze
-        // fields directly)
-        // The actual freeze enforcement is on CustomerMaster entity
+        Customer customer = requireCustomer(customerId);
+
+        // Persist freeze fields on Customer entity
+        customer.setFreezeLevel(freezeLevel != null ? freezeLevel : "NONE");
+        customer.setFreezeReason(freezeReason);
+
+        Customer saved = customerRepository.save(customer);
+
+        // Audit trail for freeze action (governance requirement)
+        User currentUser = getCurrentUser();
+        Long userId = currentUser != null ? currentUser.getId() : null;
+        auditService.logEvent(
+                userId,
+                "CUSTOMER_FREEZE_UPDATE",
+                "CUSTOMER",
+                customerId,
+                "Customer freeze updated: level="
+                        + freezeLevel
+                        + (freezeReason != null && !freezeReason.isBlank()
+                                ? " reason=" + freezeReason
+                                : ""),
+                null);
+
         log.info(
                 "Customer {} freeze updated to {} reason: {}",
                 customerId,
                 freezeLevel,
                 freezeReason);
-        return customerRepository.save(customer);
+        return saved;
     }
 
-    /** Approve customer (checker step). Enforces maker != checker. Sets kycStatus=VERIFIED. */
+    /** Approve customer (checker step). Enforces maker != checker + tenant isolation. */
     @Transactional
     public Customer approveCustomer(Long customerId) {
-        Customer customer =
-                customerRepository
-                        .findById(customerId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Customer not found: " + customerId));
+        Customer customer = requireCustomer(customerId);
 
         User currentUser = getCurrentUser();
         if (customer.getCreatedBy() != null
@@ -224,14 +242,10 @@ public class CustomerService {
         return saved;
     }
 
-    /** Reject customer (checker step). Enforces maker != checker. Sets kycStatus=REJECTED. */
+    /** Reject customer (checker step). Enforces maker != checker + tenant isolation. */
     @Transactional
     public Customer rejectCustomer(Long customerId) {
-        Customer customer =
-                customerRepository
-                        .findById(customerId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Customer not found: " + customerId));
+        Customer customer = requireCustomer(customerId);
 
         User currentUser = getCurrentUser();
         if (customer.getCreatedBy() != null
@@ -259,6 +273,23 @@ public class CustomerService {
                 customerId,
                 currentUser != null ? currentUser.getUsername() : "system");
         return saved;
+    }
+
+    /** Tenant-safe customer lookup. Throws if not found or cross-tenant. */
+    private Customer requireCustomer(Long customerId) {
+        Customer customer =
+                customerRepository
+                        .findById(customerId)
+                        .orElseThrow(
+                                () -> new RuntimeException("Customer not found: " + customerId));
+        Long tenantId = requireTenantId();
+        if (customer.getTenant() == null || customer.getTenant().getId() == null) {
+            throw new RuntimeException("Customer tenant missing for customer: " + customerId);
+        }
+        if (!tenantId.equals(customer.getTenant().getId())) {
+            throw new RuntimeException("Cross-tenant customer access is not allowed");
+        }
+        return customer;
     }
 
     private Long requireTenantId() {

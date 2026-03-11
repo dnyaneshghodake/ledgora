@@ -30,6 +30,10 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     long countByTenantId(Long tenantId);
 
+    /** Paginated transaction list by tenant. */
+    org.springframework.data.domain.Page<Transaction> findByTenantId(
+            Long tenantId, org.springframework.data.domain.Pageable pageable);
+
     @Query(
             "SELECT t FROM Transaction t WHERE t.tenant.id = :tenantId AND (t.sourceAccount.accountNumber = :accountNumber OR t.destinationAccount.accountNumber = :accountNumber) ORDER BY t.createdAt DESC")
     List<Transaction> findByTenantIdAndAccountNumber(

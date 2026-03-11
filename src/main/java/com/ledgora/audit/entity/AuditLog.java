@@ -78,6 +78,19 @@ public class AuditLog {
     @Column(name = "tenant_id")
     private Long tenantId;
 
+    /**
+     * SHA-256 hash of (previousHash + serialized payload). Forms an immutable
+     * chain per tenant — any tampering with historical entries breaks the chain.
+     * Computed by AuditService before persist (not in @PrePersist because it
+     * requires a DB lookup for the previous hash).
+     */
+    @Column(name = "hash", length = 64)
+    private String hash;
+
+    /** Hash of the immediately preceding audit log entry for the same tenant. */
+    @Column(name = "previous_hash", length = 64)
+    private String previousHash;
+
     @PrePersist
     protected void onCreate() {
         if (timestamp == null) {
