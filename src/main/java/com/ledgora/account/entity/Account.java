@@ -103,6 +103,11 @@ public class Account {
     @JoinColumn(name = "home_branch_id")
     private Branch homeBranch;
 
+    // CBS Product engine: nullable FK — existing accounts work without a product
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "product_id")
+    private com.ledgora.product.entity.Product product;
+
     @Column(name = "gl_account_code", length = 20)
     private String glAccountCode;
 
