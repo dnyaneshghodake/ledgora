@@ -116,7 +116,7 @@
         <%-- Session Timer --%>
         <div class="cbs-session-timer" id="cbsSessionTimer" aria-label="Session timeout" title="Session time remaining">
             <i class="bi bi-hourglass-split" aria-hidden="true"></i>
-            <span id="cbsSessionCountdown">30:00</span>
+            <span id="cbsSessionCountdown">15:00</span>
         </div>
         <%-- Maker/Checker Mode --%>
         <c:choose>
