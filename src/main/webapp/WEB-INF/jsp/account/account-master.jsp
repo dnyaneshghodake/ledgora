@@ -551,7 +551,12 @@ function switchTab(tabId) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    switchTab('tabGeneral');
+    var hash = window.location.hash;
+    if (hash && document.getElementById(hash.substring(1))) {
+        switchTab(hash.substring(1));
+    } else {
+        switchTab('tabGeneral');
+    }
 });
 </script>
 

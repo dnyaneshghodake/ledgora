@@ -188,24 +188,16 @@ public class AccountService {
 
     @Transactional
     public Account updateAccountStatus(Long id, AccountStatus status) {
-        Account account =
-                accountRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new RuntimeException("Account not found with id: " + id));
+        Account account = requireAccount(id);
         account.setStatus(status);
         log.info("Account {} status changed to {}", account.getAccountNumber(), status);
         return accountRepository.save(account);
     }
 
-    /** H2: Approve an account (checker step). Enforces maker-checker. */
+    /** H2: Approve an account (checker step). Enforces maker-checker + tenant isolation. */
     @Transactional
     public Account approveAccount(Long id) {
-        Account account =
-                accountRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new RuntimeException("Account not found with id: " + id));
+        Account account = requireAccount(id);
 
         if (account.getApprovalStatus() != MakerCheckerStatus.PENDING) {
             throw new RuntimeException(
@@ -241,14 +233,10 @@ public class AccountService {
         return saved;
     }
 
-    /** H2: Reject an account (checker step). Enforces maker-checker. */
+    /** H2: Reject an account (checker step). Enforces maker-checker + tenant isolation. */
     @Transactional
     public Account rejectAccount(Long id) {
-        Account account =
-                accountRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new RuntimeException("Account not found with id: " + id));
+        Account account = requireAccount(id);
 
         if (account.getApprovalStatus() != MakerCheckerStatus.PENDING) {
             throw new RuntimeException(
@@ -285,13 +273,7 @@ public class AccountService {
 
     @Transactional
     public void updateBalance(Long accountId, BigDecimal newBalance) {
-        Account account =
-                accountRepository
-                        .findById(accountId)
-                        .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "Account not found with id: " + accountId));
+        Account account = requireAccount(accountId);
         account.setBalance(newBalance);
         accountRepository.save(account);
     }
