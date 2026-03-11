@@ -22,4 +22,7 @@ public class DashboardDTO {
     // Maker-checker approval queue counts
     private long pendingApprovals;
     private long pendingTransactionApprovals;
+
+    // Config governance queue count
+    private long pendingConfigChanges;
 }

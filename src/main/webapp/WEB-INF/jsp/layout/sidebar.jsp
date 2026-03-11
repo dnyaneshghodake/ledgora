@@ -501,7 +501,7 @@
             </c:if>
 
             <%-- ═══ Audit & Governance Section ═══ --%>
-            <c:if test="${sessionScope.isAuditor || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isSuperAdmin}">
+            <c:if test="${sessionScope.isAuditor || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isSuperAdmin || sessionScope.isChecker}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="audit-governance">
                     <i class="bi bi-shield-check"></i>
@@ -533,6 +533,15 @@
                             <c:if test="${sessionScope.pendingApprovals != null && sessionScope.pendingApprovals > 0}">
                                 <span class="cbs-badge">${sessionScope.pendingApprovals}</span>
                             </c:if>
+                        </a>
+                    </li>
+                    </c:if>
+                    <%-- Config Governance (CBS Tier-1: maker-checker on parameter changes) --%>
+                    <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/governance" class="cbs-nav-link" data-page="governance">
+                            <i class="bi bi-sliders"></i>
+                            <span>Config Governance</span>
                         </a>
                     </li>
                     </c:if>
