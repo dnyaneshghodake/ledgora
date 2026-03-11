@@ -130,142 +130,14 @@ public class DataInitializer implements CommandLineRunner {
 
 
 
-        GeneralLedger liabilities =
-                createGL(
-                        "2000",
-                        "Liabilities",
-                        "Total Liabilities",
-                        GLAccountType.LIABILITY,
-                        null,
-                        0,
-                        "CREDIT");
-        GeneralLedger equity =
-                createGL("3000", "Equity", "Total Equity", GLAccountType.EQUITY, null, 0, "CREDIT");
-        GeneralLedger revenue =
-                createGL(
-                        "4000",
-                        "Revenue",
-                        "Total Revenue",
-                        GLAccountType.REVENUE,
-                        null,
-                        0,
-                        "CREDIT");
-        GeneralLedger expenses =
-                createGL(
-                        "5000",
-                        "Expenses",
-                        "Total Expenses",
-                        GLAccountType.EXPENSE,
-                        null,
-                        0,
-                        "DEBIT");
 
-        // ── Assets -> Level 1 sub-accounts ──
-        GeneralLedger cash =
-                createGL(
-                        "1100",
-                        "Cash and Cash Equivalents",
-                        "Cash holdings",
-                        GLAccountType.ASSET,
-                        assets,
-                        1,
-                        "DEBIT");
-        GeneralLedger loans =
-                createGL(
-                        "1200",
-                        "Loans and Advances",
-                        "Customer loans",
-                        GLAccountType.ASSET,
-                        assets,
-                        1,
-                        "DEBIT");
-        createGL(
-                "1300",
-                "Fixed Assets",
-                "Property and equipment",
-                GLAccountType.ASSET,
-                assets,
-                1,
-                "DEBIT");
-        createGL(
-                "1400",
-                "Customer Deposits Receivable",
-                "Deposits receivable",
-                GLAccountType.ASSET,
-                assets,
-                1,
-                "DEBIT");
 
-        // ── Assets -> Level 2 (Cash sub-accounts) ──
-        createGL(
-                "1110",
-                "ATM Cash",
-                "Cash held in ATM machines",
-                GLAccountType.ASSET,
-                cash,
-                2,
-                "DEBIT");
-        createGL(
-                "1120",
-                "Vault Cash",
-                "Cash held in branch vaults",
-                GLAccountType.ASSET,
-                cash,
-                2,
-                "DEBIT");
-        createGL(
-                "1130",
-                "Teller Cash",
-                "Cash held by tellers",
-                GLAccountType.ASSET,
-                cash,
-                2,
-                "DEBIT");
 
-        // ── Assets -> Level 2 (Loan sub-accounts) ──
-        createGL(
-                "1210",
-                "Personal Loans",
-                "Unsecured personal loans",
-                GLAccountType.ASSET,
-                loans,
-                2,
-                "DEBIT");
-        createGL(
-                "1220",
-                "Home Loans",
-                "Secured mortgage loans",
-                GLAccountType.ASSET,
-                loans,
-                2,
-                "DEBIT");
 
-        // ── Liabilities -> Level 1 sub-accounts ──
-        GeneralLedger customerDeposits =
-                createGL(
-                        "2100",
-                        "Customer Deposits",
-                        "Savings and current deposits",
-                        GLAccountType.LIABILITY,
-                        liabilities,
-                        1,
-                        "CREDIT");
-        createGL(
-                "2200",
-                "Borrowings",
-                "Bank borrowings",
-                GLAccountType.LIABILITY,
-                liabilities,
-                1,
-                "CREDIT");
-        createGL(
-                "2300",
-                "Payables",
-                "Accounts payable",
-                GLAccountType.LIABILITY,
-                liabilities,
-                1,
-                "CREDIT");
+
+
+
+
         GeneralLedger otherLiabilities =
                 createGL(
                         "2400",
