@@ -138,6 +138,17 @@ public class Account {
     @Column(name = "freeze_reason", length = 255)
     private String freezeReason;
 
+    // CBS NPA classification: set to true when DPD > 90 on any loan installment
+    @Column(name = "npa_flag", nullable = false)
+    @Builder.Default
+    private Boolean npaFlag = false;
+
+    @Column(name = "npa_date")
+    private java.time.LocalDate npaDate;
+
+    @Column(name = "npa_provisioning_amount", precision = 19, scale = 4)
+    private BigDecimal npaProvisioningAmount;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "approval_status", length = 20, nullable = false)
     @Builder.Default
