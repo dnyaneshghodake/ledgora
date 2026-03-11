@@ -83,6 +83,13 @@
         </div>
     </div>
     <div class="cbs-header-right">
+        <%-- Tenant Name (SINGLE scope — read-only display) --%>
+        <c:if test="${sessionScope.tenantScope != 'MULTI' && not empty sessionScope.tenantName}">
+            <div class="cbs-tenant-info">
+                <i class="bi bi-building" aria-hidden="true"></i>
+                <span><c:out value="${sessionScope.tenantName}"/></span>
+            </div>
+        </c:if>
         <%-- Tenant Switch (MULTI scope only) --%>
         <c:if test="${sessionScope.tenantScope == 'MULTI'}">
             <div class="dropdown">
