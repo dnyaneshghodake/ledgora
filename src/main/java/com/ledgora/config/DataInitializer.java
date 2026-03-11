@@ -1,141 +1,66 @@
 package com.ledgora.config;
 
-import com.ledgora.account.entity.Account;
-import com.ledgora.account.entity.AccountBalance;
-import com.ledgora.account.repository.AccountBalanceRepository;
-import com.ledgora.account.repository.AccountRepository;
-import com.ledgora.auth.entity.Role;
 import com.ledgora.auth.entity.User;
-import com.ledgora.auth.repository.RoleRepository;
-import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.branch.entity.Branch;
-import com.ledgora.branch.repository.BranchRepository;
-import com.ledgora.common.entity.SystemDate;
-import com.ledgora.common.enums.*;
-import com.ledgora.common.enums.DayStatus;
-import com.ledgora.common.repository.SystemDateRepository;
-import com.ledgora.currency.entity.ExchangeRate;
-import com.ledgora.currency.repository.ExchangeRateRepository;
-import com.ledgora.customer.entity.Customer;
-import com.ledgora.customer.entity.CustomerMaster;
-import com.ledgora.customer.entity.CustomerTaxProfile;
-import com.ledgora.customer.repository.CustomerMasterRepository;
-import com.ledgora.customer.repository.CustomerRepository;
-import com.ledgora.customer.repository.CustomerTaxProfileRepository;
-import com.ledgora.gl.entity.GeneralLedger;
-import com.ledgora.gl.repository.GeneralLedgerRepository;
-import com.ledgora.idempotency.entity.IdempotencyKey;
-import com.ledgora.idempotency.repository.IdempotencyKeyRepository;
-import com.ledgora.ledger.entity.LedgerEntry;
-import com.ledgora.ledger.entity.LedgerJournal;
-import com.ledgora.ledger.repository.LedgerEntryRepository;
-import com.ledgora.ledger.repository.LedgerJournalRepository;
+import com.ledgora.config.seeder.*;
 import com.ledgora.tenant.entity.Tenant;
-import com.ledgora.tenant.repository.TenantRepository;
-import com.ledgora.transaction.entity.Transaction;
-import com.ledgora.transaction.repository.TransactionRepository;
-import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Comprehensive data initializer for the Ledgora Core Banking Platform.
+ * Slim orchestrator for CBS data seeding. Delegates to module-wise seeders
+ * in dependency order. Each seeder is idempotent (checks before creating).
  *
- * <p>Seeds the following on startup (idempotent — checks before creating): 1. Roles: ADMIN,
- * MANAGER, TELLER, CUSTOMER 2. Branches: HQ001, BR001, BR002 3. Users: admin, manager, teller1,
- * teller2, customer1-customer4 (BCrypt hashed passwords) 4. Customers: 2 KYC-verified customers
- * with multiple accounts each, plus pending ones 5. Accounts: GL hierarchy (Assets->Cash->ATM Cash,
- * Assets->Loans, Liabilities->Deposits->Savings/Current, Liabilities->Other), plus customer
- * SAVINGS/CURRENT/LOAN/FIXED_DEPOSIT accounts, plus INTERNAL, CLEARING, SETTLEMENT system accounts
- * 6. Account Balances: cached balance records for all customer accounts 7. Sample Transactions +
- * Ledger Journals + Ledger Entries (double-entry balanced) 8. System Date: current business date
- * with OPEN status 9. Exchange Rates: USD->INR, USD->EUR, INR->EUR, EUR->INR 10. Idempotency Keys:
- * sample keys for testing deduplication
- *
- * <p>All seed data respects ACID, ledger integrity (SUM debits = SUM credits), and entity
- * relationships (user->branch, customer->accounts, accounts->ledger entries).
+ * <p>Execution order:
+ * 0. Tenants → 1. Roles → 2. Branches → 3. Users → 4. GL Hierarchy →
+ * 5. Business Date → 6. Customers & Accounts → 7. Transactions & Ledger →
+ * 8. Exchange Rates → 9. Idempotency Keys → 10. CBS CustomerMaster + Tax
  */
 @Component
 public class DataInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
-    // ── Repositories ──
-    private final RoleRepository roleRepository;
-    private final UserRepository userRepository;
-    private final BranchRepository branchRepository;
-    private final CustomerRepository customerRepository;
-    private final CustomerMasterRepository customerMasterRepository;
-    private final CustomerTaxProfileRepository customerTaxProfileRepository;
-    private final AccountRepository accountRepository;
-    private final AccountBalanceRepository accountBalanceRepository;
-    private final GeneralLedgerRepository glRepository;
-    private final TransactionRepository transactionRepository;
-    private final LedgerJournalRepository ledgerJournalRepository;
-    private final LedgerEntryRepository ledgerEntryRepository;
-    private final SystemDateRepository systemDateRepository;
-    private final ExchangeRateRepository exchangeRateRepository;
-    private final IdempotencyKeyRepository idempotencyKeyRepository;
-    private final TenantRepository tenantRepository;
-    private final PasswordEncoder passwordEncoder;
-
-    // ── Cached references used across init methods ──
-    private Branch hqBranch;
-    private Branch branch1;
-    private Branch branch2;
-    private User adminUser;
-    private User managerUser;
-    private User teller1User;
-    private Tenant defaultTenant;
-    private Tenant secondTenant;
+    private final TenantDataSeeder tenantSeeder;
+    private final RoleDataSeeder roleSeeder;
+    private final BranchDataSeeder branchSeeder;
+    private final UserDataSeeder userSeeder;
+    private final GLHierarchySeeder glSeeder;
+    private final BusinessDateSeeder businessDateSeeder;
+    private final CustomerAccountSeeder customerAccountSeeder;
+    private final TransactionLedgerSeeder transactionLedgerSeeder;
+    private final ExchangeRateSeeder exchangeRateSeeder;
+    private final IdempotencyKeySeeder idempotencyKeySeeder;
+    private final CbsCustomerSeeder cbsCustomerSeeder;
 
     public DataInitializer(
-            RoleRepository roleRepository,
-            UserRepository userRepository,
-            BranchRepository branchRepository,
-            CustomerRepository customerRepository,
-            CustomerMasterRepository customerMasterRepository,
-            CustomerTaxProfileRepository customerTaxProfileRepository,
-            AccountRepository accountRepository,
-            AccountBalanceRepository accountBalanceRepository,
-            GeneralLedgerRepository glRepository,
-            TransactionRepository transactionRepository,
-            LedgerJournalRepository ledgerJournalRepository,
-            LedgerEntryRepository ledgerEntryRepository,
-            SystemDateRepository systemDateRepository,
-            ExchangeRateRepository exchangeRateRepository,
-            IdempotencyKeyRepository idempotencyKeyRepository,
-            TenantRepository tenantRepository,
-            PasswordEncoder passwordEncoder) {
-        this.roleRepository = roleRepository;
-        this.userRepository = userRepository;
-        this.branchRepository = branchRepository;
-        this.customerRepository = customerRepository;
-        this.customerMasterRepository = customerMasterRepository;
-        this.customerTaxProfileRepository = customerTaxProfileRepository;
-        this.accountRepository = accountRepository;
-        this.accountBalanceRepository = accountBalanceRepository;
-        this.glRepository = glRepository;
-        this.transactionRepository = transactionRepository;
-        this.ledgerJournalRepository = ledgerJournalRepository;
-        this.ledgerEntryRepository = ledgerEntryRepository;
-        this.systemDateRepository = systemDateRepository;
-        this.exchangeRateRepository = exchangeRateRepository;
-        this.idempotencyKeyRepository = idempotencyKeyRepository;
-        this.tenantRepository = tenantRepository;
-        this.passwordEncoder = passwordEncoder;
+            TenantDataSeeder tenantSeeder,
+            RoleDataSeeder roleSeeder,
+            BranchDataSeeder branchSeeder,
+            UserDataSeeder userSeeder,
+            GLHierarchySeeder glSeeder,
+            BusinessDateSeeder businessDateSeeder,
+            CustomerAccountSeeder customerAccountSeeder,
+            TransactionLedgerSeeder transactionLedgerSeeder,
+            ExchangeRateSeeder exchangeRateSeeder,
+            IdempotencyKeySeeder idempotencyKeySeeder,
+            CbsCustomerSeeder cbsCustomerSeeder) {
+        this.tenantSeeder = tenantSeeder;
+        this.roleSeeder = roleSeeder;
+        this.branchSeeder = branchSeeder;
+        this.userSeeder = userSeeder;
+        this.glSeeder = glSeeder;
+        this.businessDateSeeder = businessDateSeeder;
+        this.customerAccountSeeder = customerAccountSeeder;
+        this.transactionLedgerSeeder = transactionLedgerSeeder;
+        this.exchangeRateSeeder = exchangeRateSeeder;
+        this.idempotencyKeySeeder = idempotencyKeySeeder;
+        this.cbsCustomerSeeder = cbsCustomerSeeder;
     }
 
-    // ════════════════════════════════════════════════════════════════════════
-    // Entry point — runs once at application startup
-    // ════════════════════════════════════════════════════════════════════════
     @Override
     @Transactional
     public void run(String... args) {
@@ -143,29 +68,55 @@ public class DataInitializer implements CommandLineRunner {
         log.info("  Ledgora DataInitializer — seeding reference data ...");
         log.info("═══════════════════════════════════════════════════════════");
 
-        initTenants();
-        initRoles();
-        initBranches();
-        initUsers();
-        initGLHierarchy();
-        initBusinessDate();
-        initCustomersAndAccounts();
-        initSampleTransactionsAndLedger();
-        initExchangeRates();
-        initIdempotencyKeys();
-        initCbsCustomersAndTaxProfiles();
+        // 0. Tenants
+        Tenant defaultTenant = tenantSeeder.seedDefaultTenant();
+        Tenant secondTenant = tenantSeeder.seedSecondTenant();
+        tenantSeeder.seed();
+
+        // 1. Roles
+        roleSeeder.seed();
+
+        // 2. Branches
+        Branch[] branches = branchSeeder.seed(defaultTenant);
+        Branch hq = branches[0];
+        Branch br1 = branches[1];
+        Branch br2 = branches[2];
+
+        // 3. Users
+        User[] users = userSeeder.seed(defaultTenant, secondTenant, hq, br1, br2);
+        User adminUser = users[0];
+        User teller1User = users[2];
+
+        // 4. GL Chart of Accounts
+        glSeeder.seed();
+
+        // 5. Business Date
+        businessDateSeeder.seed();
+
+        // 6. Customers & Accounts & Balances
+        customerAccountSeeder.seed(defaultTenant, adminUser, hq, br1, br2);
+
+        // 7. Sample Transactions & Ledger
+        transactionLedgerSeeder.seed(defaultTenant, teller1User);
+
+        // 8. Exchange Rates
+        exchangeRateSeeder.seed();
+
+        // 9. Idempotency Keys
+        idempotencyKeySeeder.seed();
+
+        // 10. CBS CustomerMaster + Tax Profiles
+        cbsCustomerSeeder.seed(defaultTenant);
 
         log.info("═══════════════════════════════════════════════════════════");
         log.info("  Ledgora DataInitializer — seeding complete.");
         log.info("═══════════════════════════════════════════════════════════");
     }
+}
+// EOF — old init methods moved to com.ledgora.config.seeder.*
+// The following dead code will be cleaned up on commit.
+// PLACEHOLDER_REMOVE_BELOW
 
-    // ════════════════════════════════════════════════════════════════════════
-    // 0. SEED TENANTS — default and secondary tenants for multi-tenancy
-    // ════════════════════════════════════════════════════════════════════════
-    private void initTenants() {
-        defaultTenant =
-                tenantRepository
                         .findByTenantCode("TENANT-001")
                         .orElseGet(
                                 () -> {
