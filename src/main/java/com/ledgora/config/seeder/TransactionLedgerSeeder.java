@@ -126,7 +126,22 @@ public class TransactionLedgerSeeder {
                 new BigDecimal("148000.0000"),
                 new BigDecimal("148000.0000"));
 
-        log.info("  [Transactions] 4 sample transactions with balanced ledger journals created");
+        // ── Bulk transactions for pagination testing (26 more deposits across bulk accounts) ──
+        for (int i = 5; i <= 30; i++) {
+            String savNum = String.format("SAV-%04d-0001", i);
+            Account bulkAcct = accountRepository.findByAccountNumber(savNum).orElse(null);
+            if (bulkAcct == null) continue;
+            BigDecimal amt = new BigDecimal((i * 1000) + ".0000");
+            BigDecimal balAfter = bulkAcct.getBalance().add(amt);
+            txnAndJournal(tenant, teller, biz,
+                    String.format("DEP-SEED-%04d", i),
+                    TransactionType.DEPOSIT, TransactionChannel.TELLER,
+                    null, bulkAcct, amt,
+                    "Bulk Deposit - " + bulkAcct.getAccountName(),
+                    "1100", "2110", balAfter, balAfter);
+        }
+
+        log.info("  [Transactions] 30 sample transactions with balanced ledger journals created");
     }
 
     private void txnAndJournal(
