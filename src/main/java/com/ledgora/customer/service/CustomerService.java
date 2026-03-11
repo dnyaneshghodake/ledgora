@@ -116,11 +116,7 @@ public class CustomerService {
 
     @Transactional
     public Customer updateCustomer(Long customerId, CustomerDTO dto) {
-        Customer customer =
-                customerRepository
-                        .findById(customerId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Customer not found: " + customerId));
+        Customer customer = requireCustomer(customerId);
 
         if (dto.getFirstName() != null) customer.setFirstName(dto.getFirstName());
         if (dto.getLastName() != null) customer.setLastName(dto.getLastName());
@@ -135,11 +131,7 @@ public class CustomerService {
 
     @Transactional
     public Customer updateKycStatus(Long customerId, String kycStatus) {
-        Customer customer =
-                customerRepository
-                        .findById(customerId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Customer not found: " + customerId));
+        Customer customer = requireCustomer(customerId);
         customer.setKycStatus(kycStatus);
         log.info("Customer {} KYC status updated to {}", customerId, kycStatus);
         return customerRepository.save(customer);
@@ -150,7 +142,12 @@ public class CustomerService {
     }
 
     public Optional<Customer> getCustomerById(Long id) {
-        return customerRepository.findById(id);
+        return customerRepository
+                .findById(id)
+                .filter(
+                        c ->
+                                c.getTenant() != null
+                                        && requireTenantId().equals(c.getTenant().getId()));
     }
 
     public Optional<Customer> getCustomerByNationalId(String nationalId) {
@@ -171,11 +168,7 @@ public class CustomerService {
 
     @Transactional
     public Customer updateFreezeStatus(Long customerId, String freezeLevel, String freezeReason) {
-        Customer customer =
-                customerRepository
-                        .findById(customerId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Customer not found: " + customerId));
+        Customer customer = requireCustomer(customerId);
         log.info(
                 "Customer {} freeze updated to {} reason: {}",
                 customerId,
@@ -184,14 +177,10 @@ public class CustomerService {
         return customerRepository.save(customer);
     }
 
-    /** Approve customer (checker step). Enforces maker != checker. Sets kycStatus=VERIFIED. */
+    /** Approve customer (checker step). Enforces maker != checker + tenant isolation. */
     @Transactional
     public Customer approveCustomer(Long customerId) {
-        Customer customer =
-                customerRepository
-                        .findById(customerId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Customer not found: " + customerId));
+        Customer customer = requireCustomer(customerId);
 
         User currentUser = getCurrentUser();
         if (customer.getCreatedBy() != null
@@ -221,14 +210,10 @@ public class CustomerService {
         return saved;
     }
 
-    /** Reject customer (checker step). Enforces maker != checker. Sets kycStatus=REJECTED. */
+    /** Reject customer (checker step). Enforces maker != checker + tenant isolation. */
     @Transactional
     public Customer rejectCustomer(Long customerId) {
-        Customer customer =
-                customerRepository
-                        .findById(customerId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Customer not found: " + customerId));
+        Customer customer = requireCustomer(customerId);
 
         User currentUser = getCurrentUser();
         if (customer.getCreatedBy() != null
@@ -256,6 +241,23 @@ public class CustomerService {
                 customerId,
                 currentUser != null ? currentUser.getUsername() : "system");
         return saved;
+    }
+
+    /** Tenant-safe customer lookup. Throws if not found or cross-tenant. */
+    private Customer requireCustomer(Long customerId) {
+        Customer customer =
+                customerRepository
+                        .findById(customerId)
+                        .orElseThrow(
+                                () -> new RuntimeException("Customer not found: " + customerId));
+        Long tenantId = requireTenantId();
+        if (customer.getTenant() == null || customer.getTenant().getId() == null) {
+            throw new RuntimeException("Customer tenant missing for customer: " + customerId);
+        }
+        if (!tenantId.equals(customer.getTenant().getId())) {
+            throw new RuntimeException("Cross-tenant customer access is not allowed");
+        }
+        return customer;
     }
 
     private Long requireTenantId() {
