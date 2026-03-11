@@ -60,7 +60,15 @@ public class AccountController {
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "type", required = false) String type,
             @RequestParam(value = "search", required = false) String search,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
             Model model) {
+        // Build query string for pagination links (preserves filters)
+        StringBuilder qs = new StringBuilder();
+        if (search != null && !search.isEmpty()) qs.append("&search=").append(search);
+        if (status != null && !status.isEmpty()) qs.append("&status=").append(status);
+        if (type != null && !type.isEmpty()) qs.append("&type=").append(type);
+
         if (search != null && !search.isEmpty()) {
             model.addAttribute("accounts", accountService.searchByCustomerName(search));
             model.addAttribute("search", search);
@@ -73,8 +81,16 @@ public class AccountController {
                     "accounts", accountService.getAccountsByType(AccountType.valueOf(type)));
             model.addAttribute("selectedType", type);
         } else {
-            model.addAttribute("accounts", accountService.getAllAccounts());
+            org.springframework.data.domain.Page<Account> accountPage =
+                    accountService.getAllAccountsPaged(page, size);
+            model.addAttribute("accounts", accountPage.getContent());
+            model.addAttribute("currentPage", accountPage.getNumber());
+            model.addAttribute("totalPages", accountPage.getTotalPages());
+            model.addAttribute("totalElements", accountPage.getTotalElements());
+            model.addAttribute("pageSize", size);
         }
+        model.addAttribute("baseUrl", "/accounts");
+        model.addAttribute("queryString", qs.toString());
         model.addAttribute("accountTypes", AccountType.values());
         model.addAttribute("accountStatuses", AccountStatus.values());
         return "account/accounts";
