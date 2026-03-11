@@ -41,6 +41,9 @@ public class SecurityConfig {
     @Value("${app.jwt.secret:}")
     private String jwtSecret;
 
+    @Value("${app.jwt.previous-secret:}")
+    private String jwtPreviousSecret;
+
     @Value("${spring.h2.console.enabled:false}")
     private boolean h2ConsoleEnabled;
 
@@ -55,8 +58,14 @@ public class SecurityConfig {
     }
 
     /**
-     * RBI-F2: Fail-fast if JWT secret is the known dev-only default. In production, JWT_SECRET env
-     * var MUST be set to a unique, strong key.
+     * RBI-F2: Validate JWT key configuration at startup.
+     * <ul>
+     *   <li>Fail-fast if current secret is blank</li>
+     *   <li>Warn if using dev-only default</li>
+     *   <li>Log rotation state if previous-secret is configured</li>
+     *   <li>Block if current == previous (misconfiguration)</li>
+     *   <li>Validate minimum key length (32 bytes for HS256)</li>
+     * </ul>
      */
     @PostConstruct
     public void validateJwtSecret() {
@@ -65,10 +74,25 @@ public class SecurityConfig {
             throw new IllegalStateException(
                     "app.jwt.secret must be configured. Set JWT_SECRET env var.");
         }
+        if (jwtSecret.length() < 32) {
+            throw new IllegalStateException(
+                    "app.jwt.secret must be at least 32 characters (256 bits) for HS256.");
+        }
         if (jwtSecret.equals(DEV_JWT_SECRET)) {
             log.warn(
                     "SECURITY WARNING: Using dev-only JWT secret. "
                             + "Override via JWT_SECRET env var before production deployment.");
+        }
+        // Rotation state logging
+        if (jwtPreviousSecret != null && !jwtPreviousSecret.isBlank()) {
+            if (jwtPreviousSecret.equals(jwtSecret)) {
+                throw new IllegalStateException(
+                        "app.jwt.previous-secret must differ from app.jwt.secret. "
+                                + "Both keys are identical — rotation is not configured correctly.");
+            }
+            log.info(
+                    "JWT KEY ROTATION ACTIVE: previous-secret is configured. "
+                            + "Tokens signed with the previous key will be accepted during the grace period.");
         }
     }
 
