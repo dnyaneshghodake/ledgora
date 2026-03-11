@@ -20,24 +20,33 @@ public class BranchService {
     }
 
     @Transactional
-    public Branch createBranch(String branchCode, String name, String address) {
+    public Branch createBranch(String branchCode, String branchName, String address) {
         if (branchRepository.existsByBranchCode(branchCode)) {
             throw new RuntimeException("Branch code already exists: " + branchCode);
         }
         Branch branch =
                 Branch.builder()
                         .branchCode(branchCode)
-                        .name(name)
+                        .branchName(branchName)
+                        .name(branchName)
                         .address(address)
                         .isActive(true)
                         .build();
         Branch saved = branchRepository.save(branch);
-        log.info("Branch created: {} - {}", saved.getBranchCode(), saved.getName());
+        log.info("Branch created: {} - {}", saved.getBranchCode(), saved.getBranchName());
         return saved;
     }
 
     public List<Branch> getAllBranches() {
         return branchRepository.findAll();
+    }
+
+    public List<Branch> getActiveBranchesByTenant(Long tenantId) {
+        return branchRepository.findActiveByTenantId(tenantId);
+    }
+
+    public List<Branch> getBranchesByTenant(Long tenantId) {
+        return branchRepository.findByTenantId(tenantId);
     }
 
     public Optional<Branch> getBranchByCode(String code) {
@@ -46,5 +55,9 @@ public class BranchService {
 
     public Optional<Branch> getBranchById(Long id) {
         return branchRepository.findById(id);
+    }
+
+    public Optional<Branch> getBranchByTenantAndCode(Long tenantId, String branchCode) {
+        return branchRepository.findByTenantIdAndBranchCode(tenantId, branchCode);
     }
 }

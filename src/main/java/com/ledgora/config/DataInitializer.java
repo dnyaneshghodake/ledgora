@@ -228,8 +228,10 @@ public class DataInitializer implements CommandLineRunner {
                                     Branch b =
                                             Branch.builder()
                                                     .branchCode("HQ001")
+                                                    .branchName("Head Office")
                                                     .name("Head Office")
                                                     .address("Main Street, City Center")
+                                                    .tenant(defaultTenant)
                                                     .isActive(true)
                                                     .build();
                                     return branchRepository.save(b);
@@ -243,8 +245,10 @@ public class DataInitializer implements CommandLineRunner {
                                     Branch b =
                                             Branch.builder()
                                                     .branchCode("BR001")
+                                                    .branchName("Downtown Branch")
                                                     .name("Downtown Branch")
                                                     .address("1st Avenue, Downtown")
+                                                    .tenant(defaultTenant)
                                                     .isActive(true)
                                                     .build();
                                     return branchRepository.save(b);
@@ -258,8 +262,10 @@ public class DataInitializer implements CommandLineRunner {
                                     Branch b =
                                             Branch.builder()
                                                     .branchCode("BR002")
+                                                    .branchName("Uptown Branch")
                                                     .name("Uptown Branch")
                                                     .address("2nd Avenue, Uptown")
+                                                    .tenant(defaultTenant)
                                                     .isActive(true)
                                                     .build();
                                     return branchRepository.save(b);
