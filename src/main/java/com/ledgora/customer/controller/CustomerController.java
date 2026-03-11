@@ -46,18 +46,33 @@ public class CustomerController {
             @RequestParam(value = "kycStatus", required = false) String kycStatus,
             @RequestParam(value = "approvalStatus", required = false) String approvalStatus,
             @RequestParam(value = "status", required = false) String status,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size,
             Model model) {
-        List<Customer> customers;
+        // Build query string for pagination links (preserves filters)
+        StringBuilder qs = new StringBuilder();
+        if (search != null && !search.isEmpty()) qs.append("&search=").append(search);
+        if (kycStatus != null && !kycStatus.isEmpty()) qs.append("&kycStatus=").append(kycStatus);
+
         if (search != null && !search.isEmpty()) {
-            customers = customerService.searchByName(search);
+            List<Customer> customers = customerService.searchByName(search);
+            model.addAttribute("customers", customers);
             model.addAttribute("search", search);
         } else if (kycStatus != null && !kycStatus.isEmpty()) {
-            customers = customerService.getByKycStatus(kycStatus);
+            List<Customer> customers = customerService.getByKycStatus(kycStatus);
+            model.addAttribute("customers", customers);
             model.addAttribute("selectedKycStatus", kycStatus);
         } else {
-            customers = customerService.getAllCustomers();
+            org.springframework.data.domain.Page<Customer> customerPage =
+                    customerService.getAllCustomersPaged(page, size);
+            model.addAttribute("customers", customerPage.getContent());
+            model.addAttribute("currentPage", customerPage.getNumber());
+            model.addAttribute("totalPages", customerPage.getTotalPages());
+            model.addAttribute("totalElements", customerPage.getTotalElements());
+            model.addAttribute("pageSize", size);
         }
-        model.addAttribute("customers", customers);
+        model.addAttribute("baseUrl", "/customers");
+        model.addAttribute("queryString", qs.toString());
         model.addAttribute("freezeLevels", FreezeLevel.values());
         model.addAttribute("approvalStatuses", MakerCheckerStatus.values());
         return "customer/customers";

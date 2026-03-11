@@ -94,6 +94,12 @@ public class AccountService {
         return accountRepository.findByTenantId(requireTenantId());
     }
 
+    public org.springframework.data.domain.Page<Account> getAllAccountsPaged(int page, int size) {
+        return accountRepository.findByTenantId(
+                requireTenantId(),
+                org.springframework.data.domain.PageRequest.of(page, size));
+    }
+
     public Optional<Account> getAccountById(Long id) {
         return accountRepository
                 .findById(id)

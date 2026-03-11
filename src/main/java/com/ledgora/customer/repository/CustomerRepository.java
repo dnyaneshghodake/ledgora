@@ -39,4 +39,9 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     @Query("SELECT COUNT(c) FROM Customer c WHERE c.tenant.id = :tenantId")
     long countByTenantId(@Param("tenantId") Long tenantId);
+
+    /** Paginated customer list by tenant. */
+    @Query("SELECT c FROM Customer c WHERE c.tenant.id = :tenantId")
+    org.springframework.data.domain.Page<Customer> findByTenantId(
+            @Param("tenantId") Long tenantId, org.springframework.data.domain.Pageable pageable);
 }
