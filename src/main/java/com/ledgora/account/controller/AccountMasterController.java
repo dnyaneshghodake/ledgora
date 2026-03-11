@@ -217,6 +217,68 @@ public class AccountMasterController {
         return "account/account-master";
     }
 
+    /** Save account master fields (General + Contact tabs). */
+    @PostMapping("/{id}/master/save")
+    public String saveAccountMaster(
+            @PathVariable Long id,
+            @RequestParam(required = false) String accountName,
+            @RequestParam(required = false) String currency,
+            @RequestParam(required = false) String glAccountCode,
+            @RequestParam(required = false) String customerName,
+            @RequestParam(required = false) String customerPhone,
+            @RequestParam(required = false) String customerEmail,
+            @RequestParam(required = false) String status,
+            RedirectAttributes redirectAttributes) {
+        try {
+            com.ledgora.account.dto.AccountDTO dto =
+                    com.ledgora.account.dto.AccountDTO.builder()
+                            .accountName(accountName)
+                            .currency(currency)
+                            .glAccountCode(glAccountCode)
+                            .customerName(customerName)
+                            .customerPhone(customerPhone)
+                            .customerEmail(customerEmail)
+                            .status(status)
+                            .build();
+            accountService.updateAccount(id, dto);
+            redirectAttributes.addFlashAttribute("message", "Account master saved successfully");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/accounts/" + id + "/master";
+    }
+
+    /** Save account master fields (General + Contact tabs). */
+    @PostMapping("/{id}/master/save")
+    public String saveAccountMaster(
+            @PathVariable Long id,
+            @RequestParam(required = false) String accountName,
+            @RequestParam(required = false) String currency,
+            @RequestParam(required = false) String glAccountCode,
+            @RequestParam(required = false) String customerName,
+            @RequestParam(required = false) String customerPhone,
+            @RequestParam(required = false) String customerEmail,
+            @RequestParam(required = false) String status,
+            RedirectAttributes redirectAttributes) {
+        try {
+            com.ledgora.account.dto.AccountDTO dto =
+                    com.ledgora.account.dto.AccountDTO.builder()
+                            .accountName(accountName)
+                            .currency(currency)
+                            .glAccountCode(glAccountCode)
+                            .customerName(customerName)
+                            .customerPhone(customerPhone)
+                            .customerEmail(customerEmail)
+                            .status(status)
+                            .build();
+            accountService.updateAccount(id, dto);
+            redirectAttributes.addFlashAttribute("message", "Account master saved successfully");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/accounts/" + id + "/master";
+    }
+
     /** Update freeze level on account (maker step). */
     @PostMapping("/{id}/master/freeze")
     public String updateFreeze(
@@ -225,23 +287,7 @@ public class AccountMasterController {
             @RequestParam String freezeReason,
             RedirectAttributes redirectAttributes) {
         try {
-            Account account =
-                    accountService
-                            .getAccountById(id)
-                            .orElseThrow(
-                                    () ->
-                                            new RuntimeException(
-                                                    "Account not found: " + id));
-            account.setFreezeLevel(FreezeLevel.valueOf(freezeLevel));
-            account.setFreezeReason(freezeReason);
-            // Persist via service (inherits @Transactional)
-            com.ledgora.account.dto.AccountDTO dto =
-                    com.ledgora.account.dto.AccountDTO.builder()
-                            .accountName(account.getAccountName())
-                            .freezeLevel(freezeLevel)
-                            .freezeReason(freezeReason)
-                            .build();
-            accountService.updateAccount(id, dto);
+            accountService.updateFreezeStatus(id, FreezeLevel.valueOf(freezeLevel), freezeReason);
             redirectAttributes.addFlashAttribute(
                     "message", "Freeze level updated to " + freezeLevel);
         } catch (Exception e) {

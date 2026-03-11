@@ -130,13 +130,9 @@ public class AccountService {
 
     @Transactional
     public Account updateAccount(Long id, AccountDTO dto) {
-        Account account =
-                accountRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new RuntimeException("Account not found with id: " + id));
+        Account account = requireAccount(id);
 
-        account.setAccountName(dto.getAccountName());
+        if (dto.getAccountName() != null) account.setAccountName(dto.getAccountName());
         if (dto.getCustomerName() != null) account.setCustomerName(dto.getCustomerName());
         if (dto.getCustomerEmail() != null) account.setCustomerEmail(dto.getCustomerEmail());
         if (dto.getCustomerPhone() != null) account.setCustomerPhone(dto.getCustomerPhone());
@@ -144,11 +140,44 @@ public class AccountService {
         if (dto.getGlAccountCode() != null) account.setGlAccountCode(dto.getGlAccountCode());
         if (dto.getInterestRate() != null) account.setInterestRate(dto.getInterestRate());
         if (dto.getOverdraftLimit() != null) account.setOverdraftLimit(dto.getOverdraftLimit());
+        if (dto.getCurrency() != null && !dto.getCurrency().isBlank()) account.setCurrency(dto.getCurrency());
         if (dto.getStatus() != null && !dto.getStatus().isEmpty()) {
             account.setStatus(AccountStatus.valueOf(dto.getStatus()));
         }
+        if (dto.getFreezeLevel() != null && !dto.getFreezeLevel().isBlank()) {
+            account.setFreezeLevel(com.ledgora.common.enums.FreezeLevel.valueOf(dto.getFreezeLevel()));
+        }
+        if (dto.getFreezeReason() != null) {
+            account.setFreezeReason(dto.getFreezeReason());
+        }
 
         return accountRepository.save(account);
+    }
+
+    /** Finacle-grade: Update freeze controls at account level (maker step). */
+    @Transactional
+    public Account updateFreezeStatus(Long id, com.ledgora.common.enums.FreezeLevel freezeLevel, String freezeReason) {
+        Account account = requireAccount(id);
+        account.setFreezeLevel(freezeLevel != null ? freezeLevel : com.ledgora.common.enums.FreezeLevel.NONE);
+        account.setFreezeReason(freezeReason);
+
+        Account saved = accountRepository.save(account);
+
+        User currentUser = getCurrentUser();
+        Long userId = currentUser != null ? currentUser.getId() : null;
+        auditService.logEvent(
+                userId,
+                "ACCOUNT_FREEZE_UPDATE",
+                "ACCOUNT",
+                saved.getId(),
+                "Account freeze updated: account="
+                        + saved.getAccountNumber()
+                        + " level="
+                        + saved.getFreezeLevel()
+                        + (freezeReason != null && !freezeReason.isBlank() ? " reason=" + freezeReason : ""),
+                null);
+
+        return saved;
     }
 
     @Transactional
@@ -267,6 +296,22 @@ public class AccountService {
 
     public long countAll() {
         return accountRepository.count();
+    }
+
+    private Account requireAccount(Long accountId) {
+        Account account =
+                accountRepository
+                        .findById(accountId)
+                        .orElseThrow(
+                                () -> new RuntimeException("Account not found with id: " + accountId));
+        Long tenantId = requireTenantId();
+        if (account.getTenant() == null || account.getTenant().getId() == null) {
+            throw new RuntimeException("Account tenant missing for account: " + accountId);
+        }
+        if (!tenantId.equals(account.getTenant().getId())) {
+            throw new RuntimeException("Cross-tenant account access is not allowed");
+        }
+        return account;
     }
 
     private Long requireTenantId() {
