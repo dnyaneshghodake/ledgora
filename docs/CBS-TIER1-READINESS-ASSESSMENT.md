@@ -2,7 +2,7 @@
 
 > Scope: Current-stage documentation of the Ledgora application as a Core Banking System (CBS), including directory structure, end-to-end flow, and a prioritized gap list to reach “CBS grade Tier-1”.
 >
-> Source-of-truth: code at `9af1d036` (latest PR head after tenant isolation + audit chain fixes).
+> Source-of-truth: code at `a3e6076` (latest PR head after all P0 + P1 fixes).
 
 ---
 
@@ -296,8 +296,9 @@ Phases (each `REQUIRES_NEW`):
    - All CBS-critical services now use `findByIdAndTenantId()` repository methods.
    - 7 new tenant-scoped repository methods added; 18 files updated across 3 commits.
 
-2. **Dual business-date systems (global SystemDate vs per-tenant business date)**
-   - Tier-1 expectation: single authoritative business date per tenant; global system date only for platform ops.
+2. ~~**Dual business-date systems (global SystemDate vs per-tenant business date)**~~ ✅ FIXED
+   - `BusinessDateService` marked `@Deprecated(forRemoval=true)`. Dead dependency removed from `TransactionService`.
+   - All CBS operations use `TenantService.getCurrentBusinessDate(tenantId)` as the single authority.
 
 3. ~~**Reconciliation scheduler hard-coded tenant**~~ ✅ FIXED
    - `BalanceReconciliationService.scheduledReconciliation()` now iterates all active tenants.
@@ -316,9 +317,9 @@ Phases (each `REQUIRES_NEW`):
 
 ### P1 — Operational Resilience / Observability
 
-7. **EOD locking & concurrency**
-   - There is `TenantOperationLockService`, but EOD execution flow should ensure it is always used by orchestration paths.
-   - Tier-1 expectation: strict mutual exclusion for EOD/Settlement/Reconciliation per tenant and clear stale lock recovery procedure.
+7. ~~**EOD locking & concurrency**~~ ✅ FIXED
+   - `EodStateMachineService.executeEod()` now acquires `TenantOperationLockService` lock before any phase runs
+     and releases in a `finally` block. Concurrent EOD/Settlement/Reconciliation is blocked per tenant.
 
 8. **Idempotency**
    - Present for transactions, but must be enforced consistently for all externally-triggered financial operations.
@@ -337,15 +338,16 @@ Phases (each `REQUIRES_NEW`):
 
 ## 8) Suggested Next Steps (Roadmap)
 
-### Phase A: Hardening (P0) — ✅ COMPLETE (3 of 4 items)
+### Phase A: Hardening (P0) — ✅ COMPLETE
 - ~~Enforce tenant scoping everywhere~~ ✅ Done (26 edits, 18 files, 7 new repository methods)
-- Consolidate business date architecture (tenant-first) — REMAINING
+- ~~Consolidate business date architecture (tenant-first)~~ ✅ Done (BusinessDateService deprecated, dead dep removed)
 - ~~Update scheduled jobs to iterate all tenants~~ ✅ Done
 - ~~Apply audit hash chain to all regulatory audit events~~ ✅ Done
 
-### Phase B: Tier-1 Controls
+### Phase B: Tier-1 Controls — IN PROGRESS
+- ~~EOD mutual exclusion via TenantOperationLockService~~ ✅ Done
 - Expand EOD phases: interest accrual posting, NPA provisioning voucher posting, settlement postings
-- Strengthen concurrency controls: locks + outbox/event consistency
+- Strengthen concurrency controls: outbox/event consistency
 
 ### Phase C: Operations
 - Add structured observability dashboards
