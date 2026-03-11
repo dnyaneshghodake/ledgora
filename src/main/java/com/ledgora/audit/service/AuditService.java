@@ -217,6 +217,13 @@ public class AuditService {
             String username,
             String httpMethod,
             String requestUri) {
+        // Resolve tenant for hash chain
+        Long tenantId = null;
+        try {
+            tenantId = com.ledgora.tenant.context.TenantContextHolder.getTenantId();
+        } catch (Exception ignored) {
+        }
+
         AuditLog auditLog =
                 AuditLog.builder()
                         .userId(userId)
@@ -231,7 +238,12 @@ public class AuditService {
                         .username(username)
                         .httpMethod(httpMethod)
                         .requestUri(requestUri)
+                        .tenantId(tenantId)
                         .build();
+
+        // Compute hash chain (tenant-specific)
+        computeAndSetHash(auditLog, tenantId);
+
         auditLogRepository.save(auditLog);
         log.debug(
                 "Financial audit log: {} {} {} {} user={}",
@@ -327,6 +339,10 @@ public class AuditService {
                         .batchId(batchId)
                         .tenantId(tenantId)
                         .build();
+
+        // Compute hash chain (tenant-specific)
+        computeAndSetHash(auditLog, tenantId);
+
         auditLogRepository.save(auditLog);
         log.debug(
                 "Change audit: {} {} {} old={} new={} batch={}",
