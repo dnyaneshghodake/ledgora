@@ -321,8 +321,13 @@ Phases (each `REQUIRES_NEW`):
    - `EodStateMachineService.executeEod()` now acquires `TenantOperationLockService` lock before any phase runs
      and releases in a `finally` block. Concurrent EOD/Settlement/Reconciliation is blocked per tenant.
 
-8. **Idempotency**
-   - Present for transactions, but must be enforced consistently for all externally-triggered financial operations.
+8. **Idempotency** — ACCEPTABLE RISK (no code change needed)
+   - Transactions: protected via `clientReferenceId + channel` deduplication + `IdempotencyService`.
+   - Vouchers: UI uses POST-Redirect-GET pattern; scroll number generation uses `SELECT...FOR UPDATE`
+     preventing true duplicate vouchers at DB level. Double-click risk is wasted scroll numbers, not
+     duplicate postings.
+   - EOD: protected by `EodProcess` unique constraint `(tenant_id, business_date)`.
+   - Account/Customer approve/reject: naturally idempotent via status checks.
 
 ### P2 — Product Engine / Parameters / Config Governance
 
@@ -352,6 +357,19 @@ Phases (each `REQUIRES_NEW`):
 ### Phase C: Operations
 - Add structured observability dashboards
 - Add operational runbooks: EOD recovery, stuck phase handling, clearing failures
+
+---
+
+## 10) Fix Changelog
+
+| Commit | Scope | Files | Description |
+|--------|-------|-------|-------------|
+| `77df785` | P0-1, P0-3 | 8 | Tenant isolation: Account, Customer, Approval repos + services; Reconciliation multi-tenant |
+| `571e887` | P0-1 | 6 | Tenant isolation: IBC, GL, Batch, CbsBalanceEngine repos + services |
+| `9af1d03` | P0-1 | 4 | Tenant isolation: Batch service, Audit repo, Account/Customer controllers |
+| `8528477` | P0-4 | 2 | Audit hash chain applied to logFinancialEvent + logChangeEvent |
+| `a3e6076` | P0-2, P1-7 | 3 | BusinessDateService deprecated; EOD operation lock wired |
+| `2efe98f` | Docs | 1 | Assessment document updated with all fix statuses |
 
 ---
 
