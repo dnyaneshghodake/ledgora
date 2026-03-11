@@ -107,6 +107,12 @@ public interface InterBranchTransferRepository
 
     // ===== Eager-fetch query for IBT detail screen (N+1 prevention) =====
 
+    /** Tenant-isolated lookup by primary key. Use instead of findById() for CBS operations. */
+    @Query(
+            "SELECT t FROM InterBranchTransfer t WHERE t.id = :id AND t.tenant.id = :tenantId")
+    Optional<InterBranchTransfer> findByIdAndTenantId(
+            @Param("id") Long id, @Param("tenantId") Long tenantId);
+
     /**
      * Fetch a single InterBranchTransfer with all associations eagerly loaded in one query.
      * Eliminates N+1 for the detail screen by JOIN FETCHing fromBranch, toBranch,

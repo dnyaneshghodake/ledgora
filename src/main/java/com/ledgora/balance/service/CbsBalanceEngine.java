@@ -205,9 +205,12 @@ public class CbsBalanceEngine {
                 .findByAccountId(accountId)
                 .orElseGet(
                         () -> {
+                            Long tenantId =
+                                    com.ledgora.tenant.context.TenantContextHolder
+                                            .getRequiredTenantId();
                             Account account =
                                     accountRepository
-                                            .findById(accountId)
+                                            .findByIdAndTenantId(accountId, tenantId)
                                             .orElseThrow(
                                                     () ->
                                                             new RuntimeException(
