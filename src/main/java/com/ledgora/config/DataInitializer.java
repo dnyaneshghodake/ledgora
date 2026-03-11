@@ -70,7 +70,7 @@ public class DataInitializer implements CommandLineRunner {
         // 0. Tenants
         Tenant defaultTenant = tenantSeeder.seedDefaultTenant();
         Tenant secondTenant = tenantSeeder.seedSecondTenant();
-        tenantSeeder.seed();
+        log.info("  [Tenants] Default tenant (TENANT-001) and secondary tenant (TENANT-002) ready");
 
         // 1. Roles
         roleSeeder.seed();

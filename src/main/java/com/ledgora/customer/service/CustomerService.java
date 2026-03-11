@@ -169,6 +169,21 @@ public class CustomerService {
     @Transactional
     public Customer updateFreezeStatus(Long customerId, String freezeLevel, String freezeReason) {
         Customer customer = requireCustomer(customerId);
+        // Audit trail for freeze action (governance requirement)
+        User currentUser = getCurrentUser();
+        Long userId = currentUser != null ? currentUser.getId() : null;
+        auditService.logEvent(
+                userId,
+                "CUSTOMER_FREEZE_UPDATE",
+                "CUSTOMER",
+                customerId,
+                "Customer freeze requested: level="
+                        + freezeLevel
+                        + (freezeReason != null && !freezeReason.isBlank()
+                                ? " reason=" + freezeReason
+                                : ""),
+                null);
+
         log.info(
                 "Customer {} freeze updated to {} reason: {}",
                 customerId,
