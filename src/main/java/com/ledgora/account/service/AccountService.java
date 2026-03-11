@@ -29,31 +29,98 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
     private final AccountBalanceRepository accountBalanceRepository;
+    private final com.ledgora.account.repository.AccountProductSnapshotRepository snapshotRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final com.ledgora.product.repository.ProductRepository productRepository;
+    private final com.ledgora.product.repository.ProductVersionRepository productVersionRepository;
+    private final com.ledgora.product.repository.ProductGlMappingRepository productGlMappingRepository;
 
     public AccountService(
             AccountRepository accountRepository,
             AccountBalanceRepository accountBalanceRepository,
+            com.ledgora.account.repository.AccountProductSnapshotRepository snapshotRepository,
             UserRepository userRepository,
-            AuditService auditService) {
+            AuditService auditService,
+            com.ledgora.product.repository.ProductRepository productRepository,
+            com.ledgora.product.repository.ProductVersionRepository productVersionRepository,
+            com.ledgora.product.repository.ProductGlMappingRepository productGlMappingRepository) {
         this.accountRepository = accountRepository;
         this.accountBalanceRepository = accountBalanceRepository;
+        this.snapshotRepository = snapshotRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.productRepository = productRepository;
+        this.productVersionRepository = productVersionRepository;
+        this.productGlMappingRepository = productGlMappingRepository;
     }
 
+    /**
+     * Create account. If productId is provided, derives accountType and GL codes from the
+     * product's effective version and creates an immutable AccountProductSnapshot. If productId
+     * is null, falls back to legacy enum-based creation (deprecated path).
+     */
     @Transactional
     public Account createAccount(AccountDTO dto) {
         String accountNumber = generateAccountNumber();
         User currentUser = getCurrentUser();
+        Long tenantId = requireTenantId();
+
+        // ── Product-driven path (CBS-grade) ──
+        com.ledgora.product.entity.Product product = null;
+        com.ledgora.product.entity.ProductVersion effectiveVersion = null;
+        com.ledgora.product.entity.ProductGlMapping glMapping = null;
+        AccountType resolvedType;
+        String resolvedGlCode;
+
+        if (dto.getProductId() != null) {
+            com.ledgora.product.entity.Product loadedProduct = productRepository.findById(dto.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + dto.getProductId()));
+            if (!tenantId.equals(loadedProduct.getTenant().getId())) {
+                throw new RuntimeException("Cross-tenant product access is not allowed");
+            }
+            if (loadedProduct.getStatus() != com.ledgora.common.enums.ProductStatus.ACTIVE) {
+                throw new RuntimeException("Product " + loadedProduct.getProductCode() + " is not ACTIVE");
+            }
+            product = loadedProduct;
+
+            com.ledgora.product.entity.ProductVersion loadedVersion = productVersionRepository
+                    .findEffectiveVersion(loadedProduct.getId(), java.time.LocalDate.now())
+                    .orElseThrow(() -> new RuntimeException(
+                            "No effective version for product " + loadedProduct.getProductCode()));
+            effectiveVersion = loadedVersion;
+
+            com.ledgora.product.entity.ProductGlMapping loadedMapping = productGlMappingRepository
+                    .findByProductVersionId(loadedVersion.getId())
+                    .orElseThrow(() -> new RuntimeException(
+                            "GL mapping missing for product version " + loadedVersion.getVersionNumber()));
+            glMapping = loadedMapping;
+
+            // Derive account type from product type
+            resolvedType = switch (product.getProductType()) {
+                case SAVINGS -> AccountType.SAVINGS;
+                case CURRENT -> AccountType.CURRENT;
+                case FIXED_DEPOSIT -> AccountType.FIXED_DEPOSIT;
+                case LOAN -> AccountType.LOAN;
+            };
+            resolvedGlCode = glMapping.getCrGlCode(); // Customer deposit GL for the account
+
+            log.info("Account opening via Product engine: product={} version={} type={}",
+                    product.getProductCode(), effectiveVersion.getVersionNumber(), resolvedType);
+        } else {
+            // ── Legacy path (deprecated — retained for backward compatibility) ──
+            log.warn("Account created without productId — using legacy enum-based path (deprecated)");
+            resolvedType = AccountType.valueOf(dto.getAccountType());
+            resolvedGlCode = dto.getGlAccountCode();
+        }
 
         Account account =
                 Account.builder()
                         .accountNumber(accountNumber)
                         .tenant(resolveCurrentTenant())
                         .accountName(dto.getAccountName())
-                        .accountType(AccountType.valueOf(dto.getAccountType()))
+                        .accountType(resolvedType)
+                        .product(product)
                         .status(AccountStatus.ACTIVE)
                         .balance(BigDecimal.ZERO)
                         .currency(dto.getCurrency() != null ? dto.getCurrency() : "INR")
@@ -61,13 +128,34 @@ public class AccountService {
                         .customerName(dto.getCustomerName())
                         .customerEmail(dto.getCustomerEmail())
                         .customerPhone(dto.getCustomerPhone())
-                        .glAccountCode(dto.getGlAccountCode())
+                        .glAccountCode(resolvedGlCode)
                         .createdBy(currentUser)
-                        // H2: Account starts PENDING approval; requires checker to approve
                         .approvalStatus(MakerCheckerStatus.PENDING)
                         .build();
 
         Account saved = accountRepository.save(account);
+
+        // ── Create product snapshot (immutable record of product config at opening time) ──
+        if (product != null && effectiveVersion != null && glMapping != null) {
+            com.ledgora.account.entity.AccountProductSnapshot snapshot =
+                    com.ledgora.account.entity.AccountProductSnapshot.builder()
+                            .account(saved)
+                            .productId(product.getId())
+                            .productCode(product.getProductCode())
+                            .productName(product.getName())
+                            .productType(product.getProductType().name())
+                            .productVersionNumber(effectiveVersion.getVersionNumber())
+                            .effectiveFrom(effectiveVersion.getEffectiveFrom())
+                            .drGlCode(glMapping.getDrGlCode())
+                            .crGlCode(glMapping.getCrGlCode())
+                            .clearingGlCode(glMapping.getClearingGlCode())
+                            .suspenseGlCode(glMapping.getSuspenseGlCode())
+                            .interestAccrualGlCode(glMapping.getInterestAccrualGlCode())
+                            .build();
+            snapshotRepository.save(snapshot);
+            log.info("AccountProductSnapshot created for account {} product {}",
+                    saved.getAccountNumber(), product.getProductCode());
+        }
 
         // Create account balance cache
         AccountBalance balance =
@@ -84,14 +172,21 @@ public class AccountService {
         auditService.logAccountCreation(userId, saved.getId(), saved.getAccountNumber());
 
         log.info(
-                "Account created: {} for customer: {}",
+                "Account created: {} for customer: {} product: {}",
                 saved.getAccountNumber(),
-                saved.getCustomerName());
+                saved.getCustomerName(),
+                product != null ? product.getProductCode() : "LEGACY");
         return saved;
     }
 
     public List<Account> getAllAccounts() {
         return accountRepository.findByTenantId(requireTenantId());
+    }
+
+    public org.springframework.data.domain.Page<Account> getAllAccountsPaged(int page, int size) {
+        return accountRepository.findByTenantId(
+                requireTenantId(),
+                org.springframework.data.domain.PageRequest.of(page, size));
     }
 
     public Optional<Account> getAccountById(Long id) {
@@ -130,13 +225,9 @@ public class AccountService {
 
     @Transactional
     public Account updateAccount(Long id, AccountDTO dto) {
-        Account account =
-                accountRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new RuntimeException("Account not found with id: " + id));
+        Account account = requireAccount(id);
 
-        account.setAccountName(dto.getAccountName());
+        if (dto.getAccountName() != null) account.setAccountName(dto.getAccountName());
         if (dto.getCustomerName() != null) account.setCustomerName(dto.getCustomerName());
         if (dto.getCustomerEmail() != null) account.setCustomerEmail(dto.getCustomerEmail());
         if (dto.getCustomerPhone() != null) account.setCustomerPhone(dto.getCustomerPhone());
@@ -144,33 +235,64 @@ public class AccountService {
         if (dto.getGlAccountCode() != null) account.setGlAccountCode(dto.getGlAccountCode());
         if (dto.getInterestRate() != null) account.setInterestRate(dto.getInterestRate());
         if (dto.getOverdraftLimit() != null) account.setOverdraftLimit(dto.getOverdraftLimit());
+        if (dto.getCurrency() != null && !dto.getCurrency().isBlank())
+            account.setCurrency(dto.getCurrency());
         if (dto.getStatus() != null && !dto.getStatus().isEmpty()) {
             account.setStatus(AccountStatus.valueOf(dto.getStatus()));
+        }
+        if (dto.getFreezeLevel() != null && !dto.getFreezeLevel().isBlank()) {
+            account.setFreezeLevel(
+                    com.ledgora.common.enums.FreezeLevel.valueOf(dto.getFreezeLevel()));
+        }
+        if (dto.getFreezeReason() != null) {
+            account.setFreezeReason(dto.getFreezeReason());
         }
 
         return accountRepository.save(account);
     }
 
+    /** Finacle-grade: Update freeze controls at account level (maker step). */
+    @Transactional
+    public Account updateFreezeStatus(
+            Long id, com.ledgora.common.enums.FreezeLevel freezeLevel, String freezeReason) {
+        Account account = requireAccount(id);
+        account.setFreezeLevel(
+                freezeLevel != null ? freezeLevel : com.ledgora.common.enums.FreezeLevel.NONE);
+        account.setFreezeReason(freezeReason);
+
+        Account saved = accountRepository.save(account);
+
+        User currentUser = getCurrentUser();
+        Long userId = currentUser != null ? currentUser.getId() : null;
+        auditService.logEvent(
+                userId,
+                "ACCOUNT_FREEZE_UPDATE",
+                "ACCOUNT",
+                saved.getId(),
+                "Account freeze updated: account="
+                        + saved.getAccountNumber()
+                        + " level="
+                        + saved.getFreezeLevel()
+                        + (freezeReason != null && !freezeReason.isBlank()
+                                ? " reason=" + freezeReason
+                                : ""),
+                null);
+
+        return saved;
+    }
+
     @Transactional
     public Account updateAccountStatus(Long id, AccountStatus status) {
-        Account account =
-                accountRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new RuntimeException("Account not found with id: " + id));
+        Account account = requireAccount(id);
         account.setStatus(status);
         log.info("Account {} status changed to {}", account.getAccountNumber(), status);
         return accountRepository.save(account);
     }
 
-    /** H2: Approve an account (checker step). Enforces maker-checker. */
+    /** H2: Approve an account (checker step). Enforces maker-checker + tenant isolation. */
     @Transactional
     public Account approveAccount(Long id) {
-        Account account =
-                accountRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new RuntimeException("Account not found with id: " + id));
+        Account account = requireAccount(id);
 
         if (account.getApprovalStatus() != MakerCheckerStatus.PENDING) {
             throw new RuntimeException(
@@ -206,14 +328,10 @@ public class AccountService {
         return saved;
     }
 
-    /** H2: Reject an account (checker step). Enforces maker-checker. */
+    /** H2: Reject an account (checker step). Enforces maker-checker + tenant isolation. */
     @Transactional
     public Account rejectAccount(Long id) {
-        Account account =
-                accountRepository
-                        .findById(id)
-                        .orElseThrow(
-                                () -> new RuntimeException("Account not found with id: " + id));
+        Account account = requireAccount(id);
 
         if (account.getApprovalStatus() != MakerCheckerStatus.PENDING) {
             throw new RuntimeException(
@@ -250,13 +368,7 @@ public class AccountService {
 
     @Transactional
     public void updateBalance(Long accountId, BigDecimal newBalance) {
-        Account account =
-                accountRepository
-                        .findById(accountId)
-                        .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "Account not found with id: " + accountId));
+        Account account = requireAccount(accountId);
         account.setBalance(newBalance);
         accountRepository.save(account);
     }
@@ -267,6 +379,24 @@ public class AccountService {
 
     public long countAll() {
         return accountRepository.count();
+    }
+
+    private Account requireAccount(Long accountId) {
+        Account account =
+                accountRepository
+                        .findById(accountId)
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "Account not found with id: " + accountId));
+        Long tenantId = requireTenantId();
+        if (account.getTenant() == null || account.getTenant().getId() == null) {
+            throw new RuntimeException("Account tenant missing for account: " + accountId);
+        }
+        if (!tenantId.equals(account.getTenant().getId())) {
+            throw new RuntimeException("Cross-tenant account access is not allowed");
+        }
+        return account;
     }
 
     private Long requireTenantId() {

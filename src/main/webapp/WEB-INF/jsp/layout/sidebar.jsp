@@ -63,7 +63,13 @@
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/customers" class="cbs-nav-link" data-page="customers">
                             <i class="bi bi-person-lines-fill"></i>
-                            <span>Customer Master</span>
+                            <span>Customer List</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/customers" class="cbs-nav-link" data-page="customers-master">
+                            <i class="bi bi-person-badge"></i>
+                            <span>Customer Master Inquiry</span>
                         </a>
                     </li>
                     <li class="cbs-nav-item">
@@ -109,7 +115,13 @@
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/accounts" class="cbs-nav-link" data-page="accounts">
                             <i class="bi bi-search"></i>
-                            <span>Account Master</span>
+                            <span>Account List</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/accounts" class="cbs-nav-link" data-page="accounts-master">
+                            <i class="bi bi-wallet2"></i>
+                            <span>Account Master Inquiry</span>
                         </a>
                     </li>
                     <li class="cbs-nav-item">

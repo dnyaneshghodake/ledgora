@@ -179,6 +179,14 @@ h1, h2, h3, h4, h5, h6 {
     display: inline-flex;
     align-items: center;
     gap: 0.6rem;
+    color: #fff;
+}
+
+.cbs-header-brand-text {
+    color: #fff;
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: 0.1em;
 }
 
 .cbs-bank-logo {
@@ -233,19 +241,31 @@ h1, h2, h3, h4, h5, h6 {
 .cbs-session-timer {
     padding: 0.22rem 0.6rem;
     border-radius: var(--ent-radius);
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 0.78rem;
+}
+
+/* Force all text/icons inside header info pills to be white-on-dark */
+.cbs-branch-info i,
+.cbs-business-date i,
+.cbs-tenant-info i,
+.cbs-currency-info i,
+.cbs-session-timer i {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.cbs-branch-info strong,
+.cbs-business-date strong,
+.cbs-tenant-info strong,
+.cbs-currency-info strong {
     color: #fff;
 }
 
 /* SOL name secondary label on dark header */
 .cbs-header .cbs-sol-name {
     color: rgba(255, 255, 255, 0.6);
-}
-
-/* Currency info on dark header */
-.cbs-currency-info strong {
-    color: #fff;
 }
 
 /* Session timer dark header overrides */
@@ -302,6 +322,53 @@ h1, h2, h3, h4, h5, h6 {
     color: #fff;
 }
 
+/* Status/env badges on dark header — high contrast */
+.cbs-header .cbs-status-indicator,
+.cbs-header .cbs-health-badge,
+.cbs-header .cbs-env-badge {
+    padding: 0.18rem 0.5rem;
+    border-radius: var(--ent-radius);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
+.cbs-header .cbs-status-open {
+    background: rgba(10, 143, 8, 0.25);
+    color: #86efac;
+    border: 1px solid rgba(134, 239, 172, 0.35);
+}
+
+.cbs-header .cbs-status-closing {
+    background: rgba(217, 119, 6, 0.25);
+    color: #fcd34d;
+    border: 1px solid rgba(252, 211, 77, 0.35);
+}
+
+.cbs-header .cbs-status-closed {
+    background: rgba(220, 38, 38, 0.25);
+    color: #fca5a5;
+    border: 1px solid rgba(252, 165, 165, 0.35);
+}
+
+.cbs-header .cbs-env-dev {
+    background: rgba(30, 64, 175, 0.25);
+    color: #93c5fd;
+    border: 1px solid rgba(147, 197, 253, 0.35);
+}
+
+.cbs-header .cbs-env-uat {
+    background: rgba(217, 119, 6, 0.25);
+    color: #fcd34d;
+    border: 1px solid rgba(252, 211, 77, 0.35);
+}
+
+.cbs-header .cbs-env-prod {
+    background: rgba(10, 143, 8, 0.25);
+    color: #86efac;
+    border: 1px solid rgba(134, 239, 172, 0.35);
+}
+
 .cbs-status-indicator,
 .cbs-health-badge,
 .cbs-env-badge {
@@ -319,12 +386,16 @@ h1, h2, h3, h4, h5, h6 {
 
 .cbs-user-avatar i {
     font-size: 1.35rem;
-    color: rgba(255, 255, 255, 0.78);
+    color: rgba(255, 255, 255, 0.85);
 }
 
 .cbs-user-name {
     font-size: 0.9rem;
     color: #fff;
+}
+
+.cbs-user-info i {
+    color: rgba(255, 255, 255, 0.85);
 }
 
 .cbs-user-role .badge {
