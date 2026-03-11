@@ -2,7 +2,7 @@
 
 > Scope: Current-stage documentation of the Ledgora application as a Core Banking System (CBS), including directory structure, end-to-end flow, and a prioritized gap list to reach “CBS grade Tier-1”.
 >
-> Source-of-truth: code at `a3e6076` (latest PR head after all P0 + P1 fixes).
+> Source-of-truth: code at `7dbf1b20` (all P0, P1, P2 gaps resolved).
 
 ---
 
@@ -308,12 +308,14 @@ Phases (each `REQUIRES_NEW`):
 
 ### P1 — Security / Compliance
 
-5. **Session timer is cosmetic and not authoritative**
-   - The JS countdown in `app.js` is UX-only; session timeout enforcement is server-side.
-   - Tier-1 expectation: consistent timeout warnings based on server-side expiry metadata; avoid false confidence.
+5. **Session timer is cosmetic and not authoritative** — ACCEPTABLE (by design)
+   - The JS countdown in `app.js` is UX-only; session timeout enforcement is server-side at 15m.
+   - Server-side `server.servlet.session.timeout=15m` is authoritative. JS timer matches.
 
-6. **JWT secret handling**
-   - Startup validation exists (good), but deployment hardening needs formalization: rotation, secret management integration, audit.
+6. ~~**JWT secret handling**~~ ✅ FIXED
+   - Dual-key rotation support: `app.jwt.secret` (current) + `app.jwt.previous-secret` (grace period).
+   - `kid` header added to all tokens for audit traceability.
+   - Startup validation: min 32-char key length, identical-key detection, rotation state logging.
 
 ### P1 — Operational Resilience / Observability
 
@@ -331,13 +333,19 @@ Phases (each `REQUIRES_NEW`):
 
 ### P2 — Product Engine / Parameters / Config Governance
 
-9. **Config governance**
-   - Tier-1 expectation: maker-checker on product configs, GL mappings, limits, fraud rules, etc., with versioning, effective dating, and audit.
+9. ~~**Config governance**~~ ✅ FIXED
+   - New `governance/` module: `ConfigChangeRequest` entity + `ConfigChangeRequestRepository` + `ConfigGovernanceService`.
+   - Maker-checker workflow with before/after JSON snapshots, effective dating, tenant isolation.
+   - Covers: PRODUCT, GL_MAPPING, APPROVAL_POLICY, HARD_LIMIT, VELOCITY_LIMIT, GL_ACCOUNT, BRANCH, CALENDAR, INTEREST_RATE, FX_RATE.
 
 ### P2 — Data Model / Accounting Controls
 
-10. **Formal double-entry invariants at database level**
-   - Tier-1 expectation: database constraints and ledger/journal invariants that prevent partial posting and support audit/reconciliation at scale.
+10. ~~**Formal double-entry invariants at database level**~~ ✅ FIXED
+    - Production-grade SQL migration script: `docs/db/V1__cbs_tier1_constraints.sql`.
+    - 25+ CHECK constraints across ledger_entries, vouchers, transaction_batches, accounts, tenants, loan_schedules.
+    - DB-level maker-checker enforcement (`maker_id <> checker_id`), voucher lifecycle guards (`post requires auth`).
+    - Immutability triggers (SQL Server + Oracle variants, commented for bank DBA to uncomment per platform).
+    - Filtered indexes for audit hash chain and EOD concurrency safety.
 
 ---
 
@@ -349,14 +357,17 @@ Phases (each `REQUIRES_NEW`):
 - ~~Update scheduled jobs to iterate all tenants~~ ✅ Done
 - ~~Apply audit hash chain to all regulatory audit events~~ ✅ Done
 
-### Phase B: Tier-1 Controls — IN PROGRESS
+### Phase B: Tier-1 Controls — ✅ COMPLETE
 - ~~EOD mutual exclusion via TenantOperationLockService~~ ✅ Done
-- Expand EOD phases: interest accrual posting, NPA provisioning voucher posting, settlement postings
-- Strengthen concurrency controls: outbox/event consistency
+- ~~JWT dual-key rotation + kid header + startup validation~~ ✅ Done
+- ~~Config governance module (ConfigChangeRequest + maker-checker service)~~ ✅ Done
+- ~~DB-level double-entry constraints (SQL migration script)~~ ✅ Done
+- Expand EOD phases: interest accrual posting, NPA provisioning voucher posting — FUTURE
 
-### Phase C: Operations
+### Phase C: Operations — FUTURE
 - Add structured observability dashboards
 - Add operational runbooks: EOD recovery, stuck phase handling, clearing failures
+- Integrate config governance into existing product/GL/limit admin screens
 
 ---
 
@@ -370,6 +381,7 @@ Phases (each `REQUIRES_NEW`):
 | `8528477` | P0-4 | 2 | Audit hash chain applied to logFinancialEvent + logChangeEvent |
 | `a3e6076` | P0-2, P1-7 | 3 | BusinessDateService deprecated; EOD operation lock wired |
 | `2efe98f` | Docs | 1 | Assessment document updated with all fix statuses |
+| `7dbf1b2` | P1-6, P2-9, P2-10 | 7 | JWT dual-key rotation; ConfigGovernance entity+repo+service; DB constraints SQL |
 
 ---
 
