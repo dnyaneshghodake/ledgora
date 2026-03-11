@@ -29,31 +29,95 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
     private final AccountBalanceRepository accountBalanceRepository;
+    private final com.ledgora.account.repository.AccountProductSnapshotRepository snapshotRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
+    private final com.ledgora.product.repository.ProductRepository productRepository;
+    private final com.ledgora.product.repository.ProductVersionRepository productVersionRepository;
+    private final com.ledgora.product.repository.ProductGlMappingRepository productGlMappingRepository;
 
     public AccountService(
             AccountRepository accountRepository,
             AccountBalanceRepository accountBalanceRepository,
+            com.ledgora.account.repository.AccountProductSnapshotRepository snapshotRepository,
             UserRepository userRepository,
-            AuditService auditService) {
+            AuditService auditService,
+            com.ledgora.product.repository.ProductRepository productRepository,
+            com.ledgora.product.repository.ProductVersionRepository productVersionRepository,
+            com.ledgora.product.repository.ProductGlMappingRepository productGlMappingRepository) {
         this.accountRepository = accountRepository;
         this.accountBalanceRepository = accountBalanceRepository;
+        this.snapshotRepository = snapshotRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
+        this.productRepository = productRepository;
+        this.productVersionRepository = productVersionRepository;
+        this.productGlMappingRepository = productGlMappingRepository;
     }
 
+    /**
+     * Create account. If productId is provided, derives accountType and GL codes from the
+     * product's effective version and creates an immutable AccountProductSnapshot. If productId
+     * is null, falls back to legacy enum-based creation (deprecated path).
+     */
     @Transactional
     public Account createAccount(AccountDTO dto) {
         String accountNumber = generateAccountNumber();
         User currentUser = getCurrentUser();
+        Long tenantId = requireTenantId();
+
+        // ── Product-driven path (CBS-grade) ──
+        com.ledgora.product.entity.Product product = null;
+        com.ledgora.product.entity.ProductVersion effectiveVersion = null;
+        com.ledgora.product.entity.ProductGlMapping glMapping = null;
+        AccountType resolvedType;
+        String resolvedGlCode;
+
+        if (dto.getProductId() != null) {
+            product = productRepository.findById(dto.getProductId())
+                    .orElseThrow(() -> new RuntimeException("Product not found: " + dto.getProductId()));
+            if (!tenantId.equals(product.getTenant().getId())) {
+                throw new RuntimeException("Cross-tenant product access is not allowed");
+            }
+            if (product.getStatus() != com.ledgora.common.enums.ProductStatus.ACTIVE) {
+                throw new RuntimeException("Product " + product.getProductCode() + " is not ACTIVE");
+            }
+
+            effectiveVersion = productVersionRepository
+                    .findEffectiveVersion(product.getId(), java.time.LocalDate.now())
+                    .orElseThrow(() -> new RuntimeException(
+                            "No effective version for product " + product.getProductCode()));
+
+            glMapping = productGlMappingRepository
+                    .findByProductVersionId(effectiveVersion.getId())
+                    .orElseThrow(() -> new RuntimeException(
+                            "GL mapping missing for product version " + effectiveVersion.getVersionNumber()));
+
+            // Derive account type from product type
+            resolvedType = switch (product.getProductType()) {
+                case SAVINGS -> AccountType.SAVINGS;
+                case CURRENT -> AccountType.CURRENT;
+                case FIXED_DEPOSIT -> AccountType.FIXED_DEPOSIT;
+                case LOAN -> AccountType.LOAN;
+            };
+            resolvedGlCode = glMapping.getCrGlCode(); // Customer deposit GL for the account
+
+            log.info("Account opening via Product engine: product={} version={} type={}",
+                    product.getProductCode(), effectiveVersion.getVersionNumber(), resolvedType);
+        } else {
+            // ── Legacy path (deprecated — retained for backward compatibility) ──
+            log.warn("Account created without productId — using legacy enum-based path (deprecated)");
+            resolvedType = AccountType.valueOf(dto.getAccountType());
+            resolvedGlCode = dto.getGlAccountCode();
+        }
 
         Account account =
                 Account.builder()
                         .accountNumber(accountNumber)
                         .tenant(resolveCurrentTenant())
                         .accountName(dto.getAccountName())
-                        .accountType(AccountType.valueOf(dto.getAccountType()))
+                        .accountType(resolvedType)
+                        .product(product)
                         .status(AccountStatus.ACTIVE)
                         .balance(BigDecimal.ZERO)
                         .currency(dto.getCurrency() != null ? dto.getCurrency() : "INR")
@@ -61,13 +125,34 @@ public class AccountService {
                         .customerName(dto.getCustomerName())
                         .customerEmail(dto.getCustomerEmail())
                         .customerPhone(dto.getCustomerPhone())
-                        .glAccountCode(dto.getGlAccountCode())
+                        .glAccountCode(resolvedGlCode)
                         .createdBy(currentUser)
-                        // H2: Account starts PENDING approval; requires checker to approve
                         .approvalStatus(MakerCheckerStatus.PENDING)
                         .build();
 
         Account saved = accountRepository.save(account);
+
+        // ── Create product snapshot (immutable record of product config at opening time) ──
+        if (product != null && effectiveVersion != null && glMapping != null) {
+            com.ledgora.account.entity.AccountProductSnapshot snapshot =
+                    com.ledgora.account.entity.AccountProductSnapshot.builder()
+                            .account(saved)
+                            .productId(product.getId())
+                            .productCode(product.getProductCode())
+                            .productName(product.getName())
+                            .productType(product.getProductType().name())
+                            .productVersionNumber(effectiveVersion.getVersionNumber())
+                            .effectiveFrom(effectiveVersion.getEffectiveFrom())
+                            .drGlCode(glMapping.getDrGlCode())
+                            .crGlCode(glMapping.getCrGlCode())
+                            .clearingGlCode(glMapping.getClearingGlCode())
+                            .suspenseGlCode(glMapping.getSuspenseGlCode())
+                            .interestAccrualGlCode(glMapping.getInterestAccrualGlCode())
+                            .build();
+            snapshotRepository.save(snapshot);
+            log.info("AccountProductSnapshot created for account {} product {}",
+                    saved.getAccountNumber(), product.getProductCode());
+        }
 
         // Create account balance cache
         AccountBalance balance =
@@ -84,9 +169,10 @@ public class AccountService {
         auditService.logAccountCreation(userId, saved.getId(), saved.getAccountNumber());
 
         log.info(
-                "Account created: {} for customer: {}",
+                "Account created: {} for customer: {} product: {}",
                 saved.getAccountNumber(),
-                saved.getCustomerName());
+                saved.getCustomerName(),
+                product != null ? product.getProductCode() : "LEGACY");
         return saved;
     }
 

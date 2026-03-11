@@ -16,8 +16,20 @@ public class AccountDTO {
     @NotBlank(message = "Account name is required")
     private String accountName;
 
+    /**
+     * @deprecated Use productId instead. accountType will be derived from the Product.
+     *     Retained for backward compatibility with legacy account creation flows.
+     */
+    @Deprecated
     @NotNull(message = "Account type is required")
     private String accountType;
+
+    /**
+     * CBS Product engine: product under which this account is opened. When set, account type,
+     * GL codes, and interest rules are derived from the product's effective version. Takes
+     * precedence over accountType if both are provided.
+     */
+    private Long productId;
 
     private String status;
     private BigDecimal balance;
