@@ -143,8 +143,7 @@ public class CustomerService {
 
     public org.springframework.data.domain.Page<Customer> getAllCustomersPaged(int page, int size) {
         return customerRepository.findByTenantId(
-                requireTenantId(),
-                org.springframework.data.domain.PageRequest.of(page, size));
+                requireTenantId(), org.springframework.data.domain.PageRequest.of(page, size));
     }
 
     public Optional<Customer> getCustomerById(Long id) {

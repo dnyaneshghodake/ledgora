@@ -18,8 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * CBS-grade Daily Interest Accrual Service. Runs as part of EOD processing
- * (before BATCH_CLOSED). For each ACTIVE SAVINGS account:
+ * CBS-grade Daily Interest Accrual Service. Runs as part of EOD processing (before BATCH_CLOSED).
+ * For each ACTIVE SAVINGS account:
  *
  * <ol>
  *   <li>Calculate daily interest: balance × rate / 365
@@ -29,9 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Idempotent per (tenant, account, business_date) — safe to retry on EOD failure.
  *
- * <p>GL codes are resolved from:
- *   - AccountProductSnapshot (if account was opened under Product engine)
- *   - Default GL codes (5100 Interest Expense, 2110 Savings Deposits) for legacy accounts
+ * <p>GL codes are resolved from: - AccountProductSnapshot (if account was opened under Product
+ * engine) - Default GL codes (5100 Interest Expense, 2110 Savings Deposits) for legacy accounts
  */
 @Service
 public class DailyInterestAccrualService {
@@ -40,6 +39,7 @@ public class DailyInterestAccrualService {
 
     /** Default interest rate for savings accounts without product-level configuration. */
     private static final BigDecimal DEFAULT_SAVINGS_RATE = new BigDecimal("4.0000"); // 4% p.a.
+
     private static final BigDecimal DAYS_IN_YEAR = new BigDecimal("365");
     private static final String DEFAULT_DR_GL = "5100"; // Interest Expense
     private static final String DEFAULT_CR_GL = "2110"; // Savings Deposits (accrual)
@@ -58,8 +58,8 @@ public class DailyInterestAccrualService {
     }
 
     /**
-     * Run daily interest accrual for all SAVINGS accounts in a tenant.
-     * Called by EOD orchestrator before BATCH_CLOSED.
+     * Run daily interest accrual for all SAVINGS accounts in a tenant. Called by EOD orchestrator
+     * before BATCH_CLOSED.
      *
      * @param tenantId the tenant to process
      * @param businessDate the business date for accrual
@@ -71,7 +71,8 @@ public class DailyInterestAccrualService {
 
         // Find all ACTIVE SAVINGS accounts for this tenant
         List<Account> savingsAccounts =
-                accountRepository.findByTenantIdAndAccountType(tenantId, AccountType.SAVINGS)
+                accountRepository
+                        .findByTenantIdAndAccountType(tenantId, AccountType.SAVINGS)
                         .stream()
                         .filter(a -> a.getStatus() == AccountStatus.ACTIVE)
                         .filter(a -> a.getBalance().compareTo(BigDecimal.ZERO) > 0)
@@ -92,20 +93,26 @@ public class DailyInterestAccrualService {
                 accrueInterest(tenantId, account, businessDate);
                 accrued++;
             } catch (Exception e) {
-                log.error("Interest accrual failed for account {}: {}",
-                        account.getAccountNumber(), e.getMessage());
+                log.error(
+                        "Interest accrual failed for account {}: {}",
+                        account.getAccountNumber(),
+                        e.getMessage());
                 // Continue processing other accounts — don't fail the entire batch
             }
         }
 
-        log.info("Daily interest accrual complete for tenant {}: accrued={} skipped={} total={}",
-                tenantId, accrued, skipped, savingsAccounts.size());
+        log.info(
+                "Daily interest accrual complete for tenant {}: accrued={} skipped={} total={}",
+                tenantId,
+                accrued,
+                skipped,
+                savingsAccounts.size());
         return accrued;
     }
 
     /**
-     * Accrue interest for a single account on a given business date.
-     * Formula: daily_interest = balance × (annual_rate / 100) / 365
+     * Accrue interest for a single account on a given business date. Formula: daily_interest =
+     * balance × (annual_rate / 100) / 365
      */
     private void accrueInterest(Long tenantId, Account account, LocalDate businessDate) {
         BigDecimal balance = account.getBalance();
@@ -114,10 +121,13 @@ public class DailyInterestAccrualService {
         String crGl = DEFAULT_CR_GL;
 
         // If account has a product snapshot, use its GL codes
-        snapshotRepository.findByAccountId(account.getId()).ifPresent(snapshot -> {
-            // Interest accrual GL from product config takes precedence
-            // (drGl and crGl are effectively final in the log builder below)
-        });
+        snapshotRepository
+                .findByAccountId(account.getId())
+                .ifPresent(
+                        snapshot -> {
+                            // Interest accrual GL from product config takes precedence
+                            // (drGl and crGl are effectively final in the log builder below)
+                        });
 
         // Resolve GL from product snapshot if available
         AccountProductSnapshot snapshot =
@@ -128,10 +138,10 @@ public class DailyInterestAccrualService {
         }
 
         // Calculate: balance × (rate / 100) / 365
-        BigDecimal dailyInterest = balance
-                .multiply(annualRate)
-                .divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP)
-                .divide(DAYS_IN_YEAR, 4, RoundingMode.HALF_UP);
+        BigDecimal dailyInterest =
+                balance.multiply(annualRate)
+                        .divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP)
+                        .divide(DAYS_IN_YEAR, 4, RoundingMode.HALF_UP);
 
         if (dailyInterest.compareTo(BigDecimal.ZERO) <= 0) {
             return; // No interest to accrue
@@ -139,27 +149,28 @@ public class DailyInterestAccrualService {
 
         // Create idempotency log (the voucher posting would be done by the EOD orchestrator
         // using VoucherService — here we record the accrual calculation)
-        InterestAccrualLog logEntry = InterestAccrualLog.builder()
-                .tenantId(tenantId)
-                .accountId(account.getId())
-                .accountNumber(account.getAccountNumber())
-                .businessDate(businessDate)
-                .balanceUsed(balance)
-                .annualRate(annualRate)
-                .accruedAmount(dailyInterest)
-                .drGlCode(drGl)
-                .crGlCode(crGl)
-                .build();
+        InterestAccrualLog logEntry =
+                InterestAccrualLog.builder()
+                        .tenantId(tenantId)
+                        .accountId(account.getId())
+                        .accountNumber(account.getAccountNumber())
+                        .businessDate(businessDate)
+                        .balanceUsed(balance)
+                        .annualRate(annualRate)
+                        .accruedAmount(dailyInterest)
+                        .drGlCode(drGl)
+                        .crGlCode(crGl)
+                        .build();
         accrualLogRepository.save(logEntry);
 
-        log.debug("Interest accrued: account={} balance={} rate={}% daily={}",
+        log.debug(
+                "Interest accrued: account={} balance={} rate={}% daily={}",
                 account.getAccountNumber(), balance, annualRate, dailyInterest);
     }
 
     /**
-     * Resolve interest rate for an account. Priority:
-     * 1. Account-level interestRate (if set)
-     * 2. Default savings rate (4% p.a.)
+     * Resolve interest rate for an account. Priority: 1. Account-level interestRate (if set) 2.
+     * Default savings rate (4% p.a.)
      */
     private BigDecimal resolveInterestRate(Account account) {
         if (account.getInterestRate() != null
@@ -170,16 +181,14 @@ public class DailyInterestAccrualService {
     }
 
     /**
-     * Check if accrual has already been run for a tenant on a given date.
-     * Used by EOD orchestrator to decide whether to skip this phase.
+     * Check if accrual has already been run for a tenant on a given date. Used by EOD orchestrator
+     * to decide whether to skip this phase.
      */
     public boolean isAccrualComplete(Long tenantId, LocalDate businessDate) {
         return accrualLogRepository.countByTenantIdAndBusinessDate(tenantId, businessDate) > 0;
     }
 
-    /**
-     * Get accrual summary for a tenant and date (for EOD validation/reporting).
-     */
+    /** Get accrual summary for a tenant and date (for EOD validation/reporting). */
     public List<InterestAccrualLog> getAccrualLog(Long tenantId, LocalDate businessDate) {
         return accrualLogRepository.findByTenantIdAndBusinessDate(tenantId, businessDate);
     }

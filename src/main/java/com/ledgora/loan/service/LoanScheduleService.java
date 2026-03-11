@@ -15,12 +15,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * CBS-grade Loan Schedule Service. Generates amortization schedule on loan disbursement
- * using reducing-balance EMI formula. Updates DPD counters during EOD.
+ * CBS-grade Loan Schedule Service. Generates amortization schedule on loan disbursement using
+ * reducing-balance EMI formula. Updates DPD counters during EOD.
  *
- * <p>EMI Formula (reducing balance):
- *   EMI = P × r × (1+r)^n / ((1+r)^n - 1)
- *   where P = principal, r = monthly rate, n = tenure in months
+ * <p>EMI Formula (reducing balance): EMI = P × r × (1+r)^n / ((1+r)^n - 1) where P = principal, r =
+ * monthly rate, n = tenure in months
  */
 @Service
 public class LoanScheduleService {
@@ -56,8 +55,8 @@ public class LoanScheduleService {
         }
 
         // Monthly interest rate: annual / 12 / 100
-        BigDecimal monthlyRate = annualRate
-                .divide(new BigDecimal("1200"), 10, RoundingMode.HALF_UP);
+        BigDecimal monthlyRate =
+                annualRate.divide(new BigDecimal("1200"), 10, RoundingMode.HALF_UP);
 
         // EMI = P × r × (1+r)^n / ((1+r)^n - 1)
         BigDecimal emi = calculateEmi(principal, monthlyRate, tenureMonths);
@@ -69,9 +68,8 @@ public class LoanScheduleService {
             LocalDate dueDate = disbursementDate.plusMonths(i);
 
             // Interest for this month on outstanding principal
-            BigDecimal interestComponent = outstandingPrincipal
-                    .multiply(monthlyRate)
-                    .setScale(4, RoundingMode.HALF_UP);
+            BigDecimal interestComponent =
+                    outstandingPrincipal.multiply(monthlyRate).setScale(4, RoundingMode.HALF_UP);
 
             // Principal component = EMI - interest
             BigDecimal principalComponent = emi.subtract(interestComponent);
@@ -87,22 +85,26 @@ public class LoanScheduleService {
                 outstandingPrincipal = BigDecimal.ZERO;
             }
 
-            LoanSchedule row = LoanSchedule.builder()
-                    .account(account)
-                    .installmentNumber(i)
-                    .dueDate(dueDate)
-                    .principalComponent(principalComponent.setScale(4, RoundingMode.HALF_UP))
-                    .interestComponent(interestComponent)
-                    .emiAmount(emi.setScale(4, RoundingMode.HALF_UP))
-                    .outstandingPrincipal(outstandingPrincipal.setScale(4, RoundingMode.HALF_UP))
-                    .status(InstallmentStatus.SCHEDULED)
-                    .dpdDays(0)
-                    .build();
+            LoanSchedule row =
+                    LoanSchedule.builder()
+                            .account(account)
+                            .installmentNumber(i)
+                            .dueDate(dueDate)
+                            .principalComponent(
+                                    principalComponent.setScale(4, RoundingMode.HALF_UP))
+                            .interestComponent(interestComponent)
+                            .emiAmount(emi.setScale(4, RoundingMode.HALF_UP))
+                            .outstandingPrincipal(
+                                    outstandingPrincipal.setScale(4, RoundingMode.HALF_UP))
+                            .status(InstallmentStatus.SCHEDULED)
+                            .dpdDays(0)
+                            .build();
             schedules.add(row);
         }
 
         List<LoanSchedule> saved = scheduleRepository.saveAll(schedules);
-        log.info("Loan schedule generated: account={} installments={} EMI={} principal={} rate={}%",
+        log.info(
+                "Loan schedule generated: account={} installments={} EMI={} principal={} rate={}%",
                 account.getAccountNumber(), tenureMonths, emi, principal, annualRate);
         return saved;
     }
@@ -121,8 +123,9 @@ public class LoanScheduleService {
 
         int updated = 0;
         for (LoanSchedule installment : overdueInstallments) {
-            long daysPast = java.time.temporal.ChronoUnit.DAYS.between(
-                    installment.getDueDate(), businessDate);
+            long daysPast =
+                    java.time.temporal.ChronoUnit.DAYS.between(
+                            installment.getDueDate(), businessDate);
             installment.setDpdDays((int) daysPast);
             installment.setStatus(InstallmentStatus.OVERDUE);
             scheduleRepository.save(installment);
@@ -130,29 +133,23 @@ public class LoanScheduleService {
         }
 
         if (updated > 0) {
-            log.info("DPD updated for tenant {}: {} installments marked OVERDUE", tenantId, updated);
+            log.info(
+                    "DPD updated for tenant {}: {} installments marked OVERDUE", tenantId, updated);
         }
         return updated;
     }
 
-    /**
-     * Get schedule for an account.
-     */
+    /** Get schedule for an account. */
     public List<LoanSchedule> getSchedule(Long accountId) {
         return scheduleRepository.findByAccountIdOrderByInstallmentNumberAsc(accountId);
     }
 
-    /**
-     * Check if account has NPA risk (DPD > 90 on any installment).
-     */
+    /** Check if account has NPA risk (DPD > 90 on any installment). */
     public boolean isNpaRisk(Long accountId) {
         return scheduleRepository.countByAccountIdAndDpdGreaterThan(accountId, 90) > 0;
     }
 
-    /**
-     * Reducing-balance EMI formula:
-     * EMI = P × r × (1+r)^n / ((1+r)^n - 1)
-     */
+    /** Reducing-balance EMI formula: EMI = P × r × (1+r)^n / ((1+r)^n - 1) */
     private BigDecimal calculateEmi(BigDecimal principal, BigDecimal monthlyRate, int months) {
         if (monthlyRate.compareTo(BigDecimal.ZERO) == 0) {
             // Zero interest — flat division

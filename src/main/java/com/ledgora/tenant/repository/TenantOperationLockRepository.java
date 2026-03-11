@@ -15,8 +15,8 @@ public interface TenantOperationLockRepository extends JpaRepository<TenantOpera
     Optional<TenantOperationLock> findByTenantId(Long tenantId);
 
     /**
-     * Acquire the lock row with PESSIMISTIC_WRITE (SELECT ... FOR UPDATE).
-     * Blocks if another transaction already holds the lock on this tenant's row.
+     * Acquire the lock row with PESSIMISTIC_WRITE (SELECT ... FOR UPDATE). Blocks if another
+     * transaction already holds the lock on this tenant's row.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT tol FROM TenantOperationLock tol WHERE tol.tenantId = :tenantId")

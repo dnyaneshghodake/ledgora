@@ -1043,8 +1043,7 @@ public class TransactionService {
     public org.springframework.data.domain.Page<Transaction> getAllTransactionsPaged(
             int page, int size) {
         return transactionRepository.findByTenantId(
-                requireTenantId(),
-                org.springframework.data.domain.PageRequest.of(page, size));
+                requireTenantId(), org.springframework.data.domain.PageRequest.of(page, size));
     }
 
     public Optional<Transaction> getTransactionById(Long id) {

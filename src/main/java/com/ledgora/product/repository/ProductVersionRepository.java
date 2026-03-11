@@ -15,12 +15,14 @@ public interface ProductVersionRepository extends JpaRepository<ProductVersion, 
 
     List<ProductVersion> findByProductIdOrderByVersionNumberDesc(Long productId);
 
-    @Query("SELECT pv FROM ProductVersion pv WHERE pv.product.id = :productId AND pv.status = :status ORDER BY pv.versionNumber DESC")
+    @Query(
+            "SELECT pv FROM ProductVersion pv WHERE pv.product.id = :productId AND pv.status = :status ORDER BY pv.versionNumber DESC")
     List<ProductVersion> findByProductIdAndStatus(
             @Param("productId") Long productId, @Param("status") MakerCheckerStatus status);
 
     /** Find the currently effective version for a product on a given date. */
-    @Query("SELECT pv FROM ProductVersion pv WHERE pv.product.id = :productId AND pv.status = 'APPROVED' AND pv.effectiveFrom <= :date AND (pv.effectiveTo IS NULL OR pv.effectiveTo >= :date) ORDER BY pv.versionNumber DESC")
+    @Query(
+            "SELECT pv FROM ProductVersion pv WHERE pv.product.id = :productId AND pv.status = 'APPROVED' AND pv.effectiveFrom <= :date AND (pv.effectiveTo IS NULL OR pv.effectiveTo >= :date) ORDER BY pv.versionNumber DESC")
     Optional<ProductVersion> findEffectiveVersion(
             @Param("productId") Long productId, @Param("date") LocalDate date);
 

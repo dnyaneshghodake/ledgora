@@ -29,12 +29,14 @@ public class AccountService {
 
     private final AccountRepository accountRepository;
     private final AccountBalanceRepository accountBalanceRepository;
-    private final com.ledgora.account.repository.AccountProductSnapshotRepository snapshotRepository;
+    private final com.ledgora.account.repository.AccountProductSnapshotRepository
+            snapshotRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
     private final com.ledgora.product.repository.ProductRepository productRepository;
     private final com.ledgora.product.repository.ProductVersionRepository productVersionRepository;
-    private final com.ledgora.product.repository.ProductGlMappingRepository productGlMappingRepository;
+    private final com.ledgora.product.repository.ProductGlMappingRepository
+            productGlMappingRepository;
 
     public AccountService(
             AccountRepository accountRepository,
@@ -56,9 +58,9 @@ public class AccountService {
     }
 
     /**
-     * Create account. If productId is provided, derives accountType and GL codes from the
-     * product's effective version and creates an immutable AccountProductSnapshot. If productId
-     * is null, falls back to legacy enum-based creation (deprecated path).
+     * Create account. If productId is provided, derives accountType and GL codes from the product's
+     * effective version and creates an immutable AccountProductSnapshot. If productId is null,
+     * falls back to legacy enum-based creation (deprecated path).
      */
     @Transactional
     public Account createAccount(AccountDTO dto) {
@@ -74,42 +76,61 @@ public class AccountService {
         String resolvedGlCode;
 
         if (dto.getProductId() != null) {
-            com.ledgora.product.entity.Product loadedProduct = productRepository.findById(dto.getProductId())
-                    .orElseThrow(() -> new RuntimeException("Product not found: " + dto.getProductId()));
+            com.ledgora.product.entity.Product loadedProduct =
+                    productRepository
+                            .findById(dto.getProductId())
+                            .orElseThrow(
+                                    () ->
+                                            new RuntimeException(
+                                                    "Product not found: " + dto.getProductId()));
             if (!tenantId.equals(loadedProduct.getTenant().getId())) {
                 throw new RuntimeException("Cross-tenant product access is not allowed");
             }
             if (loadedProduct.getStatus() != com.ledgora.common.enums.ProductStatus.ACTIVE) {
-                throw new RuntimeException("Product " + loadedProduct.getProductCode() + " is not ACTIVE");
+                throw new RuntimeException(
+                        "Product " + loadedProduct.getProductCode() + " is not ACTIVE");
             }
             product = loadedProduct;
 
-            com.ledgora.product.entity.ProductVersion loadedVersion = productVersionRepository
-                    .findEffectiveVersion(loadedProduct.getId(), java.time.LocalDate.now())
-                    .orElseThrow(() -> new RuntimeException(
-                            "No effective version for product " + loadedProduct.getProductCode()));
+            com.ledgora.product.entity.ProductVersion loadedVersion =
+                    productVersionRepository
+                            .findEffectiveVersion(loadedProduct.getId(), java.time.LocalDate.now())
+                            .orElseThrow(
+                                    () ->
+                                            new RuntimeException(
+                                                    "No effective version for product "
+                                                            + loadedProduct.getProductCode()));
             effectiveVersion = loadedVersion;
 
-            com.ledgora.product.entity.ProductGlMapping loadedMapping = productGlMappingRepository
-                    .findByProductVersionId(loadedVersion.getId())
-                    .orElseThrow(() -> new RuntimeException(
-                            "GL mapping missing for product version " + loadedVersion.getVersionNumber()));
+            com.ledgora.product.entity.ProductGlMapping loadedMapping =
+                    productGlMappingRepository
+                            .findByProductVersionId(loadedVersion.getId())
+                            .orElseThrow(
+                                    () ->
+                                            new RuntimeException(
+                                                    "GL mapping missing for product version "
+                                                            + loadedVersion.getVersionNumber()));
             glMapping = loadedMapping;
 
             // Derive account type from product type
-            resolvedType = switch (product.getProductType()) {
-                case SAVINGS -> AccountType.SAVINGS;
-                case CURRENT -> AccountType.CURRENT;
-                case FIXED_DEPOSIT -> AccountType.FIXED_DEPOSIT;
-                case LOAN -> AccountType.LOAN;
-            };
+            resolvedType =
+                    switch (product.getProductType()) {
+                        case SAVINGS -> AccountType.SAVINGS;
+                        case CURRENT -> AccountType.CURRENT;
+                        case FIXED_DEPOSIT -> AccountType.FIXED_DEPOSIT;
+                        case LOAN -> AccountType.LOAN;
+                    };
             resolvedGlCode = glMapping.getCrGlCode(); // Customer deposit GL for the account
 
-            log.info("Account opening via Product engine: product={} version={} type={}",
-                    product.getProductCode(), effectiveVersion.getVersionNumber(), resolvedType);
+            log.info(
+                    "Account opening via Product engine: product={} version={} type={}",
+                    product.getProductCode(),
+                    effectiveVersion.getVersionNumber(),
+                    resolvedType);
         } else {
             // ── Legacy path (deprecated — retained for backward compatibility) ──
-            log.warn("Account created without productId — using legacy enum-based path (deprecated)");
+            log.warn(
+                    "Account created without productId — using legacy enum-based path (deprecated)");
             resolvedType = AccountType.valueOf(dto.getAccountType());
             resolvedGlCode = dto.getGlAccountCode();
         }
@@ -153,8 +174,10 @@ public class AccountService {
                             .interestAccrualGlCode(glMapping.getInterestAccrualGlCode())
                             .build();
             snapshotRepository.save(snapshot);
-            log.info("AccountProductSnapshot created for account {} product {}",
-                    saved.getAccountNumber(), product.getProductCode());
+            log.info(
+                    "AccountProductSnapshot created for account {} product {}",
+                    saved.getAccountNumber(),
+                    product.getProductCode());
         }
 
         // Create account balance cache
@@ -185,8 +208,7 @@ public class AccountService {
 
     public org.springframework.data.domain.Page<Account> getAllAccountsPaged(int page, int size) {
         return accountRepository.findByTenantId(
-                requireTenantId(),
-                org.springframework.data.domain.PageRequest.of(page, size));
+                requireTenantId(), org.springframework.data.domain.PageRequest.of(page, size));
     }
 
     public Optional<Account> getAccountById(Long id) {

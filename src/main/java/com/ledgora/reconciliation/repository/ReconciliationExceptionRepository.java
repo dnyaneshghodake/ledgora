@@ -12,16 +12,19 @@ import org.springframework.stereotype.Repository;
 public interface ReconciliationExceptionRepository
         extends JpaRepository<ReconciliationException, Long> {
 
-    @Query("SELECT re FROM ReconciliationException re WHERE re.tenantId = :tenantId AND re.businessDate = :date")
+    @Query(
+            "SELECT re FROM ReconciliationException re WHERE re.tenantId = :tenantId AND re.businessDate = :date")
     List<ReconciliationException> findByTenantIdAndBusinessDate(
             @Param("tenantId") Long tenantId, @Param("date") LocalDate date);
 
-    @Query("SELECT re FROM ReconciliationException re WHERE re.tenantId = :tenantId AND re.resolved = false")
+    @Query(
+            "SELECT re FROM ReconciliationException re WHERE re.tenantId = :tenantId AND re.resolved = false")
     List<ReconciliationException> findUnresolvedByTenantId(@Param("tenantId") Long tenantId);
 
     long countByTenantIdAndBusinessDateAndResolvedFalse(Long tenantId, LocalDate businessDate);
 
-    @Query("SELECT COALESCE(SUM(re.mismatchAmount), 0) FROM ReconciliationException re WHERE re.tenantId = :tenantId AND re.businessDate = :date AND re.resolved = false")
+    @Query(
+            "SELECT COALESCE(SUM(re.mismatchAmount), 0) FROM ReconciliationException re WHERE re.tenantId = :tenantId AND re.businessDate = :date AND re.resolved = false")
     java.math.BigDecimal sumUnresolvedMismatchByTenantIdAndDate(
             @Param("tenantId") Long tenantId, @Param("date") LocalDate date);
 }

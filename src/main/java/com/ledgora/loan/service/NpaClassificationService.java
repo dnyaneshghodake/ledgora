@@ -17,10 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * CBS-grade NPA Classification Service. Runs as part of EOD after DPD update.
  *
- * <p>RBI NPA Rule: A loan account is classified as NPA when any installment has
- * DPD (Days Past Due) > 90 days.
+ * <p>RBI NPA Rule: A loan account is classified as NPA when any installment has DPD (Days Past Due)
+ * > 90 days.
  *
  * <p>On NPA classification:
+ *
  * <ol>
  *   <li>Set account.npaFlag = true, record npaDate
  *   <li>Calculate provisioning amount (10% of outstanding for sub-standard)
@@ -43,6 +44,7 @@ public class NpaClassificationService {
 
     /** GL codes for provisioning entries. */
     private static final String PROVISION_EXPENSE_GL = "5200"; // Operating Expenses
+
     private static final String PROVISION_RESERVE_GL = "2400"; // Other Liabilities
 
     private final AccountRepository accountRepository;
@@ -59,8 +61,8 @@ public class NpaClassificationService {
     }
 
     /**
-     * Run NPA classification for all LOAN accounts in a tenant.
-     * Called by EOD orchestrator after DPD counters are updated.
+     * Run NPA classification for all LOAN accounts in a tenant. Called by EOD orchestrator after
+     * DPD counters are updated.
      *
      * @param tenantId the tenant to process
      * @param businessDate the current business date
@@ -84,34 +86,39 @@ public class NpaClassificationService {
             }
 
             // Check if any installment has DPD > 90
-            boolean isNpa = loanScheduleRepository
-                    .countByAccountIdAndDpdGreaterThan(account.getId(), NPA_DPD_THRESHOLD) > 0;
+            boolean isNpa =
+                    loanScheduleRepository.countByAccountIdAndDpdGreaterThan(
+                                    account.getId(), NPA_DPD_THRESHOLD)
+                            > 0;
 
             if (isNpa) {
                 try {
                     classifyAsNpa(account, businessDate);
                     newNpaCount++;
                 } catch (Exception e) {
-                    log.error("NPA classification failed for account {}: {}",
-                            account.getAccountNumber(), e.getMessage());
+                    log.error(
+                            "NPA classification failed for account {}: {}",
+                            account.getAccountNumber(),
+                            e.getMessage());
                 }
             }
         }
 
-        log.info("NPA classification complete for tenant {}: newNPA={} alreadyNPA={} totalLoans={}",
-                tenantId, newNpaCount, alreadyNpa, loanAccounts.size());
+        log.info(
+                "NPA classification complete for tenant {}: newNPA={} alreadyNPA={} totalLoans={}",
+                tenantId,
+                newNpaCount,
+                alreadyNpa,
+                loanAccounts.size());
         return newNpaCount;
     }
 
-    /**
-     * Classify a single account as NPA.
-     */
+    /** Classify a single account as NPA. */
     private void classifyAsNpa(Account account, LocalDate businessDate) {
         // Calculate provisioning amount: 10% of outstanding balance (sub-standard)
         BigDecimal outstandingBalance = account.getBalance();
-        BigDecimal provisionAmount = outstandingBalance
-                .multiply(PROVISIONING_RATE)
-                .setScale(4, RoundingMode.HALF_UP);
+        BigDecimal provisionAmount =
+                outstandingBalance.multiply(PROVISIONING_RATE).setScale(4, RoundingMode.HALF_UP);
 
         // Update account NPA fields
         account.setNpaFlag(true);
@@ -125,33 +132,39 @@ public class NpaClassificationService {
                 "NPA_CLASSIFICATION",
                 "ACCOUNT",
                 account.getId(),
-                "Account " + account.getAccountNumber()
-                        + " classified as NPA on " + businessDate
-                        + ". Outstanding: " + outstandingBalance
-                        + ". Provisioning: " + provisionAmount
-                        + ". DR GL: " + PROVISION_EXPENSE_GL
-                        + ". CR GL: " + PROVISION_RESERVE_GL,
+                "Account "
+                        + account.getAccountNumber()
+                        + " classified as NPA on "
+                        + businessDate
+                        + ". Outstanding: "
+                        + outstandingBalance
+                        + ". Provisioning: "
+                        + provisionAmount
+                        + ". DR GL: "
+                        + PROVISION_EXPENSE_GL
+                        + ". CR GL: "
+                        + PROVISION_RESERVE_GL,
                 null);
 
-        log.warn("NPA CLASSIFIED: account={} outstanding={} provision={} date={}",
-                account.getAccountNumber(), outstandingBalance, provisionAmount, businessDate);
+        log.warn(
+                "NPA CLASSIFIED: account={} outstanding={} provision={} date={}",
+                account.getAccountNumber(),
+                outstandingBalance,
+                provisionAmount,
+                businessDate);
     }
 
-    /**
-     * Get count of NPA accounts for a tenant (for dashboard reporting).
-     */
+    /** Get count of NPA accounts for a tenant (for dashboard reporting). */
     public long countNpaAccounts(Long tenantId) {
-        return accountRepository.findByTenantIdAndAccountType(tenantId, AccountType.LOAN)
-                .stream()
+        return accountRepository.findByTenantIdAndAccountType(tenantId, AccountType.LOAN).stream()
                 .filter(a -> Boolean.TRUE.equals(a.getNpaFlag()))
                 .count();
     }
 
-    /**
-     * Check if a specific account is NPA.
-     */
+    /** Check if a specific account is NPA. */
     public boolean isNpa(Long accountId) {
-        return accountRepository.findById(accountId)
+        return accountRepository
+                .findById(accountId)
                 .map(a -> Boolean.TRUE.equals(a.getNpaFlag()))
                 .orElse(false);
     }

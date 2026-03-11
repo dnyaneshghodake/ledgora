@@ -16,8 +16,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * CBS-grade Product Validation Service. Enforces business rules before a Product or
- * ProductVersion can be approved/activated:
+ * CBS-grade Product Validation Service. Enforces business rules before a Product or ProductVersion
+ * can be approved/activated:
  *
  * <ul>
  *   <li>GL mappings must exist for the effective version before product can be ACTIVE
@@ -44,10 +44,8 @@ public class ProductValidationService {
     }
 
     /**
-     * Validate that a Product can be activated. Checks:
-     * 1. At least one APPROVED version exists
-     * 2. The effective version has a GL mapping
-     * 3. All GL codes in the mapping are valid
+     * Validate that a Product can be activated. Checks: 1. At least one APPROVED version exists 2.
+     * The effective version has a GL mapping 3. All GL codes in the mapping are valid
      *
      * @return list of validation errors (empty = valid)
      */
@@ -59,7 +57,8 @@ public class ProductValidationService {
                 versionRepository.findByProductIdAndStatus(
                         product.getId(), MakerCheckerStatus.APPROVED);
         if (approvedVersions.isEmpty()) {
-            errors.add("Product has no approved versions. At least one version must be approved before activation.");
+            errors.add(
+                    "Product has no approved versions. At least one version must be approved before activation.");
             return errors;
         }
 
@@ -67,7 +66,8 @@ public class ProductValidationService {
         Optional<ProductVersion> effectiveVersion =
                 versionRepository.findEffectiveVersion(product.getId(), LocalDate.now());
         if (effectiveVersion.isEmpty()) {
-            errors.add("No effective version found for current date. Check effective_from/effective_to dates.");
+            errors.add(
+                    "No effective version found for current date. Check effective_from/effective_to dates.");
             return errors;
         }
 
@@ -75,8 +75,10 @@ public class ProductValidationService {
         Optional<ProductGlMapping> mappingOpt =
                 glMappingRepository.findByProductVersionId(version.getId());
         if (mappingOpt.isEmpty()) {
-            errors.add("GL mapping missing for effective version " + version.getVersionNumber()
-                    + ". GL mappings must be configured before product activation.");
+            errors.add(
+                    "GL mapping missing for effective version "
+                            + version.getVersionNumber()
+                            + ". GL mappings must be configured before product activation.");
             return errors;
         }
 
@@ -93,41 +95,49 @@ public class ProductValidationService {
         if (errors.isEmpty()) {
             log.info("Product {} passed activation validation", product.getProductCode());
         } else {
-            log.warn("Product {} failed activation validation: {}", product.getProductCode(), errors);
+            log.warn(
+                    "Product {} failed activation validation: {}",
+                    product.getProductCode(),
+                    errors);
         }
 
         return errors;
     }
 
     /**
-     * Validate that a ProductVersion can be approved. Checks:
-     * 1. Version is currently PENDING
-     * 2. GL mapping exists for this version
+     * Validate that a ProductVersion can be approved. Checks: 1. Version is currently PENDING 2. GL
+     * mapping exists for this version
      */
     public List<String> validateVersionForApproval(ProductVersion version) {
         List<String> errors = new ArrayList<>();
 
         if (version.getStatus() != MakerCheckerStatus.PENDING) {
-            errors.add("Version " + version.getVersionNumber()
-                    + " is not pending approval. Current status: " + version.getStatus());
+            errors.add(
+                    "Version "
+                            + version.getVersionNumber()
+                            + " is not pending approval. Current status: "
+                            + version.getStatus());
         }
 
         if (!glMappingRepository.existsByProductVersionId(version.getId())) {
-            errors.add("GL mapping must be configured before version "
-                    + version.getVersionNumber() + " can be approved.");
+            errors.add(
+                    "GL mapping must be configured before version "
+                            + version.getVersionNumber()
+                            + " can be approved.");
         }
 
         return errors;
     }
 
     /**
-     * Validate that a ProductVersion is still mutable (not yet approved).
-     * Once APPROVED, version rows and their GL mappings are immutable.
+     * Validate that a ProductVersion is still mutable (not yet approved). Once APPROVED, version
+     * rows and their GL mappings are immutable.
      */
     public void assertVersionMutable(ProductVersion version) {
         if (version.getStatus() == MakerCheckerStatus.APPROVED) {
             throw new RuntimeException(
-                    "ProductVersion " + version.getVersionNumber()
+                    "ProductVersion "
+                            + version.getVersionNumber()
                             + " is APPROVED and immutable. Create a new version instead.");
         }
     }

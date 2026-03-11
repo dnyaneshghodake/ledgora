@@ -5,12 +5,12 @@ import java.time.LocalDateTime;
 import lombok.*;
 
 /**
- * CBS-grade GL mapping for a Product Version. Defines which General Ledger accounts are
- * used for debit, credit, clearing, suspense, and interest accrual operations when
- * transactions are posted against accounts opened under this product.
+ * CBS-grade GL mapping for a Product Version. Defines which General Ledger accounts are used for
+ * debit, credit, clearing, suspense, and interest accrual operations when transactions are posted
+ * against accounts opened under this product.
  *
- * <p>Mappings must exist before a Product can transition to ACTIVE status. This is
- * enforced by ProductValidationService.
+ * <p>Mappings must exist before a Product can transition to ACTIVE status. This is enforced by
+ * ProductValidationService.
  *
  * <p>Immutable once the parent ProductVersion is APPROVED — mirrors the version immutability
  * guarantee.
@@ -18,9 +18,7 @@ import lombok.*;
 @Entity
 @Table(
         name = "product_gl_mappings",
-        indexes = {
-            @Index(name = "idx_pglm_version", columnList = "product_version_id")
-        },
+        indexes = {@Index(name = "idx_pglm_version", columnList = "product_version_id")},
         uniqueConstraints = {
             @UniqueConstraint(
                     name = "uk_pglm_version",

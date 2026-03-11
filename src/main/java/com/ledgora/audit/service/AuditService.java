@@ -76,18 +76,20 @@ public class AuditService {
     }
 
     /**
-     * Compute SHA-256 hash chain for tamper-proof audit trail.
-     * hash = SHA256(previousHash + "|" + action + "|" + entity + "|" + entityId + "|" + details + "|" + timestamp)
-     * Chain is tenant-specific — each tenant has its own independent chain.
+     * Compute SHA-256 hash chain for tamper-proof audit trail. hash = SHA256(previousHash + "|" +
+     * action + "|" + entity + "|" + entityId + "|" + details + "|" + timestamp) Chain is
+     * tenant-specific — each tenant has its own independent chain.
      */
     private void computeAndSetHash(AuditLog auditLog, Long tenantId) {
         try {
             // Find the previous entry's hash for this tenant
             String previousHash = "GENESIS";
             if (tenantId != null) {
-                previousHash = auditLogRepository.findTopByTenantIdOrderByIdDesc(tenantId)
-                        .map(AuditLog::getHash)
-                        .orElse("GENESIS");
+                previousHash =
+                        auditLogRepository
+                                .findTopByTenantIdOrderByIdDesc(tenantId)
+                                .map(AuditLog::getHash)
+                                .orElse("GENESIS");
             }
             if (previousHash == null) {
                 previousHash = "GENESIS";
@@ -95,17 +97,23 @@ public class AuditService {
             auditLog.setPreviousHash(previousHash);
 
             // Build payload string for hashing
-            String payload = previousHash
-                    + "|" + auditLog.getAction()
-                    + "|" + auditLog.getEntity()
-                    + "|" + auditLog.getEntityId()
-                    + "|" + auditLog.getDetails()
-                    + "|" + auditLog.getTimestamp();
+            String payload =
+                    previousHash
+                            + "|"
+                            + auditLog.getAction()
+                            + "|"
+                            + auditLog.getEntity()
+                            + "|"
+                            + auditLog.getEntityId()
+                            + "|"
+                            + auditLog.getDetails()
+                            + "|"
+                            + auditLog.getTimestamp();
 
             // SHA-256 hash
-            java.security.MessageDigest digest =
-                    java.security.MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes =
+                    digest.digest(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
             // Convert to hex string
             StringBuilder hex = new StringBuilder();
@@ -120,11 +128,12 @@ public class AuditService {
     }
 
     /**
-     * Verify the integrity of the audit hash chain for a tenant.
-     * Returns the ID of the first broken link, or -1 if chain is intact.
+     * Verify the integrity of the audit hash chain for a tenant. Returns the ID of the first broken
+     * link, or -1 if chain is intact.
      */
     public long verifyHashChain(Long tenantId) {
-        List<AuditLog> entries = auditLogRepository.findHashedEntriesByTenantIdOrderByIdAsc(tenantId);
+        List<AuditLog> entries =
+                auditLogRepository.findHashedEntriesByTenantIdOrderByIdAsc(tenantId);
         if (entries.isEmpty()) {
             return -1; // No entries = chain is trivially intact
         }
@@ -134,43 +143,60 @@ public class AuditService {
             // Verify previousHash links correctly
             if (entry.getPreviousHash() != null
                     && !entry.getPreviousHash().equals(expectedPreviousHash)) {
-                log.error("AUDIT CHAIN BROKEN at entry ID {} for tenant {}. Expected previousHash={} but found={}",
-                        entry.getId(), tenantId, expectedPreviousHash, entry.getPreviousHash());
+                log.error(
+                        "AUDIT CHAIN BROKEN at entry ID {} for tenant {}. Expected previousHash={} but found={}",
+                        entry.getId(),
+                        tenantId,
+                        expectedPreviousHash,
+                        entry.getPreviousHash());
                 return entry.getId();
             }
 
             // Recompute hash and verify
-            String payload = (entry.getPreviousHash() != null ? entry.getPreviousHash() : "GENESIS")
-                    + "|" + entry.getAction()
-                    + "|" + entry.getEntity()
-                    + "|" + entry.getEntityId()
-                    + "|" + entry.getDetails()
-                    + "|" + entry.getTimestamp();
+            String payload =
+                    (entry.getPreviousHash() != null ? entry.getPreviousHash() : "GENESIS")
+                            + "|"
+                            + entry.getAction()
+                            + "|"
+                            + entry.getEntity()
+                            + "|"
+                            + entry.getEntityId()
+                            + "|"
+                            + entry.getDetails()
+                            + "|"
+                            + entry.getTimestamp();
             try {
                 java.security.MessageDigest digest =
                         java.security.MessageDigest.getInstance("SHA-256");
-                byte[] hashBytes = digest.digest(
-                        payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                byte[] hashBytes =
+                        digest.digest(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
                 StringBuilder hex = new StringBuilder();
                 for (byte b : hashBytes) {
                     hex.append(String.format("%02x", b));
                 }
                 String recomputedHash = hex.toString();
                 if (!recomputedHash.equals(entry.getHash())) {
-                    log.error("AUDIT HASH TAMPERED at entry ID {} for tenant {}. Stored={} Recomputed={}",
-                            entry.getId(), tenantId, entry.getHash(), recomputedHash);
+                    log.error(
+                            "AUDIT HASH TAMPERED at entry ID {} for tenant {}. Stored={} Recomputed={}",
+                            entry.getId(),
+                            tenantId,
+                            entry.getHash(),
+                            recomputedHash);
                     return entry.getId();
                 }
             } catch (Exception e) {
-                log.error("Hash verification failed for entry {}: {}", entry.getId(), e.getMessage());
+                log.error(
+                        "Hash verification failed for entry {}: {}", entry.getId(), e.getMessage());
                 return entry.getId();
             }
 
             expectedPreviousHash = entry.getHash();
         }
 
-        log.info("Audit hash chain verified for tenant {}: {} entries, chain intact",
-                tenantId, entries.size());
+        log.info(
+                "Audit hash chain verified for tenant {}: {} entries, chain intact",
+                tenantId,
+                entries.size());
         return -1; // Chain intact
     }
 

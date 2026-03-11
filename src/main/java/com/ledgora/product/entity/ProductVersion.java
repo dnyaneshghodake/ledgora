@@ -8,10 +8,9 @@ import java.time.LocalDateTime;
 import lombok.*;
 
 /**
- * CBS-grade Product Version entity. Each Product can have multiple versions over time.
- * Version rows are immutable once approved — no updates allowed, only new versions.
- * This enables temporal product configuration (interest rate changes, fee changes)
- * without losing audit history.
+ * CBS-grade Product Version entity. Each Product can have multiple versions over time. Version rows
+ * are immutable once approved — no updates allowed, only new versions. This enables temporal
+ * product configuration (interest rate changes, fee changes) without losing audit history.
  */
 @Entity
 @Table(

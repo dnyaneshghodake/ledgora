@@ -90,47 +90,320 @@ public class CustomerAccountSeeder {
                         admin);
         // ── Bulk customers for pagination testing (26 more) ──
         String[][] bulkCustomers = {
-            {"CUST-NID-005", "Vikram", "Singh", "1982-06-10", "vikram.singh@email.com", "+91-9100000005", "45 Station Road, Jaipur", "VERIFIED"},
-            {"CUST-NID-006", "Meera", "Nair", "1991-02-28", "meera.nair@email.com", "+91-9100000006", "78 Beach Road, Kochi", "VERIFIED"},
-            {"CUST-NID-007", "Suresh", "Gupta", "1978-09-12", "suresh.gupta@email.com", "+91-9100000007", "12 Ring Road, Lucknow", "VERIFIED"},
-            {"CUST-NID-008", "Anita", "Desai", "1993-04-18", "anita.desai@email.com", "+91-9100000008", "90 Civil Lines, Nagpur", "VERIFIED"},
-            {"CUST-NID-009", "Ramesh", "Iyer", "1986-12-05", "ramesh.iyer@email.com", "+91-9100000009", "33 Temple Street, Chennai", "VERIFIED"},
-            {"CUST-NID-010", "Kavita", "Joshi", "1989-07-22", "kavita.joshi@email.com", "+91-9100000010", "56 MG Marg, Pune", "VERIFIED"},
-            {"CUST-NID-011", "Deepak", "Mehta", "1975-11-30", "deepak.mehta@email.com", "+91-9100000011", "21 Ashram Road, Ahmedabad", "VERIFIED"},
-            {"CUST-NID-012", "Sunita", "Rao", "1994-01-15", "sunita.rao@email.com", "+91-9100000012", "67 Jubilee Hills, Hyderabad", "VERIFIED"},
-            {"CUST-NID-013", "Arun", "Chopra", "1983-08-08", "arun.chopra@email.com", "+91-9100000013", "14 Sector 17, Chandigarh", "VERIFIED"},
-            {"CUST-NID-014", "Lakshmi", "Menon", "1990-03-25", "lakshmi.menon@email.com", "+91-9100000014", "88 Boat Jetty, Trivandrum", "VERIFIED"},
-            {"CUST-NID-015", "Manoj", "Tiwari", "1987-05-14", "manoj.tiwari@email.com", "+91-9100000015", "32 Hazratganj, Lucknow", "PENDING"},
-            {"CUST-NID-016", "Pooja", "Agarwal", "1992-10-02", "pooja.agarwal@email.com", "+91-9100000016", "55 Lajpat Nagar, Delhi", "PENDING"},
-            {"CUST-NID-017", "Sanjay", "Bhat", "1980-01-20", "sanjay.bhat@email.com", "+91-9100000017", "11 Majestic, Bangalore", "VERIFIED"},
-            {"CUST-NID-018", "Divya", "Pillai", "1996-06-30", "divya.pillai@email.com", "+91-9100000018", "42 Marine Drive, Mumbai", "VERIFIED"},
-            {"CUST-NID-019", "Ravi", "Verma", "1981-04-11", "ravi.verma@email.com", "+91-9100000019", "73 Mall Road, Shimla", "VERIFIED"},
-            {"CUST-NID-020", "Neha", "Saxena", "1995-09-18", "neha.saxena@email.com", "+91-9100000020", "29 Connaught Place, Delhi", "PENDING"},
-            {"CUST-NID-021", "Prakash", "Das", "1977-12-25", "prakash.das@email.com", "+91-9100000021", "64 Park Street, Kolkata", "VERIFIED"},
-            {"CUST-NID-022", "Swati", "Kulkarni", "1988-02-14", "swati.kulkarni@email.com", "+91-9100000022", "17 FC Road, Pune", "VERIFIED"},
-            {"CUST-NID-023", "Gaurav", "Pandey", "1984-07-07", "gaurav.pandey@email.com", "+91-9100000023", "38 Varanasi Ghat, Varanasi", "VERIFIED"},
-            {"CUST-NID-024", "Asha", "Hegde", "1993-11-11", "asha.hegde@email.com", "+91-9100000024", "51 Mangalore Road, Udupi", "PENDING"},
-            {"CUST-NID-025", "Kiran", "Shetty", "1979-03-03", "kiran.shetty@email.com", "+91-9100000025", "85 Bunder Road, Mangalore", "VERIFIED"},
-            {"CUST-NID-026", "Rekha", "Mishra", "1991-08-19", "rekha.mishra@email.com", "+91-9100000026", "26 Boring Road, Patna", "VERIFIED"},
-            {"CUST-NID-027", "Ajay", "Thakur", "1986-05-27", "ajay.thakur@email.com", "+91-9100000027", "70 Mall Road, Dehradun", "VERIFIED"},
-            {"CUST-NID-028", "Nisha", "Sen", "1994-10-09", "nisha.sen@email.com", "+91-9100000028", "43 Park Circus, Kolkata", "PENDING"},
-            {"CUST-NID-029", "Vivek", "Kapoor", "1982-01-16", "vivek.kapoor@email.com", "+91-9100000029", "19 Rajouri Garden, Delhi", "VERIFIED"},
-            {"CUST-NID-030", "Tanvi", "Bhatt", "1997-06-21", "tanvi.bhatt@email.com", "+91-9100000030", "62 SG Highway, Ahmedabad", "VERIFIED"},
+            {
+                "CUST-NID-005",
+                "Vikram",
+                "Singh",
+                "1982-06-10",
+                "vikram.singh@email.com",
+                "+91-9100000005",
+                "45 Station Road, Jaipur",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-006",
+                "Meera",
+                "Nair",
+                "1991-02-28",
+                "meera.nair@email.com",
+                "+91-9100000006",
+                "78 Beach Road, Kochi",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-007",
+                "Suresh",
+                "Gupta",
+                "1978-09-12",
+                "suresh.gupta@email.com",
+                "+91-9100000007",
+                "12 Ring Road, Lucknow",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-008",
+                "Anita",
+                "Desai",
+                "1993-04-18",
+                "anita.desai@email.com",
+                "+91-9100000008",
+                "90 Civil Lines, Nagpur",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-009",
+                "Ramesh",
+                "Iyer",
+                "1986-12-05",
+                "ramesh.iyer@email.com",
+                "+91-9100000009",
+                "33 Temple Street, Chennai",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-010",
+                "Kavita",
+                "Joshi",
+                "1989-07-22",
+                "kavita.joshi@email.com",
+                "+91-9100000010",
+                "56 MG Marg, Pune",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-011",
+                "Deepak",
+                "Mehta",
+                "1975-11-30",
+                "deepak.mehta@email.com",
+                "+91-9100000011",
+                "21 Ashram Road, Ahmedabad",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-012",
+                "Sunita",
+                "Rao",
+                "1994-01-15",
+                "sunita.rao@email.com",
+                "+91-9100000012",
+                "67 Jubilee Hills, Hyderabad",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-013",
+                "Arun",
+                "Chopra",
+                "1983-08-08",
+                "arun.chopra@email.com",
+                "+91-9100000013",
+                "14 Sector 17, Chandigarh",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-014",
+                "Lakshmi",
+                "Menon",
+                "1990-03-25",
+                "lakshmi.menon@email.com",
+                "+91-9100000014",
+                "88 Boat Jetty, Trivandrum",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-015",
+                "Manoj",
+                "Tiwari",
+                "1987-05-14",
+                "manoj.tiwari@email.com",
+                "+91-9100000015",
+                "32 Hazratganj, Lucknow",
+                "PENDING"
+            },
+            {
+                "CUST-NID-016",
+                "Pooja",
+                "Agarwal",
+                "1992-10-02",
+                "pooja.agarwal@email.com",
+                "+91-9100000016",
+                "55 Lajpat Nagar, Delhi",
+                "PENDING"
+            },
+            {
+                "CUST-NID-017",
+                "Sanjay",
+                "Bhat",
+                "1980-01-20",
+                "sanjay.bhat@email.com",
+                "+91-9100000017",
+                "11 Majestic, Bangalore",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-018",
+                "Divya",
+                "Pillai",
+                "1996-06-30",
+                "divya.pillai@email.com",
+                "+91-9100000018",
+                "42 Marine Drive, Mumbai",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-019",
+                "Ravi",
+                "Verma",
+                "1981-04-11",
+                "ravi.verma@email.com",
+                "+91-9100000019",
+                "73 Mall Road, Shimla",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-020",
+                "Neha",
+                "Saxena",
+                "1995-09-18",
+                "neha.saxena@email.com",
+                "+91-9100000020",
+                "29 Connaught Place, Delhi",
+                "PENDING"
+            },
+            {
+                "CUST-NID-021",
+                "Prakash",
+                "Das",
+                "1977-12-25",
+                "prakash.das@email.com",
+                "+91-9100000021",
+                "64 Park Street, Kolkata",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-022",
+                "Swati",
+                "Kulkarni",
+                "1988-02-14",
+                "swati.kulkarni@email.com",
+                "+91-9100000022",
+                "17 FC Road, Pune",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-023",
+                "Gaurav",
+                "Pandey",
+                "1984-07-07",
+                "gaurav.pandey@email.com",
+                "+91-9100000023",
+                "38 Varanasi Ghat, Varanasi",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-024",
+                "Asha",
+                "Hegde",
+                "1993-11-11",
+                "asha.hegde@email.com",
+                "+91-9100000024",
+                "51 Mangalore Road, Udupi",
+                "PENDING"
+            },
+            {
+                "CUST-NID-025",
+                "Kiran",
+                "Shetty",
+                "1979-03-03",
+                "kiran.shetty@email.com",
+                "+91-9100000025",
+                "85 Bunder Road, Mangalore",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-026",
+                "Rekha",
+                "Mishra",
+                "1991-08-19",
+                "rekha.mishra@email.com",
+                "+91-9100000026",
+                "26 Boring Road, Patna",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-027",
+                "Ajay",
+                "Thakur",
+                "1986-05-27",
+                "ajay.thakur@email.com",
+                "+91-9100000027",
+                "70 Mall Road, Dehradun",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-028",
+                "Nisha",
+                "Sen",
+                "1994-10-09",
+                "nisha.sen@email.com",
+                "+91-9100000028",
+                "43 Park Circus, Kolkata",
+                "PENDING"
+            },
+            {
+                "CUST-NID-029",
+                "Vivek",
+                "Kapoor",
+                "1982-01-16",
+                "vivek.kapoor@email.com",
+                "+91-9100000029",
+                "19 Rajouri Garden, Delhi",
+                "VERIFIED"
+            },
+            {
+                "CUST-NID-030",
+                "Tanvi",
+                "Bhatt",
+                "1997-06-21",
+                "tanvi.bhatt@email.com",
+                "+91-9100000030",
+                "62 SG Highway, Ahmedabad",
+                "VERIFIED"
+            },
         };
         int bulkIdx = 0;
         for (String[] cd : bulkCustomers) {
-            Customer bc = cust(cd[0], cd[1], cd[2], LocalDate.parse(cd[3]), cd[4], cd[5], cd[6], cd[7], tenant, admin);
+            Customer bc =
+                    cust(
+                            cd[0],
+                            cd[1],
+                            cd[2],
+                            LocalDate.parse(cd[3]),
+                            cd[4],
+                            cd[5],
+                            cd[6],
+                            cd[7],
+                            tenant,
+                            admin);
             // Each bulk customer gets a Savings account
             Branch assignedBranch = (bulkIdx % 2 == 0) ? br1 : br2;
             String savNum = String.format("SAV-%04d-0001", bulkIdx + 5);
             BigDecimal savBal = new BigDecimal((bulkIdx + 1) * 10000 + ".0000");
-            Account savAcct = acct(savNum, cd[1] + " " + cd[2] + " - Savings", AccountType.SAVINGS, LedgerAccountType.CUSTOMER_ACCOUNT, savBal, "INR", assignedBranch, bc, cd[1] + " " + cd[2], "2110", null, tenant, admin);
+            Account savAcct =
+                    acct(
+                            savNum,
+                            cd[1] + " " + cd[2] + " - Savings",
+                            AccountType.SAVINGS,
+                            LedgerAccountType.CUSTOMER_ACCOUNT,
+                            savBal,
+                            "INR",
+                            assignedBranch,
+                            bc,
+                            cd[1] + " " + cd[2],
+                            "2110",
+                            null,
+                            tenant,
+                            admin);
             bal(savAcct, savBal);
             // Every 3rd customer also gets a Current account
             if (bulkIdx % 3 == 0) {
                 String curNum = String.format("CUR-%04d-0001", bulkIdx + 5);
                 BigDecimal curBal = new BigDecimal((bulkIdx + 1) * 25000 + ".0000");
-                Account curAcct = acct(curNum, cd[1] + " " + cd[2] + " - Current", AccountType.CURRENT, LedgerAccountType.CUSTOMER_ACCOUNT, curBal, "INR", assignedBranch, bc, cd[1] + " " + cd[2], "2120", null, tenant, admin);
+                Account curAcct =
+                        acct(
+                                curNum,
+                                cd[1] + " " + cd[2] + " - Current",
+                                AccountType.CURRENT,
+                                LedgerAccountType.CUSTOMER_ACCOUNT,
+                                curBal,
+                                "INR",
+                                assignedBranch,
+                                bc,
+                                cd[1] + " " + cd[2],
+                                "2120",
+                                null,
+                                tenant,
+                                admin);
                 bal(curAcct, curBal);
             }
             bulkIdx++;
