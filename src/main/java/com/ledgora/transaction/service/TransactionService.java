@@ -19,7 +19,6 @@ import com.ledgora.common.enums.TransactionChannel;
 import com.ledgora.common.enums.TransactionStatus;
 import com.ledgora.common.enums.TransactionType;
 import com.ledgora.common.enums.VoucherDrCr;
-import com.ledgora.common.service.BusinessDateService;
 import com.ledgora.events.TransactionCreatedEvent;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
@@ -75,7 +74,6 @@ public class TransactionService {
     private final LedgerEntryRepository ledgerEntryRepository;
     private final GeneralLedgerRepository glRepository;
     private final UserRepository userRepository;
-    private final BusinessDateService businessDateService;
     private final AuditService auditService;
     private final VoucherService voucherService;
     private final ApplicationEventPublisher eventPublisher;
@@ -100,7 +98,6 @@ public class TransactionService {
             LedgerEntryRepository ledgerEntryRepository,
             GeneralLedgerRepository glRepository,
             UserRepository userRepository,
-            BusinessDateService businessDateService,
             AuditService auditService,
             VoucherService voucherService,
             ApplicationEventPublisher eventPublisher,
@@ -122,7 +119,6 @@ public class TransactionService {
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.glRepository = glRepository;
         this.userRepository = userRepository;
-        this.businessDateService = businessDateService;
         this.auditService = auditService;
         this.voucherService = voucherService;
         this.eventPublisher = eventPublisher;
