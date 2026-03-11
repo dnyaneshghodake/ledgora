@@ -166,9 +166,20 @@ public class CustomerService {
         return customerRepository.countByTenantId(requireTenantId());
     }
 
+    /**
+     * Update freeze status on customer. Persists freezeLevel and freezeReason on the Customer
+     * entity and writes an audit trail for governance.
+     */
     @Transactional
     public Customer updateFreezeStatus(Long customerId, String freezeLevel, String freezeReason) {
         Customer customer = requireCustomer(customerId);
+
+        // Persist freeze fields on Customer entity
+        customer.setFreezeLevel(freezeLevel != null ? freezeLevel : "NONE");
+        customer.setFreezeReason(freezeReason);
+
+        Customer saved = customerRepository.save(customer);
+
         // Audit trail for freeze action (governance requirement)
         User currentUser = getCurrentUser();
         Long userId = currentUser != null ? currentUser.getId() : null;
@@ -177,7 +188,7 @@ public class CustomerService {
                 "CUSTOMER_FREEZE_UPDATE",
                 "CUSTOMER",
                 customerId,
-                "Customer freeze requested: level="
+                "Customer freeze updated: level="
                         + freezeLevel
                         + (freezeReason != null && !freezeReason.isBlank()
                                 ? " reason=" + freezeReason
@@ -189,7 +200,7 @@ public class CustomerService {
                 customerId,
                 freezeLevel,
                 freezeReason);
-        return customerRepository.save(customer);
+        return saved;
     }
 
     /** Approve customer (checker step). Enforces maker != checker + tenant isolation. */

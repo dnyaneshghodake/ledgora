@@ -58,6 +58,13 @@ public class Customer {
     @Column(name = "address", length = 500)
     private String address;
 
+    @Column(name = "freeze_level", length = 20)
+    @Builder.Default
+    private String freezeLevel = "NONE";
+
+    @Column(name = "freeze_reason", length = 255)
+    private String freezeReason;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by")
     private User createdBy;
