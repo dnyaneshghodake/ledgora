@@ -248,37 +248,6 @@ public class AccountMasterController {
         return "redirect:/accounts/" + id + "/master";
     }
 
-    /** Save account master fields (General + Contact tabs). */
-    @PostMapping("/{id}/master/save")
-    public String saveAccountMaster(
-            @PathVariable Long id,
-            @RequestParam(required = false) String accountName,
-            @RequestParam(required = false) String currency,
-            @RequestParam(required = false) String glAccountCode,
-            @RequestParam(required = false) String customerName,
-            @RequestParam(required = false) String customerPhone,
-            @RequestParam(required = false) String customerEmail,
-            @RequestParam(required = false) String status,
-            RedirectAttributes redirectAttributes) {
-        try {
-            com.ledgora.account.dto.AccountDTO dto =
-                    com.ledgora.account.dto.AccountDTO.builder()
-                            .accountName(accountName)
-                            .currency(currency)
-                            .glAccountCode(glAccountCode)
-                            .customerName(customerName)
-                            .customerPhone(customerPhone)
-                            .customerEmail(customerEmail)
-                            .status(status)
-                            .build();
-            accountService.updateAccount(id, dto);
-            redirectAttributes.addFlashAttribute("message", "Account master saved successfully");
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", e.getMessage());
-        }
-        return "redirect:/accounts/" + id + "/master";
-    }
-
     /** Update freeze level on account (maker step). */
     @PostMapping("/{id}/master/freeze")
     public String updateFreeze(
