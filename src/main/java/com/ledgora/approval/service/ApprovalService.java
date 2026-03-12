@@ -46,6 +46,10 @@ public class ApprovalService {
     @Transactional
     public ApprovalRequest submitForApproval(String entityType, Long entityId, String requestData) {
         User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new RuntimeException(
+                    "Cannot submit approval request: requester identity could not be resolved");
+        }
 
         // Resolve tenant for multi-tenant approval isolation
         Tenant tenant = null;
@@ -67,9 +71,8 @@ public class ApprovalService {
                         .build();
 
         ApprovalRequest saved = approvalRepository.save(request);
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "APPROVAL_REQUESTED",
                 entityType,
                 entityId,
@@ -80,7 +83,7 @@ public class ApprovalService {
                 "Approval request submitted: {} {} by user {}",
                 entityType,
                 entityId,
-                currentUser != null ? currentUser.getUsername() : "system");
+                currentUser.getUsername());
         return saved;
     }
 
@@ -95,8 +98,11 @@ public class ApprovalService {
         }
 
         User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new RuntimeException(
+                    "Cannot approve request: approver identity could not be resolved");
+        }
         if (request.getRequestedBy() != null
-                && currentUser != null
                 && request.getRequestedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Cannot approve your own request (maker-checker violation)");
         }
@@ -107,9 +113,8 @@ public class ApprovalService {
         request.setRemarks(remarks);
 
         ApprovalRequest saved = approvalRepository.save(request);
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "APPROVAL_APPROVED",
                 request.getEntityType(),
                 request.getEntityId(),
@@ -119,7 +124,7 @@ public class ApprovalService {
         log.info(
                 "Approval request {} approved by {}",
                 requestId,
-                currentUser != null ? currentUser.getUsername() : "system");
+                currentUser.getUsername());
         return saved;
     }
 
@@ -134,15 +139,22 @@ public class ApprovalService {
         }
 
         User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new RuntimeException(
+                    "Cannot reject request: reviewer identity could not be resolved");
+        }
+        if (request.getRequestedBy() != null
+                && request.getRequestedBy().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("Cannot reject your own request (maker-checker violation)");
+        }
         request.setStatus(ApprovalStatus.REJECTED);
         request.setApprovedBy(currentUser);
         request.setApprovedAt(LocalDateTime.now());
         request.setRemarks(remarks);
 
         ApprovalRequest saved = approvalRepository.save(request);
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "APPROVAL_REJECTED",
                 request.getEntityType(),
                 request.getEntityId(),
@@ -152,7 +164,7 @@ public class ApprovalService {
         log.info(
                 "Approval request {} rejected by {}",
                 requestId,
-                currentUser != null ? currentUser.getUsername() : "system");
+                currentUser.getUsername());
         return saved;
     }
 
@@ -178,17 +190,15 @@ public class ApprovalService {
     }
 
     /**
-     * Tenant-isolated lookup by ID. Throws if not found or belongs to a different tenant.
-     * Used by approve() and reject() to prevent cross-tenant approval manipulation.
+     * Tenant-isolated lookup by ID. Throws if not found or belongs to a different tenant. Used by
+     * approve() and reject() to prevent cross-tenant approval manipulation.
      */
     private ApprovalRequest findByIdWithTenantIsolation(Long requestId) {
         Long tenantId = requireTenantId();
         return approvalRepository
                 .findByIdAndTenant_Id(requestId, tenantId)
                 .orElseThrow(
-                        () ->
-                                new RuntimeException(
-                                        "Approval request not found: " + requestId));
+                        () -> new RuntimeException("Approval request not found: " + requestId));
     }
 
     private Long requireTenantId() {
@@ -196,7 +206,13 @@ public class ApprovalService {
     }
 
     private User getCurrentUser() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByUsername(username).orElse(null);
+        try {
+            org.springframework.security.core.Authentication auth =
+                    SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null) return null;
+            return userRepository.findByUsername(auth.getName()).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

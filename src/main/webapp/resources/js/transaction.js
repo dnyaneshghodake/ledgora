@@ -19,6 +19,7 @@
  *   ledgerBalance, availableBalance, lienAmount — balance display
  *   freezeWarning, freezeMsg — freeze alert
  *   amountInput, amtInlineError, balanceExceedError — amount validation
+ *   channelInput — channel selector (required for approval policy routing)
  *   submitBtn — submit button
  */
 (function () {
@@ -50,6 +51,12 @@
         var amountInput = document.getElementById('amountInput');
         var amtErr = document.getElementById('amtInlineError');
         var balErr = document.getElementById('balanceExceedError');
+        var channelInput = document.getElementById('channelInput');
+        if (channelInput) {
+            channelInput.addEventListener('change', function () {
+                if (this.value) this.classList.remove('is-invalid');
+            });
+        }
 
         // ── Single-account pages (deposit / withdrawal) ──
         if (txnType === 'DEPOSIT' || txnType === 'WITHDRAWAL') {
@@ -137,6 +144,13 @@
                 if (txnType === 'WITHDRAWAL' && _availBal !== null && amt > _availBal) {
                     e.preventDefault();
                     if (balErr) balErr.classList.add('visible');
+                    return;
+                }
+                // CBS: channel is required for approval policy routing
+                if (channelInput && !channelInput.value) {
+                    e.preventDefault();
+                    channelInput.classList.add('is-invalid');
+                    return;
                 }
             });
         }
@@ -250,6 +264,13 @@
                 if (_fromFrozen || _toFrozen) {
                     e.preventDefault();
                     if (typeof showAlert === 'function') showAlert('Transfer blocked due to account freeze.', 'danger');
+                    return;
+                }
+                // CBS: channel is required for approval policy routing
+                if (channelInput && !channelInput.value) {
+                    e.preventDefault();
+                    channelInput.classList.add('is-invalid');
+                    return;
                 }
             });
         }

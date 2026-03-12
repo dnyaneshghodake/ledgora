@@ -32,7 +32,16 @@
                                     </c:choose>
                                 </td>
                                 <td class="fw-bold"><c:out value="${txn.amount}"/> <c:out value="${txn.currency}"/></td>
-                                <td><span class="badge bg-success"><c:out value="${txn.status}"/></span></td>
+                                <td>
+                                    <c:choose>
+                                        <c:when test="${txn.status == 'COMPLETED'}"><span class="badge bg-success"><c:out value="${txn.status}"/></span></c:when>
+                                        <c:when test="${txn.status == 'PENDING_APPROVAL'}"><span class="badge bg-warning text-dark"><c:out value="${txn.status}"/></span></c:when>
+                                        <c:when test="${txn.status == 'REJECTED'}"><span class="badge bg-danger"><c:out value="${txn.status}"/></span></c:when>
+                                        <c:when test="${txn.status == 'REVERSED'}"><span class="badge bg-secondary"><c:out value="${txn.status}"/></span></c:when>
+                                        <c:when test="${txn.status == 'FAILED'}"><span class="badge bg-dark"><c:out value="${txn.status}"/></span></c:when>
+                                        <c:otherwise><span class="badge bg-light text-dark"><c:out value="${txn.status}"/></span></c:otherwise>
+                                    </c:choose>
+                                </td>
                                 <td><c:out value="${txn.createdAt}"/></td>
                                 <td><a href="${pageContext.request.contextPath}/transactions/${txn.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
                             </tr>

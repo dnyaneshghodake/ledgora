@@ -10,8 +10,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface ConfigChangeRequestRepository
-        extends JpaRepository<ConfigChangeRequest, Long> {
+public interface ConfigChangeRequestRepository extends JpaRepository<ConfigChangeRequest, Long> {
 
     /** Tenant-isolated lookup by primary key. */
     Optional<ConfigChangeRequest> findByIdAndTenant_Id(Long id, Long tenantId);

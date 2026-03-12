@@ -32,6 +32,7 @@ public class CustomerDTO {
 
     @Size(max = 50, message = "National ID must not exceed 50 characters")
     private String nationalId;
+
     private String kycStatus;
 
     @Pattern(regexp = "^$|^[0-9]{10}$", message = "Mobile must be exactly 10 digits")

@@ -118,6 +118,15 @@ public class Transaction {
     @Column(name = "checker_remarks", length = 500)
     private String checkerRemarks;
 
+    /**
+     * Optimistic locking version — prevents concurrent approval of the same transaction from
+     * multiple sessions. If two checkers attempt to approve simultaneously, the second write
+     * throws OptimisticLockException, preventing double-posting.
+     */
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -106,6 +106,20 @@
                     <label for="descriptionInput" class="form-label">Description</label>
                     <input type="text" name="description" id="descriptionInput" class="form-control" maxlength="255" placeholder="Transaction description"/>
                 </div>
+                <div class="col-md-6">
+                    <label for="channelInput" class="form-label cbs-field-required">Channel</label>
+                    <select name="channel" id="channelInput" class="form-select" required>
+                        <option value="">-- Select Channel --</option>
+                        <option value="TELLER">TELLER</option>
+                        <option value="ATM">ATM</option>
+                        <option value="ONLINE">ONLINE (Internet Banking)</option>
+                        <option value="MOBILE">MOBILE (Mobile Banking)</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="narrationInput" class="form-label">Narration</label>
+                    <input type="text" name="narration" id="narrationInput" class="form-control" maxlength="500" placeholder="Narration (for audit trail)"/>
+                </div>
                 <div class="col-12"><hr>
                     <button type="submit" class="btn btn-warning btn-lg" id="submitBtn" ${isHoliday ? 'disabled' : ''}><i class="bi bi-cash-coin"></i> Submit Withdrawal</button>
                     <c:if test="${isHoliday}">

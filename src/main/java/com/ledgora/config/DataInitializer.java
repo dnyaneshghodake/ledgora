@@ -6,6 +6,7 @@ import com.ledgora.config.seeder.*;
 import com.ledgora.tenant.entity.Tenant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,11 +18,22 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Execution order: 0. Tenants → 1. Roles → 2. Branches → 3. Users → 4. GL Hierarchy → 5.
  * Business Date → 6. Customers & Accounts → 7. Transactions & Ledger → 8. Exchange Rates → 9.
  * Idempotency Keys → 10. CBS CustomerMaster + Tax
+ *
+ * <p>Set {@code ledgora.seeder.enabled=false} in application.properties (or via environment
+ * variable) to skip seeding on UAT/PROD deployments where real data already exists.
  */
 @Component
 public class DataInitializer implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
+
+    /**
+     * Controls whether the data seeder runs on startup.
+     * Default: true (for local/dev). Set to false for UAT/PROD.
+     * Override via environment variable: LEDGORA_SEEDER_ENABLED=false
+     */
+    @Value("${ledgora.seeder.enabled:true}")
+    private boolean seederEnabled;
 
     private final TenantDataSeeder tenantSeeder;
     private final RoleDataSeeder roleSeeder;
@@ -63,6 +75,13 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
+        if (!seederEnabled) {
+            log.info("═══════════════════════════════════════════════════════════");
+            log.info("  Ledgora DataInitializer — SKIPPED (ledgora.seeder.enabled=false)");
+            log.info("  This is correct for UAT/PROD deployments with real data.");
+            log.info("═══════════════════════════════════════════════════════════");
+            return;
+        }
         log.info("═══════════════════════════════════════════════════════════");
         log.info("  Ledgora DataInitializer — seeding reference data ...");
         log.info("═══════════════════════════════════════════════════════════");

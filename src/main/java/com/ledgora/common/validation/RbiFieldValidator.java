@@ -101,8 +101,7 @@ public final class RbiFieldValidator {
     }
 
     /**
-     * Validate PAN format: 5 uppercase letters + 4 digits + 1 uppercase letter.
-     * Example: ABCDE1234F
+     * Validate PAN format: 5 uppercase letters + 4 digits + 1 uppercase letter. Example: ABCDE1234F
      */
     public static void validatePanFormat(String pan) {
         if (pan == null || pan.trim().isEmpty()) return;
@@ -113,32 +112,30 @@ public final class RbiFieldValidator {
     }
 
     /**
-     * Validate Aadhaar number: exactly 12 digits.
-     * RBI KYC Master Direction: Aadhaar is a valid OVD for account opening.
+     * Validate Aadhaar number: exactly 12 digits. RBI KYC Master Direction: Aadhaar is a valid OVD
+     * for account opening.
      */
     public static void validateAadhaarFormat(String aadhaar) {
         if (aadhaar == null || aadhaar.trim().isEmpty()) return;
         if (!aadhaar.matches("[0-9]{12}")) {
-            throw new IllegalArgumentException(
-                    "Invalid Aadhaar format. Must be exactly 12 digits");
+            throw new IllegalArgumentException("Invalid Aadhaar format. Must be exactly 12 digits");
         }
     }
 
     /**
-     * Validate IFSC code format: 4 uppercase letters + 0 + 6 alphanumeric.
-     * RBI NEFT/RTGS requirement.
+     * Validate IFSC code format: 4 uppercase letters + 0 + 6 alphanumeric. RBI NEFT/RTGS
+     * requirement.
      */
     public static void validateIfscFormat(String ifsc) {
         if (ifsc == null || ifsc.trim().isEmpty()) return;
         if (!ifsc.matches("[A-Z]{4}0[A-Z0-9]{6}")) {
-            throw new IllegalArgumentException(
-                    "Invalid IFSC format. Expected format: ABCD0123456");
+            throw new IllegalArgumentException("Invalid IFSC format. Expected format: ABCD0123456");
         }
     }
 
     /**
-     * Validate GST format: 15-character alphanumeric.
-     * Format: 2-digit state code + 10-char PAN + 1 entity + 1 Z + 1 checksum
+     * Validate GST format: 15-character alphanumeric. Format: 2-digit state code + 10-char PAN + 1
+     * entity + 1 Z + 1 checksum
      */
     public static void validateGstFormat(String gst) {
         if (gst == null || gst.trim().isEmpty()) return;
@@ -148,9 +145,7 @@ public final class RbiFieldValidator {
         }
     }
 
-    /**
-     * Validate mobile number: exactly 10 digits, starting with 6-9 (Indian mobile).
-     */
+    /** Validate mobile number: exactly 10 digits, starting with 6-9 (Indian mobile). */
     public static void validateMobileNumber(String mobile) {
         if (mobile == null || mobile.trim().isEmpty()) return;
         if (!mobile.matches("[6-9][0-9]{9}")) {
@@ -159,9 +154,7 @@ public final class RbiFieldValidator {
         }
     }
 
-    /**
-     * Validate account number format (alphanumeric, 5-30 chars).
-     */
+    /** Validate account number format (alphanumeric, 5-30 chars). */
     public static void validateAccountNumber(String accountNumber) {
         if (accountNumber == null || accountNumber.trim().isEmpty()) {
             throw new IllegalArgumentException("Account number is required");

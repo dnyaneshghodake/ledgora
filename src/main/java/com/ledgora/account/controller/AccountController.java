@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -56,6 +57,7 @@ public class AccountController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String listAccounts(
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "type", required = false) String type,
@@ -73,13 +75,36 @@ public class AccountController {
             model.addAttribute("accounts", accountService.searchByCustomerName(search));
             model.addAttribute("search", search);
         } else if (status != null && !status.isEmpty()) {
-            model.addAttribute(
-                    "accounts", accountService.getAccountsByStatus(AccountStatus.valueOf(status)));
-            model.addAttribute("selectedStatus", status);
+            try {
+                model.addAttribute(
+                        "accounts",
+                        accountService.getAccountsByStatus(AccountStatus.valueOf(status)));
+                model.addAttribute("selectedStatus", status);
+            } catch (IllegalArgumentException e) {
+                model.addAttribute("error", "Invalid account status filter: " + status);
+                org.springframework.data.domain.Page<Account> accountPage =
+                        accountService.getAllAccountsPaged(page, size);
+                model.addAttribute("accounts", accountPage.getContent());
+                model.addAttribute("currentPage", accountPage.getNumber());
+                model.addAttribute("totalPages", accountPage.getTotalPages());
+                model.addAttribute("totalElements", accountPage.getTotalElements());
+                model.addAttribute("pageSize", size);
+            }
         } else if (type != null && !type.isEmpty()) {
-            model.addAttribute(
-                    "accounts", accountService.getAccountsByType(AccountType.valueOf(type)));
-            model.addAttribute("selectedType", type);
+            try {
+                model.addAttribute(
+                        "accounts", accountService.getAccountsByType(AccountType.valueOf(type)));
+                model.addAttribute("selectedType", type);
+            } catch (IllegalArgumentException e) {
+                model.addAttribute("error", "Invalid account type filter: " + type);
+                org.springframework.data.domain.Page<Account> accountPage =
+                        accountService.getAllAccountsPaged(page, size);
+                model.addAttribute("accounts", accountPage.getContent());
+                model.addAttribute("currentPage", accountPage.getNumber());
+                model.addAttribute("totalPages", accountPage.getTotalPages());
+                model.addAttribute("totalElements", accountPage.getTotalElements());
+                model.addAttribute("pageSize", size);
+            }
         } else {
             org.springframework.data.domain.Page<Account> accountPage =
                     accountService.getAllAccountsPaged(page, size);
@@ -97,6 +122,7 @@ public class AccountController {
     }
 
     @GetMapping("/create")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String createAccountForm(Model model) {
         model.addAttribute("accountDTO", new AccountDTO());
         model.addAttribute("accountTypes", AccountType.values());
@@ -104,6 +130,7 @@ public class AccountController {
     }
 
     @PostMapping("/create")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String createAccount(
             @Valid @ModelAttribute("accountDTO") AccountDTO accountDTO,
             BindingResult result,
@@ -116,7 +143,10 @@ public class AccountController {
         try {
             Account account = accountService.createAccount(accountDTO);
             redirectAttributes.addFlashAttribute(
-                    "message", "Account created successfully: " + account.getAccountNumber());
+                    "message",
+                    "Account created (PENDING approval): "
+                            + account.getAccountNumber()
+                            + ". A checker must approve before the account is active.");
             return "redirect:/accounts";
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
@@ -126,6 +156,7 @@ public class AccountController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String viewAccount(@PathVariable Long id, Model model) {
         Account account =
                 accountService
@@ -250,7 +281,12 @@ public class AccountController {
         }
 
         // Load freeze history from audit logs (tenant-isolated)
-        Long auditTenantId = TenantContextHolder.getRequiredTenantId();
+        Long auditTenantId = TenantContextHolder.getTenantId();
+        if (auditTenantId == null) {
+            model.addAttribute("freezeHistory", List.of());
+            model.addAttribute("lienHistory", List.of());
+            return "account/account-view";
+        }
         try {
             List<AuditLog> freezeLogs =
                     auditLogRepository
@@ -319,6 +355,7 @@ public class AccountController {
     }
 
     @GetMapping("/{id}/edit")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String editAccountForm(@PathVariable Long id, Model model) {
         Account account =
                 accountService
@@ -350,6 +387,7 @@ public class AccountController {
     }
 
     @PostMapping("/{id}/edit")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String updateAccount(
             @PathVariable Long id,
             @Valid @ModelAttribute("accountDTO") AccountDTO accountDTO,
@@ -372,6 +410,7 @@ public class AccountController {
     }
 
     @PostMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS')")
     public String changeStatus(
             @PathVariable Long id,
             @RequestParam String status,
@@ -387,10 +426,15 @@ public class AccountController {
 
     /** H2: Approve an account (checker step with maker-checker enforcement). */
     @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
     public String approveAccount(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             accountService.approveAccount(id);
             redirectAttributes.addFlashAttribute("message", "Account approved successfully");
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Approval conflict: this account was already actioned by another session. Please refresh.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -399,10 +443,16 @@ public class AccountController {
 
     /** H2: Reject an account (checker step with maker-checker enforcement). */
     @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
     public String rejectAccount(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             accountService.rejectAccount(id);
-            redirectAttributes.addFlashAttribute("error", "Account rejected");
+            // CBS: rejection is a business outcome, not an error — use message not error
+            redirectAttributes.addFlashAttribute("message", "Account rejected");
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Rejection conflict: this account was already actioned by another session. Please refresh.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }

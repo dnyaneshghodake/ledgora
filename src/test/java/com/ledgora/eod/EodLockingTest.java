@@ -16,10 +16,11 @@ import org.springframework.test.context.ActiveProfiles;
  * CBS Tier-1 Integration Tests: EOD Operation Locking.
  *
  * <p>Verifies that:
+ *
  * <ol>
- *   <li>EOD acquires the tenant operation lock before execution</li>
- *   <li>Concurrent EOD attempts on the same tenant are blocked</li>
- *   <li>Lock is released after EOD completes or fails</li>
+ *   <li>EOD acquires the tenant operation lock before execution
+ *   <li>Concurrent EOD attempts on the same tenant are blocked
+ *   <li>Lock is released after EOD completes or fails
  * </ol>
  */
 @SpringBootTest

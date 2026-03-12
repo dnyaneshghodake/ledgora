@@ -12,20 +12,29 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.annotation.Rollback;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * CBS Tier-1 Integration Tests: Config Governance.
  *
  * <p>Verifies that:
+ *
  * <ol>
- *   <li>Config change requests are created in PENDING status</li>
- *   <li>Maker-checker is enforced (same user cannot approve own request)</li>
- *   <li>Tenant isolation is enforced on governance operations</li>
+ *   <li>Config change requests are created in PENDING status
+ *   <li>Maker-checker is enforced (same user cannot approve own request)
+ *   <li>Tenant isolation is enforced on governance operations
  * </ol>
+ *
+ * <p>Each test is {@code @Transactional} + {@code @Rollback} to prevent PENDING config change
+ * requests written by one test from leaking into subsequent tests and making
+ * {@code countPending_reflectsSubmittedRequests} non-deterministic.
  */
 @SpringBootTest
 @ActiveProfiles("test")
+@Transactional
+@Rollback
 class ConfigGovernanceTest {
 
     @Autowired private ConfigGovernanceService governanceService;
@@ -37,7 +46,9 @@ class ConfigGovernanceTest {
 
     @Test
     @DisplayName("Config change request is created in PENDING status")
-    @WithMockUser(username = "maker-user", roles = {"MAKER", "ADMIN"})
+    @WithMockUser(
+            username = "maker1",
+            roles = {"MAKER", "ADMIN"})
     void submitChange_createsPendingRequest() {
         TenantContextHolder.setTenantId(1L);
 
@@ -60,7 +71,9 @@ class ConfigGovernanceTest {
 
     @Test
     @DisplayName("Maker cannot approve own config change request")
-    @WithMockUser(username = "maker-user", roles = {"MAKER", "ADMIN"})
+    @WithMockUser(
+            username = "maker1",
+            roles = {"MAKER", "ADMIN"})
     void approve_ownRequest_throws() {
         TenantContextHolder.setTenantId(1L);
 
@@ -76,15 +89,23 @@ class ConfigGovernanceTest {
                         null);
 
         // Same user tries to approve — should throw maker-checker violation
-        assertThrows(
-                RuntimeException.class,
-                () -> governanceService.approve(request.getId(), "Self-approved"),
-                "Maker cannot approve own config change");
+        RuntimeException ex =
+                assertThrows(
+                        RuntimeException.class,
+                        () -> governanceService.approve(request.getId(), "Self-approved"),
+                        "Maker cannot approve own config change");
+        assertTrue(
+                ex.getMessage().contains("maker-checker")
+                        || ex.getMessage().contains("approve your own"),
+                "Exception must be a maker-checker violation, not a null-identity error. Got: "
+                        + ex.getMessage());
     }
 
     @Test
     @DisplayName("Config governance throws when no tenant context is set")
-    @WithMockUser(username = "maker-user", roles = {"MAKER"})
+    @WithMockUser(
+            username = "maker1",
+            roles = {"MAKER"})
     void submitChange_noTenantContext_throws() {
         TenantContextHolder.clear();
         assertThrows(
@@ -104,22 +125,41 @@ class ConfigGovernanceTest {
 
     @Test
     @DisplayName("Pending count reflects submitted requests")
-    @WithMockUser(username = "maker-user", roles = {"MAKER", "ADMIN"})
+    @WithMockUser(
+            username = "maker1",
+            roles = {"MAKER", "ADMIN"})
     void countPending_reflectsSubmittedRequests() {
         TenantContextHolder.setTenantId(1L);
         long beforeCount = governanceService.countPending();
 
         governanceService.submitChange(
-                "VELOCITY_LIMIT",
-                "VelocityLimit",
-                300L,
-                "Test change",
-                null,
-                "{}",
-                null,
-                null);
+                "VELOCITY_LIMIT", "VelocityLimit", 300L, "Test change", null, "{}", null, null);
 
         long afterCount = governanceService.countPending();
         assertEquals(beforeCount + 1, afterCount, "Pending count should increment by 1");
+    }
+
+    @Test
+    @DisplayName("Unresolvable user identity throws on submitChange")
+    @WithMockUser(username = "nonexistent-user-xyz", roles = {"MAKER"})
+    void submitChange_unknownUser_throws() {
+        TenantContextHolder.setTenantId(1L);
+        RuntimeException ex =
+                assertThrows(
+                        RuntimeException.class,
+                        () ->
+                                governanceService.submitChange(
+                                        "HARD_LIMIT",
+                                        "HardTransactionLimit",
+                                        null,
+                                        "Test",
+                                        null,
+                                        "{}",
+                                        null,
+                                        null),
+                        "Must throw when user cannot be resolved from DB");
+        assertTrue(
+                ex.getMessage().contains("identity could not be resolved"),
+                "Exception must indicate identity resolution failure. Got: " + ex.getMessage());
     }
 }

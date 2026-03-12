@@ -8,6 +8,7 @@ import com.ledgora.common.exception.TransactionNotFoundException;
 import com.ledgora.transaction.dto.TransactionDTO;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.service.TransactionService;
+import com.ledgora.voucher.repository.VoucherRepository;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,19 +27,23 @@ public class TransactionController {
     private final AccountService accountService;
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
+    private final VoucherRepository voucherRepository;
 
     public TransactionController(
             TransactionService transactionService,
             AccountService accountService,
             AccountRepository accountRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            VoucherRepository voucherRepository) {
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.accountRepository = accountRepository;
         this.userRepository = userRepository;
+        this.voucherRepository = voucherRepository;
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String listTransactions(
             @RequestParam(value = "accountNumber", required = false) String accountNumber,
             @RequestParam(value = "page", defaultValue = "0") int page,
@@ -66,18 +71,22 @@ public class TransactionController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String viewTransaction(@PathVariable Long id, Model model) {
-        // PART 11: Use custom TransactionNotFoundException instead of raw RuntimeException
         Transaction transaction =
                 transactionService
                         .getTransactionById(id)
                         .orElseThrow(() -> new TransactionNotFoundException(id));
         model.addAttribute("transaction", transaction);
+        // Ledger entries — immutable double-entry records
         model.addAttribute("ledgerEntries", transactionService.getLedgerEntriesByTransaction(id));
+        // Vouchers — one per accounting leg (DR + CR, or 4 for IBT cross-branch)
+        model.addAttribute("vouchers", voucherRepository.findByTransactionIdWithGraph(id));
         return "transaction/transaction-view";
     }
 
     @GetMapping("/deposit")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String depositForm(Model model) {
         model.addAttribute("transactionDTO", new TransactionDTO());
         model.addAttribute("accounts", accountService.getAllAccounts());
@@ -85,6 +94,7 @@ public class TransactionController {
     }
 
     @PostMapping("/deposit")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String deposit(
             @Valid @ModelAttribute("transactionDTO") TransactionDTO dto,
             BindingResult result,
@@ -105,12 +115,16 @@ public class TransactionController {
             if (txn.getStatus() == com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL) {
                 redirectAttributes.addFlashAttribute(
                         "message",
-                        "Deposit submitted for approval. Ref: " + txn.getTransactionRef());
+                        "Deposit submitted for approval (PENDING). Ref: "
+                                + txn.getTransactionRef()
+                                + ". A checker must approve before posting.");
             } else {
                 redirectAttributes.addFlashAttribute(
-                        "message", "Deposit successful! Ref: " + txn.getTransactionRef());
+                        "message",
+                        "Deposit posted successfully. Ref: " + txn.getTransactionRef());
             }
-            return "redirect:/transactions";
+            // CBS: redirect to transaction detail — teller must see voucher + ledger confirmation
+            return "redirect:/transactions/" + txn.getId();
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("accounts", accountService.getAllAccounts());
@@ -119,6 +133,7 @@ public class TransactionController {
     }
 
     @GetMapping("/withdraw")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String withdrawForm(Model model) {
         model.addAttribute("transactionDTO", new TransactionDTO());
         model.addAttribute("accounts", accountService.getAllAccounts());
@@ -126,6 +141,7 @@ public class TransactionController {
     }
 
     @PostMapping("/withdraw")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String withdraw(
             @Valid @ModelAttribute("transactionDTO") TransactionDTO dto,
             BindingResult result,
@@ -146,12 +162,15 @@ public class TransactionController {
             if (txn.getStatus() == com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL) {
                 redirectAttributes.addFlashAttribute(
                         "message",
-                        "Withdrawal submitted for approval. Ref: " + txn.getTransactionRef());
+                        "Withdrawal submitted for approval (PENDING). Ref: "
+                                + txn.getTransactionRef()
+                                + ". A checker must approve before posting.");
             } else {
                 redirectAttributes.addFlashAttribute(
-                        "message", "Withdrawal successful! Ref: " + txn.getTransactionRef());
+                        "message",
+                        "Withdrawal posted successfully. Ref: " + txn.getTransactionRef());
             }
-            return "redirect:/transactions";
+            return "redirect:/transactions/" + txn.getId();
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("accounts", accountService.getAllAccounts());
@@ -160,6 +179,7 @@ public class TransactionController {
     }
 
     @GetMapping("/transfer")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String transferForm(Model model) {
         model.addAttribute("transactionDTO", new TransactionDTO());
         model.addAttribute("accounts", accountService.getAllAccounts());
@@ -167,6 +187,7 @@ public class TransactionController {
     }
 
     @PostMapping("/transfer")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String transfer(
             @Valid @ModelAttribute("transactionDTO") TransactionDTO dto,
             BindingResult result,
@@ -187,12 +208,15 @@ public class TransactionController {
             if (txn.getStatus() == com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL) {
                 redirectAttributes.addFlashAttribute(
                         "message",
-                        "Transfer submitted for approval. Ref: " + txn.getTransactionRef());
+                        "Transfer submitted for approval (PENDING). Ref: "
+                                + txn.getTransactionRef()
+                                + ". A checker must approve before posting.");
             } else {
                 redirectAttributes.addFlashAttribute(
-                        "message", "Transfer successful! Ref: " + txn.getTransactionRef());
+                        "message",
+                        "Transfer posted successfully. Ref: " + txn.getTransactionRef());
             }
-            return "redirect:/transactions";
+            return "redirect:/transactions/" + txn.getId();
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("accounts", accountService.getAllAccounts());
@@ -230,6 +254,12 @@ public class TransactionController {
             redirectAttributes.addFlashAttribute(
                     "message",
                     "Transaction " + approved.getTransactionRef() + " approved and posted.");
+            // CBS: show the checker the full voucher + ledger confirmation after approval
+            return "redirect:/transactions/" + approved.getId();
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Approval conflict: this transaction was already actioned by another session. Please refresh.");
             return "redirect:/transactions/pending";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Approval failed: " + e.getMessage());
@@ -252,6 +282,11 @@ public class TransactionController {
             redirectAttributes.addFlashAttribute(
                     "message", "Transaction " + rejected.getTransactionRef() + " rejected.");
             return "redirect:/transactions/pending";
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Rejection conflict: this transaction was already actioned by another session. Please refresh.");
+            return "redirect:/transactions/pending";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Rejection failed: " + e.getMessage());
             return "redirect:/transactions/pending";
@@ -271,6 +306,7 @@ public class TransactionController {
      * ownership check is recommended.
      */
     @GetMapping("/history/{accountNumber}")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'CUSTOMER')")
     public String transactionHistory(@PathVariable String accountNumber, Model model) {
         // Validate account number format to prevent path traversal / injection
         if (accountNumber == null || !accountNumber.matches("^[A-Za-z0-9\\-]+$")) {

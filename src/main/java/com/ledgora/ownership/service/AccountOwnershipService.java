@@ -120,6 +120,11 @@ public class AccountOwnershipService {
 
         Tenant tenant = tenantService.getTenantById(tenantId);
         User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot create ownership: maker identity could not be resolved");
+        }
 
         AccountOwnership ownership =
                 AccountOwnership.builder()
@@ -147,9 +152,8 @@ public class AccountOwnershipService {
                         + " pct="
                         + ownershipPercentage);
 
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "OWNERSHIP_CREATE",
                 "ACCOUNT_OWNERSHIP",
                 saved.getId(),
@@ -177,8 +181,12 @@ public class AccountOwnershipService {
         }
 
         User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot approve ownership: approver identity could not be resolved");
+        }
         if (ownership.getCreatedBy() != null
-                && currentUser != null
                 && ownership.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException(
                     "Cannot approve your own ownership request (maker-checker violation)");
@@ -186,7 +194,19 @@ public class AccountOwnershipService {
 
         ownership.setApprovalStatus(MakerCheckerStatus.APPROVED);
         ownership.setApprovedBy(currentUser);
-        return ownershipRepository.save(ownership);
+        AccountOwnership saved = ownershipRepository.save(ownership);
+
+        auditService.logEvent(
+                currentUser.getId(),
+                "OWNERSHIP_APPROVE",
+                "ACCOUNT_OWNERSHIP",
+                saved.getId(),
+                "Ownership approved for account "
+                        + saved.getAccount().getAccountNumber()
+                        + " by "
+                        + currentUser.getUsername(),
+                null);
+        return saved;
     }
 
     @Transactional
@@ -196,8 +216,31 @@ public class AccountOwnershipService {
                         .findById(ownershipId)
                         .orElseThrow(
                                 () -> new RuntimeException("Ownership not found: " + ownershipId));
+
+        if (ownership.getApprovalStatus() != MakerCheckerStatus.PENDING) {
+            throw new RuntimeException(
+                    "Ownership is not pending approval. Current status: "
+                            + ownership.getApprovalStatus());
+        }
+
+        User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot reject ownership: reviewer identity could not be resolved");
+        }
+
         ownership.setApprovalStatus(MakerCheckerStatus.REJECTED);
-        return ownershipRepository.save(ownership);
+        AccountOwnership saved = ownershipRepository.save(ownership);
+
+        auditService.logEvent(
+                currentUser.getId(),
+                "OWNERSHIP_REJECT",
+                "ACCOUNT_OWNERSHIP",
+                saved.getId(),
+                "Ownership rejected by " + currentUser.getUsername(),
+                null);
+        return saved;
     }
 
     public List<AccountOwnership> getOwnershipsByAccount(Long accountId, Long tenantId) {

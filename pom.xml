@@ -64,14 +64,14 @@
             <artifactId>jakarta.servlet.jsp.jstl</artifactId>
         </dependency>
 
-        <!-- H2 Database (Development) -->
+        <!-- H2 Database — test scope only, NOT included in the WAR -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
-            <scope>runtime</scope>
+            <scope>test</scope>
         </dependency>
 
-        <!-- SQL Server Driver -->
+        <!-- SQL Server Driver — included in the WAR for UAT/PROD -->
         <dependency>
             <groupId>com.microsoft.sqlserver</groupId>
             <artifactId>mssql-jdbc</artifactId>

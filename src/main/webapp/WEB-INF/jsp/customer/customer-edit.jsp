@@ -110,7 +110,8 @@
                 </div>
                 <div class="col-12">
                     <hr>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Save Changes</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Submit for Re-Approval</button>
+                    <small class="text-muted ms-2"><i class="bi bi-info-circle"></i> Changes will be submitted for checker approval before taking effect.</small>
                     <a href="${pageContext.request.contextPath}/customers/${customerDTO.customerId}" class="btn btn-secondary ms-2">Cancel</a>
                 </div>
             </div>

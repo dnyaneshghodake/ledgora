@@ -59,12 +59,13 @@ public class SecurityConfig {
 
     /**
      * RBI-F2: Validate JWT key configuration at startup.
+     *
      * <ul>
-     *   <li>Fail-fast if current secret is blank</li>
-     *   <li>Warn if using dev-only default</li>
-     *   <li>Log rotation state if previous-secret is configured</li>
-     *   <li>Block if current == previous (misconfiguration)</li>
-     *   <li>Validate minimum key length (32 bytes for HS256)</li>
+     *   <li>Fail-fast if current secret is blank
+     *   <li>Warn if using dev-only default
+     *   <li>Log rotation state if previous-secret is configured
+     *   <li>Block if current == previous (misconfiguration)
+     *   <li>Validate minimum key length (32 bytes for HS256)
      * </ul>
      */
     @PostConstruct
@@ -139,11 +140,42 @@ public class SecurityConfig {
                                     // RBI-F1: H2 console requires ADMIN role (never permitAll)
                                     .requestMatchers("/h2-console/**")
                                     .hasRole("ADMIN")
+                                    // /admin/ledger/** — LedgerValidationController.
+                                    // OPERATIONS and AUDITOR need access. Must be declared
+                                    // BEFORE /admin/** catch-all (Spring evaluates in order).
+                                    .requestMatchers("/admin/ledger/**")
+                                    .hasAnyRole("ADMIN", "OPERATIONS", "AUDITOR", "SUPER_ADMIN")
+                                    // /admin/users|branches|tenants — TENANT_ADMIN also needs access
+                                    .requestMatchers(
+                                            "/admin/users/**",
+                                            "/admin/branches/**",
+                                            "/admin/tenants/**")
+                                    .hasAnyRole("ADMIN", "TENANT_ADMIN", "SUPER_ADMIN")
+                                    // /admin/** catch-all — remaining admin paths require ADMIN
                                     .requestMatchers("/admin/**")
                                     .hasRole("ADMIN")
-                                    .requestMatchers("/audit/validation")
+                                    // /audit/** — AuditController (hash chain + log explorer)
+                                    .requestMatchers("/audit/**")
                                     .hasAnyRole("AUDITOR", "ADMIN", "SUPER_ADMIN")
+                                    // /governance/** — ConfigGovernanceController
+                                    .requestMatchers("/governance/**")
+                                    .hasAnyRole(
+                                            "CHECKER",
+                                            "ADMIN",
+                                            "MANAGER",
+                                            "TENANT_ADMIN",
+                                            "SUPER_ADMIN")
+                                    // Remaining paths: authenticated(); @PreAuthorize on each
+                                    // endpoint handles fine-grained role enforcement.
+                                    .requestMatchers("/transactions/**")
+                                    .authenticated()
+                                    .requestMatchers("/accounts/**")
+                                    .authenticated()
                                     .requestMatchers("/customers/**")
+                                    .authenticated()
+                                    .requestMatchers("/lien/**")
+                                    .authenticated()
+                                    .requestMatchers("/ownership/**")
                                     .authenticated()
                                     .requestMatchers("/approvals/**")
                                     .authenticated()

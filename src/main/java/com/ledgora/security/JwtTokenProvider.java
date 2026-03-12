@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
  * JWT Token Provider with dual-key rotation support.
  *
  * <p>RBI IT Framework — Key Management:
+ *
  * <ul>
  *   <li>New tokens are always signed with the CURRENT key ({@code app.jwt.secret})
  *   <li>Validation tries CURRENT key first, then PREVIOUS key ({@code app.jwt.previous-secret})
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Component;
  * </ul>
  *
  * <p>Rotation procedure:
+ *
  * <ol>
  *   <li>Set {@code app.jwt.previous-secret} = current secret value
  *   <li>Set {@code app.jwt.secret} = new secret value
@@ -47,9 +49,9 @@ public class JwtTokenProvider {
     private String jwtSecret;
 
     /**
-     * Previous JWT secret for graceful key rotation. When set, tokens signed with this key
-     * are still accepted during the rotation grace period (until they expire naturally).
-     * Set to empty string or omit to disable rotation fallback.
+     * Previous JWT secret for graceful key rotation. When set, tokens signed with this key are
+     * still accepted during the rotation grace period (until they expire naturally). Set to empty
+     * string or omit to disable rotation fallback.
      */
     @Value("${app.jwt.previous-secret:}")
     private String jwtPreviousSecret;
@@ -126,8 +128,8 @@ public class JwtTokenProvider {
     }
 
     /**
-     * Parse claims using dual-key strategy: try current key first, then previous key.
-     * Tokens validated against the previous key are logged for rotation monitoring.
+     * Parse claims using dual-key strategy: try current key first, then previous key. Tokens
+     * validated against the previous key are logged for rotation monitoring.
      */
     private Claims getClaims(String token) {
         try {
@@ -160,8 +162,8 @@ public class JwtTokenProvider {
     }
 
     /**
-     * Validate token using dual-key strategy. Tries current key first, falls back to
-     * previous key during rotation grace period.
+     * Validate token using dual-key strategy. Tries current key first, falls back to previous key
+     * during rotation grace period.
      */
     public boolean validateToken(String token) {
         try {

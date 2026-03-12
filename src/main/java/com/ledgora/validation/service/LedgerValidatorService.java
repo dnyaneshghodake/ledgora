@@ -39,7 +39,7 @@ public class LedgerValidatorService {
     }
 
     /** Scheduled partial validation every 5 minutes. */
-    @Scheduled(fixedRate = 300000)
+    @Scheduled(fixedRateString = "${ledgora.ledgervalidator.fixedRate:300000}")
     public void scheduledPartialValidation() {
         log.info("Running scheduled partial ledger validation...");
         ValidationResult result = runPartialValidation();

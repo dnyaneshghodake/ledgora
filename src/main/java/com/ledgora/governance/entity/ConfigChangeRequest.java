@@ -8,27 +8,29 @@ import java.time.LocalDateTime;
 import lombok.*;
 
 /**
- * CBS-grade Config Change Request — tracks all configuration parameter changes with
- * maker-checker governance. Used for:
+ * CBS-grade Config Change Request — tracks all configuration parameter changes with maker-checker
+ * governance. Used for:
+ *
  * <ul>
- *   <li>Product configuration changes (interest rates, GL mappings)</li>
- *   <li>Approval policy threshold changes</li>
- *   <li>Hard transaction ceiling changes</li>
- *   <li>Velocity fraud limit changes</li>
- *   <li>GL hierarchy modifications</li>
- *   <li>Branch configuration changes</li>
+ *   <li>Product configuration changes (interest rates, GL mappings)
+ *   <li>Approval policy threshold changes
+ *   <li>Hard transaction ceiling changes
+ *   <li>Velocity fraud limit changes
+ *   <li>GL hierarchy modifications
+ *   <li>Branch configuration changes
  * </ul>
  *
- * <p>Each row captures a before/after snapshot of the configuration parameter value.
- * The change is not applied until a checker approves it. On approval, the calling
- * service reads the {@code newValue} and applies it to the target entity.
+ * <p>Each row captures a before/after snapshot of the configuration parameter value. The change is
+ * not applied until a checker approves it. On approval, the calling service reads the {@code
+ * newValue} and applies it to the target entity.
  *
  * <p>RBI IT Framework — Change Management:
+ *
  * <ul>
- *   <li>All parameter changes require dual control (maker != checker)</li>
- *   <li>Full before/after audit trail for regulatory inspection</li>
- *   <li>Effective dating support for scheduled parameter changes</li>
- *   <li>No direct config mutation — always via change request</li>
+ *   <li>All parameter changes require dual control (maker != checker)
+ *   <li>Full before/after audit trail for regulatory inspection
+ *   <li>Effective dating support for scheduled parameter changes
+ *   <li>No direct config mutation — always via change request
  * </ul>
  */
 @Entity
@@ -55,9 +57,9 @@ public class ConfigChangeRequest {
     private Tenant tenant;
 
     /**
-     * Configuration type — categorizes the change for routing and dashboard display.
-     * Values: PRODUCT, PRODUCT_VERSION, GL_MAPPING, APPROVAL_POLICY, HARD_LIMIT,
-     * VELOCITY_LIMIT, GL_ACCOUNT, BRANCH, CALENDAR, INTEREST_RATE, FX_RATE.
+     * Configuration type — categorizes the change for routing and dashboard display. Values:
+     * PRODUCT, PRODUCT_VERSION, GL_MAPPING, APPROVAL_POLICY, HARD_LIMIT, VELOCITY_LIMIT,
+     * GL_ACCOUNT, BRANCH, CALENDAR, INTEREST_RATE, FX_RATE.
      */
     @Column(name = "config_type", length = 30, nullable = false)
     private String configType;
@@ -111,6 +113,14 @@ public class ConfigChangeRequest {
 
     @Column(name = "remarks", length = 500)
     private String remarks;
+
+    /**
+     * Optimistic locking version — prevents concurrent approval of the same config change from
+     * multiple sessions. The second concurrent approve/reject throws OptimisticLockException.
+     */
+    @Version
+    @Column(name = "version")
+    private Long version;
 
     @PrePersist
     protected void onCreate() {

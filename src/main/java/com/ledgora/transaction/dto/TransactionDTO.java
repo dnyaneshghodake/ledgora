@@ -41,6 +41,7 @@ public class TransactionDTO {
 
     @Size(max = 500, message = "Narration must not exceed 500 characters")
     private String narration;
+
     private String createdAt;
 
     // PART 2: Transaction channel and client reference for idempotency

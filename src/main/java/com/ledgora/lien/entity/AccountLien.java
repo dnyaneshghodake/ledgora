@@ -78,6 +78,14 @@ public class AccountLien {
     @JoinColumn(name = "approved_by")
     private User approvedBy;
 
+    /**
+     * Optimistic locking — prevents two checkers from concurrently approving or releasing the
+     * same lien. The second write throws ObjectOptimisticLockingFailureException.
+     */
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

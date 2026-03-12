@@ -142,7 +142,9 @@ public class AccountService {
                         .accountName(dto.getAccountName())
                         .accountType(resolvedType)
                         .product(product)
-                        .status(AccountStatus.ACTIVE)
+                        // Account starts INACTIVE until checker approves — prevents transactions
+                        // before maker-checker dual control is satisfied.
+                        .status(AccountStatus.INACTIVE)
                         .balance(BigDecimal.ZERO)
                         .currency(dto.getCurrency() != null ? dto.getCurrency() : "INR")
                         .branchCode(dto.getBranchCode())
@@ -190,9 +192,11 @@ public class AccountService {
                         .build();
         accountBalanceRepository.save(balance);
 
-        // Audit log
-        Long userId = currentUser != null ? currentUser.getId() : null;
-        auditService.logAccountCreation(userId, saved.getId(), saved.getAccountNumber());
+        // Audit log — currentUser may be null for BATCH/system-initiated account creation
+        auditService.logAccountCreation(
+                currentUser != null ? currentUser.getId() : null,
+                saved.getId(),
+                saved.getAccountNumber());
 
         log.info(
                 "Account created: {} for customer: {} product: {}",
@@ -242,6 +246,14 @@ public class AccountService {
 
     @Transactional
     public Account updateAccount(Long id, AccountDTO dto) {
+        // Identity check first — account modification requires an auditable maker
+        User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot update account: maker identity could not be resolved");
+        }
+
         Account account = requireAccount(id);
 
         if (dto.getAccountName() != null) account.setAccountName(dto.getAccountName());
@@ -265,13 +277,32 @@ public class AccountService {
             account.setFreezeReason(dto.getFreezeReason());
         }
 
-        return accountRepository.save(account);
+        Account saved = accountRepository.save(account);
+
+        auditService.logEvent(
+                currentUser.getId(),
+                "ACCOUNT_UPDATE",
+                "ACCOUNT",
+                saved.getId(),
+                "Account updated: " + saved.getAccountNumber() + " by " + currentUser.getUsername(),
+                null);
+
+        log.info("Account {} updated by user {}", saved.getAccountNumber(), currentUser.getUsername());
+        return saved;
     }
 
     /** Finacle-grade: Update freeze controls at account level (maker step). */
     @Transactional
     public Account updateFreezeStatus(
             Long id, com.ledgora.common.enums.FreezeLevel freezeLevel, String freezeReason) {
+        // Identity check BEFORE any persistence — freeze must not be applied without an auditable maker
+        User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot update freeze status: maker identity could not be resolved");
+        }
+
         Account account = requireAccount(id);
         account.setFreezeLevel(
                 freezeLevel != null ? freezeLevel : com.ledgora.common.enums.FreezeLevel.NONE);
@@ -279,10 +310,8 @@ public class AccountService {
 
         Account saved = accountRepository.save(account);
 
-        User currentUser = getCurrentUser();
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "ACCOUNT_FREEZE_UPDATE",
                 "ACCOUNT",
                 saved.getId(),
@@ -300,10 +329,39 @@ public class AccountService {
 
     @Transactional
     public Account updateAccountStatus(Long id, AccountStatus status) {
+        // Identity check — status changes must be auditable
+        User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot update account status: maker identity could not be resolved");
+        }
+
         Account account = requireAccount(id);
+        AccountStatus previousStatus = account.getStatus();
         account.setStatus(status);
-        log.info("Account {} status changed to {}", account.getAccountNumber(), status);
-        return accountRepository.save(account);
+        Account saved = accountRepository.save(account);
+
+        auditService.logEvent(
+                currentUser.getId(),
+                "ACCOUNT_STATUS_UPDATE",
+                "ACCOUNT",
+                saved.getId(),
+                "Account status changed from "
+                        + previousStatus
+                        + " to "
+                        + status
+                        + " by "
+                        + currentUser.getUsername(),
+                null);
+
+        log.info(
+                "Account {} status changed from {} to {} by user {}",
+                saved.getAccountNumber(),
+                previousStatus,
+                status,
+                currentUser.getUsername());
+        return saved;
     }
 
     /** H2: Approve an account (checker step). Enforces maker-checker + tenant isolation. */
@@ -318,20 +376,24 @@ public class AccountService {
         }
 
         User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new RuntimeException(
+                    "Cannot approve account: approver identity could not be resolved");
+        }
         // Maker-checker: approver must differ from creator
         if (account.getCreatedBy() != null
-                && currentUser != null
                 && account.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Cannot approve your own account (maker-checker violation)");
         }
 
         account.setApprovalStatus(MakerCheckerStatus.APPROVED);
         account.setApprovedBy(currentUser);
+        // Activate the account now that checker has approved it
+        account.setStatus(AccountStatus.ACTIVE);
         Account saved = accountRepository.save(account);
 
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "ACCOUNT_APPROVE",
                 "ACCOUNT",
                 saved.getId(),
@@ -341,7 +403,7 @@ public class AccountService {
         log.info(
                 "Account {} approved by user {}",
                 saved.getAccountNumber(),
-                currentUser != null ? currentUser.getUsername() : "system");
+                currentUser.getUsername());
         return saved;
     }
 
@@ -357,9 +419,12 @@ public class AccountService {
         }
 
         User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new RuntimeException(
+                    "Cannot reject account: reviewer identity could not be resolved");
+        }
         // Maker-checker: rejector must differ from creator
         if (account.getCreatedBy() != null
-                && currentUser != null
                 && account.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Cannot reject your own account (maker-checker violation)");
         }
@@ -367,9 +432,8 @@ public class AccountService {
         account.setApprovalStatus(MakerCheckerStatus.REJECTED);
         Account saved = accountRepository.save(account);
 
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "ACCOUNT_REJECT",
                 "ACCOUNT",
                 saved.getId(),
@@ -379,7 +443,7 @@ public class AccountService {
         log.info(
                 "Account {} rejected by user {}",
                 saved.getAccountNumber(),
-                currentUser != null ? currentUser.getUsername() : "system");
+                currentUser.getUsername());
         return saved;
     }
 
@@ -395,17 +459,15 @@ public class AccountService {
     }
 
     public long countAll() {
-        return accountRepository.findByTenantId(requireTenantId()).size();
+        // Use COUNT query — never load all accounts into memory just for size()
+        return accountRepository.countByTenantId(requireTenantId());
     }
 
     private Account requireAccount(Long accountId) {
         Long tenantId = requireTenantId();
         return accountRepository
                 .findByIdAndTenantId(accountId, tenantId)
-                .orElseThrow(
-                        () ->
-                                new RuntimeException(
-                                        "Account not found with id: " + accountId));
+                .orElseThrow(() -> new RuntimeException("Account not found with id: " + accountId));
     }
 
     private Long requireTenantId() {
@@ -418,8 +480,15 @@ public class AccountService {
     }
 
     private User getCurrentUser() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByUsername(username).orElse(null);
+        try {
+            org.springframework.security.core.Authentication auth =
+                    SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null) return null;
+            String username = auth.getName();
+            return userRepository.findByUsername(username).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String generateAccountNumber() {

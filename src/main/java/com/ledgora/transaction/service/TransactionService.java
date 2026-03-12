@@ -172,6 +172,13 @@ public class TransactionService {
         validateAccountFreezeLevel(account, VoucherDrCr.CR);
 
         User currentUser = getCurrentUser();
+        // For non-BATCH channels, a human maker identity is required for audit trail and
+        // maker-checker enforcement. BATCH channel is used by system/EOD processes.
+        if (currentUser == null && channelForLimit != TransactionChannel.BATCH) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot initiate deposit: maker identity could not be resolved");
+        }
         Long userId = currentUser != null ? currentUser.getId() : null;
 
         // ── VELOCITY FRAUD CHECK: proactive burst detection ──
@@ -287,6 +294,11 @@ public class TransactionService {
         }
 
         User currentUser = getCurrentUser();
+        if (currentUser == null && channelForLimit != TransactionChannel.BATCH) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot initiate withdrawal: maker identity could not be resolved");
+        }
         Long userId = currentUser != null ? currentUser.getId() : null;
 
         // ── VELOCITY FRAUD CHECK: proactive burst detection ──
@@ -420,6 +432,11 @@ public class TransactionService {
         }
 
         User currentUser = getCurrentUser();
+        if (currentUser == null && channelForLimit != TransactionChannel.BATCH) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot initiate transfer: maker identity could not be resolved");
+        }
         Long userId = currentUser != null ? currentUser.getId() : null;
 
         // ── VELOCITY FRAUD CHECK: proactive burst detection (check source account) ──
@@ -533,9 +550,13 @@ public class TransactionService {
         }
 
         User checker = getCurrentUser();
+        if (checker == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot approve transaction: approver identity could not be resolved");
+        }
         // Maker-checker enforcement: checker must differ from maker
         if (transaction.getMaker() != null
-                && checker != null
                 && transaction.getMaker().getId().equals(checker.getId())) {
             throw new com.ledgora.common.exception.BusinessException(
                     "MAKER_CHECKER_VIOLATION",
@@ -647,9 +668,8 @@ public class TransactionService {
         transaction.setCheckerRemarks(remarks);
         transactionRepository.save(transaction);
 
-        Long userId = checker != null ? checker.getId() : null;
         auditService.logTransaction(
-                userId,
+                checker.getId(),
                 transaction.getId(),
                 transaction.getTransactionRef(),
                 txnType.name() + "_APPROVED");
@@ -657,7 +677,7 @@ public class TransactionService {
         log.info(
                 "Transaction {} approved and posted by checker {}",
                 transaction.getTransactionRef(),
-                checker != null ? checker.getUsername() : "system");
+                checker.getUsername());
         return transaction;
     }
 
@@ -687,9 +707,13 @@ public class TransactionService {
         }
 
         User checker = getCurrentUser();
+        if (checker == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot reject transaction: reviewer identity could not be resolved");
+        }
         // Maker-checker enforcement: checker must differ from maker for rejection too
         if (transaction.getMaker() != null
-                && checker != null
                 && transaction.getMaker().getId().equals(checker.getId())) {
             throw new com.ledgora.common.exception.BusinessException(
                     "MAKER_CHECKER_VIOLATION",
@@ -702,9 +726,8 @@ public class TransactionService {
         transaction.setCheckerRemarks(remarks);
         transactionRepository.save(transaction);
 
-        Long userId = checker != null ? checker.getId() : null;
         auditService.logTransaction(
-                userId,
+                checker.getId(),
                 transaction.getId(),
                 transaction.getTransactionRef(),
                 transaction.getTransactionType().name() + "_REJECTED");
@@ -712,7 +735,7 @@ public class TransactionService {
         log.info(
                 "Transaction {} rejected by checker {}: {}",
                 transaction.getTransactionRef(),
-                checker != null ? checker.getUsername() : "system",
+                checker.getUsername(),
                 remarks);
         return transaction;
     }
@@ -1205,8 +1228,14 @@ public class TransactionService {
     }
 
     private User getCurrentUser() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByUsername(username).orElse(null);
+        try {
+            org.springframework.security.core.Authentication auth =
+                    SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null) return null;
+            return userRepository.findByUsername(auth.getName()).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String generateTransactionRef(String prefix) {

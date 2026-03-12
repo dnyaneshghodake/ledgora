@@ -25,9 +25,7 @@ public class DashboardController {
     }
 
     @GetMapping("/dashboard")
-    public String dashboard(
-            Model model,
-            jakarta.servlet.http.HttpSession session) {
+    public String dashboard(Model model, jakarta.servlet.http.HttpSession session) {
         DashboardDTO dashboard = dashboardService.getDashboardData();
         model.addAttribute("dashboard", dashboard);
 

@@ -19,8 +19,7 @@ public interface AuditLogRepository
     List<AuditLog> findByEntityAndEntityId(String entity, Long entityId);
 
     /** Tenant-isolated lookup by entity type and entity ID (for freeze/lien history display). */
-    List<AuditLog> findByTenantIdAndEntityAndEntityId(
-            Long tenantId, String entity, Long entityId);
+    List<AuditLog> findByTenantIdAndEntityAndEntityId(Long tenantId, String entity, Long entityId);
 
     List<AuditLog> findByAction(String action);
 
@@ -60,6 +59,9 @@ public interface AuditLogRepository
     List<AuditLog> findTop20ByTenantIdAndActionOrderByTimestampDesc(Long tenantId, String action);
 
     // ===== Hash chain queries =====
+
+    /** Count all audit events for a tenant (for dashboard badge — avoids loading full list). */
+    long countByTenantId(Long tenantId);
 
     /** Find the most recent audit log entry for a tenant (for hash chain linking). */
     java.util.Optional<AuditLog> findTopByTenantIdOrderByIdDesc(Long tenantId);

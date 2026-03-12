@@ -146,14 +146,10 @@ public class InterBranchClearingService {
 
     /** Tenant-isolated lookup. Throws if not found or belongs to a different tenant. */
     private InterBranchTransfer requireTransfer(Long transferId) {
-        Long tenantId =
-                com.ledgora.tenant.context.TenantContextHolder.getRequiredTenantId();
+        Long tenantId = com.ledgora.tenant.context.TenantContextHolder.getRequiredTenantId();
         return ibcRepository
                 .findByIdAndTenantId(transferId, tenantId)
-                .orElseThrow(
-                        () ->
-                                new RuntimeException(
-                                        "IBC transfer not found: " + transferId));
+                .orElseThrow(() -> new RuntimeException("IBC transfer not found: " + transferId));
     }
 
     /**

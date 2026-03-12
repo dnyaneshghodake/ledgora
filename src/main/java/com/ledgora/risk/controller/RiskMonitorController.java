@@ -19,9 +19,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
  * Risk & Fraud monitoring dashboard controller.
- * Routes:
- *   GET /risk/hard-ceiling  — Hard Transaction Ceiling monitor
- *   GET /risk/velocity      — Velocity Fraud monitor
+ *
+ * <p>Routes:
+ *
+ * <ul>
+ *   <li>GET /risk/hard-ceiling — Hard Transaction Ceiling monitor
+ *   <li>GET /risk/velocity — Velocity Fraud monitor
+ * </ul>
  */
 @Controller
 @RequestMapping("/risk")
@@ -43,9 +47,7 @@ public class RiskMonitorController {
         this.auditLogRepository = auditLogRepository;
     }
 
-    /**
-     * Hard Transaction Ceiling monitor — shows configured limits and recent violations.
-     */
+    /** Hard Transaction Ceiling monitor — shows configured limits and recent violations. */
     @GetMapping("/hard-ceiling")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String hardCeilingMonitor(Model model, HttpSession session) {
@@ -72,9 +74,7 @@ public class RiskMonitorController {
         return "risk/risk-hard-ceiling";
     }
 
-    /**
-     * Velocity Fraud monitor — shows configured velocity limits and open fraud alerts.
-     */
+    /** Velocity Fraud monitor — shows configured velocity limits and open fraud alerts. */
     @GetMapping("/velocity")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String velocityMonitor(Model model, HttpSession session) {
@@ -106,7 +106,8 @@ public class RiskMonitorController {
         if (tenantId == null) {
             Object sessionTenantId = session.getAttribute("tenantId");
             if (sessionTenantId instanceof Number n) tenantId = n.longValue();
-            else if (sessionTenantId instanceof String s && !s.isBlank()) tenantId = Long.valueOf(s);
+            else if (sessionTenantId instanceof String s && !s.isBlank())
+                tenantId = Long.valueOf(s);
         }
         if (tenantId == null) throw new IllegalStateException("Tenant context not set");
         return tenantId;

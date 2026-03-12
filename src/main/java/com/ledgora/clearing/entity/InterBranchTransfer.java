@@ -90,6 +90,14 @@ public class InterBranchTransfer {
     @Column(name = "failure_reason", length = 500)
     private String failureReason;
 
+    /**
+     * Optimistic locking — prevents concurrent state transitions (INITIATED→SENT→RECEIVED→SETTLED)
+     * from two sessions racing to update the same IBT record.
+     */
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -182,11 +182,18 @@ public class TransactionLedgerSeeder {
                         .narration(desc)
                         .businessDate(biz)
                         .performedBy(teller)
+                        // maker = teller for seeded data (auto-authorized, no separate checker step)
+                        .maker(teller)
+                        .makerTimestamp(LocalDateTime.now())
                         .tenant(tenant)
                         .build();
         txn = transactionRepository.save(txn);
 
-        Account account = dst != null ? dst : src;
+        // For double-entry: DR leg uses source account (or GL cash for deposits),
+        // CR leg uses destination account (or GL cash for withdrawals).
+        // drGl/crGl are GL codes for the GL hierarchy side of each leg.
+        Account drAccount = src != null ? src : dst; // debit side: source or dest for deposits
+        Account crAccount = dst != null ? dst : src; // credit side: dest or source for withdrawals
         GeneralLedger debitGL = glRepository.findByGlCode(drGl).orElse(null);
         GeneralLedger creditGL = glRepository.findByGlCode(crGl).orElse(null);
 
@@ -204,7 +211,7 @@ public class TransactionLedgerSeeder {
                         .journal(journal)
                         .transaction(txn)
                         .tenant(tenant)
-                        .account(account)
+                        .account(drAccount)
                         .glAccount(debitGL)
                         .glAccountCode(drGl)
                         .entryType(EntryType.DEBIT)
@@ -221,7 +228,7 @@ public class TransactionLedgerSeeder {
                         .journal(journal)
                         .transaction(txn)
                         .tenant(tenant)
-                        .account(account)
+                        .account(crAccount)
                         .glAccount(creditGL)
                         .glAccountCode(crGl)
                         .entryType(EntryType.CREDIT)

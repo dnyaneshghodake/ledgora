@@ -10,10 +10,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * @deprecated Legacy global business date service. Use {@link com.ledgora.tenant.service.TenantService}
- *     for tenant-scoped business date operations instead. The authoritative business date is
- *     {@code Tenant.currentBusinessDate} and the authoritative day status is {@code Tenant.dayStatus}.
- *     This class is retained only for backward compatibility with the SystemDate seeder.
+ * @deprecated Legacy global business date service. Use {@link
+ *     com.ledgora.tenant.service.TenantService} for tenant-scoped business date operations instead.
+ *     The authoritative business date is {@code Tenant.currentBusinessDate} and the authoritative
+ *     day status is {@code Tenant.dayStatus}. This class is retained only for backward
+ *     compatibility with the SystemDate seeder.
  */
 @Deprecated(since = "CBS Tier-1 consolidation", forRemoval = true)
 @Service

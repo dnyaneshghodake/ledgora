@@ -252,9 +252,8 @@ public class VoucherService {
                 linkedTransaction != null ? linkedTransaction.getTransactionRef() : "N/A");
 
         // RBI-F7: Persistent audit trail for voucher creation
-        Long makerId = maker != null ? maker.getId() : null;
         auditService.logEvent(
-                makerId,
+                maker.getId(),
                 "VOUCHER_CREATED",
                 "VOUCHER",
                 voucher.getId(),
@@ -269,7 +268,7 @@ public class VoucherService {
                         + " account="
                         + account.getAccountNumber()
                         + " maker="
-                        + (maker != null ? maker.getUsername() : "N/A"),
+                        + maker.getUsername(),
                 null);
 
         return voucher;

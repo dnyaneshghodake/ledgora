@@ -12,11 +12,12 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
  * Controller for CBS Config Governance screens.
  *
  * <p>Routes:
+ *
  * <ul>
- *   <li>GET /governance — pending config changes dashboard</li>
- *   <li>GET /governance/{id} — view a specific change request</li>
- *   <li>POST /governance/{id}/approve — approve a config change (checker)</li>
- *   <li>POST /governance/{id}/reject — reject a config change (checker)</li>
+ *   <li>GET /governance — pending config changes dashboard
+ *   <li>GET /governance/{id} — view a specific change request
+ *   <li>POST /governance/{id}/approve — approve a config change (checker)
+ *   <li>POST /governance/{id}/reject — reject a config change (checker)
  * </ul>
  */
 @Controller
@@ -33,12 +34,10 @@ public class ConfigGovernanceController {
     @GetMapping
     @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER', 'TENANT_ADMIN', 'SUPER_ADMIN')")
     public String dashboard(
-            @RequestParam(value = "type", required = false) String configType,
-            Model model) {
+            @RequestParam(value = "type", required = false) String configType, Model model) {
         if (configType != null && !configType.isBlank()) {
             model.addAttribute(
-                    "pendingChanges",
-                    governanceService.getPendingChangesByType(configType));
+                    "pendingChanges", governanceService.getPendingChangesByType(configType));
             model.addAttribute("selectedType", configType);
         } else {
             model.addAttribute("pendingChanges", governanceService.getPendingChanges());
@@ -71,8 +70,11 @@ public class ConfigGovernanceController {
             RedirectAttributes redirectAttributes) {
         try {
             governanceService.approve(id, remarks);
+            redirectAttributes.addFlashAttribute("message", "Config change approved successfully");
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
             redirectAttributes.addFlashAttribute(
-                    "message", "Config change approved successfully");
+                    "error",
+                    "Approval conflict: this change was already actioned by another session. Please refresh.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -89,6 +91,10 @@ public class ConfigGovernanceController {
         try {
             governanceService.reject(id, remarks);
             redirectAttributes.addFlashAttribute("message", "Config change rejected");
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Rejection conflict: this change was already actioned by another session. Please refresh.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }

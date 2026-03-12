@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -41,6 +42,7 @@ public class CustomerController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String listCustomers(
             @RequestParam(value = "search", required = false) String search,
             @RequestParam(value = "kycStatus", required = false) String kycStatus,
@@ -62,6 +64,17 @@ public class CustomerController {
             List<Customer> customers = customerService.getByKycStatus(kycStatus);
             model.addAttribute("customers", customers);
             model.addAttribute("selectedKycStatus", kycStatus);
+        } else if (approvalStatus != null && !approvalStatus.isEmpty()) {
+            // Checker pending-approval queue filter
+            try {
+                MakerCheckerStatus statusEnum = MakerCheckerStatus.valueOf(approvalStatus);
+                List<Customer> customers = customerService.getByApprovalStatus(statusEnum);
+                model.addAttribute("customers", customers);
+                model.addAttribute("selectedApprovalStatus", approvalStatus);
+            } catch (IllegalArgumentException e) {
+                model.addAttribute("error", "Invalid approval status: " + approvalStatus);
+                model.addAttribute("customers", List.of());
+            }
         } else {
             org.springframework.data.domain.Page<Customer> customerPage =
                     customerService.getAllCustomersPaged(page, size);
@@ -71,6 +84,12 @@ public class CustomerController {
             model.addAttribute("totalElements", customerPage.getTotalElements());
             model.addAttribute("pageSize", size);
         }
+        // Pending count for checker badge
+        try {
+            model.addAttribute("pendingApprovalCount", customerService.countPendingApproval());
+        } catch (Exception ignored) {
+            model.addAttribute("pendingApprovalCount", 0L);
+        }
         model.addAttribute("baseUrl", "/customers");
         model.addAttribute("queryString", qs.toString());
         model.addAttribute("freezeLevels", FreezeLevel.values());
@@ -79,6 +98,7 @@ public class CustomerController {
     }
 
     @GetMapping("/create")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String createForm(Model model) {
         model.addAttribute("customerDTO", new CustomerDTO());
         model.addAttribute("freezeLevels", FreezeLevel.values());
@@ -86,6 +106,7 @@ public class CustomerController {
     }
 
     @PostMapping("/create")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String createCustomer(
             @Valid @ModelAttribute("customerDTO") CustomerDTO dto,
             BindingResult result,
@@ -112,6 +133,7 @@ public class CustomerController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String viewCustomer(@PathVariable Long id, Model model) {
         Customer customer =
                 customerService
@@ -128,8 +150,7 @@ public class CustomerController {
         model.addAttribute("freezeLevels", FreezeLevel.values());
         // Load freeze history from audit logs (tenant-isolated)
         try {
-            Long tenantId =
-                    com.ledgora.tenant.context.TenantContextHolder.getRequiredTenantId();
+            Long tenantId = com.ledgora.tenant.context.TenantContextHolder.getRequiredTenantId();
             List<AuditLog> freezeLogs =
                     auditLogRepository
                             .findByTenantIdAndEntityAndEntityId(tenantId, "CUSTOMER", id)
@@ -164,6 +185,7 @@ public class CustomerController {
     }
 
     @GetMapping("/{id}/edit")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String editForm(@PathVariable Long id, Model model) {
         Customer customer =
                 customerService
@@ -180,6 +202,16 @@ public class CustomerController {
                         .phone(customer.getPhone())
                         .email(customer.getEmail())
                         .address(customer.getAddress())
+                        // CBS fields — must be round-tripped so they aren't cleared on save
+                        .customerType(customer.getCustomerType())
+                        .panNumber(customer.getPanNumber())
+                        .aadhaarNumber(customer.getAadhaarNumber())
+                        .gstNumber(customer.getGstNumber())
+                        .riskCategory(customer.getRiskCategory())
+                        .approvalStatus(
+                                customer.getApprovalStatus() != null
+                                        ? customer.getApprovalStatus().name()
+                                        : null)
                         .build();
         model.addAttribute("customerDTO", dto);
         model.addAttribute("freezeLevels", FreezeLevel.values());
@@ -187,6 +219,7 @@ public class CustomerController {
     }
 
     @PostMapping("/{id}/edit")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String updateCustomer(
             @PathVariable Long id,
             @Valid @ModelAttribute("customerDTO") CustomerDTO dto,
@@ -199,7 +232,10 @@ public class CustomerController {
         }
         try {
             customerService.updateCustomer(id, dto);
-            redirectAttributes.addFlashAttribute("message", "Customer updated successfully");
+            redirectAttributes.addFlashAttribute(
+                    "message",
+                    "Customer updated and submitted for re-approval (PENDING). "
+                            + "A checker must approve before the record is active.");
             return "redirect:/customers/" + id;
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
@@ -209,6 +245,7 @@ public class CustomerController {
     }
 
     @PostMapping("/{id}/kyc")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS')")
     public String updateKycStatus(
             @PathVariable Long id,
             @RequestParam String kycStatus,
@@ -223,6 +260,7 @@ public class CustomerController {
     }
 
     @PostMapping("/{id}/freeze")
+    @PreAuthorize("hasAnyRole('MAKER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String freezeCustomer(
             @PathVariable Long id,
             @RequestParam String freezeLevel,
@@ -239,10 +277,15 @@ public class CustomerController {
     }
 
     @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
     public String approveCustomer(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             customerService.approveCustomer(id);
             redirectAttributes.addFlashAttribute("message", "Customer approved successfully");
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Approval conflict: this customer was already actioned by another session. Please refresh.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -250,10 +293,15 @@ public class CustomerController {
     }
 
     @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
     public String rejectCustomer(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             customerService.rejectCustomer(id);
             redirectAttributes.addFlashAttribute("message", "Customer rejected");
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Rejection conflict: this customer was already actioned by another session. Please refresh.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -265,6 +313,7 @@ public class CustomerController {
      * issues)
      */
     @GetMapping("/api/search")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     @ResponseBody
     public List<Map<String, Object>> searchCustomersApi(@RequestParam("q") String query) {
         return customerService.searchByName(query).stream()
