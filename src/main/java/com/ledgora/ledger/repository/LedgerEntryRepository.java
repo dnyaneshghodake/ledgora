@@ -103,6 +103,18 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
 
     List<LedgerEntry> findByTransactionId(Long transactionId);
 
+    /**
+     * Fetch ledger entries for a transaction with account and journal eagerly loaded. Prevents N+1
+     * when accessing entry.getAccount() or entry.getJournal() in the view layer.
+     */
+    @Query(
+            "SELECT le FROM LedgerEntry le "
+                    + "LEFT JOIN FETCH le.account "
+                    + "LEFT JOIN FETCH le.journal "
+                    + "WHERE le.transaction.id = :transactionId "
+                    + "ORDER BY le.id")
+    List<LedgerEntry> findByTransactionIdWithGraph(@Param("transactionId") Long transactionId);
+
     List<LedgerEntry> findByTransactionIdAndTenantId(Long transactionId, Long tenantId);
 
     List<LedgerEntry> findByAccountId(Long accountId);

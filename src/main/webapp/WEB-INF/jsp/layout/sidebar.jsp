@@ -248,13 +248,6 @@
                             <span>All Transactions</span>
                         </a>
                     </li>
-                    <%-- Transaction 360° View: all transaction roles + AUDITOR (read-only) --%>
-                    <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/transactions" class="cbs-nav-link" data-page="transactions-360">
-                            <i class="bi bi-eye-fill"></i>
-                            <span>Transaction 360° View</span>
-                        </a>
-                    </li>
                     <%-- Checker approval queue: /transactions/pending (CHECKER/ADMIN/MANAGER) --%>
                     <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager}">
                     <li class="cbs-nav-item">

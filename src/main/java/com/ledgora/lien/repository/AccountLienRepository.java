@@ -22,6 +22,17 @@ public interface AccountLienRepository extends JpaRepository<AccountLien, Long> 
             "SELECT COALESCE(SUM(al.lienAmount), 0) FROM AccountLien al WHERE al.account.id = :accountId AND al.status = 'ACTIVE' AND al.approvalStatus = 'APPROVED'")
     BigDecimal sumActiveLienAmountByAccountId(@Param("accountId") Long accountId);
 
+    /**
+     * Batch query: sum active approved lien amounts grouped by account ID. Returns Object[] rows
+     * where [0] = accountId (Long), [1] = sum (BigDecimal). Eliminates per-account N+1 lien
+     * lookups.
+     */
+    @Query(
+            "SELECT al.account.id, COALESCE(SUM(al.lienAmount), 0) FROM AccountLien al "
+                    + "WHERE al.account.id IN :accountIds AND al.status = 'ACTIVE' AND al.approvalStatus = 'APPROVED' "
+                    + "GROUP BY al.account.id")
+    List<Object[]> sumActiveLienAmountsByAccountIds(@Param("accountIds") List<Long> accountIds);
+
     @Query(
             "SELECT al FROM AccountLien al WHERE al.tenant.id = :tenantId AND al.approvalStatus = :status")
     List<AccountLien> findByTenantIdAndApprovalStatus(

@@ -24,6 +24,7 @@ import com.ledgora.voucher.entity.Voucher;
 import com.ledgora.voucher.repository.VoucherRepository;
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -103,16 +104,22 @@ public class TransactionViewService {
         // Query 2: Vouchers with full graph (branch, account, GL, ledger entry, maker, checker)
         List<Voucher> vouchers = voucherRepository.findByTransactionIdWithGraph(transactionId);
 
-        // Query 3: Ledger entries by transaction
-        List<LedgerEntry> ledgerEntries = ledgerEntryRepository.findByTransactionId(transactionId);
+        // Query 3: Ledger entries by transaction (with account + journal eagerly fetched)
+        List<LedgerEntry> ledgerEntries =
+                ledgerEntryRepository.findByTransactionIdWithGraph(transactionId);
 
         // Query 4 (conditional): IBT by reference transaction
         Optional<InterBranchTransfer> ibtOpt = Optional.empty();
         boolean isCrossBranch = isInterBranchTransaction(txn);
-        if (isCrossBranch && tenantId != null) {
-            ibtOpt =
-                    interBranchTransferRepository.findByReferenceTransactionIdAndTenantId(
-                            transactionId, tenantId);
+        if (isCrossBranch) {
+            if (tenantId != null) {
+                ibtOpt =
+                        interBranchTransferRepository.findByReferenceTransactionIdAndTenantId(
+                                transactionId, tenantId);
+            } else {
+                // Super-admin fallback: no tenant filter
+                ibtOpt = interBranchTransferRepository.findByReferenceTransactionId(transactionId);
+            }
         }
 
         // Query 5 (conditional): Suspense cases by transaction
@@ -227,6 +234,28 @@ public class TransactionViewService {
         // Use a linked map to maintain order
         Map<Long, AccountImpactDTO> impactMap = new LinkedHashMap<>();
 
+        // Collect all unique account IDs from vouchers first
+        List<Long> accountIds =
+                vouchers.stream()
+                        .filter(v -> v.getAccount() != null)
+                        .map(v -> v.getAccount().getId())
+                        .distinct()
+                        .collect(Collectors.toList());
+
+        // Batch pre-fetch all lien amounts in a single query (eliminates per-account N+1)
+        Map<Long, BigDecimal> lienMap = new HashMap<>();
+        if (!accountIds.isEmpty()) {
+            try {
+                List<Object[]> lienRows =
+                        accountLienRepository.sumActiveLienAmountsByAccountIds(accountIds);
+                for (Object[] row : lienRows) {
+                    lienMap.put((Long) row[0], (BigDecimal) row[1]);
+                }
+            } catch (Exception ex) {
+                log.warn("Batch lien lookup failed — defaulting all to zero", ex);
+            }
+        }
+
         for (Voucher v : vouchers) {
             if (v.getAccount() == null) {
                 continue;
@@ -234,18 +263,7 @@ public class TransactionViewService {
             Long accountId = v.getAccount().getId();
 
             if (!impactMap.containsKey(accountId)) {
-                BigDecimal lienAmount = BigDecimal.ZERO;
-                try {
-                    lienAmount = accountLienRepository.sumActiveLienAmountByAccountId(accountId);
-                    if (lienAmount == null) {
-                        lienAmount = BigDecimal.ZERO;
-                    }
-                } catch (Exception ex) {
-                    log.warn(
-                            "Lien lookup failed for account {} — defaulting to zero",
-                            accountId,
-                            ex);
-                }
+                BigDecimal lienAmount = lienMap.getOrDefault(accountId, BigDecimal.ZERO);
 
                 AccountImpactDTO impact =
                         AccountImpactDTO.builder()
@@ -266,23 +284,42 @@ public class TransactionViewService {
             }
         }
 
-        // Derive pre/post balances from ledger entries (immutable source of truth)
+        // Derive pre/post balances from ledger entries (immutable source of truth).
+        // For multi-entry accounts, use the highest-ID entry (last posted) for final post-balance,
+        // and the lowest-ID entry (first posted) for pre-balance derivation.
+        Map<Long, LedgerEntry> highestEntryPerAccount = new LinkedHashMap<>();
+        Map<Long, LedgerEntry> lowestEntryPerAccount = new LinkedHashMap<>();
         for (LedgerEntry entry : ledgerEntries) {
             if (entry.getAccount() == null) {
                 continue;
             }
             Long accountId = entry.getAccount().getId();
+            LedgerEntry existing = highestEntryPerAccount.get(accountId);
+            if (existing == null || entry.getId() > existing.getId()) {
+                highestEntryPerAccount.put(accountId, entry);
+            }
+            LedgerEntry existingLow = lowestEntryPerAccount.get(accountId);
+            if (existingLow == null || entry.getId() < existingLow.getId()) {
+                lowestEntryPerAccount.put(accountId, entry);
+            }
+        }
+
+        for (Map.Entry<Long, LedgerEntry> e : highestEntryPerAccount.entrySet()) {
+            Long accountId = e.getKey();
+            LedgerEntry highestEntry = e.getValue();
+            LedgerEntry lowestEntry = lowestEntryPerAccount.get(accountId);
             AccountImpactDTO impact = impactMap.get(accountId);
             if (impact != null) {
-                // postBalance = balanceAfter from ledger entry
-                impact.setPostBalance(entry.getBalanceAfter());
-                // preBalance = balanceAfter - amount (for credit) or balanceAfter + amount (for
-                // debit)
-                if (entry.getEntryType() != null) {
-                    if (entry.getEntryType().name().equals("CREDIT")) {
-                        impact.setPreBalance(entry.getBalanceAfter().subtract(entry.getAmount()));
+                // postBalance = balanceAfter from the highest-ID (last posted) entry
+                impact.setPostBalance(highestEntry.getBalanceAfter());
+                // preBalance = derived from the lowest-ID (first posted) entry
+                if (lowestEntry != null && lowestEntry.getEntryType() != null) {
+                    if (lowestEntry.getEntryType().name().equals("CREDIT")) {
+                        impact.setPreBalance(
+                                lowestEntry.getBalanceAfter().subtract(lowestEntry.getAmount()));
                     } else {
-                        impact.setPreBalance(entry.getBalanceAfter().add(entry.getAmount()));
+                        impact.setPreBalance(
+                                lowestEntry.getBalanceAfter().add(lowestEntry.getAmount()));
                     }
                 }
             }

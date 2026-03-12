@@ -139,6 +139,16 @@ public interface InterBranchTransferRepository
     Optional<InterBranchTransfer> findByReferenceTransactionIdAndTenantId(
             @Param("transactionId") Long transactionId, @Param("tenantId") Long tenantId);
 
+    /**
+     * Find the IBT record by reference transaction without tenant filter. Used by super-admin users
+     * where tenantId may be null.
+     */
+    @Query(
+            "SELECT ibt FROM InterBranchTransfer ibt "
+                    + "WHERE ibt.referenceTransaction.id = :transactionId")
+    Optional<InterBranchTransfer> findByReferenceTransactionId(
+            @Param("transactionId") Long transactionId);
+
     // ===== Paginated queries for IBT list screen =====
 
     /** Paginated tenant-scoped listing (default sort: createdAt desc). */

@@ -103,6 +103,7 @@ public interface VoucherRepository extends JpaRepository<Voucher, Long> {
                     + "LEFT JOIN FETCH v.glAccount "
                     + "LEFT JOIN FETCH v.maker "
                     + "LEFT JOIN FETCH v.checker "
+                    + "LEFT JOIN FETCH v.reversalOfVoucher "
                     + "WHERE v.transaction.id = :transactionId "
                     + "ORDER BY v.id")
     List<Voucher> findByTransactionIdWithGraph(@Param("transactionId") Long transactionId);

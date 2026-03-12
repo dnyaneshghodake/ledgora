@@ -30,17 +30,23 @@
             CBS standard requires full transparency before approval.
             <strong>Maker &ne; Checker</strong> rule is enforced.
         </p>
+        <div class="mb-3">
+            <label for="checkerRemarks" class="form-label fw-bold">Checker Remarks</label>
+            <textarea id="checkerRemarks" class="form-control" rows="3"
+                      placeholder="Enter authorization remarks (required for reject, recommended for approve)..."
+                      oninput="document.getElementById('approveRemarks').value=this.value; document.getElementById('rejectRemarks').value=this.value;"></textarea>
+        </div>
         <div class="d-flex gap-2">
             <form method="post" action="${pageContext.request.contextPath}/transactions/${txn.transactionId}/approve" class="d-inline">
                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-                <input type="hidden" name="remarks" value="Approved via 360 View"/>
+                <input type="hidden" id="approveRemarks" name="remarks" value=""/>
                 <button type="submit" class="btn btn-success btn-lg">
                     <i class="bi bi-check-circle-fill"></i> Approve
                 </button>
             </form>
             <form method="post" action="${pageContext.request.contextPath}/transactions/${txn.transactionId}/reject" class="d-inline">
                 <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-                <input type="hidden" name="remarks" value="Rejected via 360 View"/>
+                <input type="hidden" id="rejectRemarks" name="remarks" value=""/>
                 <button type="submit" class="btn btn-danger btn-lg">
                     <i class="bi bi-x-circle-fill"></i> Reject
                 </button>
