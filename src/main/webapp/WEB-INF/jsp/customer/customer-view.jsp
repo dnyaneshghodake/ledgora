@@ -263,15 +263,34 @@
                 </div>
             </div>
             <c:if test="${customer.approvalStatus == 'PENDING'}">
+                <%-- KYC pre-flight check: service enforces KYC=VERIFIED before approval --%>
+                <c:if test="${customer.kycStatus != 'VERIFIED'}">
+                <div class="alert alert-warning d-flex align-items-start mb-3">
+                    <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+                    <div>
+                        <strong>KYC not verified.</strong>
+                        This customer cannot be approved until KYC status is set to
+                        <strong>VERIFIED</strong>. Current KYC: <strong><c:out value="${customer.kycStatus}"/></strong>.
+                        Use the <em>Basic Details</em> tab to update KYC status first.
+                    </div>
+                </div>
+                </c:if>
                 <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager}">
                 <div class="d-flex gap-2">
                     <form method="post" action="${pageContext.request.contextPath}/customers/${customer.customerId}/approve">
                         <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
-                        <button type="submit" class="btn btn-success" onclick="return confirm('Approve this customer?')"><i class="bi bi-check-circle"></i> Approve</button>
+                        <button type="submit"
+                                class="btn btn-success ${customer.kycStatus != 'VERIFIED' ? 'disabled' : ''}"
+                                ${customer.kycStatus != 'VERIFIED' ? 'disabled' : ''}
+                                onclick="return confirm('Approve this customer?')">
+                            <i class="bi bi-check-circle"></i> Approve
+                        </button>
                     </form>
                     <form method="post" action="${pageContext.request.contextPath}/customers/${customer.customerId}/reject">
                         <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
-                        <button type="submit" class="btn btn-danger" onclick="return confirm('Reject this customer?')"><i class="bi bi-x-circle"></i> Reject</button>
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('Reject this customer?')">
+                            <i class="bi bi-x-circle"></i> Reject
+                        </button>
                     </form>
                 </div>
                 </c:if>
@@ -534,11 +553,11 @@
 <%-- Audit Info Section --%>
 <c:set var="auditCreatedBy" value="${customer.createdBy != null ? customer.createdBy.username : ''}" scope="request"/>
 <c:set var="auditCreatedAt" value="${customer.createdAt}" scope="request"/>
-<c:set var="auditLastModifiedBy" value="" scope="request"/>
-<c:set var="auditUpdatedAt" value="" scope="request"/>
-<c:set var="auditApprovedBy" value="" scope="request"/>
-<c:set var="auditApprovalStatus" value="${customer.kycStatus}" scope="request"/>
-<c:set var="auditCurrentStatus" value="${customer.kycStatus}" scope="request"/>
+<c:set var="auditLastModifiedBy" value="${customer.createdBy != null ? customer.createdBy.username : ''}" scope="request"/>
+<c:set var="auditUpdatedAt" value="${customer.updatedAt}" scope="request"/>
+<c:set var="auditApprovedBy" value="${customer.approvedBy != null ? customer.approvedBy.username : ''}" scope="request"/>
+<c:set var="auditApprovalStatus" value="${customer.approvalStatus}" scope="request"/>
+<c:set var="auditCurrentStatus" value="${customer.approvalStatus}" scope="request"/>
 <c:set var="auditEntityType" value="Customer" scope="request"/>
 <c:set var="auditEntityId" value="${customer.customerId}" scope="request"/>
 <%@ include file="../layout/audit-info.jsp" %>
