@@ -359,8 +359,45 @@
                     <div class="card border-0 bg-light h-100">
                         <div class="card-body">
                             <small class="text-muted d-block mb-1">PEP Indicator</small>
-                            <span class="badge bg-secondary fs-6">NOT CAPTURED</span>
-                            <div class="text-muted small mt-2">Politically Exposed Person flag. Available in Customer 360° view.</div>
+                            <c:choose>
+                                <c:when test="${customer.isPep == true}">
+                                    <span class="badge bg-danger fs-6"><i class="bi bi-exclamation-octagon-fill"></i> PEP — HIGH RISK</span>
+                                </c:when>
+                                <c:otherwise>
+                                    <span class="badge bg-success fs-6">Not PEP</span>
+                                </c:otherwise>
+                            </c:choose>
+                            <div class="text-muted small mt-2">Politically Exposed Person — per RBI KYC Master Direction.</div>
+                        </div>
+                    </div>
+                </div>
+                <%-- Occupation --%>
+                <div class="col-md-4">
+                    <div class="card border-0 bg-light h-100">
+                        <div class="card-body">
+                            <small class="text-muted d-block mb-1">Occupation</small>
+                            <c:choose>
+                                <c:when test="${not empty customer.occupation}">
+                                    <strong><c:out value="${customer.occupation}"/></strong>
+                                </c:when>
+                                <c:otherwise><span class="text-muted">Not captured</span></c:otherwise>
+                            </c:choose>
+                            <div class="text-muted small mt-2">Used for risk derivation.</div>
+                        </div>
+                    </div>
+                </div>
+                <%-- Annual Income --%>
+                <div class="col-md-4">
+                    <div class="card border-0 bg-light h-100">
+                        <div class="card-body">
+                            <small class="text-muted d-block mb-1">Annual Income (INR)</small>
+                            <c:choose>
+                                <c:when test="${not empty customer.annualIncome}">
+                                    <strong>&#8377; <c:out value="${customer.annualIncome}"/></strong>
+                                </c:when>
+                                <c:otherwise><span class="text-muted">Not captured</span></c:otherwise>
+                            </c:choose>
+                            <div class="text-muted small mt-2">Used for risk derivation.</div>
                         </div>
                     </div>
                 </div>
