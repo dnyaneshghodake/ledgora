@@ -318,9 +318,12 @@ public class AccountService {
         }
 
         User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new RuntimeException(
+                    "Cannot approve account: approver identity could not be resolved");
+        }
         // Maker-checker: approver must differ from creator
         if (account.getCreatedBy() != null
-                && currentUser != null
                 && account.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Cannot approve your own account (maker-checker violation)");
         }
@@ -329,9 +332,8 @@ public class AccountService {
         account.setApprovedBy(currentUser);
         Account saved = accountRepository.save(account);
 
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "ACCOUNT_APPROVE",
                 "ACCOUNT",
                 saved.getId(),
@@ -341,7 +343,7 @@ public class AccountService {
         log.info(
                 "Account {} approved by user {}",
                 saved.getAccountNumber(),
-                currentUser != null ? currentUser.getUsername() : "system");
+                currentUser.getUsername());
         return saved;
     }
 
@@ -357,9 +359,12 @@ public class AccountService {
         }
 
         User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new RuntimeException(
+                    "Cannot reject account: reviewer identity could not be resolved");
+        }
         // Maker-checker: rejector must differ from creator
         if (account.getCreatedBy() != null
-                && currentUser != null
                 && account.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Cannot reject your own account (maker-checker violation)");
         }
@@ -367,9 +372,8 @@ public class AccountService {
         account.setApprovalStatus(MakerCheckerStatus.REJECTED);
         Account saved = accountRepository.save(account);
 
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "ACCOUNT_REJECT",
                 "ACCOUNT",
                 saved.getId(),
@@ -379,7 +383,7 @@ public class AccountService {
         log.info(
                 "Account {} rejected by user {}",
                 saved.getAccountNumber(),
-                currentUser != null ? currentUser.getUsername() : "system");
+                currentUser.getUsername());
         return saved;
     }
 

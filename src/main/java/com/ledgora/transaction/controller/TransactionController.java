@@ -78,6 +78,7 @@ public class TransactionController {
     }
 
     @GetMapping("/deposit")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String depositForm(Model model) {
         model.addAttribute("transactionDTO", new TransactionDTO());
         model.addAttribute("accounts", accountService.getAllAccounts());
@@ -85,6 +86,7 @@ public class TransactionController {
     }
 
     @PostMapping("/deposit")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String deposit(
             @Valid @ModelAttribute("transactionDTO") TransactionDTO dto,
             BindingResult result,
@@ -119,6 +121,7 @@ public class TransactionController {
     }
 
     @GetMapping("/withdraw")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String withdrawForm(Model model) {
         model.addAttribute("transactionDTO", new TransactionDTO());
         model.addAttribute("accounts", accountService.getAllAccounts());
@@ -126,6 +129,7 @@ public class TransactionController {
     }
 
     @PostMapping("/withdraw")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String withdraw(
             @Valid @ModelAttribute("transactionDTO") TransactionDTO dto,
             BindingResult result,
@@ -160,6 +164,7 @@ public class TransactionController {
     }
 
     @GetMapping("/transfer")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String transferForm(Model model) {
         model.addAttribute("transactionDTO", new TransactionDTO());
         model.addAttribute("accounts", accountService.getAllAccounts());
