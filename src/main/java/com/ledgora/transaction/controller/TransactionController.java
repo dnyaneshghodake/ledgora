@@ -39,6 +39,7 @@ public class TransactionController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String listTransactions(
             @RequestParam(value = "accountNumber", required = false) String accountNumber,
             @RequestParam(value = "page", defaultValue = "0") int page,
@@ -66,6 +67,7 @@ public class TransactionController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String viewTransaction(@PathVariable Long id, Model model) {
         // PART 11: Use custom TransactionNotFoundException instead of raw RuntimeException
         Transaction transaction =
@@ -172,6 +174,7 @@ public class TransactionController {
     }
 
     @PostMapping("/transfer")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String transfer(
             @Valid @ModelAttribute("transactionDTO") TransactionDTO dto,
             BindingResult result,
