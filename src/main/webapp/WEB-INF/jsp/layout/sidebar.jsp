@@ -520,7 +520,8 @@
                     </li>
                     <c:if test="${sessionScope.isAdmin || sessionScope.isOperations || sessionScope.isAuditor}">
                     <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/audit/validation" class="cbs-nav-link" data-page="audit/validation">
+                        <%-- /admin/ledger/view/validate is LedgerValidationController; /audit/validation is AuditController --%>
+                        <a href="${pageContext.request.contextPath}/admin/ledger/view/validate" class="cbs-nav-link" data-page="admin/ledger/validate">
                             <i class="bi bi-shield-check"></i>
                             <span>Ledger Validation</span>
                         </a>
