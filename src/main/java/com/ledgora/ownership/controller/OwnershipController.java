@@ -68,10 +68,8 @@ public class OwnershipController {
                         .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
         List<AccountOwnership> ownerships =
                 ownershipService.getOwnershipsByAccount(accountId, tenantId);
-        List<CustomerMaster> customers =
-                customerMasterRepository.findAll().stream()
-                        .filter(c -> tenantId.equals(c.getTenant().getId()))
-                        .toList();
+        // Use tenant-scoped query — never load all customers across all tenants
+        List<CustomerMaster> customers = customerMasterRepository.findByTenantId(tenantId);
         model.addAttribute("account", account);
         model.addAttribute("ownerships", ownerships);
         model.addAttribute("customers", customers);
@@ -134,10 +132,32 @@ public class OwnershipController {
             AccountOwnership o = ownershipService.approveOwnership(id);
             redirectAttributes.addFlashAttribute("message", "Ownership approved.");
             return "redirect:/ownership/account/" + o.getAccount().getId();
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Approval conflict: this ownership was already actioned by another session. Please refresh.");
+            return "redirect:/ownership";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/ownership";
         }
+    }
+
+    /** Reject ownership (checker step). */
+    @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
+    public String rejectOwnership(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            ownershipService.rejectOwnership(id);
+            redirectAttributes.addFlashAttribute("message", "Ownership rejected.");
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Rejection conflict: this ownership was already actioned by another session. Please refresh.");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/ownership";
     }
 
     private Long resolveTenantId(HttpSession session) {

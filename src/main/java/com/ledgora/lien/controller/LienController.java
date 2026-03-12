@@ -112,6 +112,11 @@ public class LienController {
             redirectAttributes.addFlashAttribute(
                     "message", "Lien approved and applied to balance.");
             return "redirect:/lien/account/" + lien.getAccount().getId();
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Approval conflict: this lien was already actioned by another session. Please refresh.");
+            return "redirect:/lien";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/lien";
@@ -126,6 +131,11 @@ public class LienController {
             AccountLien lien = lienService.releaseLien(id);
             redirectAttributes.addFlashAttribute("message", "Lien released.");
             return "redirect:/lien/account/" + lien.getAccount().getId();
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Release conflict: this lien was already actioned by another session. Please refresh.");
+            return "redirect:/lien";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/lien";
