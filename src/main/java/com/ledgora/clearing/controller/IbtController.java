@@ -30,14 +30,17 @@ public class IbtController {
     private final InterBranchTransferRepository ibtRepository;
     private final InterBranchClearingService clearingService;
     private final TenantService tenantService;
+    private final TransactionService transactionService;
 
     public IbtController(
             InterBranchTransferRepository ibtRepository,
             InterBranchClearingService clearingService,
-            TenantService tenantService) {
+            TenantService tenantService,
+            TransactionService transactionService) {
         this.ibtRepository = ibtRepository;
         this.clearingService = clearingService;
         this.tenantService = tenantService;
+        this.transactionService = transactionService;
     }
 
     /** Show IBT create form. */
