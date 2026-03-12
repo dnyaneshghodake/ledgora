@@ -75,11 +75,11 @@ public class ConfigChangeRequest {
     private String changeDescription;
 
     /** JSON snapshot of the entity BEFORE the change. Null for new record creation. */
-    @Column(name = "old_value", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "old_value", length = 10000)
     private String oldValue;
 
     /** JSON snapshot of the entity AFTER the change (the proposed new state). */
-    @Column(name = "new_value", columnDefinition = "NVARCHAR(MAX)", nullable = false)
+    @Column(name = "new_value", length = 10000, nullable = false)
     private String newValue;
 
     /** Specific field being changed (e.g., "interestRate", "maxAmount"). Null for bulk changes. */
@@ -96,7 +96,7 @@ public class ConfigChangeRequest {
     private java.time.LocalDate effectiveDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "requested_by", nullable = false)
+    @JoinColumn(name = "requested_by")
     private User requestedBy;
 
     @Column(name = "requested_at", nullable = false, updatable = false)

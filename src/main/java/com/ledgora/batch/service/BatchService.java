@@ -220,14 +220,21 @@ public class BatchService {
         return batchRepository.findByTenantId(tenantId);
     }
 
-    /** Tenant-isolated batch lookup. Throws if not found or belongs to a different tenant. */
+    /**
+     * Tenant-isolated batch lookup. Uses tenant context when available (CBS operations),
+     * falls back to findById for system-internal calls (EOD, seeder, tests without context).
+     */
     private TransactionBatch requireBatch(Long batchId) {
-        Long tenantId =
-                com.ledgora.tenant.context.TenantContextHolder.getRequiredTenantId();
+        Long tenantId = com.ledgora.tenant.context.TenantContextHolder.getTenantId();
+        if (tenantId != null) {
+            return batchRepository
+                    .findByIdAndTenantId(batchId, tenantId)
+                    .orElseThrow(() -> new RuntimeException("Batch not found: " + batchId));
+        }
+        // No tenant context — system-internal call (EOD, scheduled jobs, tests)
         return batchRepository
-                .findByIdAndTenantId(batchId, tenantId)
-                .orElseThrow(
-                        () -> new RuntimeException("Batch not found: " + batchId));
+                .findById(batchId)
+                .orElseThrow(() -> new RuntimeException("Batch not found: " + batchId));
     }
 
     /** Map transaction channel to batch type. */
