@@ -49,8 +49,8 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Last Updated</label>
-                    <input type="text" class="form-control" value="<c:out value='${requestScope.auditUpdatedAt}' default='--'/>" disabled/>
-                    <small class="text-muted">Last updated by: <c:out value='${requestScope.auditLastModifiedBy}' default='--'/></small>
+                    <input type="text" class="form-control" value="<c:out value='${auditUpdatedAt}' default='--'/>" disabled/>
+                    <small class="text-muted">Maker: <c:out value='${auditLastModifiedBy}' default='--'/></small>
                 </div>
             </div>
         </div>

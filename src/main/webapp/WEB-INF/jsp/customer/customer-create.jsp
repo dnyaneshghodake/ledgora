@@ -5,7 +5,7 @@
 <%-- Page Title --%>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-person-plus"></i> Customer Onboarding</h3>
-    <a href="${pageContext.request.contextPath}/customers" class="btn btn-outline-secondary">
+    <a href="${pageContext.request.contextPath}/customers" class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-arrow-left"></i> Back to Customers
     </a>
 </div>
@@ -177,10 +177,16 @@
                     <input type="text" class="form-control" value="NONE" disabled/>
                     <small class="text-muted">Freeze can be applied post-creation by authorized roles.</small>
                 </div>
+                <%-- PEP and Status cols follow --%>
                 <div class="col-md-4">
                     <label class="form-label">PEP Indicator</label>
                     <input type="text" class="form-control" value="NOT CAPTURED" disabled/>
                     <small class="text-muted">PEP flag available in Customer 360  view (future enhancement).</small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">PEP Indicator</label>
+                    <input type="text" class="form-control" value="NOT CAPTURED" disabled/>
+                    <small class="text-muted">PEP flag available in Customer 360&deg; view (future enhancement).</small>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Status</label>
@@ -195,7 +201,7 @@
         <button type="submit" class="btn btn-primary">
             <i class="bi bi-check-circle"></i> Create Customer (Pending Approval)
         </button>
-        <a href="${pageContext.request.contextPath}/customers" class="btn btn-outline-secondary">Cancel</a>
+        <a href="${pageContext.request.contextPath}/customers" class="btn btn-outline-secondary btn-sm">Cancel</a>
     </div>
 
 </form:form>

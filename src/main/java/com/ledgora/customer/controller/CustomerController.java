@@ -228,6 +228,11 @@ public class CustomerController {
                         .build();
         model.addAttribute("customerDTO", dto);
         model.addAttribute("freezeLevels", FreezeLevel.values());
+        // Audit metadata for CIF Snapshot "Last Updated" display (read-only, no business logic)
+        model.addAttribute("auditUpdatedAt", customer.getUpdatedAt());
+        model.addAttribute(
+                "auditLastModifiedBy",
+                customer.getCreatedBy() != null ? customer.getCreatedBy().getUsername() : "--");
         return "customer/customer-edit";
     }
 
