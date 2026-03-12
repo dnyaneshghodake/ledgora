@@ -177,16 +177,43 @@
                     <input type="text" class="form-control" value="NONE" disabled/>
                     <small class="text-muted">Freeze can be applied post-creation by authorized roles.</small>
                 </div>
-                <%-- PEP and Status cols follow --%>
-                <div class="col-md-4">
-                    <label class="form-label">PEP Indicator</label>
-                    <input type="text" class="form-control" value="NOT CAPTURED" disabled/>
-                    <small class="text-muted">PEP flag available in Customer 360  view (future enhancement).</small>
-                </div>
                 <div class="col-md-4">
                     <label class="form-label">PEP Indicator</label>
                     <input type="text" class="form-control" value="NOT CAPTURED" disabled/>
                     <small class="text-muted">PEP flag available in Customer 360&deg; view (future enhancement).</small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    <span class="badge bg-warning text-dark">PENDING_APPROVAL</span>
+                    <div class="text-muted small mt-1">No postings allowed until checker approval.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-circle"></i> Create Customer (Pending Approval)
+        </button>
+        <a href="${pageContext.request.contextPath}/customers" class="btn btn-outline-secondary btn-sm">Cancel</a>
+    </div>
+
+</form:form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var typeSelect = document.getElementById('customerType');
+    var dobLabel = document.getElementById('dobLabel');
+    if (typeSelect && dobLabel) {
+        typeSelect.addEventListener('change', function() {
+            dobLabel.textContent = this.value === 'CORPORATE' ? 'Incorporation Date *' : 'Date of Birth *';
+        });
+    }
+});
+</script>
+
+<%@ include file="../layout/footer.jsp" %>
+                    <small class="text-muted">PEP flag available in Customer 360  view (future enhancement).</small>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Status</label>
