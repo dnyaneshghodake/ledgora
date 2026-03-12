@@ -49,4 +49,21 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     @Query("SELECT c FROM Customer c WHERE c.tenant.id = :tenantId")
     org.springframework.data.domain.Page<Customer> findByTenantId(
             @Param("tenantId") Long tenantId, org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * Find customers by approval status (for pending-approval queue and checker dashboard).
+     * Tenant-isolated.
+     */
+    @Query(
+            "SELECT c FROM Customer c WHERE c.tenant.id = :tenantId AND c.approvalStatus = :approvalStatus")
+    List<Customer> findByTenantIdAndApprovalStatus(
+            @Param("tenantId") Long tenantId,
+            @Param("approvalStatus") com.ledgora.common.enums.MakerCheckerStatus approvalStatus);
+
+    /** Count customers pending approval for dashboard badge. Tenant-isolated. */
+    @Query(
+            "SELECT COUNT(c) FROM Customer c WHERE c.tenant.id = :tenantId AND c.approvalStatus = :approvalStatus")
+    long countByTenantIdAndApprovalStatus(
+            @Param("tenantId") Long tenantId,
+            @Param("approvalStatus") com.ledgora.common.enums.MakerCheckerStatus approvalStatus);
 }

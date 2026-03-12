@@ -284,6 +284,18 @@ public class CustomerService {
         return customerRepository.findByTenantIdAndKycStatus(requireTenantId(), kycStatus);
     }
 
+    /** Get customers by approval status (for checker pending queue). Tenant-isolated. */
+    public List<Customer> getByApprovalStatus(
+            com.ledgora.common.enums.MakerCheckerStatus approvalStatus) {
+        return customerRepository.findByTenantIdAndApprovalStatus(requireTenantId(), approvalStatus);
+    }
+
+    /** Count customers pending approval (for dashboard badge). */
+    public long countPendingApproval() {
+        return customerRepository.countByTenantIdAndApprovalStatus(
+                requireTenantId(), com.ledgora.common.enums.MakerCheckerStatus.PENDING);
+    }
+
     public long countAll() {
         return customerRepository.countByTenantId(requireTenantId());
     }
