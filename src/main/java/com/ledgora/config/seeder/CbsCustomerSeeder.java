@@ -72,14 +72,16 @@ public class CbsCustomerSeeder {
                 "Acme",
                 "Corp",
                 null,
-                "KLMNO9012P",
+                // RBI KYC: PAN 4th character must be 'C' for Company/Corporate entities
+                "KLMCO9012P",
                 "9100000003",
                 "finance@acmecorp.com",
                 "789 Business Park, Bangalore",
                 "VERIFIED",
                 "CORPORATE",
                 null,
-                "29KLMNO9012PZAB");
+                // GST format: 2-digit state + 10-char PAN + entity code + Z + checksum
+                "29KLMCO9012PCZB");
 
         // Pending customer (no tax profile)
         CustomerMaster cm4 =
