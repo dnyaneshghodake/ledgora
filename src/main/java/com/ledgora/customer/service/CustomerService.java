@@ -56,6 +56,26 @@ public class CustomerService {
      */
     @Transactional
     public Customer createCustomer(CustomerDTO dto) {
+        // ── RBI-grade field validations ──
+        // Age >= 18 for INDIVIDUAL customers
+        if (dto.getDob() != null) {
+            com.ledgora.common.validation.RbiFieldValidator.validateDob(dto.getDob());
+        }
+        if ("INDIVIDUAL".equals(dto.getCustomerType())) {
+            if (dto.getDob() == null) {
+                throw new com.ledgora.common.exception.BusinessException(
+                        "DOB_REQUIRED", "Date of Birth is mandatory for INDIVIDUAL customers");
+            }
+            // PAN mandatory for INDIVIDUAL (RBI KYC norms)
+            com.ledgora.common.validation.RbiFieldValidator.validatePanForIndividual(
+                    dto.getCustomerType(), dto.getPanNumber());
+        }
+        if ("CORPORATE".equals(dto.getCustomerType())) {
+            // GST mandatory for CORPORATE
+            com.ledgora.common.validation.RbiFieldValidator.validateGstForCorporate(
+                    dto.getCustomerType(), dto.getGstNumber());
+        }
+
         if (dto.getNationalId() != null
                 && customerRepository.existsByNationalId(dto.getNationalId())) {
             throw new RuntimeException(
