@@ -71,6 +71,10 @@ public class ConfigGovernanceController {
         try {
             governanceService.approve(id, remarks);
             redirectAttributes.addFlashAttribute("message", "Config change approved successfully");
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Approval conflict: this change was already actioned by another session. Please refresh.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -87,6 +91,10 @@ public class ConfigGovernanceController {
         try {
             governanceService.reject(id, remarks);
             redirectAttributes.addFlashAttribute("message", "Config change rejected");
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Rejection conflict: this change was already actioned by another session. Please refresh.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }

@@ -114,6 +114,14 @@ public class ConfigChangeRequest {
     @Column(name = "remarks", length = 500)
     private String remarks;
 
+    /**
+     * Optimistic locking version — prevents concurrent approval of the same config change from
+     * multiple sessions. The second concurrent approve/reject throws OptimisticLockException.
+     */
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @PrePersist
     protected void onCreate() {
         requestedAt = LocalDateTime.now();

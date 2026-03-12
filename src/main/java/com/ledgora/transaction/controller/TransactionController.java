@@ -239,6 +239,11 @@ public class TransactionController {
                     "message",
                     "Transaction " + approved.getTransactionRef() + " approved and posted.");
             return "redirect:/transactions/pending";
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Approval conflict: this transaction was already actioned by another session. Please refresh.");
+            return "redirect:/transactions/pending";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Approval failed: " + e.getMessage());
             return "redirect:/transactions/pending";
@@ -259,6 +264,11 @@ public class TransactionController {
             Transaction rejected = transactionService.rejectTransaction(id, remarks);
             redirectAttributes.addFlashAttribute(
                     "message", "Transaction " + rejected.getTransactionRef() + " rejected.");
+            return "redirect:/transactions/pending";
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Rejection conflict: this transaction was already actioned by another session. Please refresh.");
             return "redirect:/transactions/pending";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Rejection failed: " + e.getMessage());
