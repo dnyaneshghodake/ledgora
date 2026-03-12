@@ -205,8 +205,8 @@
             </li>
             </c:if>
 
-            <%-- Transactions: visible to MAKER/TELLER (initiation) and CHECKER/ADMIN/MANAGER (approval) --%>
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTeller || sessionScope.isMaker || sessionScope.isChecker || sessionScope.isOperations}">
+            <%-- Transactions: visible to MAKER/TELLER (initiation), CHECKER/ADMIN/MANAGER (approval), AUDITOR (read-only 360° view) --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTeller || sessionScope.isMaker || sessionScope.isChecker || sessionScope.isOperations || sessionScope.isAuditor}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="transactions">
                     <i class="bi bi-cash-stack"></i>
@@ -239,6 +239,13 @@
                         <a href="${pageContext.request.contextPath}/transactions" class="cbs-nav-link" data-page="transactions">
                             <i class="bi bi-arrow-left-right"></i>
                             <span>All Transactions</span>
+                        </a>
+                    </li>
+                    <%-- Transaction 360° View: all transaction roles + AUDITOR (read-only) --%>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/transactions" class="cbs-nav-link" data-page="transactions-360">
+                            <i class="bi bi-eye-fill"></i>
+                            <span>Transaction 360° View</span>
                         </a>
                     </li>
                     <%-- Checker approval queue: /transactions/pending (CHECKER/ADMIN/MANAGER) --%>
