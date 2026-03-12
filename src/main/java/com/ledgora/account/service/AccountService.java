@@ -190,9 +190,11 @@ public class AccountService {
                         .build();
         accountBalanceRepository.save(balance);
 
-        // Audit log
-        Long userId = currentUser != null ? currentUser.getId() : null;
-        auditService.logAccountCreation(userId, saved.getId(), saved.getAccountNumber());
+        // Audit log — currentUser may be null for BATCH/system-initiated account creation
+        auditService.logAccountCreation(
+                currentUser != null ? currentUser.getId() : null,
+                saved.getId(),
+                saved.getAccountNumber());
 
         log.info(
                 "Account created: {} for customer: {} product: {}",
@@ -399,7 +401,8 @@ public class AccountService {
     }
 
     public long countAll() {
-        return accountRepository.findByTenantId(requireTenantId()).size();
+        // Use COUNT query — never load all accounts into memory just for size()
+        return accountRepository.countByTenantId(requireTenantId());
     }
 
     private Account requireAccount(Long accountId) {

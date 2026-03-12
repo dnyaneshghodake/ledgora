@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -387,10 +388,15 @@ public class AccountController {
 
     /** H2: Approve an account (checker step with maker-checker enforcement). */
     @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
     public String approveAccount(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             accountService.approveAccount(id);
             redirectAttributes.addFlashAttribute("message", "Account approved successfully");
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Approval conflict: this account was already actioned by another session. Please refresh.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -399,10 +405,16 @@ public class AccountController {
 
     /** H2: Reject an account (checker step with maker-checker enforcement). */
     @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
     public String rejectAccount(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             accountService.rejectAccount(id);
-            redirectAttributes.addFlashAttribute("error", "Account rejected");
+            // CBS: rejection is a business outcome, not an error — use message not error
+            redirectAttributes.addFlashAttribute("message", "Account rejected");
+        } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute(
+                    "error",
+                    "Rejection conflict: this account was already actioned by another session. Please refresh.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
