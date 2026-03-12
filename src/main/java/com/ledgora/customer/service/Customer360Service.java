@@ -32,9 +32,7 @@ import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.repository.TransactionRepository;
 import java.math.BigDecimal;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -546,15 +544,11 @@ public class Customer360Service {
 
     private void buildAuditTrail(
             Customer360DTO dto, Long tenantId, Long customerId, List<Long> accountIds) {
-        // Collect all entity IDs: customer ID + account IDs
-        Set<Long> entityIds = new HashSet<>(accountIds);
-        entityIds.add(customerId);
-
-        List<String> entityTypes = List.of("CUSTOMER", "ACCOUNT", "TRANSACTION");
-
+        // Use correlated query: CUSTOMER entries only for this customerId,
+        // ACCOUNT entries only for this customer's accountIds.
+        // Avoids cross-product false positives from independent IN clauses.
         List<AuditLog> auditLogs =
-                auditLogRepository.findByTenantIdAndEntityInAndEntityIdIn(
-                        tenantId, entityTypes, entityIds);
+                auditLogRepository.findCustomer360AuditTrail(tenantId, customerId, accountIds);
 
         dto.setAuditTrail(
                 auditLogs.stream()

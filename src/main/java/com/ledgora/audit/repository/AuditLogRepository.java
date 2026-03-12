@@ -73,17 +73,19 @@ public interface AuditLogRepository
             @org.springframework.data.repository.query.Param("tenantId") Long tenantId);
 
     /**
-     * Customer 360° View: Find audit logs for a customer and their accounts/transactions. Filters
-     * by tenant, entity types, and entity IDs for a consolidated timeline.
+     * Customer 360° View: Find audit logs for a specific customer and their accounts. Uses
+     * correlated conditions to avoid cross-product false positives from independent IN clauses.
+     * Returns CUSTOMER entries only for the exact customerId, and ACCOUNT entries only for the
+     * provided accountIds.
      */
     @org.springframework.data.jpa.repository.Query(
             "SELECT a FROM AuditLog a WHERE a.tenantId = :tenantId "
-                    + "AND a.entity IN :entityTypes AND a.entityId IN :entityIds "
+                    + "AND ((a.entity = 'CUSTOMER' AND a.entityId = :customerId) "
+                    + "OR (a.entity = 'ACCOUNT' AND a.entityId IN :accountIds)) "
                     + "ORDER BY a.timestamp DESC")
-    List<AuditLog> findByTenantIdAndEntityInAndEntityIdIn(
+    List<AuditLog> findCustomer360AuditTrail(
             @org.springframework.data.repository.query.Param("tenantId") Long tenantId,
-            @org.springframework.data.repository.query.Param("entityTypes")
-                    java.util.Collection<String> entityTypes,
-            @org.springframework.data.repository.query.Param("entityIds")
-                    java.util.Collection<Long> entityIds);
+            @org.springframework.data.repository.query.Param("customerId") Long customerId,
+            @org.springframework.data.repository.query.Param("accountIds")
+                    java.util.Collection<Long> accountIds);
 }
