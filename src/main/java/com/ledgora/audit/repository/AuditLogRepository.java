@@ -71,4 +71,19 @@ public interface AuditLogRepository
             "SELECT a FROM AuditLog a WHERE a.tenantId = :tenantId AND a.hash IS NOT NULL ORDER BY a.id ASC")
     List<AuditLog> findHashedEntriesByTenantIdOrderByIdAsc(
             @org.springframework.data.repository.query.Param("tenantId") Long tenantId);
+
+    /**
+     * Customer 360° View: Find audit logs for a customer and their accounts/transactions. Filters
+     * by tenant, entity types, and entity IDs for a consolidated timeline.
+     */
+    @org.springframework.data.jpa.repository.Query(
+            "SELECT a FROM AuditLog a WHERE a.tenantId = :tenantId "
+                    + "AND a.entity IN :entityTypes AND a.entityId IN :entityIds "
+                    + "ORDER BY a.timestamp DESC")
+    List<AuditLog> findByTenantIdAndEntityInAndEntityIdIn(
+            @org.springframework.data.repository.query.Param("tenantId") Long tenantId,
+            @org.springframework.data.repository.query.Param("entityTypes")
+                    java.util.Collection<String> entityTypes,
+            @org.springframework.data.repository.query.Param("entityIds")
+                    java.util.Collection<Long> entityIds);
 }

@@ -60,4 +60,27 @@ public interface SuspenseCaseRepository extends JpaRepository<SuspenseCase, Long
                     + "WHERE sc.originalTransaction.id = :transactionId "
                     + "ORDER BY sc.createdAt ASC")
     List<SuspenseCase> findByTransactionIdWithGraph(@Param("transactionId") Long transactionId);
+
+    /**
+     * Customer 360° View: Find suspense cases for specific account IDs (intended account). Eagerly
+     * fetches associations to avoid N+1.
+     */
+    @Query(
+            "SELECT DISTINCT sc FROM SuspenseCase sc "
+                    + "LEFT JOIN FETCH sc.intendedAccount "
+                    + "LEFT JOIN FETCH sc.suspenseAccount "
+                    + "WHERE sc.tenant.id = :tenantId AND sc.intendedAccount.id IN :accountIds "
+                    + "ORDER BY sc.createdAt DESC")
+    List<SuspenseCase> findByTenantIdAndIntendedAccountIdIn(
+            @Param("tenantId") Long tenantId,
+            @Param("accountIds") java.util.Collection<Long> accountIds);
+
+    /** Customer 360° View: Sum open suspense amount for specific account IDs. */
+    @Query(
+            "SELECT COALESCE(SUM(sc.amount), 0) FROM SuspenseCase sc "
+                    + "WHERE sc.tenant.id = :tenantId AND sc.intendedAccount.id IN :accountIds "
+                    + "AND sc.status = 'OPEN'")
+    java.math.BigDecimal sumOpenAmountByTenantIdAndAccountIds(
+            @Param("tenantId") Long tenantId,
+            @Param("accountIds") java.util.Collection<Long> accountIds);
 }

@@ -143,4 +143,35 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
                     + "LEFT JOIN FETCH t.reversalOf "
                     + "WHERE t.id = :id")
     Optional<Transaction> findByIdWithFullGraph(@Param("id") Long id);
+
+    /**
+     * Customer 360° View: Find paginated transactions across multiple account IDs. Used to
+     * aggregate all transactions for a customer's accounts in a single query.
+     */
+    @Query(
+            "SELECT t FROM Transaction t WHERE t.tenant.id = :tenantId "
+                    + "AND (t.sourceAccount.id IN :accountIds OR t.destinationAccount.id IN :accountIds) "
+                    + "ORDER BY t.createdAt DESC")
+    org.springframework.data.domain.Page<Transaction> findByTenantIdAndAccountIds(
+            @Param("tenantId") Long tenantId,
+            @Param("accountIds") java.util.Collection<Long> accountIds,
+            org.springframework.data.domain.Pageable pageable);
+
+    /** Customer 360° View: Count transactions for multiple account IDs. */
+    @Query(
+            "SELECT COUNT(t) FROM Transaction t WHERE t.tenant.id = :tenantId "
+                    + "AND (t.sourceAccount.id IN :accountIds OR t.destinationAccount.id IN :accountIds)")
+    long countByTenantIdAndAccountIds(
+            @Param("tenantId") Long tenantId,
+            @Param("accountIds") java.util.Collection<Long> accountIds);
+
+    /** Customer 360° View: Find top 5 recent transactions for a specific account. */
+    @Query(
+            "SELECT t FROM Transaction t WHERE t.tenant.id = :tenantId "
+                    + "AND (t.sourceAccount.id = :accountId OR t.destinationAccount.id = :accountId) "
+                    + "ORDER BY t.createdAt DESC")
+    List<Transaction> findTop5ByTenantIdAndAccountId(
+            @Param("tenantId") Long tenantId,
+            @Param("accountId") Long accountId,
+            org.springframework.data.domain.Pageable pageable);
 }

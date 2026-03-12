@@ -28,4 +28,22 @@ public interface FraudAlertRepository extends JpaRepository<FraudAlert, Long> {
 
     /** Fetch most recent fraud alerts for a tenant (all statuses, most recent first). */
     List<FraudAlert> findTop20ByTenantIdOrderByCreatedAtDesc(Long tenantId);
+
+    /** Customer 360° View: Find fraud alerts for specific account IDs. */
+    @Query(
+            "SELECT fa FROM FraudAlert fa "
+                    + "WHERE fa.tenant.id = :tenantId AND fa.accountId IN :accountIds "
+                    + "ORDER BY fa.createdAt DESC")
+    List<FraudAlert> findByTenantIdAndAccountIdIn(
+            @Param("tenantId") Long tenantId,
+            @Param("accountIds") java.util.Collection<Long> accountIds);
+
+    /** Customer 360° View: Count open fraud alerts for specific account IDs. */
+    @Query(
+            "SELECT COUNT(fa) FROM FraudAlert fa "
+                    + "WHERE fa.tenant.id = :tenantId AND fa.accountId IN :accountIds "
+                    + "AND fa.status = 'OPEN'")
+    long countOpenByTenantIdAndAccountIds(
+            @Param("tenantId") Long tenantId,
+            @Param("accountIds") java.util.Collection<Long> accountIds);
 }
