@@ -67,13 +67,6 @@
                             <span>Customer List</span>
                         </a>
                     </li>
-                    <%-- Customer 360° View: all CBS roles + AUDITOR (read-only) --%>
-                    <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/customers" class="cbs-nav-link" data-page="customers-360">
-                            <i class="bi bi-person-circle"></i>
-                            <span>Customer 360&deg; View</span>
-                        </a>
-                    </li>
                     <li class="cbs-nav-item">
                         <%-- Customer Master Inquiry: same list with VERIFIED filter --%>
                         <a href="${pageContext.request.contextPath}/customers?kycStatus=VERIFIED" class="cbs-nav-link" data-page="customers-master">
