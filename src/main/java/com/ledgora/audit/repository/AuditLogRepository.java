@@ -60,6 +60,9 @@ public interface AuditLogRepository
 
     // ===== Hash chain queries =====
 
+    /** Count all audit events for a tenant (for dashboard badge — avoids loading full list). */
+    long countByTenantId(Long tenantId);
+
     /** Find the most recent audit log entry for a tenant (for hash chain linking). */
     java.util.Optional<AuditLog> findTopByTenantIdOrderByIdDesc(Long tenantId);
 

@@ -49,14 +49,15 @@ public class AuditController {
         long brokenLinkId = auditService.verifyHashChain(tenantId);
         boolean chainIntact = brokenLinkId == -1;
 
-        // Recent audit events for this tenant
+        // Recent audit events for this tenant (paginated — avoids loading full list)
         List<AuditLog> recentEvents =
-                auditLogRepository.findByTenantIdOrderByTimestampDesc(tenantId).stream()
-                        .limit(50)
-                        .toList();
+                auditLogRepository
+                        .findByTenantIdOrderByTimestampDesc(
+                                tenantId, PageRequest.of(0, 50))
+                        .getContent();
 
-        // Total audit event count
-        long totalEvents = auditLogRepository.findByTenantIdOrderByTimestampDesc(tenantId).size();
+        // Total audit event count — use COUNT query, not in-memory list size
+        long totalEvents = auditLogRepository.countByTenantId(tenantId);
 
         model.addAttribute("chainIntact", chainIntact);
         model.addAttribute("brokenLinkId", brokenLinkId);

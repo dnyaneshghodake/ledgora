@@ -172,6 +172,13 @@ public class TransactionService {
         validateAccountFreezeLevel(account, VoucherDrCr.CR);
 
         User currentUser = getCurrentUser();
+        // For non-BATCH channels, a human maker identity is required for audit trail and
+        // maker-checker enforcement. BATCH channel is used by system/EOD processes.
+        if (currentUser == null && channelForLimit != TransactionChannel.BATCH) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot initiate deposit: maker identity could not be resolved");
+        }
         Long userId = currentUser != null ? currentUser.getId() : null;
 
         // ── VELOCITY FRAUD CHECK: proactive burst detection ──
@@ -287,6 +294,11 @@ public class TransactionService {
         }
 
         User currentUser = getCurrentUser();
+        if (currentUser == null && channelForLimit != TransactionChannel.BATCH) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot initiate withdrawal: maker identity could not be resolved");
+        }
         Long userId = currentUser != null ? currentUser.getId() : null;
 
         // ── VELOCITY FRAUD CHECK: proactive burst detection ──
@@ -420,6 +432,11 @@ public class TransactionService {
         }
 
         User currentUser = getCurrentUser();
+        if (currentUser == null && channelForLimit != TransactionChannel.BATCH) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot initiate transfer: maker identity could not be resolved");
+        }
         Long userId = currentUser != null ? currentUser.getId() : null;
 
         // ── VELOCITY FRAUD CHECK: proactive burst detection (check source account) ──
