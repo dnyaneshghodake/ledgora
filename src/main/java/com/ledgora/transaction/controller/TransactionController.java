@@ -8,6 +8,7 @@ import com.ledgora.common.exception.TransactionNotFoundException;
 import com.ledgora.transaction.dto.TransactionDTO;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.service.TransactionService;
+import com.ledgora.voucher.repository.VoucherRepository;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,16 +27,19 @@ public class TransactionController {
     private final AccountService accountService;
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
+    private final VoucherRepository voucherRepository;
 
     public TransactionController(
             TransactionService transactionService,
             AccountService accountService,
             AccountRepository accountRepository,
-            UserRepository userRepository) {
+            UserRepository userRepository,
+            VoucherRepository voucherRepository) {
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.accountRepository = accountRepository;
         this.userRepository = userRepository;
+        this.voucherRepository = voucherRepository;
     }
 
     @GetMapping
@@ -69,13 +73,15 @@ public class TransactionController {
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String viewTransaction(@PathVariable Long id, Model model) {
-        // PART 11: Use custom TransactionNotFoundException instead of raw RuntimeException
         Transaction transaction =
                 transactionService
                         .getTransactionById(id)
                         .orElseThrow(() -> new TransactionNotFoundException(id));
         model.addAttribute("transaction", transaction);
+        // Ledger entries — immutable double-entry records
         model.addAttribute("ledgerEntries", transactionService.getLedgerEntriesByTransaction(id));
+        // Vouchers — one per accounting leg (DR + CR, or 4 for IBT cross-branch)
+        model.addAttribute("vouchers", voucherRepository.findByTransactionIdWithGraph(id));
         return "transaction/transaction-view";
     }
 
@@ -109,12 +115,16 @@ public class TransactionController {
             if (txn.getStatus() == com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL) {
                 redirectAttributes.addFlashAttribute(
                         "message",
-                        "Deposit submitted for approval. Ref: " + txn.getTransactionRef());
+                        "Deposit submitted for approval (PENDING). Ref: "
+                                + txn.getTransactionRef()
+                                + ". A checker must approve before posting.");
             } else {
                 redirectAttributes.addFlashAttribute(
-                        "message", "Deposit successful! Ref: " + txn.getTransactionRef());
+                        "message",
+                        "Deposit posted successfully. Ref: " + txn.getTransactionRef());
             }
-            return "redirect:/transactions";
+            // CBS: redirect to transaction detail — teller must see voucher + ledger confirmation
+            return "redirect:/transactions/" + txn.getId();
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("accounts", accountService.getAllAccounts());
@@ -152,12 +162,15 @@ public class TransactionController {
             if (txn.getStatus() == com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL) {
                 redirectAttributes.addFlashAttribute(
                         "message",
-                        "Withdrawal submitted for approval. Ref: " + txn.getTransactionRef());
+                        "Withdrawal submitted for approval (PENDING). Ref: "
+                                + txn.getTransactionRef()
+                                + ". A checker must approve before posting.");
             } else {
                 redirectAttributes.addFlashAttribute(
-                        "message", "Withdrawal successful! Ref: " + txn.getTransactionRef());
+                        "message",
+                        "Withdrawal posted successfully. Ref: " + txn.getTransactionRef());
             }
-            return "redirect:/transactions";
+            return "redirect:/transactions/" + txn.getId();
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("accounts", accountService.getAllAccounts());
@@ -195,12 +208,15 @@ public class TransactionController {
             if (txn.getStatus() == com.ledgora.common.enums.TransactionStatus.PENDING_APPROVAL) {
                 redirectAttributes.addFlashAttribute(
                         "message",
-                        "Transfer submitted for approval. Ref: " + txn.getTransactionRef());
+                        "Transfer submitted for approval (PENDING). Ref: "
+                                + txn.getTransactionRef()
+                                + ". A checker must approve before posting.");
             } else {
                 redirectAttributes.addFlashAttribute(
-                        "message", "Transfer successful! Ref: " + txn.getTransactionRef());
+                        "message",
+                        "Transfer posted successfully. Ref: " + txn.getTransactionRef());
             }
-            return "redirect:/transactions";
+            return "redirect:/transactions/" + txn.getId();
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
             model.addAttribute("accounts", accountService.getAllAccounts());
@@ -238,7 +254,8 @@ public class TransactionController {
             redirectAttributes.addFlashAttribute(
                     "message",
                     "Transaction " + approved.getTransactionRef() + " approved and posted.");
-            return "redirect:/transactions/pending";
+            // CBS: show the checker the full voucher + ledger confirmation after approval
+            return "redirect:/transactions/" + approved.getId();
         } catch (org.springframework.orm.ObjectOptimisticLockingFailureException e) {
             redirectAttributes.addFlashAttribute(
                     "error",
