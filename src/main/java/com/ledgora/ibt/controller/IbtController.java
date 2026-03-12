@@ -6,6 +6,7 @@ import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.clearing.entity.InterBranchTransfer;
 import com.ledgora.clearing.repository.InterBranchTransferRepository;
 import com.ledgora.clearing.service.IbtService;
+import com.ledgora.clearing.service.InterBranchClearingService;
 import com.ledgora.common.enums.AccountType;
 import com.ledgora.common.enums.InterBranchTransferStatus;
 import com.ledgora.common.enums.TransactionChannel;
@@ -53,6 +54,7 @@ public class IbtController {
     private final VoucherRepository voucherRepository;
     private final IbtService ibtService;
     private final BranchRepository branchRepository;
+    private final InterBranchClearingService clearingService;
 
     public IbtController(
             TransactionService transactionService,
@@ -61,7 +63,8 @@ public class IbtController {
             InterBranchTransferRepository ibtRepository,
             VoucherRepository voucherRepository,
             IbtService ibtService,
-            BranchRepository branchRepository) {
+            BranchRepository branchRepository,
+            InterBranchClearingService clearingService) {
         this.transactionService = transactionService;
         this.tenantService = tenantService;
         this.accountRepository = accountRepository;
@@ -69,6 +72,7 @@ public class IbtController {
         this.voucherRepository = voucherRepository;
         this.ibtService = ibtService;
         this.branchRepository = branchRepository;
+        this.clearingService = clearingService;
     }
 
     // ===== IBT Create Form =====
@@ -404,6 +408,25 @@ public class IbtController {
         model.addAttribute("businessDate", businessDate);
 
         return "ibt/ibt-reconciliation";
+    }
+
+    // ===== IBT Operations Actions =====
+
+    /** Mark a SENT transfer as FAILED manually (operations action). */
+    @PostMapping("/{id}/fail")
+    @PreAuthorize("hasAnyRole('OPERATIONS', 'ADMIN', 'MANAGER')")
+    public String markFailed(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "Manual failure by operations")
+                    String reason,
+            RedirectAttributes redirectAttributes) {
+        try {
+            clearingService.markFailed(id, reason);
+            redirectAttributes.addFlashAttribute("message", "IBT " + id + " marked as FAILED.");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/ibt/reconciliation";
     }
 
     /** Resolve tenant ID from TenantContextHolder or session. */

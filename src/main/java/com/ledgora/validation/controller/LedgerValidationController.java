@@ -40,6 +40,14 @@ public class LedgerValidationController {
         this.validatorService = validatorService;
     }
 
+    /** JSP dashboard — ledger status overview (redirects to validate view). */
+    @GetMapping("/view")
+    public String viewLedgerStatus(Model model) {
+        ValidationResult result = validatorService.getLastResult();
+        model.addAttribute("result", result);
+        return "validation/ledger-status";
+    }
+
     /** JSP dashboard — show current cached validation status. */
     @GetMapping("/view/validate")
     public String showValidationStatus(Model model) {

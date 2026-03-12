@@ -42,7 +42,7 @@ public class AuditDiagnosticController {
     }
 
     @GetMapping("/validation")
-    public String auditDashboard(Model model) {
+    public String auditDiagnosticDashboard(Model model) {
         Long tenantId = TenantContextHolder.getTenantId();
 
         // Freeze enforcement - active if freeze control records exist in the system
