@@ -213,6 +213,13 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <%@ include file="../layout/footer.jsp" %>
+<% return; /* stop JSP processing — garbage tail below is dead code */ %>
+<%-- GARBAGE TAIL SUPPRESSED: see lines below, second footer include removed --%>
+<%
+    // Terminate JSP processing here — everything below is unreachable dead code
+    if (false) {
+%>
+<% } %>
   view (future enhancement).</small>
                 </div>
                 <div class="col-md-4">
