@@ -95,6 +95,10 @@ public class ConfigGovernanceService {
                         .findById(tenantId)
                         .orElseThrow(() -> new RuntimeException("Tenant not found: " + tenantId));
         User maker = getCurrentUser();
+        if (maker == null) {
+            throw new RuntimeException(
+                    "Cannot submit config change: requester identity could not be resolved");
+        }
 
         ConfigChangeRequest request =
                 ConfigChangeRequest.builder()
@@ -113,9 +117,8 @@ public class ConfigGovernanceService {
 
         ConfigChangeRequest saved = changeRequestRepository.save(request);
 
-        Long userId = maker != null ? maker.getId() : null;
         auditService.logEvent(
-                userId,
+                maker.getId(),
                 "CONFIG_CHANGE_REQUESTED",
                 entityType,
                 entityId,
@@ -128,7 +131,7 @@ public class ConfigGovernanceService {
                 configType,
                 entityType,
                 entityId,
-                maker != null ? maker.getUsername() : "system");
+                maker.getUsername());
         return saved;
     }
 
@@ -167,9 +170,8 @@ public class ConfigGovernanceService {
 
         ConfigChangeRequest saved = changeRequestRepository.save(request);
 
-        Long userId = checker != null ? checker.getId() : null;
         auditService.logEvent(
-                userId,
+                checker.getId(),
                 "CONFIG_CHANGE_APPROVED",
                 request.getTargetEntityType(),
                 request.getTargetEntityId(),
@@ -184,7 +186,7 @@ public class ConfigGovernanceService {
                 "Config change approved: id={} type={} by {}",
                 requestId,
                 request.getConfigType(),
-                checker != null ? checker.getUsername() : "system");
+                checker.getUsername());
         return saved;
     }
 
@@ -217,9 +219,8 @@ public class ConfigGovernanceService {
 
         ConfigChangeRequest saved = changeRequestRepository.save(request);
 
-        Long userId = checker != null ? checker.getId() : null;
         auditService.logEvent(
-                userId,
+                checker.getId(),
                 "CONFIG_CHANGE_REJECTED",
                 request.getTargetEntityType(),
                 request.getTargetEntityId(),
@@ -235,7 +236,7 @@ public class ConfigGovernanceService {
                 "Config change rejected: id={} type={} by {}",
                 requestId,
                 request.getConfigType(),
-                checker != null ? checker.getUsername() : "system");
+                checker.getUsername());
         return saved;
     }
 
