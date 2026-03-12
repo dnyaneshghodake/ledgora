@@ -244,6 +244,14 @@ public class AccountService {
 
     @Transactional
     public Account updateAccount(Long id, AccountDTO dto) {
+        // Identity check first — account modification requires an auditable maker
+        User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot update account: maker identity could not be resolved");
+        }
+
         Account account = requireAccount(id);
 
         if (dto.getAccountName() != null) account.setAccountName(dto.getAccountName());
@@ -267,7 +275,18 @@ public class AccountService {
             account.setFreezeReason(dto.getFreezeReason());
         }
 
-        return accountRepository.save(account);
+        Account saved = accountRepository.save(account);
+
+        auditService.logEvent(
+                currentUser.getId(),
+                "ACCOUNT_UPDATE",
+                "ACCOUNT",
+                saved.getId(),
+                "Account updated: " + saved.getAccountNumber() + " by " + currentUser.getUsername(),
+                null);
+
+        log.info("Account {} updated by user {}", saved.getAccountNumber(), currentUser.getUsername());
+        return saved;
     }
 
     /** Finacle-grade: Update freeze controls at account level (maker step). */
@@ -308,10 +327,39 @@ public class AccountService {
 
     @Transactional
     public Account updateAccountStatus(Long id, AccountStatus status) {
+        // Identity check — status changes must be auditable
+        User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot update account status: maker identity could not be resolved");
+        }
+
         Account account = requireAccount(id);
+        AccountStatus previousStatus = account.getStatus();
         account.setStatus(status);
-        log.info("Account {} status changed to {}", account.getAccountNumber(), status);
-        return accountRepository.save(account);
+        Account saved = accountRepository.save(account);
+
+        auditService.logEvent(
+                currentUser.getId(),
+                "ACCOUNT_STATUS_UPDATE",
+                "ACCOUNT",
+                saved.getId(),
+                "Account status changed from "
+                        + previousStatus
+                        + " to "
+                        + status
+                        + " by "
+                        + currentUser.getUsername(),
+                null);
+
+        log.info(
+                "Account {} status changed from {} to {} by user {}",
+                saved.getAccountNumber(),
+                previousStatus,
+                status,
+                currentUser.getUsername());
+        return saved;
     }
 
     /** H2: Approve an account (checker step). Enforces maker-checker + tenant isolation. */

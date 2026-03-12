@@ -120,7 +120,10 @@ public class AccountController {
         try {
             Account account = accountService.createAccount(accountDTO);
             redirectAttributes.addFlashAttribute(
-                    "message", "Account created successfully: " + account.getAccountNumber());
+                    "message",
+                    "Account created (PENDING approval): "
+                            + account.getAccountNumber()
+                            + ". A checker must approve before the account is active.");
             return "redirect:/accounts";
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
