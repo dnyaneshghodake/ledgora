@@ -188,9 +188,10 @@ public class CustomerService {
         if (dto.getGstNumber() != null) customer.setGstNumber(dto.getGstNumber());
         if (dto.getRiskCategory() != null) customer.setRiskCategory(dto.getRiskCategory());
 
-        // CBS: modifications reset approval status — checker must re-approve
+        // CBS: modifications reset approval status — checker must re-approve.
+        // createdBy is the original creator and must not be overwritten.
+        // makerTimestamp tracks when the most recent modification was submitted.
         customer.setApprovalStatus(com.ledgora.common.enums.MakerCheckerStatus.PENDING);
-        customer.setCreatedBy(currentUser);
         customer.setMakerTimestamp(java.time.LocalDateTime.now());
         customer.setApprovedBy(null);
         customer.setCheckerTimestamp(null);
@@ -207,7 +208,7 @@ public class CustomerService {
                 currentUser.getId(),
                 "CUSTOMER_UPDATE",
                 "CUSTOMER",
-                customerId,
+                saved.getCustomerId(),
                 "Customer master data updated (pending re-approval) by " + currentUser.getUsername(),
                 null);
 
@@ -347,6 +348,13 @@ public class CustomerService {
     public Customer approveCustomer(Long customerId) {
         Customer customer = requireCustomer(customerId);
 
+        if (customer.getApprovalStatus() != com.ledgora.common.enums.MakerCheckerStatus.PENDING) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "INVALID_STATE",
+                    "Customer is not pending approval. Current status: "
+                            + customer.getApprovalStatus());
+        }
+
         User currentUser = getCurrentUser();
         if (currentUser == null) {
             throw new com.ledgora.common.exception.BusinessException(
@@ -383,6 +391,13 @@ public class CustomerService {
     @Transactional
     public Customer rejectCustomer(Long customerId) {
         Customer customer = requireCustomer(customerId);
+
+        if (customer.getApprovalStatus() != com.ledgora.common.enums.MakerCheckerStatus.PENDING) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "INVALID_STATE",
+                    "Customer is not pending approval. Current status: "
+                            + customer.getApprovalStatus());
+        }
 
         User currentUser = getCurrentUser();
         if (currentUser == null) {

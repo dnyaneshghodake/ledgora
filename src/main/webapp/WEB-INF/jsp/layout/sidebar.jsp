@@ -167,10 +167,10 @@
                         </a>
                     </li>
                     </c:if>
-                    <%-- Account approval queue for checkers --%>
+                    <%-- Account approval queue for checkers — /approvals filters by ACCOUNT entity --%>
                     <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager}">
                     <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/accounts?status=PENDING" class="cbs-nav-link" data-page="accounts-pending">
+                        <a href="${pageContext.request.contextPath}/approvals?type=ACCOUNT" class="cbs-nav-link" data-page="accounts-pending">
                             <i class="bi bi-hourglass-split"></i>
                             <span>Pending Account Approvals</span>
                         </a>

@@ -115,7 +115,11 @@ public class Customer {
      * Transactions are blocked while status is PENDING.
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "approval_status", length = 20, nullable = false)
+    @Column(
+            name = "approval_status",
+            length = 20,
+            nullable = false,
+            columnDefinition = "VARCHAR(20) NOT NULL DEFAULT 'PENDING'")
     @Builder.Default
     private MakerCheckerStatus approvalStatus = MakerCheckerStatus.PENDING;
 
@@ -160,5 +164,8 @@ public class Customer {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+        if (firstName != null && lastName != null) {
+            fullName = firstName + " " + lastName;
+        }
     }
 }

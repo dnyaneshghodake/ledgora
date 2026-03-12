@@ -111,10 +111,9 @@
                     <select name="channel" id="channelInput" class="form-select" required>
                         <option value="">-- Select Channel --</option>
                         <option value="TELLER">TELLER</option>
-                        <option value="BRANCH">BRANCH</option>
-                        <option value="INTERNET_BANKING">INTERNET BANKING</option>
-                        <option value="MOBILE_BANKING">MOBILE BANKING</option>
                         <option value="ATM">ATM</option>
+                        <option value="ONLINE">ONLINE (Internet Banking)</option>
+                        <option value="MOBILE">MOBILE (Mobile Banking)</option>
                     </select>
                 </div>
                 <div class="col-md-6">

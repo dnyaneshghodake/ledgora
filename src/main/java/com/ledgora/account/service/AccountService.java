@@ -142,7 +142,9 @@ public class AccountService {
                         .accountName(dto.getAccountName())
                         .accountType(resolvedType)
                         .product(product)
-                        .status(AccountStatus.ACTIVE)
+                        // Account starts INACTIVE until checker approves — prevents transactions
+                        // before maker-checker dual control is satisfied.
+                        .status(AccountStatus.INACTIVE)
                         .balance(BigDecimal.ZERO)
                         .currency(dto.getCurrency() != null ? dto.getCurrency() : "INR")
                         .branchCode(dto.getBranchCode())
@@ -386,6 +388,8 @@ public class AccountService {
 
         account.setApprovalStatus(MakerCheckerStatus.APPROVED);
         account.setApprovedBy(currentUser);
+        // Activate the account now that checker has approved it
+        account.setStatus(AccountStatus.ACTIVE);
         Account saved = accountRepository.save(account);
 
         auditService.logEvent(
@@ -476,8 +480,15 @@ public class AccountService {
     }
 
     private User getCurrentUser() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByUsername(username).orElse(null);
+        try {
+            org.springframework.security.core.Authentication auth =
+                    SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null) return null;
+            String username = auth.getName();
+            return userRepository.findByUsername(username).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String generateAccountNumber() {
