@@ -39,6 +39,6 @@ public class FxRateController {
         model.addAttribute("rates", rates);
         model.addAttribute("selectedDate", date);
         model.addAttribute("today", LocalDate.now());
-        return "fx/fx-rates";
+        return "admin/fx-rates";
     }
 }

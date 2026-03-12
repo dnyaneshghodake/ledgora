@@ -64,7 +64,7 @@ public class AdminController {
         model.addAttribute("roles", roles);
         model.addAttribute("activeTab", tab);
         model.addAttribute("userCount", users.size());
-        return "admin/admin-users";
+        return "admin/users";
     }
 
     /** Branch management — list all branches. */
@@ -74,7 +74,7 @@ public class AdminController {
         List<Branch> branches = branchRepository.findAll();
         model.addAttribute("branches", branches);
         model.addAttribute("branchCount", branches.size());
-        return "admin/admin-branches";
+        return "admin/branches";
     }
 
     /** Tenant configuration — list all tenants (SUPER_ADMIN / ADMIN only). */
@@ -84,7 +84,7 @@ public class AdminController {
         List<Tenant> tenants = tenantRepository.findAll();
         model.addAttribute("tenants", tenants);
         model.addAttribute("tenantCount", tenants.size());
-        return "admin/admin-tenants";
+        return "admin/tenants";
     }
 
     /** Audit log viewer — paginated, filterable. */
@@ -108,6 +108,6 @@ public class AdminController {
         model.addAttribute("currentPage", auditPage.getNumber());
         model.addAttribute("totalPages", auditPage.getTotalPages());
         model.addAttribute("totalElements", auditPage.getTotalElements());
-        return "admin/admin-audit";
+        return "admin/audit";
     }
 }
