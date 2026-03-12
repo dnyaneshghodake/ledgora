@@ -96,6 +96,12 @@ public class CustomerService {
         Long tenantId = requireTenantId();
         Tenant tenant = tenantService.getTenantById(tenantId);
         User currentUser = getCurrentUser();
+        // Maker identity is required — customer creation is a regulated master data operation
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot create customer: maker identity could not be resolved");
+        }
 
         Customer customer =
                 Customer.builder()
@@ -109,6 +115,16 @@ public class CustomerService {
                         .address(dto.getAddress())
                         .tenant(tenant)
                         .createdBy(currentUser)
+                        .makerTimestamp(java.time.LocalDateTime.now())
+                        // CBS fields from DTO
+                        .customerType(
+                                dto.getCustomerType() != null ? dto.getCustomerType() : "INDIVIDUAL")
+                        .panNumber(dto.getPanNumber())
+                        .aadhaarNumber(dto.getAadhaarNumber())
+                        .gstNumber(dto.getGstNumber())
+                        .riskCategory(
+                                dto.getRiskCategory() != null ? dto.getRiskCategory() : "LOW")
+                        .approvalStatus(com.ledgora.common.enums.MakerCheckerStatus.PENDING)
                         .build();
 
         Customer saved = customerRepository.save(customer);
@@ -124,9 +140,8 @@ public class CustomerService {
                         + " NationalID: "
                         + saved.getNationalId());
 
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "CUSTOMER_CREATE",
                 "CUSTOMER",
                 saved.getCustomerId(),
@@ -141,13 +156,25 @@ public class CustomerService {
                 saved.getFirstName(),
                 saved.getLastName(),
                 saved.getCustomerId(),
-                currentUser != null ? currentUser.getUsername() : "system");
+                currentUser.getUsername());
         return saved;
     }
 
+    /**
+     * Update customer master data (maker step). Applies changes and resets approvalStatus to
+     * PENDING so a checker must re-approve the modified record per CBS dual-control requirements.
+     * Master data modifications are as regulated as initial creation.
+     */
     @Transactional
     public Customer updateCustomer(Long customerId, CustomerDTO dto) {
         Customer customer = requireCustomer(customerId);
+
+        User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot update customer: maker identity could not be resolved");
+        }
 
         if (dto.getFirstName() != null) customer.setFirstName(dto.getFirstName());
         if (dto.getLastName() != null) customer.setLastName(dto.getLastName());
@@ -156,16 +183,80 @@ public class CustomerService {
         if (dto.getPhone() != null) customer.setPhone(dto.getPhone());
         if (dto.getEmail() != null) customer.setEmail(dto.getEmail());
         if (dto.getAddress() != null) customer.setAddress(dto.getAddress());
+        if (dto.getPanNumber() != null) customer.setPanNumber(dto.getPanNumber());
+        if (dto.getAadhaarNumber() != null) customer.setAadhaarNumber(dto.getAadhaarNumber());
+        if (dto.getGstNumber() != null) customer.setGstNumber(dto.getGstNumber());
+        if (dto.getRiskCategory() != null) customer.setRiskCategory(dto.getRiskCategory());
 
-        return customerRepository.save(customer);
+        // CBS: modifications reset approval status — checker must re-approve
+        customer.setApprovalStatus(com.ledgora.common.enums.MakerCheckerStatus.PENDING);
+        customer.setCreatedBy(currentUser);
+        customer.setMakerTimestamp(java.time.LocalDateTime.now());
+        customer.setApprovedBy(null);
+        customer.setCheckerTimestamp(null);
+
+        Customer saved = customerRepository.save(customer);
+
+        // Submit for re-approval
+        approvalService.submitForApproval(
+                "CUSTOMER",
+                saved.getCustomerId(),
+                "Customer update: " + saved.getFirstName() + " " + saved.getLastName());
+
+        auditService.logEvent(
+                currentUser.getId(),
+                "CUSTOMER_UPDATE",
+                "CUSTOMER",
+                customerId,
+                "Customer master data updated (pending re-approval) by " + currentUser.getUsername(),
+                null);
+
+        log.info(
+                "Customer {} updated (PENDING re-approval) by user {}",
+                customerId,
+                currentUser.getUsername());
+        return saved;
     }
 
+    /**
+     * Direct KYC status update — restricted to ADMIN/MANAGER/OPERATIONS for regulatory overrides
+     * (e.g., manual KYC remediation). Validates the status value is a known KYC state.
+     */
     @Transactional
     public Customer updateKycStatus(Long customerId, String kycStatus) {
+        // Validate KYC status is a known value (prevent arbitrary string injection)
+        if (!"PENDING".equals(kycStatus)
+                && !"VERIFIED".equals(kycStatus)
+                && !"REJECTED".equals(kycStatus)
+                && !"UNDER_REVIEW".equals(kycStatus)) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "INVALID_KYC_STATUS",
+                    "Invalid KYC status: "
+                            + kycStatus
+                            + ". Allowed: PENDING, VERIFIED, REJECTED, UNDER_REVIEW");
+        }
         Customer customer = requireCustomer(customerId);
+
+        User currentUser = getCurrentUser();
+        String previousStatus = customer.getKycStatus();
         customer.setKycStatus(kycStatus);
+        Customer saved = customerRepository.save(customer);
+
+        auditService.logEvent(
+                currentUser != null ? currentUser.getId() : null,
+                "CUSTOMER_KYC_UPDATE",
+                "CUSTOMER",
+                customerId,
+                "KYC status changed from "
+                        + previousStatus
+                        + " to "
+                        + kycStatus
+                        + " by "
+                        + (currentUser != null ? currentUser.getUsername() : "system"),
+                null);
+
         log.info("Customer {} KYC status updated to {}", customerId, kycStatus);
-        return customerRepository.save(customer);
+        return saved;
     }
 
     public List<Customer> getAllCustomers() {
@@ -252,7 +343,11 @@ public class CustomerService {
                     "Cannot approve your own customer record (maker-checker violation)");
         }
 
+        // Set all approval state fields atomically
         customer.setKycStatus("VERIFIED");
+        customer.setApprovalStatus(com.ledgora.common.enums.MakerCheckerStatus.APPROVED);
+        customer.setApprovedBy(currentUser);
+        customer.setCheckerTimestamp(java.time.LocalDateTime.now());
         Customer saved = customerRepository.save(customer);
 
         auditService.logEvent(
@@ -285,7 +380,11 @@ public class CustomerService {
                     "Cannot reject your own customer record (maker-checker violation)");
         }
 
+        // Set all rejection state fields atomically
         customer.setKycStatus("REJECTED");
+        customer.setApprovalStatus(com.ledgora.common.enums.MakerCheckerStatus.REJECTED);
+        customer.setApprovedBy(currentUser);
+        customer.setCheckerTimestamp(java.time.LocalDateTime.now());
         Customer saved = customerRepository.save(customer);
 
         auditService.logEvent(
