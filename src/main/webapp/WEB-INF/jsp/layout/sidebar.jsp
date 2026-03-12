@@ -488,9 +488,9 @@
                             <span>Liquidity Report</span>
                         </a>
                     </li>
-                    <c:if test="${sessionScope.isAdmin || sessionScope.isOperations}">
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isOperations || sessionScope.isAuditor}">
                     <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/admin/ledger/view/validate" class="cbs-nav-link" data-page="admin/ledger">
+                        <a href="${pageContext.request.contextPath}/audit/validation" class="cbs-nav-link" data-page="audit/validation">
                             <i class="bi bi-shield-check"></i>
                             <span>Ledger Validation</span>
                         </a>
