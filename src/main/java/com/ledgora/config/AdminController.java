@@ -1,37 +1,10 @@
+// REMOVED: This duplicate AdminController was causing ConflictingBeanDefinitionException.
+// The real implementation is in com.ledgora.admin.controller.AdminController
+// This file must remain as a valid (empty) Java source to avoid compilation errors.
 package com.ledgora.config;
 
-import com.ledgora.audit.entity.AuditLog;
-import com.ledgora.audit.service.AuditService;
-import com.ledgora.auth.entity.Role;
-import com.ledgora.auth.entity.User;
-import com.ledgora.auth.repository.RoleRepository;
-import com.ledgora.auth.repository.UserRepository;
-import com.ledgora.branch.entity.Branch;
-import com.ledgora.branch.repository.BranchRepository;
-import com.ledgora.tenant.entity.Tenant;
-import com.ledgora.tenant.service.TenantService;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Optional;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-
-/**
- * CBS Admin Controller - manages tenant, branch, user, and audit screens. All endpoints require
- * ADMIN role.
- */
-@Controller
-@RequestMapping("/admin")
-@PreAuthorize("hasRole('ADMIN')")
-public class AdminController {
+// Intentionally empty — see com.ledgora.admin.controller.AdminController
+final class AdminControllerRemoved {
 
     private final TenantService tenantService;
     private final BranchRepository branchRepository;
