@@ -21,12 +21,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
- * Admin management controller.
- * Routes:
- *   GET /admin/users      — User management
- *   GET /admin/branches   — Branch management
- *   GET /admin/tenants    — Tenant configuration
- *   GET /admin/audit      — Audit log viewer
+ * Admin management controller. Routes: GET /admin/users — User management GET /admin/branches —
+ * Branch management GET /admin/tenants — Tenant configuration GET /admin/audit — Audit log viewer
  */
 @Controller
 @RequestMapping("/admin")
@@ -97,12 +93,13 @@ public class AdminController {
             Model model) {
         Page<AuditLog> auditPage;
         if (entity != null && !entity.isBlank()) {
-            auditPage = auditLogRepository.findByEntityOrderByTimestampDesc(
-                    entity, PageRequest.of(page, size));
+            auditPage =
+                    auditLogRepository.findByEntityOrderByTimestampDesc(
+                            entity, PageRequest.of(page, size));
             model.addAttribute("filterEntity", entity);
         } else {
-            auditPage = auditLogRepository.findAllByOrderByTimestampDesc(
-                    PageRequest.of(page, size));
+            auditPage =
+                    auditLogRepository.findAllByOrderByTimestampDesc(PageRequest.of(page, size));
         }
         model.addAttribute("auditLogs", auditPage.getContent());
         model.addAttribute("currentPage", auditPage.getNumber());

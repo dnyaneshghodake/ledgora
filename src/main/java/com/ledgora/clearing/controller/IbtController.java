@@ -20,8 +20,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * Inter-Branch Transfer (IBT) list, detail, and reconciliation controller.
- * Routes: /ibt (list), /ibt/{id} (detail), /ibt/reconciliation (reconciliation dashboard)
+ * Inter-Branch Transfer (IBT) list, detail, and reconciliation controller. Routes: /ibt (list),
+ * /ibt/{id} (detail), /ibt/reconciliation (reconciliation dashboard)
  */
 @Controller
 @RequestMapping("/ibt")
@@ -53,8 +53,8 @@ public class IbtController {
     }
 
     /**
-     * Execute IBT — delegates to TransactionService.transfer() which handles cross-branch
-     * detection and routing through the IBC clearing flow automatically.
+     * Execute IBT — delegates to TransactionService.transfer() which handles cross-branch detection
+     * and routing through the IBC clearing flow automatically.
      */
     @PostMapping("/create")
     @PreAuthorize("hasAnyRole('MAKER', 'ADMIN', 'MANAGER', 'TELLER')")
@@ -62,7 +62,8 @@ public class IbtController {
             @org.springframework.web.bind.annotation.RequestParam String sourceAccountNumber,
             @org.springframework.web.bind.annotation.RequestParam String destinationAccountNumber,
             @org.springframework.web.bind.annotation.RequestParam java.math.BigDecimal amount,
-            @org.springframework.web.bind.annotation.RequestParam(required = false) String narration,
+            @org.springframework.web.bind.annotation.RequestParam(required = false)
+                    String narration,
             HttpSession session,
             RedirectAttributes redirectAttributes) {
         try {
@@ -84,12 +85,13 @@ public class IbtController {
             java.util.Optional<InterBranchTransfer> ibt =
                     ibtRepository.findByReferenceTransactionIdAndTenantId(txn.getId(), tenantId);
             if (ibt.isPresent()) {
-                redirectAttributes.addFlashAttribute("message",
+                redirectAttributes.addFlashAttribute(
+                        "message",
                         "IBT created successfully. Transfer ref: " + txn.getTransactionRef());
                 return "redirect:/ibt/" + ibt.get().getId();
             }
-            redirectAttributes.addFlashAttribute("message",
-                    "Transfer submitted. Ref: " + txn.getTransactionRef());
+            redirectAttributes.addFlashAttribute(
+                    "message", "Transfer submitted. Ref: " + txn.getTransactionRef());
             return "redirect:/ibt";
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
@@ -99,7 +101,8 @@ public class IbtController {
 
     /** IBT list — paginated, filterable by status. */
     @GetMapping
-    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'ADMIN', 'MANAGER', 'TELLER', 'OPERATIONS', 'AUDITOR')")
+    @PreAuthorize(
+            "hasAnyRole('MAKER', 'CHECKER', 'ADMIN', 'MANAGER', 'TELLER', 'OPERATIONS', 'AUDITOR')")
     public String list(
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "page", defaultValue = "0") int page,
@@ -129,13 +132,17 @@ public class IbtController {
 
     /** IBT detail view. */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'ADMIN', 'MANAGER', 'TELLER', 'OPERATIONS', 'AUDITOR')")
+    @PreAuthorize(
+            "hasAnyRole('MAKER', 'CHECKER', 'ADMIN', 'MANAGER', 'TELLER', 'OPERATIONS', 'AUDITOR')")
     public String detail(@PathVariable Long id, Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         InterBranchTransfer ibt =
                 ibtRepository
                         .findByIdWithGraph(id)
-                        .filter(t -> t.getTenant() != null && tenantId.equals(t.getTenant().getId()))
+                        .filter(
+                                t ->
+                                        t.getTenant() != null
+                                                && tenantId.equals(t.getTenant().getId()))
                         .orElseThrow(() -> new RuntimeException("IBT not found: " + id));
         model.addAttribute("ibt", ibt);
         return "ibt/ibt-detail";
@@ -148,8 +155,7 @@ public class IbtController {
         Long tenantId = resolveTenantId(session);
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
 
-        List<InterBranchTransfer> unsettled =
-                ibtRepository.findUnsettledByTenantId(tenantId);
+        List<InterBranchTransfer> unsettled = ibtRepository.findUnsettledByTenantId(tenantId);
         List<InterBranchTransfer> pendingReceiving =
                 ibtRepository.findByTenantIdAndBusinessDateAndStatus(
                         tenantId, businessDate, InterBranchTransferStatus.SENT);
@@ -186,7 +192,8 @@ public class IbtController {
     @PreAuthorize("hasAnyRole('OPERATIONS', 'ADMIN', 'MANAGER')")
     public String markFailed(
             @PathVariable Long id,
-            @RequestParam(required = false, defaultValue = "Manual failure by operations") String reason,
+            @RequestParam(required = false, defaultValue = "Manual failure by operations")
+                    String reason,
             RedirectAttributes redirectAttributes) {
         try {
             clearingService.markFailed(id, reason);
@@ -202,7 +209,8 @@ public class IbtController {
         if (tenantId == null) {
             Object sessionTenantId = session.getAttribute("tenantId");
             if (sessionTenantId instanceof Number n) tenantId = n.longValue();
-            else if (sessionTenantId instanceof String s && !s.isBlank()) tenantId = Long.valueOf(s);
+            else if (sessionTenantId instanceof String s && !s.isBlank())
+                tenantId = Long.valueOf(s);
         }
         if (tenantId == null) throw new IllegalStateException("Tenant context not set");
         return tenantId;

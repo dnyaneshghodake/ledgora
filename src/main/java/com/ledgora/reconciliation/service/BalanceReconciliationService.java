@@ -64,8 +64,8 @@ public class BalanceReconciliationService {
     }
 
     /**
-     * Scheduled reconciliation — runs every 5 minutes. Iterates all active tenants to ensure
-     * every tenant's account balances are validated against the ledger.
+     * Scheduled reconciliation — runs every 5 minutes. Iterates all active tenants to ensure every
+     * tenant's account balances are validated against the ledger.
      */
     @Scheduled(fixedRate = 300000) // 5 minutes
     public void scheduledReconciliation() {

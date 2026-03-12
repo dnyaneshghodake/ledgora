@@ -11,10 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-/**
- * FX Exchange Rate viewer.
- * Route: GET /fx-rates
- */
+/** FX Exchange Rate viewer. Route: GET /fx-rates */
 @Controller
 @RequestMapping("/fx-rates")
 public class FxRateController {
@@ -26,10 +23,10 @@ public class FxRateController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'TENANT_ADMIN', 'SUPER_ADMIN', 'OPERATIONS', 'TELLER')")
+    @PreAuthorize(
+            "hasAnyRole('ADMIN', 'MANAGER', 'TENANT_ADMIN', 'SUPER_ADMIN', 'OPERATIONS', 'TELLER')")
     public String fxRates(
-            @RequestParam(value = "date", required = false) String dateStr,
-            Model model) {
+            @RequestParam(value = "date", required = false) String dateStr, Model model) {
         LocalDate date = dateStr != null ? LocalDate.parse(dateStr) : LocalDate.now();
         List<ExchangeRate> rates = exchangeRateRepository.findByEffectiveDate(date);
         if (rates.isEmpty()) {

@@ -72,9 +72,9 @@ public class GlBalanceService {
     }
 
     /**
-     * Recursively propagate balance changes to parent GL accounts.
-     * Uses tenant-isolated lookup when tenant context is available,
-     * falls back to findById for system-internal calls (EOD, tests, seeder).
+     * Recursively propagate balance changes to parent GL accounts. Uses tenant-isolated lookup when
+     * tenant context is available, falls back to findById for system-internal calls (EOD, tests,
+     * seeder).
      */
     private void propagateToParent(GeneralLedger parent, BigDecimal debit, BigDecimal credit) {
         if (parent == null) return;

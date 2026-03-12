@@ -19,8 +19,7 @@ public interface AuditLogRepository
     List<AuditLog> findByEntityAndEntityId(String entity, Long entityId);
 
     /** Tenant-isolated lookup by entity type and entity ID (for freeze/lien history display). */
-    List<AuditLog> findByTenantIdAndEntityAndEntityId(
-            Long tenantId, String entity, Long entityId);
+    List<AuditLog> findByTenantIdAndEntityAndEntityId(Long tenantId, String entity, Long entityId);
 
     List<AuditLog> findByAction(String action);
 

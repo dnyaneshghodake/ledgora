@@ -402,10 +402,7 @@ public class AccountService {
         Long tenantId = requireTenantId();
         return accountRepository
                 .findByIdAndTenantId(accountId, tenantId)
-                .orElseThrow(
-                        () ->
-                                new RuntimeException(
-                                        "Account not found with id: " + accountId));
+                .orElseThrow(() -> new RuntimeException("Account not found with id: " + accountId));
     }
 
     private Long requireTenantId() {

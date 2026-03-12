@@ -15,13 +15,11 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 /**
  * Ledger Validation controller — serves both the JSP dashboard and the REST API.
  *
- * <p>JSP routes (for sidebar):
- *   GET  /admin/ledger/view/validate — Show current ledger status (validation/ledger-status.jsp)
- *   POST /admin/ledger/view/validate — Run full validation and refresh
+ * <p>JSP routes (for sidebar): GET /admin/ledger/view/validate — Show current ledger status
+ * (validation/ledger-status.jsp) POST /admin/ledger/view/validate — Run full validation and refresh
  *
- * <p>REST API routes (for programmatic access):
- *   GET  /admin/ledger/validate — Full validation result (JSON)
- *   GET  /admin/ledger/status   — Status string (JSON)
+ * <p>REST API routes (for programmatic access): GET /admin/ledger/validate — Full validation result
+ * (JSON) GET /admin/ledger/status — Status string (JSON)
  */
 @Controller
 @RequestMapping("/admin/ledger")
@@ -49,14 +47,21 @@ public class LedgerValidationController {
             ValidationResult result = validatorService.runFullValidation();
             redirectAttributes.addFlashAttribute("result", result);
             if (result.getStatus() == ValidationResult.Status.HEALTHY) {
-                redirectAttributes.addFlashAttribute("message",
+                redirectAttributes.addFlashAttribute(
+                        "message",
                         "Full validation completed: HEALTHY. "
-                                + result.getTransactionsChecked() + " transactions, "
-                                + result.getAccountsChecked() + " accounts checked.");
+                                + result.getTransactionsChecked()
+                                + " transactions, "
+                                + result.getAccountsChecked()
+                                + " accounts checked.");
             } else {
-                redirectAttributes.addFlashAttribute("error",
-                        "Validation issues found: " + result.getErrors().size() + " error(s), "
-                                + result.getWarnings().size() + " warning(s).");
+                redirectAttributes.addFlashAttribute(
+                        "error",
+                        "Validation issues found: "
+                                + result.getErrors().size()
+                                + " error(s), "
+                                + result.getWarnings().size()
+                                + " warning(s).");
             }
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", "Validation failed: " + e.getMessage());

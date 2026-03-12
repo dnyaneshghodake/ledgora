@@ -20,10 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * CBS Config Governance Service — enforces maker-checker dual control on all
- * configuration parameter changes.
+ * CBS Config Governance Service — enforces maker-checker dual control on all configuration
+ * parameter changes.
  *
  * <p>Usage pattern:
+ *
  * <pre>
  *   // Maker submits a change
  *   configGovernanceService.submitChange("APPROVAL_POLICY", "ApprovalPolicy", policyId,
@@ -35,11 +36,12 @@ import org.springframework.transaction.annotation.Transactional;
  * </pre>
  *
  * <p>RBI IT Framework — Change Management:
+ *
  * <ul>
- *   <li>All config changes are persisted as immutable change request records</li>
- *   <li>Maker != checker enforced</li>
- *   <li>Before/after snapshot for regulatory audit</li>
- *   <li>Effective dating for scheduled changes</li>
+ *   <li>All config changes are persisted as immutable change request records
+ *   <li>Maker != checker enforced
+ *   <li>Before/after snapshot for regulatory audit
+ *   <li>Effective dating for scheduled changes
  * </ul>
  */
 @Service
@@ -66,14 +68,14 @@ public class ConfigGovernanceService {
     /**
      * Submit a configuration change for maker-checker approval.
      *
-     * @param configType     category (PRODUCT, APPROVAL_POLICY, HARD_LIMIT, etc.)
-     * @param entityType     target entity class name
-     * @param entityId       target entity ID (null for new records)
-     * @param description    human-readable change description
-     * @param oldValue       JSON snapshot before change (null for creates)
-     * @param newValue       JSON snapshot of proposed new state
-     * @param fieldName      specific field changed (null for bulk)
-     * @param effectiveDate  when the change should take effect (null = immediate)
+     * @param configType category (PRODUCT, APPROVAL_POLICY, HARD_LIMIT, etc.)
+     * @param entityType target entity class name
+     * @param entityId target entity ID (null for new records)
+     * @param description human-readable change description
+     * @param oldValue JSON snapshot before change (null for creates)
+     * @param newValue JSON snapshot of proposed new state
+     * @param fieldName specific field changed (null for bulk)
+     * @param effectiveDate when the change should take effect (null = immediate)
      * @return the created change request in PENDING status
      */
     @Transactional
@@ -91,8 +93,7 @@ public class ConfigGovernanceService {
         Tenant tenant =
                 tenantRepository
                         .findById(tenantId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Tenant not found: " + tenantId));
+                        .orElseThrow(() -> new RuntimeException("Tenant not found: " + tenantId));
         User maker = getCurrentUser();
 
         ConfigChangeRequest request =
@@ -169,8 +170,10 @@ public class ConfigGovernanceService {
                 "CONFIG_CHANGE_APPROVED",
                 request.getTargetEntityType(),
                 request.getTargetEntityId(),
-                "Config change approved: " + request.getConfigType()
-                        + " — " + request.getChangeDescription()
+                "Config change approved: "
+                        + request.getConfigType()
+                        + " — "
+                        + request.getChangeDescription()
                         + (remarks != null ? " | Remarks: " + remarks : ""),
                 null);
 
@@ -213,9 +216,12 @@ public class ConfigGovernanceService {
                 "CONFIG_CHANGE_REJECTED",
                 request.getTargetEntityType(),
                 request.getTargetEntityId(),
-                "Config change rejected: " + request.getConfigType()
-                        + " — " + request.getChangeDescription()
-                        + " | Reason: " + remarks,
+                "Config change rejected: "
+                        + request.getConfigType()
+                        + " — "
+                        + request.getChangeDescription()
+                        + " | Reason: "
+                        + remarks,
                 null);
 
         log.info(
@@ -254,14 +260,12 @@ public class ConfigGovernanceService {
     /** Count pending config changes (for governance dashboard badge). */
     public long countPending() {
         Long tenantId = TenantContextHolder.getRequiredTenantId();
-        return changeRequestRepository.countByTenant_IdAndStatus(
-                tenantId, ApprovalStatus.PENDING);
+        return changeRequestRepository.countByTenant_IdAndStatus(tenantId, ApprovalStatus.PENDING);
     }
 
     private User getCurrentUser() {
         try {
-            String username =
-                    SecurityContextHolder.getContext().getAuthentication().getName();
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
             return userRepository.findByUsername(username).orElse(null);
         } catch (Exception e) {
             return null;

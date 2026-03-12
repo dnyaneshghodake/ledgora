@@ -17,12 +17,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
- * Financial reports controller.
- * Routes:
- *   GET /reports                  — Reports landing page
- *   GET /reports/trial-balance    — Trial balance report
- *   GET /reports/daily-summary    — Daily transaction summary
- *   GET /reports/liquidity        — Liquidity report
+ * Financial reports controller. Routes: GET /reports — Reports landing page GET
+ * /reports/trial-balance — Trial balance report GET /reports/daily-summary — Daily transaction
+ * summary GET /reports/liquidity — Liquidity report
  */
 @Controller
 @RequestMapping("/reports")
@@ -38,7 +35,8 @@ public class ReportsController {
 
     /** Reports landing page. */
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'BRANCH_MANAGER', 'TENANT_ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize(
+            "hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'BRANCH_MANAGER', 'TENANT_ADMIN', 'SUPER_ADMIN')")
     public String reportsHome(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         model.addAttribute("businessDate", tenantService.getCurrentBusinessDate(tenantId));
@@ -47,7 +45,8 @@ public class ReportsController {
 
     /** Trial Balance report. */
     @GetMapping("/trial-balance")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'BRANCH_MANAGER', 'TENANT_ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize(
+            "hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'BRANCH_MANAGER', 'TENANT_ADMIN', 'SUPER_ADMIN')")
     public String trialBalance(
             @RequestParam(value = "reportDate", required = false)
                     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
@@ -66,7 +65,8 @@ public class ReportsController {
 
     /** Daily Transaction Summary report. */
     @GetMapping("/daily-summary")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'BRANCH_MANAGER', 'TENANT_ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize(
+            "hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'BRANCH_MANAGER', 'TENANT_ADMIN', 'SUPER_ADMIN')")
     public String dailySummary(
             @RequestParam(value = "reportDate", required = false)
                     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
@@ -77,7 +77,8 @@ public class ReportsController {
         if (reportDate == null) {
             reportDate = tenantService.getCurrentBusinessDate(tenantId);
         }
-        DailyTransactionSummary summary = reportingService.generateDailyTransactionSummary(reportDate);
+        DailyTransactionSummary summary =
+                reportingService.generateDailyTransactionSummary(reportDate);
         model.addAttribute("summary", summary);
         model.addAttribute("reportDate", reportDate);
         return "report/daily-summary";
@@ -85,7 +86,8 @@ public class ReportsController {
 
     /** Liquidity report. */
     @GetMapping("/liquidity")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'TENANT_ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize(
+            "hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'TENANT_ADMIN', 'SUPER_ADMIN')")
     public String liquidityReport(Model model, HttpSession session) {
         resolveTenantId(session); // ensures tenant context is set
         LiquidityReport report = reportingService.generateLiquidityReport();
@@ -95,7 +97,8 @@ public class ReportsController {
 
     /** Account Statement report. */
     @GetMapping("/account-statement")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'TELLER', 'TENANT_ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize(
+            "hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'TELLER', 'TENANT_ADMIN', 'SUPER_ADMIN')")
     public String accountStatement(
             @RequestParam(value = "accountNumber", required = false) String accountNumber,
             @RequestParam(value = "startDate", required = false)
@@ -125,7 +128,8 @@ public class ReportsController {
         if (tenantId == null) {
             Object sessionTenantId = session.getAttribute("tenantId");
             if (sessionTenantId instanceof Number n) tenantId = n.longValue();
-            else if (sessionTenantId instanceof String s && !s.isBlank()) tenantId = Long.valueOf(s);
+            else if (sessionTenantId instanceof String s && !s.isBlank())
+                tenantId = Long.valueOf(s);
         }
         if (tenantId == null) throw new IllegalStateException("Tenant context not set");
         TenantContextHolder.setTenantId(tenantId);

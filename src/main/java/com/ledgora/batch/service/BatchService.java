@@ -164,7 +164,9 @@ public class BatchService {
         return errors;
     }
 
-    /** Get batch close validation results for a specific batch (for UI display). Tenant-isolated. */
+    /**
+     * Get batch close validation results for a specific batch (for UI display). Tenant-isolated.
+     */
     public List<String> getBatchCloseValidation(Long batchId) {
         TransactionBatch batch = requireBatch(batchId);
         return validateBatchClose(batch);
@@ -221,8 +223,8 @@ public class BatchService {
     }
 
     /**
-     * Tenant-isolated batch lookup. Uses tenant context when available (CBS operations),
-     * falls back to findById for system-internal calls (EOD, seeder, tests without context).
+     * Tenant-isolated batch lookup. Uses tenant context when available (CBS operations), falls back
+     * to findById for system-internal calls (EOD, seeder, tests without context).
      */
     private TransactionBatch requireBatch(Long batchId) {
         Long tenantId = com.ledgora.tenant.context.TenantContextHolder.getTenantId();

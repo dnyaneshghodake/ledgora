@@ -18,10 +18,11 @@ import org.springframework.test.context.ActiveProfiles;
  * CBS Tier-1 Integration Tests: Config Governance.
  *
  * <p>Verifies that:
+ *
  * <ol>
- *   <li>Config change requests are created in PENDING status</li>
- *   <li>Maker-checker is enforced (same user cannot approve own request)</li>
- *   <li>Tenant isolation is enforced on governance operations</li>
+ *   <li>Config change requests are created in PENDING status
+ *   <li>Maker-checker is enforced (same user cannot approve own request)
+ *   <li>Tenant isolation is enforced on governance operations
  * </ol>
  */
 @SpringBootTest
@@ -37,7 +38,9 @@ class ConfigGovernanceTest {
 
     @Test
     @DisplayName("Config change request is created in PENDING status")
-    @WithMockUser(username = "maker-user", roles = {"MAKER", "ADMIN"})
+    @WithMockUser(
+            username = "maker-user",
+            roles = {"MAKER", "ADMIN"})
     void submitChange_createsPendingRequest() {
         TenantContextHolder.setTenantId(1L);
 
@@ -60,7 +63,9 @@ class ConfigGovernanceTest {
 
     @Test
     @DisplayName("Maker cannot approve own config change request")
-    @WithMockUser(username = "maker-user", roles = {"MAKER", "ADMIN"})
+    @WithMockUser(
+            username = "maker-user",
+            roles = {"MAKER", "ADMIN"})
     void approve_ownRequest_throws() {
         TenantContextHolder.setTenantId(1L);
 
@@ -84,7 +89,9 @@ class ConfigGovernanceTest {
 
     @Test
     @DisplayName("Config governance throws when no tenant context is set")
-    @WithMockUser(username = "maker-user", roles = {"MAKER"})
+    @WithMockUser(
+            username = "maker-user",
+            roles = {"MAKER"})
     void submitChange_noTenantContext_throws() {
         TenantContextHolder.clear();
         assertThrows(
@@ -104,20 +111,15 @@ class ConfigGovernanceTest {
 
     @Test
     @DisplayName("Pending count reflects submitted requests")
-    @WithMockUser(username = "maker-user", roles = {"MAKER", "ADMIN"})
+    @WithMockUser(
+            username = "maker-user",
+            roles = {"MAKER", "ADMIN"})
     void countPending_reflectsSubmittedRequests() {
         TenantContextHolder.setTenantId(1L);
         long beforeCount = governanceService.countPending();
 
         governanceService.submitChange(
-                "VELOCITY_LIMIT",
-                "VelocityLimit",
-                300L,
-                "Test change",
-                null,
-                "{}",
-                null,
-                null);
+                "VELOCITY_LIMIT", "VelocityLimit", 300L, "Test change", null, "{}", null, null);
 
         long afterCount = governanceService.countPending();
         assertEquals(beforeCount + 1, afterCount, "Pending count should increment by 1");

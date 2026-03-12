@@ -72,7 +72,8 @@ public class CustomerService {
             // Validate PAN format if provided
             com.ledgora.common.validation.RbiFieldValidator.validatePanFormat(dto.getPanNumber());
             // Validate Aadhaar format if provided
-            com.ledgora.common.validation.RbiFieldValidator.validateAadhaarFormat(dto.getAadhaarNumber());
+            com.ledgora.common.validation.RbiFieldValidator.validateAadhaarFormat(
+                    dto.getAadhaarNumber());
         }
         if ("CORPORATE".equals(dto.getCustomerType())) {
             // GST mandatory for CORPORATE
@@ -304,8 +305,7 @@ public class CustomerService {
         Long tenantId = requireTenantId();
         return customerRepository
                 .findByIdAndTenantId(customerId, tenantId)
-                .orElseThrow(
-                        () -> new RuntimeException("Customer not found: " + customerId));
+                .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
     }
 
     private Long requireTenantId() {

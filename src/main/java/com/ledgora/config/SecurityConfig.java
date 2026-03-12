@@ -59,12 +59,13 @@ public class SecurityConfig {
 
     /**
      * RBI-F2: Validate JWT key configuration at startup.
+     *
      * <ul>
-     *   <li>Fail-fast if current secret is blank</li>
-     *   <li>Warn if using dev-only default</li>
-     *   <li>Log rotation state if previous-secret is configured</li>
-     *   <li>Block if current == previous (misconfiguration)</li>
-     *   <li>Validate minimum key length (32 bytes for HS256)</li>
+     *   <li>Fail-fast if current secret is blank
+     *   <li>Warn if using dev-only default
+     *   <li>Log rotation state if previous-secret is configured
+     *   <li>Block if current == previous (misconfiguration)
+     *   <li>Validate minimum key length (32 bytes for HS256)
      * </ul>
      */
     @PostConstruct

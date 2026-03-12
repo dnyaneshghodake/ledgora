@@ -22,10 +22,11 @@ import org.springframework.test.context.ActiveProfiles;
  * access. Uses the H2 in-memory database with seeded data from DataInitializer.
  *
  * <p>Test strategy:
+ *
  * <ol>
- *   <li>Set TenantContextHolder to Tenant A</li>
- *   <li>Attempt to read an entity belonging to Tenant B</li>
- *   <li>Assert empty result or exception (never data leakage)</li>
+ *   <li>Set TenantContextHolder to Tenant A
+ *   <li>Attempt to read an entity belonging to Tenant B
+ *   <li>Assert empty result or exception (never data leakage)
  * </ol>
  */
 @SpringBootTest
@@ -63,12 +64,12 @@ class TenantIsolationTest {
     }
 
     @Test
-    @DisplayName("NpaClassificationService.isNpa returns false for nonexistent cross-tenant account")
+    @DisplayName(
+            "NpaClassificationService.isNpa returns false for nonexistent cross-tenant account")
     void npaService_isNpa_crossTenant_returnsFalse() {
         TenantContextHolder.setTenantId(1L);
         assertFalse(
-                npaClassificationService.isNpa(9999L),
-                "Cross-tenant NPA check must return false");
+                npaClassificationService.isNpa(9999L), "Cross-tenant NPA check must return false");
     }
 
     @Test

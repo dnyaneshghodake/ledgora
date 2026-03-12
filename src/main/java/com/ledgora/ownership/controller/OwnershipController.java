@@ -18,8 +18,8 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * Account Ownership management controller.
- * Routes: /ownership (list), /ownership/account/{accountId}, /ownership/customer/{customerId}
+ * Account Ownership management controller. Routes: /ownership (list),
+ * /ownership/account/{accountId}, /ownership/customer/{customerId}
  */
 @Controller
 @RequestMapping("/ownership")
@@ -52,14 +52,19 @@ public class OwnershipController {
     /** Ownerships for a specific account. */
     @GetMapping("/account/{accountId}")
     @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'ADMIN', 'MANAGER', 'TELLER', 'AUDITOR')")
-    public String ownershipsByAccount(@PathVariable Long accountId, Model model, HttpSession session) {
+    public String ownershipsByAccount(
+            @PathVariable Long accountId, Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
-        Account account = accountRepository.findByIdAndTenantId(accountId, tenantId)
-                .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
-        List<AccountOwnership> ownerships = ownershipService.getOwnershipsByAccount(accountId, tenantId);
-        List<CustomerMaster> customers = customerMasterRepository.findAll().stream()
-                .filter(c -> tenantId.equals(c.getTenant().getId()))
-                .toList();
+        Account account =
+                accountRepository
+                        .findByIdAndTenantId(accountId, tenantId)
+                        .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
+        List<AccountOwnership> ownerships =
+                ownershipService.getOwnershipsByAccount(accountId, tenantId);
+        List<CustomerMaster> customers =
+                customerMasterRepository.findAll().stream()
+                        .filter(c -> tenantId.equals(c.getTenant().getId()))
+                        .toList();
         model.addAttribute("account", account);
         model.addAttribute("ownerships", ownerships);
         model.addAttribute("customers", customers);
@@ -70,12 +75,17 @@ public class OwnershipController {
     /** Ownerships for a specific customer. */
     @GetMapping("/customer/{customerId}")
     @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'ADMIN', 'MANAGER', 'TELLER', 'AUDITOR')")
-    public String ownershipsByCustomer(@PathVariable Long customerId, Model model, HttpSession session) {
+    public String ownershipsByCustomer(
+            @PathVariable Long customerId, Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
-        CustomerMaster customer = customerMasterRepository.findById(customerId)
-                .filter(c -> tenantId.equals(c.getTenant().getId()))
-                .orElseThrow(() -> new RuntimeException("Customer not found: " + customerId));
-        List<AccountOwnership> ownerships = ownershipService.getOwnershipsByCustomer(customerId, tenantId);
+        CustomerMaster customer =
+                customerMasterRepository
+                        .findById(customerId)
+                        .filter(c -> tenantId.equals(c.getTenant().getId()))
+                        .orElseThrow(
+                                () -> new RuntimeException("Customer not found: " + customerId));
+        List<AccountOwnership> ownerships =
+                ownershipService.getOwnershipsByCustomer(customerId, tenantId);
         model.addAttribute("customer", customer);
         model.addAttribute("ownerships", ownerships);
         return "ownership/ownership-customer";
@@ -94,9 +104,15 @@ public class OwnershipController {
             RedirectAttributes redirectAttributes) {
         try {
             Long tenantId = resolveTenantId(session);
-            ownershipService.createOwnership(tenantId, accountId, customerMasterId,
-                    OwnershipType.valueOf(ownershipType), ownershipPercentage, isOperational);
-            redirectAttributes.addFlashAttribute("message", "Ownership link submitted for approval.");
+            ownershipService.createOwnership(
+                    tenantId,
+                    accountId,
+                    customerMasterId,
+                    OwnershipType.valueOf(ownershipType),
+                    ownershipPercentage,
+                    isOperational);
+            redirectAttributes.addFlashAttribute(
+                    "message", "Ownership link submitted for approval.");
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -122,7 +138,8 @@ public class OwnershipController {
         if (tenantId == null) {
             Object sessionTenantId = session.getAttribute("tenantId");
             if (sessionTenantId instanceof Number n) tenantId = n.longValue();
-            else if (sessionTenantId instanceof String s && !s.isBlank()) tenantId = Long.valueOf(s);
+            else if (sessionTenantId instanceof String s && !s.isBlank())
+                tenantId = Long.valueOf(s);
         }
         if (tenantId == null) throw new IllegalStateException("Tenant context not set");
         return tenantId;

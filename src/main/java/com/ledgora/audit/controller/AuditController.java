@@ -18,10 +18,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * Audit Dashboard and Audit Log Explorer controller.
- * Routes:
- *   GET /audit/validation  — Audit dashboard with hash chain verification
- *   GET /audit/explorer    — Paginated audit log explorer
+ * Audit Dashboard and Audit Log Explorer controller. Routes: GET /audit/validation — Audit
+ * dashboard with hash chain verification GET /audit/explorer — Paginated audit log explorer
  */
 @Controller
 @RequestMapping("/audit")
@@ -35,9 +33,7 @@ public class AuditController {
         this.auditLogRepository = auditLogRepository;
     }
 
-    /**
-     * Audit Dashboard — shows hash chain integrity status and recent audit events.
-     */
+    /** Audit Dashboard — shows hash chain integrity status and recent audit events. */
     @GetMapping("/validation")
     @PreAuthorize("hasAnyRole('AUDITOR', 'ADMIN', 'SUPER_ADMIN')")
     public String auditDashboard(Model model, HttpSession session) {
@@ -49,8 +45,9 @@ public class AuditController {
 
         // Recent audit events for this tenant
         List<AuditLog> recentEvents =
-                auditLogRepository.findByTenantIdOrderByTimestampDesc(tenantId)
-                        .stream().limit(50).toList();
+                auditLogRepository.findByTenantIdOrderByTimestampDesc(tenantId).stream()
+                        .limit(50)
+                        .toList();
 
         // Total audit event count
         long totalEvents = auditLogRepository.findByTenantIdOrderByTimestampDesc(tenantId).size();
@@ -63,9 +60,7 @@ public class AuditController {
         return "audit/audit-validation";
     }
 
-    /**
-     * Audit Log Explorer — paginated, filterable by entity type.
-     */
+    /** Audit Log Explorer — paginated, filterable by entity type. */
     @GetMapping("/explorer")
     @PreAuthorize("hasAnyRole('AUDITOR', 'ADMIN', 'SUPER_ADMIN')")
     public String auditExplorer(
@@ -80,12 +75,14 @@ public class AuditController {
         Page<AuditLog> auditPage;
 
         if (entity != null && !entity.isBlank()) {
-            auditPage = auditLogRepository.findByTenantIdAndEntityOrderByTimestampDesc(
-                    tenantId, entity, pageable);
+            auditPage =
+                    auditLogRepository.findByTenantIdAndEntityOrderByTimestampDesc(
+                            tenantId, entity, pageable);
             model.addAttribute("filterEntity", entity);
         } else if (action != null && !action.isBlank()) {
-            auditPage = auditLogRepository.findByTenantIdAndActionOrderByTimestampDesc(
-                    tenantId, action, pageable);
+            auditPage =
+                    auditLogRepository.findByTenantIdAndActionOrderByTimestampDesc(
+                            tenantId, action, pageable);
             model.addAttribute("filterAction", action);
         } else {
             auditPage = auditLogRepository.findByTenantIdOrderByTimestampDesc(tenantId, pageable);
@@ -98,18 +95,18 @@ public class AuditController {
         return "audit/audit-explorer";
     }
 
-    /**
-     * Trigger hash chain re-verification (POST action from dashboard).
-     */
+    /** Trigger hash chain re-verification (POST action from dashboard). */
     @PostMapping("/verify-chain")
     @PreAuthorize("hasAnyRole('AUDITOR', 'ADMIN', 'SUPER_ADMIN')")
     public String verifyChain(HttpSession session, RedirectAttributes redirectAttributes) {
         Long tenantId = resolveTenantId(session);
         long result = auditService.verifyHashChain(tenantId);
         if (result == -1) {
-            redirectAttributes.addFlashAttribute("message", "Audit hash chain is INTACT for tenant " + tenantId);
+            redirectAttributes.addFlashAttribute(
+                    "message", "Audit hash chain is INTACT for tenant " + tenantId);
         } else {
-            redirectAttributes.addFlashAttribute("error",
+            redirectAttributes.addFlashAttribute(
+                    "error",
                     "Audit hash chain BROKEN at entry ID " + result + " for tenant " + tenantId);
         }
         return "redirect:/audit/validation";
@@ -120,7 +117,8 @@ public class AuditController {
         if (tenantId == null) {
             Object sessionTenantId = session.getAttribute("tenantId");
             if (sessionTenantId instanceof Number n) tenantId = n.longValue();
-            else if (sessionTenantId instanceof String s && !s.isBlank()) tenantId = Long.valueOf(s);
+            else if (sessionTenantId instanceof String s && !s.isBlank())
+                tenantId = Long.valueOf(s);
         }
         if (tenantId == null) throw new IllegalStateException("Tenant context not set");
         return tenantId;

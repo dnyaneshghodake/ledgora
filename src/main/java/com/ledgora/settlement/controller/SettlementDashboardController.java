@@ -24,8 +24,7 @@ public class SettlementDashboardController {
     private final LedgerEntryRepository ledgerEntryRepository;
 
     public SettlementDashboardController(
-            SettlementService settlementService,
-            LedgerEntryRepository ledgerEntryRepository) {
+            SettlementService settlementService, LedgerEntryRepository ledgerEntryRepository) {
         this.settlementService = settlementService;
         this.ledgerEntryRepository = ledgerEntryRepository;
     }

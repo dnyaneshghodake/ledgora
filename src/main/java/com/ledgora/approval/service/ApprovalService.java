@@ -178,17 +178,15 @@ public class ApprovalService {
     }
 
     /**
-     * Tenant-isolated lookup by ID. Throws if not found or belongs to a different tenant.
-     * Used by approve() and reject() to prevent cross-tenant approval manipulation.
+     * Tenant-isolated lookup by ID. Throws if not found or belongs to a different tenant. Used by
+     * approve() and reject() to prevent cross-tenant approval manipulation.
      */
     private ApprovalRequest findByIdWithTenantIsolation(Long requestId) {
         Long tenantId = requireTenantId();
         return approvalRepository
                 .findByIdAndTenant_Id(requestId, tenantId)
                 .orElseThrow(
-                        () ->
-                                new RuntimeException(
-                                        "Approval request not found: " + requestId));
+                        () -> new RuntimeException("Approval request not found: " + requestId));
     }
 
     private Long requireTenantId() {

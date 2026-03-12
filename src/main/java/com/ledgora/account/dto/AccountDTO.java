@@ -1,7 +1,5 @@
 package com.ledgora.account.dto;
 
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -38,7 +36,9 @@ public class AccountDTO {
     private String status;
     private BigDecimal balance;
 
-    @Pattern(regexp = "^[A-Z]{3}$", message = "Currency must be a 3-letter ISO code (e.g. INR, USD)")
+    @Pattern(
+            regexp = "^[A-Z]{3}$",
+            message = "Currency must be a 3-letter ISO code (e.g. INR, USD)")
     private String currency;
 
     @Size(max = 10, message = "Branch code must not exceed 10 characters")
