@@ -19,4 +19,13 @@ public interface CustomerTaxProfileRepository extends JpaRepository<CustomerTaxP
             "SELECT ctp FROM CustomerTaxProfile ctp WHERE ctp.panNumber = :panNumber AND ctp.tenant.id = :tenantId")
     Optional<CustomerTaxProfile> findByPanNumberAndTenantId(
             @Param("panNumber") String panNumber, @Param("tenantId") Long tenantId);
+
+    /** Find all tax profiles for a tenant. */
+    @Query("SELECT ctp FROM CustomerTaxProfile ctp WHERE ctp.tenant.id = :tenantId")
+    java.util.List<CustomerTaxProfile> findByTenantId(@Param("tenantId") Long tenantId);
+
+    /** Find tax profile by CustomerMaster ID. */
+    @Query("SELECT ctp FROM CustomerTaxProfile ctp WHERE ctp.customerMaster.id = :customerMasterId")
+    Optional<CustomerTaxProfile> findByCustomerMasterId(
+            @Param("customerMasterId") Long customerMasterId);
 }
