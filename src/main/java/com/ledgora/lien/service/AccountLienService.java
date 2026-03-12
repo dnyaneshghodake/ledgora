@@ -116,6 +116,11 @@ public class AccountLienService {
 
         Tenant tenant = tenantService.getTenantById(tenantId);
         User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot create lien: maker identity could not be resolved");
+        }
 
         AccountLien lien =
                 AccountLien.builder()
@@ -144,9 +149,8 @@ public class AccountLienService {
                         + " type="
                         + lienType);
 
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "LIEN_CREATE",
                 "ACCOUNT_LIEN",
                 saved.getId(),
@@ -174,8 +178,12 @@ public class AccountLienService {
         }
 
         User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot approve lien: approver identity could not be resolved");
+        }
         if (lien.getCreatedBy() != null
-                && currentUser != null
                 && lien.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException(
                     "Cannot approve your own lien request (maker-checker violation)");
@@ -188,9 +196,8 @@ public class AccountLienService {
         lien.setApprovedBy(currentUser);
         AccountLien saved = lienRepository.save(lien);
 
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "LIEN_APPROVE",
                 "ACCOUNT_LIEN",
                 saved.getId(),
@@ -222,8 +229,12 @@ public class AccountLienService {
 
         // Maker-checker: creator cannot release their own lien
         User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot release lien: reviewer identity could not be resolved");
+        }
         if (lien.getCreatedBy() != null
-                && currentUser != null
                 && lien.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Cannot release your own lien (maker-checker violation)");
         }
@@ -233,9 +244,8 @@ public class AccountLienService {
         lien.setStatus(LienStatus.RELEASED);
         AccountLien saved = lienRepository.save(lien);
 
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "LIEN_RELEASE",
                 "ACCOUNT_LIEN",
                 saved.getId(),
