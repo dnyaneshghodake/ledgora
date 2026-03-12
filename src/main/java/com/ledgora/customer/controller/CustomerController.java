@@ -259,6 +259,7 @@ public class CustomerController {
     }
 
     @PostMapping("/{id}/reject")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
     public String rejectCustomer(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             customerService.rejectCustomer(id);
@@ -274,6 +275,7 @@ public class CustomerController {
      * issues)
      */
     @GetMapping("/api/search")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     @ResponseBody
     public List<Map<String, Object>> searchCustomersApi(@RequestParam("q") String query) {
         return customerService.searchByName(query).stream()
