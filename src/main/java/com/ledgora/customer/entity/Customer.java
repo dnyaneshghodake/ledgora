@@ -108,6 +108,19 @@ public class Customer {
     @Builder.Default
     private String riskCategory = "LOW";
 
+    /** Annual income (INR) — used for risk derivation. */
+    @Column(name = "annual_income", precision = 18, scale = 2)
+    private java.math.BigDecimal annualIncome;
+
+    /** Occupation category — used for risk derivation (e.g., SALARIED, BUSINESS, POLITICIAN). */
+    @Column(name = "occupation", length = 50)
+    private String occupation;
+
+    /** Politically Exposed Person flag — immediately elevates risk to HIGH. */
+    @Column(name = "is_pep", nullable = false)
+    @Builder.Default
+    private Boolean isPep = false;
+
     // ── Maker-Checker fields ──
 
     /**

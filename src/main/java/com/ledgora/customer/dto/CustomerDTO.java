@@ -52,4 +52,9 @@ public class CustomerDTO {
     private String freezeReason;
     private String approvalStatus;
     private String riskCategory;
+
+    // Risk derivation inputs
+    private java.math.BigDecimal annualIncome;
+    private String occupation;
+    private Boolean isPep;
 }
