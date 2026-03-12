@@ -57,6 +57,7 @@ public class AccountController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String listAccounts(
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "type", required = false) String type,
@@ -98,6 +99,7 @@ public class AccountController {
     }
 
     @GetMapping("/create")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String createAccountForm(Model model) {
         model.addAttribute("accountDTO", new AccountDTO());
         model.addAttribute("accountTypes", AccountType.values());
@@ -105,6 +107,7 @@ public class AccountController {
     }
 
     @PostMapping("/create")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String createAccount(
             @Valid @ModelAttribute("accountDTO") AccountDTO accountDTO,
             BindingResult result,
@@ -127,6 +130,7 @@ public class AccountController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String viewAccount(@PathVariable Long id, Model model) {
         Account account =
                 accountService
@@ -320,6 +324,7 @@ public class AccountController {
     }
 
     @GetMapping("/{id}/edit")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String editAccountForm(@PathVariable Long id, Model model) {
         Account account =
                 accountService
@@ -351,6 +356,7 @@ public class AccountController {
     }
 
     @PostMapping("/{id}/edit")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String updateAccount(
             @PathVariable Long id,
             @Valid @ModelAttribute("accountDTO") AccountDTO accountDTO,
@@ -373,6 +379,7 @@ public class AccountController {
     }
 
     @PostMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS')")
     public String changeStatus(
             @PathVariable Long id,
             @RequestParam String status,

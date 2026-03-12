@@ -282,9 +282,13 @@ public class AccountService {
         Account saved = accountRepository.save(account);
 
         User currentUser = getCurrentUser();
-        Long userId = currentUser != null ? currentUser.getId() : null;
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot update freeze status: maker identity could not be resolved");
+        }
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "ACCOUNT_FREEZE_UPDATE",
                 "ACCOUNT",
                 saved.getId(),
