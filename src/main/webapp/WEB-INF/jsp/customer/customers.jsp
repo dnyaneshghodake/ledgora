@@ -63,8 +63,8 @@
                                 <th>Name</th>
                                 <th>National ID</th>
                                 <th>Mobile</th>
-                                <th>Email</th>
                                 <th>KYC Status</th>
+                                <th>Approval</th>
                                 <th>Created</th>
                                 <th>Actions</th>
                             </tr>
@@ -76,13 +76,20 @@
                                 <td><c:out value="${c.firstName}"/> <c:out value="${c.lastName}"/></td>
                                 <td><code><c:out value="${c.nationalId}"/></code></td>
                                 <td><c:out value="${c.phone}"/></td>
-                                <td><c:out value="${c.email}"/></td>
                                 <td>
                                     <c:choose>
                                         <c:when test="${c.kycStatus == 'VERIFIED'}"><span class="badge bg-success">VERIFIED</span></c:when>
-                                        <c:when test="${c.kycStatus == 'PENDING'}"><span class="badge bg-warning text-dark">PENDING APPROVAL</span></c:when>
+                                        <c:when test="${c.kycStatus == 'PENDING'}"><span class="badge bg-warning text-dark">PENDING</span></c:when>
                                         <c:when test="${c.kycStatus == 'REJECTED'}"><span class="badge bg-danger">REJECTED</span></c:when>
                                         <c:otherwise><span class="badge bg-secondary"><c:out value="${c.kycStatus}"/></span></c:otherwise>
+                                    </c:choose>
+                                </td>
+                                <td>
+                                    <c:choose>
+                                        <c:when test="${c.approvalStatus == 'APPROVED'}"><span class="badge bg-success">APPROVED</span></c:when>
+                                        <c:when test="${c.approvalStatus == 'PENDING'}"><span class="badge bg-warning text-dark">PENDING</span></c:when>
+                                        <c:when test="${c.approvalStatus == 'REJECTED'}"><span class="badge bg-danger">REJECTED</span></c:when>
+                                        <c:otherwise><span class="badge bg-secondary"><c:out value="${c.approvalStatus}"/></span></c:otherwise>
                                     </c:choose>
                                 </td>
                                 <td><small><c:out value="${c.createdAt}"/></small></td>

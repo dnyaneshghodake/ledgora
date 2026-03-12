@@ -62,6 +62,7 @@
                 <div class="col-md-4">
                     <select name="kycStatus" class="form-select">
                         <option value="PENDING" ${customer.kycStatus == 'PENDING' ? 'selected' : ''}>PENDING</option>
+                        <option value="UNDER_REVIEW" ${customer.kycStatus == 'UNDER_REVIEW' ? 'selected' : ''}>UNDER REVIEW</option>
                         <option value="VERIFIED" ${customer.kycStatus == 'VERIFIED' ? 'selected' : ''}>VERIFIED</option>
                         <option value="REJECTED" ${customer.kycStatus == 'REJECTED' ? 'selected' : ''}>REJECTED</option>
                     </select>
@@ -78,9 +79,35 @@
         <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-receipt"></i> Tax Profile</h5></div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-4"><strong>PAN:</strong> <c:out value="${customer.nationalId}" default="Not provided"/></div>
-                <div class="col-md-4"><strong>Aadhaar:</strong> <span class="text-muted">XXXX-XXXX-****</span></div>
-                <div class="col-md-4"><strong>GST:</strong> <span class="text-muted">Not provided</span></div>
+                <div class="col-md-4"><strong>Customer Type:</strong>
+                    <span class="badge bg-info"><c:out value="${customer.customerType}" default="INDIVIDUAL"/></span>
+                </div>
+                <div class="col-md-4"><strong>Risk Category:</strong>
+                    <c:choose>
+                        <c:when test="${customer.riskCategory == 'HIGH'}"><span class="badge bg-danger"><c:out value="${customer.riskCategory}"/></span></c:when>
+                        <c:when test="${customer.riskCategory == 'MEDIUM'}"><span class="badge bg-warning text-dark"><c:out value="${customer.riskCategory}"/></span></c:when>
+                        <c:otherwise><span class="badge bg-success"><c:out value="${customer.riskCategory}" default="LOW"/></span></c:otherwise>
+                    </c:choose>
+                </div>
+                <div class="col-md-4"></div>
+                <div class="col-md-4"><strong>PAN:</strong>
+                    <c:choose>
+                        <c:when test="${not empty customer.panNumber}"><code><c:out value="${customer.panNumber}"/></code></c:when>
+                        <c:otherwise><span class="text-muted">Not provided</span></c:otherwise>
+                    </c:choose>
+                </div>
+                <div class="col-md-4"><strong>Aadhaar:</strong>
+                    <c:choose>
+                        <c:when test="${not empty customer.aadhaarNumber}"><span class="text-muted">XXXX-XXXX-<c:out value="${fn:substring(customer.aadhaarNumber, 8, 12)}"/></span></c:when>
+                        <c:otherwise><span class="text-muted">Not provided</span></c:otherwise>
+                    </c:choose>
+                </div>
+                <div class="col-md-4"><strong>GST:</strong>
+                    <c:choose>
+                        <c:when test="${not empty customer.gstNumber}"><code><c:out value="${customer.gstNumber}"/></code></c:when>
+                        <c:otherwise><span class="text-muted">Not provided</span></c:otherwise>
+                    </c:choose>
+                </div>
             </div>
             <hr>
             <a href="${pageContext.request.contextPath}/tax-profiles/create?customerId=${customer.customerId}" class="btn btn-outline-primary btn-sm">
@@ -162,15 +189,24 @@
         <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-clipboard-check"></i> Approval</h5></div>
         <div class="card-body">
             <div class="row g-3 mb-3">
-                <div class="col-md-4"><strong>Status:</strong>
+                <div class="col-md-4"><strong>Approval Status:</strong>
                     <c:choose>
-                        <c:when test="${customer.kycStatus == 'VERIFIED'}"><span class="badge bg-success">APPROVED</span></c:when>
-                        <c:when test="${customer.kycStatus == 'PENDING'}"><span class="badge bg-warning">PENDING</span></c:when>
+                        <c:when test="${customer.approvalStatus == 'APPROVED'}"><span class="badge bg-success">APPROVED</span></c:when>
+                        <c:when test="${customer.approvalStatus == 'PENDING'}"><span class="badge bg-warning text-dark">PENDING APPROVAL</span></c:when>
+                        <c:when test="${customer.approvalStatus == 'REJECTED'}"><span class="badge bg-danger">REJECTED</span></c:when>
+                        <c:otherwise><span class="badge bg-secondary"><c:out value="${customer.approvalStatus}"/></span></c:otherwise>
+                    </c:choose>
+                </div>
+                <div class="col-md-4"><strong>KYC Status:</strong>
+                    <c:choose>
+                        <c:when test="${customer.kycStatus == 'VERIFIED'}"><span class="badge bg-success">VERIFIED</span></c:when>
+                        <c:when test="${customer.kycStatus == 'PENDING'}"><span class="badge bg-warning text-dark">PENDING</span></c:when>
+                        <c:when test="${customer.kycStatus == 'REJECTED'}"><span class="badge bg-danger">REJECTED</span></c:when>
                         <c:otherwise><span class="badge bg-secondary"><c:out value="${customer.kycStatus}"/></span></c:otherwise>
                     </c:choose>
                 </div>
             </div>
-            <c:if test="${customer.kycStatus == 'PENDING'}">
+            <c:if test="${customer.approvalStatus == 'PENDING'}">
                 <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager}">
                 <div class="d-flex gap-2">
                     <form method="post" action="${pageContext.request.contextPath}/customers/${customer.customerId}/approve">
