@@ -75,13 +75,36 @@ public class AccountController {
             model.addAttribute("accounts", accountService.searchByCustomerName(search));
             model.addAttribute("search", search);
         } else if (status != null && !status.isEmpty()) {
-            model.addAttribute(
-                    "accounts", accountService.getAccountsByStatus(AccountStatus.valueOf(status)));
-            model.addAttribute("selectedStatus", status);
+            try {
+                model.addAttribute(
+                        "accounts",
+                        accountService.getAccountsByStatus(AccountStatus.valueOf(status)));
+                model.addAttribute("selectedStatus", status);
+            } catch (IllegalArgumentException e) {
+                model.addAttribute("error", "Invalid account status filter: " + status);
+                org.springframework.data.domain.Page<Account> accountPage =
+                        accountService.getAllAccountsPaged(page, size);
+                model.addAttribute("accounts", accountPage.getContent());
+                model.addAttribute("currentPage", accountPage.getNumber());
+                model.addAttribute("totalPages", accountPage.getTotalPages());
+                model.addAttribute("totalElements", accountPage.getTotalElements());
+                model.addAttribute("pageSize", size);
+            }
         } else if (type != null && !type.isEmpty()) {
-            model.addAttribute(
-                    "accounts", accountService.getAccountsByType(AccountType.valueOf(type)));
-            model.addAttribute("selectedType", type);
+            try {
+                model.addAttribute(
+                        "accounts", accountService.getAccountsByType(AccountType.valueOf(type)));
+                model.addAttribute("selectedType", type);
+            } catch (IllegalArgumentException e) {
+                model.addAttribute("error", "Invalid account type filter: " + type);
+                org.springframework.data.domain.Page<Account> accountPage =
+                        accountService.getAllAccountsPaged(page, size);
+                model.addAttribute("accounts", accountPage.getContent());
+                model.addAttribute("currentPage", accountPage.getNumber());
+                model.addAttribute("totalPages", accountPage.getTotalPages());
+                model.addAttribute("totalElements", accountPage.getTotalElements());
+                model.addAttribute("pageSize", size);
+            }
         } else {
             org.springframework.data.domain.Page<Account> accountPage =
                     accountService.getAllAccountsPaged(page, size);
@@ -258,7 +281,12 @@ public class AccountController {
         }
 
         // Load freeze history from audit logs (tenant-isolated)
-        Long auditTenantId = TenantContextHolder.getRequiredTenantId();
+        Long auditTenantId = TenantContextHolder.getTenantId();
+        if (auditTenantId == null) {
+            model.addAttribute("freezeHistory", List.of());
+            model.addAttribute("lienHistory", List.of());
+            return "account/account-view";
+        }
         try {
             List<AuditLog> freezeLogs =
                     auditLogRepository
