@@ -143,6 +143,10 @@ public class ApprovalService {
             throw new RuntimeException(
                     "Cannot reject request: reviewer identity could not be resolved");
         }
+        if (request.getRequestedBy() != null
+                && request.getRequestedBy().getId().equals(currentUser.getId())) {
+            throw new RuntimeException("Cannot reject your own request (maker-checker violation)");
+        }
         request.setStatus(ApprovalStatus.REJECTED);
         request.setApprovedBy(currentUser);
         request.setApprovedAt(LocalDateTime.now());
@@ -202,7 +206,13 @@ public class ApprovalService {
     }
 
     private User getCurrentUser() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByUsername(username).orElse(null);
+        try {
+            org.springframework.security.core.Authentication auth =
+                    SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null) return null;
+            return userRepository.findByUsername(auth.getName()).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

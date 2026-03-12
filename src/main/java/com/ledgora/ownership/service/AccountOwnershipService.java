@@ -217,6 +217,12 @@ public class AccountOwnershipService {
                         .orElseThrow(
                                 () -> new RuntimeException("Ownership not found: " + ownershipId));
 
+        if (ownership.getApprovalStatus() != MakerCheckerStatus.PENDING) {
+            throw new RuntimeException(
+                    "Ownership is not pending approval. Current status: "
+                            + ownership.getApprovalStatus());
+        }
+
         User currentUser = getCurrentUser();
         if (currentUser == null) {
             throw new com.ledgora.common.exception.BusinessException(
