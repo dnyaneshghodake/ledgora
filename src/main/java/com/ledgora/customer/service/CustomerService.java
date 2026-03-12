@@ -306,6 +306,14 @@ public class CustomerService {
      */
     @Transactional
     public Customer updateFreezeStatus(Long customerId, String freezeLevel, String freezeReason) {
+        // Identity check BEFORE any persistence — freeze must not be applied without an auditable maker
+        User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot update customer freeze status: maker identity could not be resolved");
+        }
+
         Customer customer = requireCustomer(customerId);
 
         // Persist freeze fields on Customer entity
@@ -314,11 +322,8 @@ public class CustomerService {
 
         Customer saved = customerRepository.save(customer);
 
-        // Audit trail for freeze action (governance requirement)
-        User currentUser = getCurrentUser();
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "CUSTOMER_FREEZE_UPDATE",
                 "CUSTOMER",
                 customerId,

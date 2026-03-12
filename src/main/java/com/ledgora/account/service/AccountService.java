@@ -274,6 +274,14 @@ public class AccountService {
     @Transactional
     public Account updateFreezeStatus(
             Long id, com.ledgora.common.enums.FreezeLevel freezeLevel, String freezeReason) {
+        // Identity check BEFORE any persistence — freeze must not be applied without an auditable maker
+        User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot update freeze status: maker identity could not be resolved");
+        }
+
         Account account = requireAccount(id);
         account.setFreezeLevel(
                 freezeLevel != null ? freezeLevel : com.ledgora.common.enums.FreezeLevel.NONE);
@@ -281,12 +289,6 @@ public class AccountService {
 
         Account saved = accountRepository.save(account);
 
-        User currentUser = getCurrentUser();
-        if (currentUser == null) {
-            throw new com.ledgora.common.exception.BusinessException(
-                    "IDENTITY_REQUIRED",
-                    "Cannot update freeze status: maker identity could not be resolved");
-        }
         auditService.logEvent(
                 currentUser.getId(),
                 "ACCOUNT_FREEZE_UPDATE",
