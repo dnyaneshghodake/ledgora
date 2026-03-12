@@ -411,29 +411,29 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <c:forEach var="le" items="${txn.ledgerEntries}">
+                            <c:forEach var="entry" items="${txn.ledgerEntries}">
                             <tr>
-                                <td><code><c:out value="${le.journalId}" default="--"/></code></td>
-                                <td><code><c:out value="${le.id}"/></code></td>
+                                <td><code><c:out value="${entry.journalId}" default="--"/></code></td>
+                                <td><code><c:out value="${entry.id}"/></code></td>
                                 <td>
                                     <c:choose>
-                                        <c:when test="${le.entryType == 'DEBIT'}"><span class="badge cbs-dr">DEBIT</span></c:when>
-                                        <c:when test="${le.entryType == 'CREDIT'}"><span class="badge cbs-cr">CREDIT</span></c:when>
-                                        <c:otherwise><c:out value="${le.entryType}"/></c:otherwise>
+                                        <c:when test="${entry.entryType == 'DEBIT'}"><span class="badge cbs-dr">DEBIT</span></c:when>
+                                        <c:when test="${entry.entryType == 'CREDIT'}"><span class="badge cbs-cr">CREDIT</span></c:when>
+                                        <c:otherwise><c:out value="${entry.entryType}"/></c:otherwise>
                                     </c:choose>
                                 </td>
-                                <td><c:out value="${le.glCode}" default="--"/></td>
-                                <td class="text-end fw-bold"><c:out value="${le.amount}"/></td>
-                                <td class="text-end"><c:out value="${le.balanceAfter}"/></td>
-                                <td><c:out value="${le.businessDate}"/></td>
-                                <td><c:out value="${le.voucherId}" default="--"/></td>
+                                <td><c:out value="${entry.glCode}" default="--"/></td>
+                                <td class="text-end fw-bold"><c:out value="${entry.amount}"/></td>
+                                <td class="text-end"><c:out value="${entry.balanceAfter}"/></td>
+                                <td><c:out value="${entry.businessDate}"/></td>
+                                <td><c:out value="${entry.voucherId}" default="--"/></td>
                                 <td>
                                     <c:choose>
-                                        <c:when test="${le.reversalOfEntryId != null}"><code><c:out value="${le.reversalOfEntryId}"/></code></c:when>
+                                        <c:when test="${entry.reversalOfEntryId != null}"><code><c:out value="${entry.reversalOfEntryId}"/></code></c:when>
                                         <c:otherwise><span class="text-muted">--</span></c:otherwise>
                                     </c:choose>
                                 </td>
-                                <td><c:out value="${le.postingTime}"/></td>
+                                <td><c:out value="${entry.postingTime}"/></td>
                             </tr>
                             </c:forEach>
                         </tbody>
