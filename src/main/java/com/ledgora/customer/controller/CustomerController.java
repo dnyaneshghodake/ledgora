@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
@@ -41,6 +42,7 @@ public class CustomerController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String listCustomers(
             @RequestParam(value = "search", required = false) String search,
             @RequestParam(value = "kycStatus", required = false) String kycStatus,
@@ -79,6 +81,7 @@ public class CustomerController {
     }
 
     @GetMapping("/create")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String createForm(Model model) {
         model.addAttribute("customerDTO", new CustomerDTO());
         model.addAttribute("freezeLevels", FreezeLevel.values());
@@ -86,6 +89,7 @@ public class CustomerController {
     }
 
     @PostMapping("/create")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String createCustomer(
             @Valid @ModelAttribute("customerDTO") CustomerDTO dto,
             BindingResult result,
@@ -112,6 +116,7 @@ public class CustomerController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String viewCustomer(@PathVariable Long id, Model model) {
         Customer customer =
                 customerService
@@ -163,6 +168,7 @@ public class CustomerController {
     }
 
     @GetMapping("/{id}/edit")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String editForm(@PathVariable Long id, Model model) {
         Customer customer =
                 customerService
@@ -186,6 +192,7 @@ public class CustomerController {
     }
 
     @PostMapping("/{id}/edit")
+    @PreAuthorize("hasAnyRole('MAKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String updateCustomer(
             @PathVariable Long id,
             @Valid @ModelAttribute("customerDTO") CustomerDTO dto,
@@ -208,6 +215,7 @@ public class CustomerController {
     }
 
     @PostMapping("/{id}/kyc")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS')")
     public String updateKycStatus(
             @PathVariable Long id,
             @RequestParam String kycStatus,
@@ -222,6 +230,7 @@ public class CustomerController {
     }
 
     @PostMapping("/{id}/freeze")
+    @PreAuthorize("hasAnyRole('MAKER', 'ADMIN', 'MANAGER', 'OPERATIONS')")
     public String freezeCustomer(
             @PathVariable Long id,
             @RequestParam String freezeLevel,
@@ -238,6 +247,7 @@ public class CustomerController {
     }
 
     @PostMapping("/{id}/approve")
+    @PreAuthorize("hasAnyRole('CHECKER', 'ADMIN', 'MANAGER')")
     public String approveCustomer(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             customerService.approveCustomer(id);

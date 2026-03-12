@@ -69,6 +69,13 @@ public class Customer {
     @JoinColumn(name = "created_by")
     private User createdBy;
 
+    /**
+     * Optimistic locking — prevents concurrent approval of the same customer from two sessions.
+     */
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

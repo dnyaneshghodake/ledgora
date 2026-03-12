@@ -240,8 +240,12 @@ public class CustomerService {
         Customer customer = requireCustomer(customerId);
 
         User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot approve customer: approver identity could not be resolved");
+        }
         if (customer.getCreatedBy() != null
-                && currentUser != null
                 && customer.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new com.ledgora.common.exception.BusinessException(
                     "MAKER_CHECKER_VIOLATION",
@@ -251,19 +255,15 @@ public class CustomerService {
         customer.setKycStatus("VERIFIED");
         Customer saved = customerRepository.save(customer);
 
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "CUSTOMER_APPROVE",
                 "CUSTOMER",
                 customerId,
                 "Customer approved: " + customer.getFirstName() + " " + customer.getLastName(),
                 null);
 
-        log.info(
-                "Customer {} approved by user {}",
-                customerId,
-                currentUser != null ? currentUser.getUsername() : "system");
+        log.info("Customer {} approved by user {}", customerId, currentUser.getUsername());
         return saved;
     }
 
@@ -273,8 +273,12 @@ public class CustomerService {
         Customer customer = requireCustomer(customerId);
 
         User currentUser = getCurrentUser();
+        if (currentUser == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot reject customer: reviewer identity could not be resolved");
+        }
         if (customer.getCreatedBy() != null
-                && currentUser != null
                 && customer.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new com.ledgora.common.exception.BusinessException(
                     "MAKER_CHECKER_VIOLATION",
@@ -284,19 +288,15 @@ public class CustomerService {
         customer.setKycStatus("REJECTED");
         Customer saved = customerRepository.save(customer);
 
-        Long userId = currentUser != null ? currentUser.getId() : null;
         auditService.logEvent(
-                userId,
+                currentUser.getId(),
                 "CUSTOMER_REJECT",
                 "CUSTOMER",
                 customerId,
                 "Customer rejected: " + customer.getFirstName() + " " + customer.getLastName(),
                 null);
 
-        log.info(
-                "Customer {} rejected by user {}",
-                customerId,
-                currentUser != null ? currentUser.getUsername() : "system");
+        log.info("Customer {} rejected by user {}", customerId, currentUser.getUsername());
         return saved;
     }
 
