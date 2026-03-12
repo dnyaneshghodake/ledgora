@@ -200,7 +200,9 @@ class LedgoraMultiTenantIsolationTest {
     void testVoucherListTenantScoped() {
         TestData data1 = setupFullTestData("MTI-05A");
         TestData data2 = setupFullTestData("MTI-05B");
+        TenantContextHolder.setTenantId(data1.tenant.getId());
         seedBalance(data1.account.getId(), "50000.0000");
+        TenantContextHolder.setTenantId(data2.tenant.getId());
         seedBalance(data2.account.getId(), "50000.0000");
 
         // Switch context to tenant 1 before creating voucher
