@@ -533,9 +533,13 @@ public class TransactionService {
         }
 
         User checker = getCurrentUser();
+        if (checker == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot approve transaction: approver identity could not be resolved");
+        }
         // Maker-checker enforcement: checker must differ from maker
         if (transaction.getMaker() != null
-                && checker != null
                 && transaction.getMaker().getId().equals(checker.getId())) {
             throw new com.ledgora.common.exception.BusinessException(
                     "MAKER_CHECKER_VIOLATION",
@@ -647,9 +651,8 @@ public class TransactionService {
         transaction.setCheckerRemarks(remarks);
         transactionRepository.save(transaction);
 
-        Long userId = checker != null ? checker.getId() : null;
         auditService.logTransaction(
-                userId,
+                checker.getId(),
                 transaction.getId(),
                 transaction.getTransactionRef(),
                 txnType.name() + "_APPROVED");
@@ -657,7 +660,7 @@ public class TransactionService {
         log.info(
                 "Transaction {} approved and posted by checker {}",
                 transaction.getTransactionRef(),
-                checker != null ? checker.getUsername() : "system");
+                checker.getUsername());
         return transaction;
     }
 
@@ -687,9 +690,13 @@ public class TransactionService {
         }
 
         User checker = getCurrentUser();
+        if (checker == null) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "IDENTITY_REQUIRED",
+                    "Cannot reject transaction: reviewer identity could not be resolved");
+        }
         // Maker-checker enforcement: checker must differ from maker for rejection too
         if (transaction.getMaker() != null
-                && checker != null
                 && transaction.getMaker().getId().equals(checker.getId())) {
             throw new com.ledgora.common.exception.BusinessException(
                     "MAKER_CHECKER_VIOLATION",
