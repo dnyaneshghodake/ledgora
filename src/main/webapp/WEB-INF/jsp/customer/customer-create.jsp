@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <%@ include file="../layout/footer.jsp" %>
-                    <small class="text-muted">PEP flag available in Customer 360  view (future enhancement).</small>
+  view (future enhancement).</small>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Status</label>
