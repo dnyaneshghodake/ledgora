@@ -22,18 +22,21 @@ public class DashboardService {
     private final AuthService authService;
     private final SettlementService settlementService;
     private final ApprovalService approvalService;
+    private final com.ledgora.governance.service.ConfigGovernanceService configGovernanceService;
 
     public DashboardService(
             AccountService accountService,
             TransactionService transactionService,
             AuthService authService,
             SettlementService settlementService,
-            ApprovalService approvalService) {
+            ApprovalService approvalService,
+            com.ledgora.governance.service.ConfigGovernanceService configGovernanceService) {
         this.accountService = accountService;
         this.transactionService = transactionService;
         this.authService = authService;
         this.settlementService = settlementService;
         this.approvalService = approvalService;
+        this.configGovernanceService = configGovernanceService;
     }
 
     public DashboardDTO getDashboardData() {
@@ -68,6 +71,7 @@ public class DashboardService {
                 .completedSettlements(settlementService.countByStatus(SettlementStatus.COMPLETED))
                 .pendingApprovals(approvalService.getPendingRequests().size())
                 .pendingTransactionApprovals(transactionService.countPendingApproval())
+                .pendingConfigChanges(configGovernanceService.countPending())
                 .build();
     }
 }

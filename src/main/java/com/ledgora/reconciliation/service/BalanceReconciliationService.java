@@ -18,24 +18,26 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * CBS-grade Balance Reconciliation Service. Validates that every account's cached
- * balance field matches the true ledger balance (SUM credits − SUM debits).
+ * CBS-grade Balance Reconciliation Service. Validates that every account's cached balance field
+ * matches the true ledger balance (SUM credits − SUM debits).
  *
  * <p>Runs as:
+ *
  * <ul>
  *   <li>Scheduled job every 5 minutes (lightweight — checks tenant accounts)
  *   <li>EOD pre-close validation (blocks day close if mismatch exceeds threshold)
  * </ul>
  *
  * <p>On mismatch detection:
+ *
  * <ol>
  *   <li>Log to reconciliation_exceptions table
  *   <li>Auto-correct account.balance to match ledger
  *   <li>Mark exception as auto-corrected + resolved
  * </ol>
  *
- * <p>EOD blocking: if total unresolved mismatch > EOD_BLOCK_THRESHOLD, day close
- * is prevented until manual review.
+ * <p>EOD blocking: if total unresolved mismatch > EOD_BLOCK_THRESHOLD, day close is prevented until
+ * manual review.
  */
 @Service
 public class BalanceReconciliationService {
@@ -48,27 +50,36 @@ public class BalanceReconciliationService {
     private final AccountRepository accountRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final ReconciliationExceptionRepository exceptionRepository;
+    private final com.ledgora.tenant.repository.TenantRepository tenantRepository;
 
     public BalanceReconciliationService(
             AccountRepository accountRepository,
             LedgerEntryRepository ledgerEntryRepository,
-            ReconciliationExceptionRepository exceptionRepository) {
+            ReconciliationExceptionRepository exceptionRepository,
+            com.ledgora.tenant.repository.TenantRepository tenantRepository) {
         this.accountRepository = accountRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.exceptionRepository = exceptionRepository;
+        this.tenantRepository = tenantRepository;
     }
 
     /**
-     * Scheduled reconciliation — runs every 5 minutes.
-     * Lightweight: processes all accounts for tenant ID 1 (default tenant).
-     * In production, this would iterate all active tenants.
+     * Scheduled reconciliation — runs every 5 minutes. Iterates all active tenants to ensure
+     * every tenant's account balances are validated against the ledger.
      */
     @Scheduled(fixedRate = 300000) // 5 minutes
     public void scheduledReconciliation() {
-        try {
-            reconcileTenant(1L, LocalDate.now());
-        } catch (Exception e) {
-            log.error("Scheduled reconciliation failed: {}", e.getMessage());
+        List<com.ledgora.tenant.entity.Tenant> activeTenants =
+                tenantRepository.findByStatus("ACTIVE");
+        for (com.ledgora.tenant.entity.Tenant tenant : activeTenants) {
+            try {
+                reconcileTenant(tenant.getId(), LocalDate.now());
+            } catch (Exception e) {
+                log.error(
+                        "Scheduled reconciliation failed for tenant {}: {}",
+                        tenant.getId(),
+                        e.getMessage());
+            }
         }
     }
 
@@ -94,15 +105,16 @@ public class BalanceReconciliationService {
                 BigDecimal mismatch = cachedBalance.subtract(ledgerBalance).abs();
 
                 // Log exception
-                ReconciliationException exception = ReconciliationException.builder()
-                        .tenantId(tenantId)
-                        .accountId(account.getId())
-                        .accountNumber(account.getAccountNumber())
-                        .businessDate(businessDate)
-                        .cachedBalance(cachedBalance)
-                        .ledgerBalance(ledgerBalance)
-                        .mismatchAmount(mismatch)
-                        .build();
+                ReconciliationException exception =
+                        ReconciliationException.builder()
+                                .tenantId(tenantId)
+                                .accountId(account.getId())
+                                .accountNumber(account.getAccountNumber())
+                                .businessDate(businessDate)
+                                .cachedBalance(cachedBalance)
+                                .ledgerBalance(ledgerBalance)
+                                .mismatchAmount(mismatch)
+                                .build();
 
                 // Auto-correct: set account.balance to ledger truth
                 account.setBalance(ledgerBalance);
@@ -116,8 +128,12 @@ public class BalanceReconciliationService {
 
                 exceptionRepository.save(exception);
 
-                log.warn("RECONCILIATION MISMATCH: account={} cached={} ledger={} mismatch={} → AUTO-CORRECTED",
-                        account.getAccountNumber(), cachedBalance, ledgerBalance, mismatch);
+                log.warn(
+                        "RECONCILIATION MISMATCH: account={} cached={} ledger={} mismatch={} → AUTO-CORRECTED",
+                        account.getAccountNumber(),
+                        cachedBalance,
+                        ledgerBalance,
+                        mismatch);
 
                 mismatches++;
                 corrected++;
@@ -125,18 +141,23 @@ public class BalanceReconciliationService {
         }
 
         if (mismatches > 0) {
-            log.info("Reconciliation for tenant {}: {} mismatches found, {} auto-corrected",
-                    tenantId, mismatches, corrected);
+            log.info(
+                    "Reconciliation for tenant {}: {} mismatches found, {} auto-corrected",
+                    tenantId,
+                    mismatches,
+                    corrected);
         } else {
-            log.debug("Reconciliation for tenant {}: all {} accounts balanced", tenantId, accounts.size());
+            log.debug(
+                    "Reconciliation for tenant {}: all {} accounts balanced",
+                    tenantId,
+                    accounts.size());
         }
 
         return mismatches;
     }
 
     /**
-     * EOD pre-close validation. Blocks day close if unresolved mismatches
-     * exceed the threshold.
+     * EOD pre-close validation. Blocks day close if unresolved mismatches exceed the threshold.
      *
      * @param tenantId the tenant to validate
      * @param businessDate the business date being closed
@@ -164,17 +185,22 @@ public class BalanceReconciliationService {
                         tenantId, businessDate);
 
         if (unresolvedCount > 0) {
-            log.warn("EOD validation: {} unresolved exceptions for tenant {} date {} (within threshold)",
-                    unresolvedCount, tenantId, businessDate);
+            log.warn(
+                    "EOD validation: {} unresolved exceptions for tenant {} date {} (within threshold)",
+                    unresolvedCount,
+                    tenantId,
+                    businessDate);
         } else {
-            log.info("EOD validation passed: all accounts reconciled for tenant {} date {}",
-                    tenantId, businessDate);
+            log.info(
+                    "EOD validation passed: all accounts reconciled for tenant {} date {}",
+                    tenantId,
+                    businessDate);
         }
     }
 
     /**
-     * Compute the true ledger balance for an account.
-     * True balance = SUM(CREDIT amounts) - SUM(DEBIT amounts) from LedgerEntry.
+     * Compute the true ledger balance for an account. True balance = SUM(CREDIT amounts) -
+     * SUM(DEBIT amounts) from LedgerEntry.
      */
     private BigDecimal computeLedgerBalance(Long accountId) {
         BigDecimal credits = BigDecimal.ZERO;
@@ -192,16 +218,12 @@ public class BalanceReconciliationService {
         return credits.subtract(debits);
     }
 
-    /**
-     * Get all exceptions for a tenant on a date (for EOD validation dashboard).
-     */
+    /** Get all exceptions for a tenant on a date (for EOD validation dashboard). */
     public List<ReconciliationException> getExceptions(Long tenantId, LocalDate businessDate) {
         return exceptionRepository.findByTenantIdAndBusinessDate(tenantId, businessDate);
     }
 
-    /**
-     * Get all unresolved exceptions for a tenant (for governance dashboard).
-     */
+    /** Get all unresolved exceptions for a tenant (for governance dashboard). */
     public List<ReconciliationException> getUnresolvedException(Long tenantId) {
         return exceptionRepository.findUnresolvedByTenantId(tenantId);
     }

@@ -29,6 +29,10 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
 
     Optional<Account> findByAccountNumberAndTenantId(String accountNumber, Long tenantId);
 
+    /** Tenant-isolated lookup by primary key. Use instead of findById() for CBS operations. */
+    @Query("SELECT a FROM Account a WHERE a.id = :id AND a.tenant.id = :tenantId")
+    Optional<Account> findByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
+
     List<Account> findByTenantId(Long tenantId);
 
     List<Account> findByTenantIdAndStatus(Long tenantId, AccountStatus status);

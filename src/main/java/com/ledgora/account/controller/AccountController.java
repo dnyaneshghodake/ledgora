@@ -249,10 +249,13 @@ public class AccountController {
             model.addAttribute("recentTransactions", List.of());
         }
 
-        // Load freeze history from audit logs
+        // Load freeze history from audit logs (tenant-isolated)
+        Long auditTenantId = TenantContextHolder.getRequiredTenantId();
         try {
             List<AuditLog> freezeLogs =
-                    auditLogRepository.findByEntityAndEntityId("ACCOUNT", id).stream()
+                    auditLogRepository
+                            .findByTenantIdAndEntityAndEntityId(auditTenantId, "ACCOUNT", id)
+                            .stream()
                             .filter(
                                     log ->
                                             log.getAction() != null
@@ -279,10 +282,12 @@ public class AccountController {
         } catch (Exception e) {
             model.addAttribute("freezeHistory", List.of());
         }
-        // Load lien history from audit logs
+        // Load lien history from audit logs (tenant-isolated)
         try {
             List<AuditLog> lienLogs =
-                    auditLogRepository.findByEntityAndEntityId("ACCOUNT", id).stream()
+                    auditLogRepository
+                            .findByTenantIdAndEntityAndEntityId(auditTenantId, "ACCOUNT", id)
+                            .stream()
                             .filter(
                                     log ->
                                             log.getAction() != null

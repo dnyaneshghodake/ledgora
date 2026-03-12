@@ -109,31 +109,19 @@ public class InterBranchClearingService {
         return transfer;
     }
 
-    /** Mark transfer as SENT (Branch A leg posted). */
+    /** Mark transfer as SENT (Branch A leg posted). Tenant-isolated. */
     @Transactional
     public void markSent(Long transferId) {
-        InterBranchTransfer transfer =
-                ibcRepository
-                        .findById(transferId)
-                        .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "IBC transfer not found: " + transferId));
+        InterBranchTransfer transfer = requireTransfer(transferId);
         transfer.setStatus(InterBranchTransferStatus.SENT);
         ibcRepository.save(transfer);
         log.info("InterBranchTransfer {} marked SENT", transferId);
     }
 
-    /** Mark transfer as RECEIVED (Branch B leg posted). */
+    /** Mark transfer as RECEIVED (Branch B leg posted). Tenant-isolated. */
     @Transactional
     public void markReceived(Long transferId) {
-        InterBranchTransfer transfer =
-                ibcRepository
-                        .findById(transferId)
-                        .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "IBC transfer not found: " + transferId));
+        InterBranchTransfer transfer = requireTransfer(transferId);
         if (transfer.getStatus() != InterBranchTransferStatus.SENT) {
             throw new RuntimeException(
                     "IBC transfer "
@@ -146,20 +134,26 @@ public class InterBranchClearingService {
         log.info("InterBranchTransfer {} marked RECEIVED", transferId);
     }
 
-    /** Mark transfer as FAILED with reason. */
+    /** Mark transfer as FAILED with reason. Tenant-isolated. */
     @Transactional
     public void markFailed(Long transferId, String reason) {
-        InterBranchTransfer transfer =
-                ibcRepository
-                        .findById(transferId)
-                        .orElseThrow(
-                                () ->
-                                        new RuntimeException(
-                                                "IBC transfer not found: " + transferId));
+        InterBranchTransfer transfer = requireTransfer(transferId);
         transfer.setStatus(InterBranchTransferStatus.FAILED);
         transfer.setFailureReason(reason);
         ibcRepository.save(transfer);
         log.warn("InterBranchTransfer {} marked FAILED: {}", transferId, reason);
+    }
+
+    /** Tenant-isolated lookup. Throws if not found or belongs to a different tenant. */
+    private InterBranchTransfer requireTransfer(Long transferId) {
+        Long tenantId =
+                com.ledgora.tenant.context.TenantContextHolder.getRequiredTenantId();
+        return ibcRepository
+                .findByIdAndTenantId(transferId, tenantId)
+                .orElseThrow(
+                        () ->
+                                new RuntimeException(
+                                        "IBC transfer not found: " + transferId));
     }
 
     /**

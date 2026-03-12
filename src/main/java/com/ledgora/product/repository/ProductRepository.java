@@ -29,7 +29,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findByTenantIdAndStatus(
             @Param("tenantId") Long tenantId, @Param("status") ProductStatus status);
 
-    @Query("SELECT p FROM Product p WHERE p.tenant.id = :tenantId AND p.productType = :productType AND p.status = 'ACTIVE'")
+    @Query(
+            "SELECT p FROM Product p WHERE p.tenant.id = :tenantId AND p.productType = :productType AND p.status = 'ACTIVE'")
     List<Product> findActiveByTenantIdAndType(
             @Param("tenantId") Long tenantId, @Param("productType") ProductType productType);
 

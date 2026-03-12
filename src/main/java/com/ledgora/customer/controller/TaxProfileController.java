@@ -18,7 +18,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /** Controller for managing Customer Tax Profiles (PAN, Aadhaar, GST, TDS). */
 @Controller
-@RequestMapping("/tax-profiles")
+@RequestMapping({"/tax-profiles", "/tax"})
 public class TaxProfileController {
 
     private final CustomerRepository customerRepository;
@@ -35,6 +35,18 @@ public class TaxProfileController {
         this.customerMasterRepository = customerMasterRepository;
         this.taxProfileRepository = taxProfileRepository;
         this.tenantService = tenantService;
+    }
+
+    /** List all tax profiles for the current tenant. */
+    @GetMapping
+    public String listTaxProfiles(Model model) {
+        Long tenantId = TenantContextHolder.getTenantId();
+        if (tenantId != null) {
+            java.util.List<CustomerTaxProfile> profiles =
+                    taxProfileRepository.findByTenantId(tenantId);
+            model.addAttribute("taxProfiles", profiles);
+        }
+        return "tax/tax-profiles";
     }
 
     @GetMapping("/create")

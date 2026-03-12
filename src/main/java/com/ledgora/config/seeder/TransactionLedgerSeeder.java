@@ -133,12 +133,21 @@ public class TransactionLedgerSeeder {
             if (bulkAcct == null) continue;
             BigDecimal amt = new BigDecimal((i * 1000) + ".0000");
             BigDecimal balAfter = bulkAcct.getBalance().add(amt);
-            txnAndJournal(tenant, teller, biz,
+            txnAndJournal(
+                    tenant,
+                    teller,
+                    biz,
                     String.format("DEP-SEED-%04d", i),
-                    TransactionType.DEPOSIT, TransactionChannel.TELLER,
-                    null, bulkAcct, amt,
+                    TransactionType.DEPOSIT,
+                    TransactionChannel.TELLER,
+                    null,
+                    bulkAcct,
+                    amt,
                     "Bulk Deposit - " + bulkAcct.getAccountName(),
-                    "1100", "2110", balAfter, balAfter);
+                    "1100",
+                    "2110",
+                    balAfter,
+                    balAfter);
         }
 
         log.info("  [Transactions] 30 sample transactions with balanced ledger journals created");

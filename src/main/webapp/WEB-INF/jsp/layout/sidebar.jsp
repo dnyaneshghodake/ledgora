@@ -225,6 +225,15 @@
                         </a>
                     </li>
                     </c:if>
+                    <%-- Teller: view their own pending transactions --%>
+                    <c:if test="${sessionScope.isTeller}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/transactions/pending" class="cbs-nav-link" data-page="transactions/pending">
+                            <i class="bi bi-hourglass-split"></i>
+                            <span>My Pending Transactions</span>
+                        </a>
+                    </li>
+                    </c:if>
                 </ul>
             </li>
             </c:if>
@@ -393,9 +402,17 @@
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/settlement/dashboard" class="cbs-nav-link" data-page="settlement/dashboard">
                             <i class="bi bi-gear-wide-connected"></i>
-                            <span>Settlement</span>
+                            <span>Settlement Dashboard</span>
                         </a>
                     </li>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/settlements/process" class="cbs-nav-link cbs-lockable" data-page="settlements/process">
+                            <i class="bi bi-play-fill"></i>
+                            <span>Run Settlement</span>
+                        </a>
+                    </li>
+                    </c:if>
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/settlements" class="cbs-nav-link" data-page="settlements">
                             <i class="bi bi-check2-square"></i>
@@ -406,7 +423,7 @@
             </li>
             </c:if>
 
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin || sessionScope.isOperations}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="batch">
                     <i class="bi bi-collection"></i>
@@ -414,12 +431,15 @@
                     <i class="bi bi-chevron-down cbs-nav-arrow"></i>
                 </a>
                 <ul class="cbs-nav-submenu" id="group-batch">
+                    <%-- Day Begin and EOD execution require management roles --%>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/eod/day-begin" class="cbs-nav-link" data-page="eod/day-begin">
                             <i class="bi bi-sunrise"></i>
                             <span>Day Begin</span>
                         </a>
                     </li>
+                    </c:if>
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/batches" class="cbs-nav-link" data-page="batches">
                             <i class="bi bi-collection"></i>
@@ -432,12 +452,14 @@
                             <span>EOD Validation</span>
                         </a>
                     </li>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/eod/run" class="cbs-nav-link" data-page="eod/run">
                             <i class="bi bi-play-circle"></i>
                             <span>Execute EOD</span>
                         </a>
                     </li>
+                    </c:if>
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/eod/status" class="cbs-nav-link" data-page="eod/status">
                             <i class="bi bi-calendar-check"></i>
@@ -448,7 +470,7 @@
             </li>
             </c:if>
 
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin || sessionScope.isAuditor}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="reports">
                     <i class="bi bi-file-earmark-bar-graph"></i>
@@ -462,9 +484,27 @@
                             <span>Financial Reports</span>
                         </a>
                     </li>
-                    <c:if test="${sessionScope.isAdmin || sessionScope.isOperations}">
                     <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/admin/ledger/view/validate" class="cbs-nav-link" data-page="admin/ledger">
+                        <a href="${pageContext.request.contextPath}/reports/trial-balance" class="cbs-nav-link" data-page="reports/trial-balance">
+                            <i class="bi bi-calculator"></i>
+                            <span>Trial Balance</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/reports/daily-summary" class="cbs-nav-link" data-page="reports/daily-summary">
+                            <i class="bi bi-bar-chart-line"></i>
+                            <span>Daily Summary</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/reports/liquidity" class="cbs-nav-link" data-page="reports/liquidity">
+                            <i class="bi bi-droplet-half"></i>
+                            <span>Liquidity Report</span>
+                        </a>
+                    </li>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isOperations || sessionScope.isAuditor}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/audit/validation" class="cbs-nav-link" data-page="audit/validation">
                             <i class="bi bi-shield-check"></i>
                             <span>Ledger Validation</span>
                         </a>
@@ -501,7 +541,7 @@
             </c:if>
 
             <%-- ═══ Audit & Governance Section ═══ --%>
-            <c:if test="${sessionScope.isAuditor || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isSuperAdmin}">
+            <c:if test="${sessionScope.isAuditor || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isSuperAdmin || sessionScope.isChecker}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="audit-governance">
                     <i class="bi bi-shield-check"></i>
@@ -533,6 +573,15 @@
                             <c:if test="${sessionScope.pendingApprovals != null && sessionScope.pendingApprovals > 0}">
                                 <span class="cbs-badge">${sessionScope.pendingApprovals}</span>
                             </c:if>
+                        </a>
+                    </li>
+                    </c:if>
+                    <%-- Config Governance (CBS Tier-1: maker-checker on parameter changes) --%>
+                    <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/governance" class="cbs-nav-link" data-page="governance">
+                            <i class="bi bi-sliders"></i>
+                            <span>Config Governance</span>
                         </a>
                     </li>
                     </c:if>
@@ -634,7 +683,7 @@
 
     <div class="cbs-sidebar-footer">
         <div class="cbs-sidebar-version">
-            <small>Ledgora CBS v2.7</small>
+            <small>Ledgora CBS v2.8</small>
         </div>
     </div>
 </aside>

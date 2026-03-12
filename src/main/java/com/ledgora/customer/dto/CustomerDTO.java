@@ -2,7 +2,9 @@ package com.ledgora.customer.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import java.time.LocalDate;
 import lombok.*;
 
@@ -25,7 +27,10 @@ public class CustomerDTO {
             message = "Name must contain only alphabets, spaces, and dots")
     private String lastName;
 
+    @Past(message = "Date of birth must be in the past")
     private LocalDate dob;
+
+    @Size(max = 50, message = "National ID must not exceed 50 characters")
     private String nationalId;
     private String kycStatus;
 

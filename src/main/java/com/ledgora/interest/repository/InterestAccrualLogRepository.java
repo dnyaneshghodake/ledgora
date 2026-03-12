@@ -14,7 +14,8 @@ public interface InterestAccrualLogRepository extends JpaRepository<InterestAccr
     boolean existsByTenantIdAndAccountIdAndBusinessDate(
             Long tenantId, Long accountId, LocalDate businessDate);
 
-    @Query("SELECT ial FROM InterestAccrualLog ial WHERE ial.tenantId = :tenantId AND ial.businessDate = :date")
+    @Query(
+            "SELECT ial FROM InterestAccrualLog ial WHERE ial.tenantId = :tenantId AND ial.businessDate = :date")
     List<InterestAccrualLog> findByTenantIdAndBusinessDate(
             @Param("tenantId") Long tenantId, @Param("date") LocalDate date);
 

@@ -25,6 +25,11 @@ public interface GeneralLedgerRepository extends JpaRepository<GeneralLedger, Lo
 
     List<GeneralLedger> findByIsActive(Boolean isActive);
 
+    /** Tenant-isolated lookup by primary key. Use instead of findById() for CBS operations. */
+    @Query("SELECT gl FROM GeneralLedger gl WHERE gl.id = :id AND gl.tenant.id = :tenantId")
+    Optional<GeneralLedger> findByIdAndTenantId(
+            @Param("id") Long id, @Param("tenantId") Long tenantId);
+
     @Query(
             "SELECT gl FROM GeneralLedger gl WHERE gl.parent IS NULL AND gl.isActive = true ORDER BY gl.glCode")
     List<GeneralLedger> findRootAccounts();

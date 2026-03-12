@@ -1,6 +1,5 @@
 package com.ledgora.observability;
 
-import com.ledgora.common.service.BusinessDateService;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.transaction.repository.TransactionRepository;
 import java.math.BigDecimal;
@@ -18,24 +17,19 @@ public class LedgoraHealthIndicator implements HealthIndicator {
 
     private final LedgerEntryRepository ledgerEntryRepository;
     private final TransactionRepository transactionRepository;
-    private final BusinessDateService businessDateService;
 
     public LedgoraHealthIndicator(
             LedgerEntryRepository ledgerEntryRepository,
-            TransactionRepository transactionRepository,
-            BusinessDateService businessDateService) {
+            TransactionRepository transactionRepository) {
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.transactionRepository = transactionRepository;
-        this.businessDateService = businessDateService;
     }
 
     @Override
     public Health health() {
         try {
-            // Check business date
-            LocalDate businessDate = businessDateService.getCurrentBusinessDate();
-
             // Check ledger integrity for today
+            LocalDate businessDate = LocalDate.now();
             BigDecimal todayDebits = ledgerEntryRepository.sumDebitsByBusinessDate(businessDate);
             BigDecimal todayCredits = ledgerEntryRepository.sumCreditsByBusinessDate(businessDate);
             boolean ledgerBalanced = todayDebits.compareTo(todayCredits) == 0;

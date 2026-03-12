@@ -74,13 +74,10 @@ public class BatchService {
                         });
     }
 
-    /** Update batch totals when a transaction is assigned to the batch. */
+    /** Update batch totals when a transaction is assigned to the batch. Tenant-isolated. */
     @Transactional
     public void updateBatchTotals(Long batchId, BigDecimal debitAmount, BigDecimal creditAmount) {
-        TransactionBatch batch =
-                batchRepository
-                        .findById(batchId)
-                        .orElseThrow(() -> new RuntimeException("Batch not found: " + batchId));
+        TransactionBatch batch = requireBatch(batchId);
         if (batch.getStatus() != BatchStatus.OPEN) {
             throw new RuntimeException("Cannot update closed/settled batch: " + batchId);
         }
@@ -118,14 +115,11 @@ public class BatchService {
 
     /**
      * Close a single batch manually (for batch status UI). Validates before closing: all vouchers
-     * balanced, no drafts, no pending approvals.
+     * balanced, no drafts, no pending approvals. Tenant-isolated.
      */
     @Transactional
     public TransactionBatch closeBatch(Long batchId) {
-        TransactionBatch batch =
-                batchRepository
-                        .findById(batchId)
-                        .orElseThrow(() -> new RuntimeException("Batch not found: " + batchId));
+        TransactionBatch batch = requireBatch(batchId);
         if (batch.getStatus() != BatchStatus.OPEN) {
             throw new RuntimeException(
                     "Batch " + batchId + " is not OPEN. Current: " + batch.getStatus());
@@ -170,12 +164,9 @@ public class BatchService {
         return errors;
     }
 
-    /** Get batch close validation results for a specific batch (for UI display). */
+    /** Get batch close validation results for a specific batch (for UI display). Tenant-isolated. */
     public List<String> getBatchCloseValidation(Long batchId) {
-        TransactionBatch batch =
-                batchRepository
-                        .findById(batchId)
-                        .orElseThrow(() -> new RuntimeException("Batch not found: " + batchId));
+        TransactionBatch batch = requireBatch(batchId);
         return validateBatchClose(batch);
     }
 
@@ -227,6 +218,23 @@ public class BatchService {
 
     public List<TransactionBatch> getAllBatchesByTenant(Long tenantId) {
         return batchRepository.findByTenantId(tenantId);
+    }
+
+    /**
+     * Tenant-isolated batch lookup. Uses tenant context when available (CBS operations),
+     * falls back to findById for system-internal calls (EOD, seeder, tests without context).
+     */
+    private TransactionBatch requireBatch(Long batchId) {
+        Long tenantId = com.ledgora.tenant.context.TenantContextHolder.getTenantId();
+        if (tenantId != null) {
+            return batchRepository
+                    .findByIdAndTenantId(batchId, tenantId)
+                    .orElseThrow(() -> new RuntimeException("Batch not found: " + batchId));
+        }
+        // No tenant context — system-internal call (EOD, scheduled jobs, tests)
+        return batchRepository
+                .findById(batchId)
+                .orElseThrow(() -> new RuntimeException("Batch not found: " + batchId));
     }
 
     /** Map transaction channel to batch type. */

@@ -71,12 +71,22 @@ public class GlBalanceService {
         };
     }
 
-    /** Recursively propagate balance changes to parent GL accounts. */
+    /**
+     * Recursively propagate balance changes to parent GL accounts.
+     * Uses tenant-isolated lookup when tenant context is available,
+     * falls back to findById for system-internal calls (EOD, tests, seeder).
+     */
     private void propagateToParent(GeneralLedger parent, BigDecimal debit, BigDecimal credit) {
         if (parent == null) return;
 
         // Re-fetch to get latest state
-        GeneralLedger parentGL = glRepository.findById(parent.getId()).orElse(null);
+        Long tenantId = com.ledgora.tenant.context.TenantContextHolder.getTenantId();
+        GeneralLedger parentGL;
+        if (tenantId != null) {
+            parentGL = glRepository.findByIdAndTenantId(parent.getId(), tenantId).orElse(null);
+        } else {
+            parentGL = glRepository.findById(parent.getId()).orElse(null);
+        }
         if (parentGL == null) return;
 
         BigDecimal delta = calculateDelta(parentGL.getAccountType(), debit, credit);

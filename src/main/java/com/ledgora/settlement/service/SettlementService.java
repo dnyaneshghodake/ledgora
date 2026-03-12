@@ -11,7 +11,6 @@ import com.ledgora.batch.service.BatchService;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.SettlementStatus;
 import com.ledgora.common.enums.TransactionStatus;
-import com.ledgora.common.service.BusinessDateService;
 import com.ledgora.events.SettlementCompletedEvent;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.reporting.dto.TrialBalanceReport;
@@ -48,7 +47,6 @@ public class SettlementService {
     private final AccountBalanceRepository accountBalanceRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final UserRepository userRepository;
-    private final BusinessDateService businessDateService;
     private final AuditService auditService;
     private final ReportingService reportingService;
     private final ApplicationEventPublisher eventPublisher;
@@ -63,7 +61,6 @@ public class SettlementService {
             AccountBalanceRepository accountBalanceRepository,
             LedgerEntryRepository ledgerEntryRepository,
             UserRepository userRepository,
-            BusinessDateService businessDateService,
             AuditService auditService,
             ReportingService reportingService,
             ApplicationEventPublisher eventPublisher,
@@ -76,7 +73,6 @@ public class SettlementService {
         this.accountBalanceRepository = accountBalanceRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.userRepository = userRepository;
-        this.businessDateService = businessDateService;
         this.auditService = auditService;
         this.reportingService = reportingService;
         this.eventPublisher = eventPublisher;
@@ -113,8 +109,6 @@ public class SettlementService {
             // Step 1: Set tenant day_status = DAY_CLOSING (stop transaction intake)
             log.info("Settlement [{}] Step 1: Setting tenant {} to DAY_CLOSING", ref, tenantId);
             tenantService.startDayClosing(tenantId);
-            // Also update system-level business date status
-            businessDateService.startDayClosing();
 
             // Step 2: Flush pending events (complete pending transactions)
             log.info("Settlement [{}] Step 2: Flushing pending transactions", ref);
@@ -247,8 +241,6 @@ public class SettlementService {
             log.info(
                     "Settlement [{}] Step 8: Advancing business date for tenant {}", ref, tenantId);
             tenantService.closeDayAndAdvance(tenantId);
-            // Also advance system-level business date
-            businessDateService.closeDayAndAdvance();
 
             // Publish settlement completed event (PART 3)
             eventPublisher.publishEvent(new SettlementCompletedEvent(this, settlement));

@@ -9,14 +9,13 @@ import java.time.LocalDateTime;
 import lombok.*;
 
 /**
- * CBS-grade Loan Schedule (amortization) entity. One row per installment.
- * Generated at loan disbursement using flat/reducing balance EMI calculation.
+ * CBS-grade Loan Schedule (amortization) entity. One row per installment. Generated at loan
+ * disbursement using flat/reducing balance EMI calculation.
  *
- * <p>DPD (Days Past Due) is updated nightly by EOD. NPA classification
- * triggers at DPD > 90 per RBI guidelines.
+ * <p>DPD (Days Past Due) is updated nightly by EOD. NPA classification triggers at DPD > 90 per RBI
+ * guidelines.
  *
- * <p>Unique constraint on (account_id, installment_number) prevents duplicate
- * schedule rows.
+ * <p>Unique constraint on (account_id, installment_number) prevents duplicate schedule rows.
  */
 @Entity
 @Table(

@@ -44,6 +44,7 @@ public class EodStateMachineService {
     private final TenantRepository tenantRepository;
     private final BatchService batchService;
     private final AuditService auditService;
+    private final com.ledgora.tenant.service.TenantOperationLockService operationLockService;
     private final org.springframework.context.ApplicationContext applicationContext;
 
     public EodStateMachineService(
@@ -53,6 +54,7 @@ public class EodStateMachineService {
             TenantRepository tenantRepository,
             BatchService batchService,
             AuditService auditService,
+            com.ledgora.tenant.service.TenantOperationLockService operationLockService,
             org.springframework.context.ApplicationContext applicationContext) {
         this.eodProcessRepository = eodProcessRepository;
         this.eodValidationService = eodValidationService;
@@ -60,6 +62,7 @@ public class EodStateMachineService {
         this.tenantRepository = tenantRepository;
         this.batchService = batchService;
         this.auditService = auditService;
+        this.operationLockService = operationLockService;
         this.applicationContext = applicationContext;
     }
 
@@ -72,12 +75,36 @@ public class EodStateMachineService {
     }
 
     /**
-     * Execute or resume EOD for a tenant. If an incomplete process exists for the current business
-     * date, it resumes from the last successful phase. If no process exists, starts fresh.
+     * Execute or resume EOD for a tenant. Acquires the tenant operation lock (SELECT...FOR UPDATE)
+     * to ensure mutual exclusion with other batch operations (Settlement, Reconciliation).
      *
-     * <p>Each phase commits independently — crash between phases is safe.
+     * <p>If an incomplete process exists for the current business date, it resumes from the last
+     * successful phase. If no process exists, starts fresh.
+     *
+     * <p>Each phase commits independently — crash between phases is safe. The operation lock is
+     * released in the finally block regardless of success or failure.
      */
     public void executeEod(Long tenantId) {
+        // Acquire exclusive operation lock — blocks if Settlement/Reconciliation is running
+        String username = "EOD_SYSTEM";
+        try {
+            username =
+                    org.springframework.security.core.context.SecurityContextHolder.getContext()
+                            .getAuthentication()
+                            .getName();
+        } catch (Exception ignored) {
+        }
+        operationLockService.acquireLock(tenantId, "EOD", username);
+
+        try {
+            doExecuteEod(tenantId);
+        } finally {
+            operationLockService.releaseLock(tenantId);
+        }
+    }
+
+    /** Internal EOD execution (called within the operation lock). */
+    private void doExecuteEod(Long tenantId) {
         Tenant tenant =
                 tenantRepository
                         .findById(tenantId)

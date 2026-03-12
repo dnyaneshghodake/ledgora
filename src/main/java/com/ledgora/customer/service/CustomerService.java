@@ -56,6 +56,36 @@ public class CustomerService {
      */
     @Transactional
     public Customer createCustomer(CustomerDTO dto) {
+        // ── RBI-grade field validations ──
+        // Age >= 18 for INDIVIDUAL customers
+        if (dto.getDob() != null) {
+            com.ledgora.common.validation.RbiFieldValidator.validateDob(dto.getDob());
+        }
+        if ("INDIVIDUAL".equals(dto.getCustomerType())) {
+            if (dto.getDob() == null) {
+                throw new com.ledgora.common.exception.BusinessException(
+                        "DOB_REQUIRED", "Date of Birth is mandatory for INDIVIDUAL customers");
+            }
+            // PAN mandatory for INDIVIDUAL (RBI KYC norms)
+            com.ledgora.common.validation.RbiFieldValidator.validatePanForIndividual(
+                    dto.getCustomerType(), dto.getPanNumber());
+            // Validate PAN format if provided
+            com.ledgora.common.validation.RbiFieldValidator.validatePanFormat(dto.getPanNumber());
+            // Validate Aadhaar format if provided
+            com.ledgora.common.validation.RbiFieldValidator.validateAadhaarFormat(dto.getAadhaarNumber());
+        }
+        if ("CORPORATE".equals(dto.getCustomerType())) {
+            // GST mandatory for CORPORATE
+            com.ledgora.common.validation.RbiFieldValidator.validateGstForCorporate(
+                    dto.getCustomerType(), dto.getGstNumber());
+            // Validate GST format if provided
+            com.ledgora.common.validation.RbiFieldValidator.validateGstFormat(dto.getGstNumber());
+        }
+        // Validate mobile number format
+        if (dto.getPhone() != null && !dto.getPhone().isBlank()) {
+            com.ledgora.common.validation.RbiFieldValidator.validateMobileNumber(dto.getPhone());
+        }
+
         if (dto.getNationalId() != null
                 && customerRepository.existsByNationalId(dto.getNationalId())) {
             throw new RuntimeException(
@@ -143,17 +173,11 @@ public class CustomerService {
 
     public org.springframework.data.domain.Page<Customer> getAllCustomersPaged(int page, int size) {
         return customerRepository.findByTenantId(
-                requireTenantId(),
-                org.springframework.data.domain.PageRequest.of(page, size));
+                requireTenantId(), org.springframework.data.domain.PageRequest.of(page, size));
     }
 
     public Optional<Customer> getCustomerById(Long id) {
-        return customerRepository
-                .findById(id)
-                .filter(
-                        c ->
-                                c.getTenant() != null
-                                        && requireTenantId().equals(c.getTenant().getId()));
+        return customerRepository.findByIdAndTenantId(id, requireTenantId());
     }
 
     public Optional<Customer> getCustomerByNationalId(String nationalId) {
@@ -275,21 +299,13 @@ public class CustomerService {
         return saved;
     }
 
-    /** Tenant-safe customer lookup. Throws if not found or cross-tenant. */
+    /** Tenant-safe customer lookup. Throws if not found or belongs to a different tenant. */
     private Customer requireCustomer(Long customerId) {
-        Customer customer =
-                customerRepository
-                        .findById(customerId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Customer not found: " + customerId));
         Long tenantId = requireTenantId();
-        if (customer.getTenant() == null || customer.getTenant().getId() == null) {
-            throw new RuntimeException("Customer tenant missing for customer: " + customerId);
-        }
-        if (!tenantId.equals(customer.getTenant().getId())) {
-            throw new RuntimeException("Cross-tenant customer access is not allowed");
-        }
-        return customer;
+        return customerRepository
+                .findByIdAndTenantId(customerId, tenantId)
+                .orElseThrow(
+                        () -> new RuntimeException("Customer not found: " + customerId));
     }
 
     private Long requireTenantId() {

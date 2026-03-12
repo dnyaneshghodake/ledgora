@@ -6,12 +6,12 @@ import java.time.LocalDateTime;
 import lombok.*;
 
 /**
- * CBS-grade snapshot of product rules captured at account-opening time. Once persisted, this
- * row is immutable — it records the exact product configuration (GL codes, version, type) that
- * was effective when the account was opened.
+ * CBS-grade snapshot of product rules captured at account-opening time. Once persisted, this row is
+ * immutable — it records the exact product configuration (GL codes, version, type) that was
+ * effective when the account was opened.
  *
- * <p>This decouples account behavior from live product changes: if the product's GL mapping
- * changes in a future version, existing accounts retain their original configuration.
+ * <p>This decouples account behavior from live product changes: if the product's GL mapping changes
+ * in a future version, existing accounts retain their original configuration.
  *
  * <p>One-to-one with Account (nullable for legacy accounts opened before the product engine).
  */

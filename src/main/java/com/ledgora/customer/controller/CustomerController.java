@@ -126,10 +126,14 @@ public class CustomerController {
             model.addAttribute("linkedAccounts", List.of());
         }
         model.addAttribute("freezeLevels", FreezeLevel.values());
-        // Load freeze history from audit logs
+        // Load freeze history from audit logs (tenant-isolated)
         try {
+            Long tenantId =
+                    com.ledgora.tenant.context.TenantContextHolder.getRequiredTenantId();
             List<AuditLog> freezeLogs =
-                    auditLogRepository.findByEntityAndEntityId("CUSTOMER", id).stream()
+                    auditLogRepository
+                            .findByTenantIdAndEntityAndEntityId(tenantId, "CUSTOMER", id)
+                            .stream()
                             .filter(
                                     log ->
                                             log.getAction() != null

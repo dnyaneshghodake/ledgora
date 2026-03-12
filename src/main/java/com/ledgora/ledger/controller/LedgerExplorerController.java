@@ -1,6 +1,5 @@
 package com.ledgora.ledger.controller;
 
-import com.ledgora.common.service.BusinessDateService;
 import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.ledger.repository.LedgerJournalRepository;
@@ -30,15 +29,12 @@ public class LedgerExplorerController {
 
     private final LedgerEntryRepository ledgerEntryRepository;
     private final LedgerJournalRepository ledgerJournalRepository;
-    private final BusinessDateService businessDateService;
 
     public LedgerExplorerController(
             LedgerEntryRepository ledgerEntryRepository,
-            LedgerJournalRepository ledgerJournalRepository,
-            BusinessDateService businessDateService) {
+            LedgerJournalRepository ledgerJournalRepository) {
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.ledgerJournalRepository = ledgerJournalRepository;
-        this.businessDateService = businessDateService;
     }
 
     @GetMapping("/explorer")
@@ -69,10 +65,9 @@ public class LedgerExplorerController {
             LocalDateTime endDateTime = dateTo.atTime(LocalTime.MAX);
             entries = ledgerEntryRepository.findByDateRange(startDateTime, endDateTime);
         } else {
-            // Default: show today's business date entries
-            LocalDate currentDate = businessDateService.getCurrentBusinessDate();
-            entries = ledgerEntryRepository.findByBusinessDate(currentDate);
-            businessDate = currentDate;
+            // Default: show today's entries
+            businessDate = LocalDate.now();
+            entries = ledgerEntryRepository.findByBusinessDate(businessDate);
         }
 
         // PART 12: Calculate totals with null-safe access for entries

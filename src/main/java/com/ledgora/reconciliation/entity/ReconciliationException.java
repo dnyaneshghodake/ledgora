@@ -7,10 +7,9 @@ import java.time.LocalDateTime;
 import lombok.*;
 
 /**
- * CBS-grade Reconciliation Exception log. Records mismatches between the cached
- * account.balance and the true ledger SUM(credits) - SUM(debits). Each row is
- * immutable — represents a point-in-time observation. Auto-correction actions
- * are recorded in the same row for full audit trail.
+ * CBS-grade Reconciliation Exception log. Records mismatches between the cached account.balance and
+ * the true ledger SUM(credits) - SUM(debits). Each row is immutable — represents a point-in-time
+ * observation. Auto-correction actions are recorded in the same row for full audit trail.
  */
 @Entity
 @Table(

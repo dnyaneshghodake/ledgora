@@ -205,14 +205,28 @@ public class CbsBalanceEngine {
                 .findByAccountId(accountId)
                 .orElseGet(
                         () -> {
-                            Account account =
-                                    accountRepository
-                                            .findById(accountId)
-                                            .orElseThrow(
-                                                    () ->
-                                                            new RuntimeException(
-                                                                    "Account not found: "
-                                                                            + accountId));
+                            Long tenantId =
+                                    com.ledgora.tenant.context.TenantContextHolder.getTenantId();
+                            Account account;
+                            if (tenantId != null) {
+                                account =
+                                        accountRepository
+                                                .findByIdAndTenantId(accountId, tenantId)
+                                                .orElseThrow(
+                                                        () ->
+                                                                new RuntimeException(
+                                                                        "Account not found: "
+                                                                                + accountId));
+                            } else {
+                                account =
+                                        accountRepository
+                                                .findById(accountId)
+                                                .orElseThrow(
+                                                        () ->
+                                                                new RuntimeException(
+                                                                        "Account not found: "
+                                                                                + accountId));
+                            }
                             AccountBalance ab =
                                     AccountBalance.builder()
                                             .account(account)

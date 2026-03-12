@@ -25,6 +25,13 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     boolean existsByEmail(String email);
 
     // Tenant-isolated queries
+
+    /** Tenant-isolated lookup by primary key. Use instead of findById() for CBS operations. */
+    @Query(
+            "SELECT c FROM Customer c WHERE c.customerId = :id AND c.tenant.id = :tenantId")
+    Optional<Customer> findByIdAndTenantId(
+            @Param("id") Long id, @Param("tenantId") Long tenantId);
+
     @Query("SELECT c FROM Customer c WHERE c.tenant.id = :tenantId")
     List<Customer> findByTenantId(@Param("tenantId") Long tenantId);
 

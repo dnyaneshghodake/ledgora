@@ -19,4 +19,19 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
     List<ApprovalRequest> findByApprovedBy_Id(Long userId);
 
     List<ApprovalRequest> findByEntityTypeAndStatus(String entityType, ApprovalStatus status);
+
+    // ── Tenant-isolated query methods ──
+
+    /** Tenant-isolated lookup by primary key. */
+    java.util.Optional<ApprovalRequest> findByIdAndTenant_Id(Long id, Long tenantId);
+
+    /** Tenant-isolated pending requests. */
+    List<ApprovalRequest> findByTenant_IdAndStatus(Long tenantId, ApprovalStatus status);
+
+    /** Tenant-isolated list by entity type and status. */
+    List<ApprovalRequest> findByTenant_IdAndEntityTypeAndStatus(
+            Long tenantId, String entityType, ApprovalStatus status);
+
+    /** Tenant-isolated list of all requests. */
+    List<ApprovalRequest> findByTenant_Id(Long tenantId);
 }

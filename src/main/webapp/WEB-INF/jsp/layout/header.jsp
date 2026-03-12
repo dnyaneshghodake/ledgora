@@ -83,6 +83,13 @@
         </div>
     </div>
     <div class="cbs-header-right">
+        <%-- Tenant Name (SINGLE scope — read-only display) --%>
+        <c:if test="${sessionScope.tenantScope != 'MULTI' && not empty sessionScope.tenantName}">
+            <div class="cbs-tenant-info">
+                <i class="bi bi-building" aria-hidden="true"></i>
+                <span><c:out value="${sessionScope.tenantName}"/></span>
+            </div>
+        </c:if>
         <%-- Tenant Switch (MULTI scope only) --%>
         <c:if test="${sessionScope.tenantScope == 'MULTI'}">
             <div class="dropdown">
@@ -113,10 +120,17 @@
                 <span class="cbs-badge">${sessionScope.pendingApprovals}</span>
             </a>
         </c:if>
+        <%-- Pending Config Changes (governance badge) --%>
+        <c:if test="${sessionScope.pendingConfigChanges != null && sessionScope.pendingConfigChanges > 0 && (sessionScope.isAdmin || sessionScope.isManager || sessionScope.isChecker || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin)}">
+            <a href="${pageContext.request.contextPath}/governance" class="cbs-notifications" aria-label="Pending config changes">
+                <i class="bi bi-sliders" aria-hidden="true"></i>
+                <span class="cbs-badge">${sessionScope.pendingConfigChanges}</span>
+            </a>
+        </c:if>
         <%-- Session Timer --%>
         <div class="cbs-session-timer" id="cbsSessionTimer" aria-label="Session timeout" title="Session time remaining">
             <i class="bi bi-hourglass-split" aria-hidden="true"></i>
-            <span id="cbsSessionCountdown">30:00</span>
+            <span id="cbsSessionCountdown">15:00</span>
         </div>
         <%-- Maker/Checker Mode --%>
         <c:choose>

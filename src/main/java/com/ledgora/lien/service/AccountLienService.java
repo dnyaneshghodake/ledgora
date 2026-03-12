@@ -78,8 +78,20 @@ public class AccountLienService {
                         .findById(accountId)
                         .orElseThrow(() -> new RuntimeException("Account not found: " + accountId));
 
-        if (lienAmount.compareTo(BigDecimal.ZERO) <= 0) {
+        if (lienAmount == null || lienAmount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new RuntimeException("Lien amount must be positive");
+        }
+        if (lienAmount.scale() > 2) {
+            throw new RuntimeException("Lien amount must have at most 2 decimal places");
+        }
+        if (startDate == null) {
+            throw new RuntimeException("Lien start date is required");
+        }
+        if (startDate.isBefore(LocalDate.now())) {
+            throw new RuntimeException("Lien start date cannot be in the past");
+        }
+        if (endDate != null && !endDate.isAfter(startDate)) {
+            throw new RuntimeException("Lien end date must be after start date");
         }
 
         // Lien cannot exceed ledger balance
