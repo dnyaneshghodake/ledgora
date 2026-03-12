@@ -86,7 +86,8 @@
                     </li>
                     <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager}">
                     <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/approvals?type=CUSTOMER" class="cbs-nav-link" data-page="approvals-customer">
+                        <%-- /customers?approvalStatus=PENDING is the correct endpoint (added in refactoring) --%>
+                        <a href="${pageContext.request.contextPath}/customers?approvalStatus=PENDING" class="cbs-nav-link" data-page="approvals-customer">
                             <i class="bi bi-person-check"></i>
                             <span>Customer Approval Queue</span>
                         </a>
@@ -185,7 +186,8 @@
             </li>
             </c:if>
 
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTeller || sessionScope.isMaker}">
+            <%-- Transactions: visible to MAKER/TELLER (initiation) and CHECKER/ADMIN/MANAGER (approval) --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTeller || sessionScope.isMaker || sessionScope.isChecker || sessionScope.isOperations}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="transactions">
                     <i class="bi bi-cash-stack"></i>
@@ -193,6 +195,8 @@
                     <i class="bi bi-chevron-down cbs-nav-arrow"></i>
                 </a>
                 <ul class="cbs-nav-submenu" id="group-transactions">
+                    <%-- Initiation: MAKER/TELLER/OPERATIONS/ADMIN/MANAGER only --%>
+                    <c:if test="${sessionScope.isMaker || sessionScope.isTeller || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations}">
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/transactions/deposit" class="cbs-nav-link cbs-lockable" data-page="transactions/deposit">
                             <i class="bi bi-arrow-down-circle"></i>
@@ -211,26 +215,19 @@
                             <span>Transfer</span>
                         </a>
                     </li>
+                    </c:if>
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/transactions" class="cbs-nav-link" data-page="transactions">
                             <i class="bi bi-arrow-left-right"></i>
                             <span>All Transactions</span>
                         </a>
                     </li>
+                    <%-- Checker approval queue: /transactions/pending (CHECKER/ADMIN/MANAGER) --%>
                     <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager}">
-                    <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/approvals?type=TRANSACTION" class="cbs-nav-link" data-page="approvals-transaction">
-                            <i class="bi bi-shield-exclamation"></i>
-                            <span>High-Value Approval Queue</span>
-                        </a>
-                    </li>
-                    </c:if>
-                    <%-- Teller: view their own pending transactions --%>
-                    <c:if test="${sessionScope.isTeller}">
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/transactions/pending" class="cbs-nav-link" data-page="transactions/pending">
                             <i class="bi bi-hourglass-split"></i>
-                            <span>My Pending Transactions</span>
+                            <span>Pending Approval Queue</span>
                         </a>
                     </li>
                     </c:if>
