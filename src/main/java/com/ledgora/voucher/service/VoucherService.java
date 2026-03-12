@@ -161,6 +161,24 @@ public class VoucherService {
 
         assertTenantContext(tenant.getId());
 
+        // ── CBS-grade voucher amount validation ──
+        if (transactionAmount == null || transactionAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new com.ledgora.common.exception.AccountingException(
+                    "INVALID_VOUCHER_AMOUNT", "Voucher amount must be positive");
+        }
+        if (transactionAmount.scale() > 4) {
+            throw new com.ledgora.common.exception.AccountingException(
+                    "INVALID_VOUCHER_AMOUNT", "Voucher amount must have at most 4 decimal places");
+        }
+        if (drCr == null) {
+            throw new com.ledgora.common.exception.AccountingException(
+                    "INVALID_VOUCHER", "Voucher DR/CR direction is required");
+        }
+        if (maker == null) {
+            throw new com.ledgora.common.exception.AccountingException(
+                    "INVALID_VOUCHER", "Maker user is required for voucher creation");
+        }
+
         // Validate voucher business_date matches tenant current business date
         if (!postingDate.equals(tenant.getCurrentBusinessDate())) {
             throw new RuntimeException(

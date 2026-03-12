@@ -69,11 +69,21 @@ public class CustomerService {
             // PAN mandatory for INDIVIDUAL (RBI KYC norms)
             com.ledgora.common.validation.RbiFieldValidator.validatePanForIndividual(
                     dto.getCustomerType(), dto.getPanNumber());
+            // Validate PAN format if provided
+            com.ledgora.common.validation.RbiFieldValidator.validatePanFormat(dto.getPanNumber());
+            // Validate Aadhaar format if provided
+            com.ledgora.common.validation.RbiFieldValidator.validateAadhaarFormat(dto.getAadhaarNumber());
         }
         if ("CORPORATE".equals(dto.getCustomerType())) {
             // GST mandatory for CORPORATE
             com.ledgora.common.validation.RbiFieldValidator.validateGstForCorporate(
                     dto.getCustomerType(), dto.getGstNumber());
+            // Validate GST format if provided
+            com.ledgora.common.validation.RbiFieldValidator.validateGstFormat(dto.getGstNumber());
+        }
+        // Validate mobile number format
+        if (dto.getPhone() != null && !dto.getPhone().isBlank()) {
+            com.ledgora.common.validation.RbiFieldValidator.validateMobileNumber(dto.getPhone());
         }
 
         if (dto.getNationalId() != null
