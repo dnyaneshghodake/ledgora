@@ -95,7 +95,7 @@
                                 <td><small><c:out value="${c.createdAt}"/></small></td>
                                 <td>
                                     <a href="${pageContext.request.contextPath}/customers/${c.customerId}" class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
-                                    <a href="${pageContext.request.contextPath}/customers/${c.customerId}/master" class="btn btn-sm btn-outline-info" title="Customer Master"><i class="bi bi-person-badge"></i></a>
+                                    <a href="${pageContext.request.contextPath}/customers/${c.customerId}/360" class="btn btn-sm btn-outline-dark" title="Customer 360° View"><i class="bi bi-person-circle"></i></a>
                                     <c:if test="${sessionScope.isMaker || sessionScope.isAdmin || sessionScope.isManager}">
                                     <a href="${pageContext.request.contextPath}/customers/${c.customerId}/edit" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
                                     </c:if>
