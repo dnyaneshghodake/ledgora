@@ -279,6 +279,7 @@ public class TransactionController {
      * ownership check is recommended.
      */
     @GetMapping("/history/{accountNumber}")
+    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'CUSTOMER')")
     public String transactionHistory(@PathVariable String accountNumber, Model model) {
         // Validate account number format to prevent path traversal / injection
         if (accountNumber == null || !accountNumber.matches("^[A-Za-z0-9\\-]+$")) {
