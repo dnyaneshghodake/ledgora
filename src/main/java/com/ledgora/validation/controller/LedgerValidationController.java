@@ -15,11 +15,19 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 /**
  * Ledger Validation controller — serves both the JSP dashboard and the REST API.
  *
- * <p>JSP routes (for sidebar): GET /admin/ledger/view/validate — Show current ledger status
- * (validation/ledger-status.jsp) POST /admin/ledger/view/validate — Run full validation and refresh
+ * <p>JSP routes (for sidebar):
  *
- * <p>REST API routes (for programmatic access): GET /admin/ledger/validate — Full validation result
- * (JSON) GET /admin/ledger/status — Status string (JSON)
+ * <ul>
+ *   <li>GET /admin/ledger/view/validate — Show current ledger status (validation/ledger-status.jsp)
+ *   <li>POST /admin/ledger/view/validate — Run full validation and refresh
+ * </ul>
+ *
+ * <p>REST API routes (for programmatic access):
+ *
+ * <ul>
+ *   <li>GET /admin/ledger/validate — Full validation result (JSON)
+ *   <li>GET /admin/ledger/status — Status string (JSON)
+ * </ul>
  */
 @Controller
 @RequestMapping("/admin/ledger")

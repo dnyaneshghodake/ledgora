@@ -21,8 +21,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
- * Admin management controller. Routes: GET /admin/users — User management GET /admin/branches —
- * Branch management GET /admin/tenants — Tenant configuration GET /admin/audit — Audit log viewer
+ * Admin management controller.
+ *
+ * <p>Routes:
+ *
+ * <ul>
+ *   <li>GET /admin/users — User management
+ *   <li>GET /admin/branches — Branch management
+ *   <li>GET /admin/tenants — Tenant configuration
+ *   <li>GET /admin/audit — Audit log viewer
+ * </ul>
  */
 @Controller
 @RequestMapping("/admin")

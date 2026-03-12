@@ -20,8 +20,15 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * Inter-Branch Transfer (IBT) list, detail, and reconciliation controller. Routes: /ibt (list),
- * /ibt/{id} (detail), /ibt/reconciliation (reconciliation dashboard)
+ * Inter-Branch Transfer (IBT) list, detail, and reconciliation controller.
+ *
+ * <p>Routes:
+ *
+ * <ul>
+ *   <li>/ibt (list)
+ *   <li>/ibt/{id} (detail)
+ *   <li>/ibt/reconciliation (reconciliation dashboard)
+ * </ul>
  */
 @Controller
 @RequestMapping("/ibt")

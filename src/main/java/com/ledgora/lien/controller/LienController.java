@@ -18,8 +18,16 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * Account Lien management controller. Routes: /lien (list), /lien/account/{accountId}
- * (per-account), /lien/{id}/approve, /lien/{id}/release
+ * Account Lien management controller.
+ *
+ * <p>Routes:
+ *
+ * <ul>
+ *   <li>/lien (list)
+ *   <li>/lien/account/{accountId} (per-account)
+ *   <li>/lien/{id}/approve
+ *   <li>/lien/{id}/release
+ * </ul>
  */
 @Controller
 @RequestMapping("/lien")

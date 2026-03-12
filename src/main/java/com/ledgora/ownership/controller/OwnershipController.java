@@ -18,8 +18,15 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * Account Ownership management controller. Routes: /ownership (list),
- * /ownership/account/{accountId}, /ownership/customer/{customerId}
+ * Account Ownership management controller.
+ *
+ * <p>Routes:
+ *
+ * <ul>
+ *   <li>/ownership (list)
+ *   <li>/ownership/account/{accountId}
+ *   <li>/ownership/customer/{customerId}
+ * </ul>
  */
 @Controller
 @RequestMapping("/ownership")

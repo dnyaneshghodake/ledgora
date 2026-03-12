@@ -18,8 +18,14 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
 /**
- * Risk & Fraud monitoring dashboard controller. Routes: GET /risk/hard-ceiling — Hard Transaction
- * Ceiling monitor GET /risk/velocity — Velocity Fraud monitor
+ * Risk & Fraud monitoring dashboard controller.
+ *
+ * <p>Routes:
+ *
+ * <ul>
+ *   <li>GET /risk/hard-ceiling — Hard Transaction Ceiling monitor
+ *   <li>GET /risk/velocity — Velocity Fraud monitor
+ * </ul>
  */
 @Controller
 @RequestMapping("/risk")

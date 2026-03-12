@@ -17,9 +17,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
- * Financial reports controller. Routes: GET /reports — Reports landing page GET
- * /reports/trial-balance — Trial balance report GET /reports/daily-summary — Daily transaction
- * summary GET /reports/liquidity — Liquidity report
+ * Financial reports controller.
+ *
+ * <p>Routes:
+ *
+ * <ul>
+ *   <li>GET /reports — Reports landing page
+ *   <li>GET /reports/trial-balance — Trial balance report
+ *   <li>GET /reports/daily-summary — Daily transaction summary
+ *   <li>GET /reports/liquidity — Liquidity report
+ * </ul>
  */
 @Controller
 @RequestMapping("/reports")

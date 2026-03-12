@@ -18,8 +18,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * Audit Dashboard and Audit Log Explorer controller. Routes: GET /audit/validation — Audit
- * dashboard with hash chain verification GET /audit/explorer — Paginated audit log explorer
+ * Audit Dashboard and Audit Log Explorer controller.
+ *
+ * <p>Routes:
+ *
+ * <ul>
+ *   <li>GET /audit/validation — Audit dashboard with hash chain verification
+ *   <li>GET /audit/explorer — Paginated audit log explorer
+ * </ul>
  */
 @Controller
 @RequestMapping("/audit")
