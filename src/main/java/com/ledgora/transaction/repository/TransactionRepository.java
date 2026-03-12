@@ -125,4 +125,22 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             @Param("tenantId") Long tenantId,
             @Param("accountId") Long accountId,
             @Param("since") LocalDateTime since);
+
+    /**
+     * Transaction 360° View: Fetch a transaction with all header associations eagerly loaded in one
+     * query. Eliminates N+1 for the 360° detail screen by JOIN FETCHing tenant, source/destination
+     * accounts, maker, checker, performedBy, batch, and reversalOf.
+     */
+    @Query(
+            "SELECT DISTINCT t FROM Transaction t "
+                    + "LEFT JOIN FETCH t.tenant "
+                    + "LEFT JOIN FETCH t.sourceAccount "
+                    + "LEFT JOIN FETCH t.destinationAccount "
+                    + "LEFT JOIN FETCH t.maker "
+                    + "LEFT JOIN FETCH t.checker "
+                    + "LEFT JOIN FETCH t.performedBy "
+                    + "LEFT JOIN FETCH t.batch "
+                    + "LEFT JOIN FETCH t.reversalOf "
+                    + "WHERE t.id = :id")
+    Optional<Transaction> findByIdWithFullGraph(@Param("id") Long id);
 }

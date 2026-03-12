@@ -99,7 +99,23 @@ CREATE INDEX IF NOT EXISTS idx_ledger_tenant_bizdate
     ON ledger_entries (tenant_id, business_date);
 
 -- =============================================
--- F) Fraud Alerts — tenant + created_at gap
+-- F) Audit Logs — entity + entity_id for Transaction 360° View
+-- =============================================
+-- Gap: entity + entity_id composite for findByEntityAndEntityIdOrderByTimestampDesc
+-- Used by: Transaction 360° View audit trail section
+CREATE INDEX IF NOT EXISTS idx_audit_entity_entityid
+    ON audit_logs (entity, entity_id);
+
+-- =============================================
+-- G) Ledger Entries — transaction_id for 360° View
+-- =============================================
+-- Gap: transaction_id lookup for Transaction 360° ledger tab
+-- Used by: LedgerEntryRepository.findByTransactionId
+CREATE INDEX IF NOT EXISTS idx_ledger_transaction
+    ON ledger_entries (transaction_id);
+
+-- =============================================
+-- H) Fraud Alerts — tenant + created_at gap
 -- =============================================
 -- Gap: tenant + created_at for findTop20ByTenantIdOrderByCreatedAtDesc
 -- Existing idx_fa_tenant is tenant-only, no ordering support

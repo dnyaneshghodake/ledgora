@@ -43,4 +43,21 @@ public interface SuspenseCaseRepository extends JpaRepository<SuspenseCase, Long
                     + "WHERE sc.tenant.id = :tenantId AND sc.status = 'OPEN' "
                     + "ORDER BY sc.createdAt ASC")
     List<SuspenseCase> findOldestOpenByTenantId(@Param("tenantId") Long tenantId);
+
+    /**
+     * Transaction 360° View: Fetch suspense cases for a transaction with all associations eagerly
+     * loaded. Eliminates N+1 for the detail screen.
+     */
+    @Query(
+            "SELECT DISTINCT sc FROM SuspenseCase sc "
+                    + "LEFT JOIN FETCH sc.intendedAccount "
+                    + "LEFT JOIN FETCH sc.suspenseAccount "
+                    + "LEFT JOIN FETCH sc.postedVoucher "
+                    + "LEFT JOIN FETCH sc.suspenseVoucher "
+                    + "LEFT JOIN FETCH sc.resolutionVoucher "
+                    + "LEFT JOIN FETCH sc.resolvedBy "
+                    + "LEFT JOIN FETCH sc.resolutionChecker "
+                    + "WHERE sc.originalTransaction.id = :transactionId "
+                    + "ORDER BY sc.createdAt ASC")
+    List<SuspenseCase> findByTransactionIdWithGraph(@Param("transactionId") Long transactionId);
 }

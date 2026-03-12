@@ -734,3 +734,265 @@ h1, h2, h3, h4, h5, h6 {
     outline: 2px solid var(--bank-secondary);
     outline-offset: 2px;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   7) Transaction 360° View — CBS-Grade Detail Screen
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Tab navigation */
+.cbs-360-tabs {
+    border-bottom: 2px solid var(--bank-primary);
+    background: var(--bank-surface);
+    padding: 0 0.5rem;
+}
+
+.cbs-360-tabs .nav-link {
+    color: var(--bank-text);
+    font-weight: 600;
+    font-size: 0.88rem;
+    padding: 0.6rem 1rem;
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    margin-bottom: -2px;
+    transition: color 0.15s, border-color 0.15s;
+}
+
+.cbs-360-tabs .nav-link:hover {
+    color: var(--bank-primary);
+    border-bottom-color: rgba(0, 33, 71, 0.3);
+    background: transparent;
+}
+
+.cbs-360-tabs .nav-link.active {
+    color: var(--bank-primary);
+    border-bottom-color: var(--bank-primary);
+    background: transparent;
+    font-weight: 700;
+}
+
+.cbs-360-tabs .nav-link .badge {
+    font-size: 0.65rem;
+    vertical-align: middle;
+}
+
+.cbs-360-tab-content {
+    background: var(--bank-surface);
+    border: 1px solid var(--bank-border);
+    border-top: none;
+    border-radius: 0 0 var(--ent-radius) var(--ent-radius);
+    padding: 1rem;
+}
+
+/* Detail label/value tables */
+.cbs-detail-table td.cbs-label {
+    width: 180px;
+    color: #64748b;
+    font-weight: 600;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    vertical-align: top;
+    padding-right: 1rem;
+}
+
+.cbs-detail-table td {
+    font-size: 0.9rem;
+}
+
+/* CBS Grid (data tables) */
+.cbs-grid thead th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+}
+
+/* DR/CR badges */
+.cbs-dr {
+    background: #b42318;
+    color: #fff;
+}
+
+.cbs-cr {
+    background: var(--bank-accent);
+    color: #fff;
+}
+
+/* Status badges for transaction statuses */
+.cbs-badge-completed {
+    background: var(--bank-accent);
+    color: #fff;
+}
+
+.cbs-badge-pending {
+    background: #b45309;
+    color: #fff;
+}
+
+.cbs-badge-parked {
+    background: #6366f1;
+    color: #fff;
+}
+
+.cbs-badge-reversed {
+    background: #64748b;
+    color: #fff;
+}
+
+.cbs-badge-approved {
+    background: #1e40af;
+    color: #fff;
+}
+
+.cbs-badge-rejected {
+    background: #b42318;
+    color: #fff;
+}
+
+.cbs-badge-failed {
+    background: #991b1b;
+    color: #fff;
+}
+
+/* Authorization panel */
+.cbs-auth-panel {
+    border-width: 2px;
+    position: sticky;
+    top: calc(var(--cbs-header-height) + var(--cbs-shortcut-bar-height) + 0.5rem);
+    z-index: 10;
+}
+
+/* Immutable ledger warning banner */
+.cbs-immutable-banner {
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border: 1px solid #f59e0b;
+    color: #78350f;
+    font-weight: 600;
+    border-radius: var(--ent-radius);
+}
+
+/* Voucher expandable rows */
+.cbs-voucher-row:hover {
+    background-color: rgba(0, 64, 128, 0.06) !important;
+}
+
+.cbs-expand-icon {
+    transition: transform 0.2s ease;
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+.cbs-voucher-row[aria-expanded="true"] .cbs-expand-icon {
+    transform: rotate(90deg);
+}
+
+/* IBT Status Timeline */
+.cbs-ibt-timeline {
+    padding: 1.5rem 2rem;
+    background: #f8fafc;
+    border-radius: var(--ent-radius);
+    border: 1px solid var(--bank-border);
+}
+
+.cbs-ibt-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    opacity: 0.35;
+}
+
+.cbs-ibt-step-active {
+    opacity: 1;
+}
+
+.cbs-ibt-step-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--bank-border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    color: #64748b;
+}
+
+.cbs-ibt-step-active .cbs-ibt-step-circle {
+    background: var(--bank-primary);
+    color: #fff;
+}
+
+.cbs-ibt-step small {
+    font-weight: 700;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.cbs-ibt-step-line {
+    flex: 1;
+    height: 3px;
+    background: var(--bank-border);
+    margin-top: 20px;
+    border-radius: 2px;
+}
+
+.cbs-ibt-line-active {
+    background: var(--bank-primary);
+}
+
+/* Audit Timeline */
+.cbs-audit-timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.cbs-audit-timeline::before {
+    content: '';
+    position: absolute;
+    left: 8px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--bank-border);
+}
+
+.cbs-audit-entry {
+    position: relative;
+    padding: 0.5rem 0 0.75rem 1rem;
+    border-bottom: 1px solid rgba(214, 219, 227, 0.5);
+}
+
+.cbs-audit-entry:last-child {
+    border-bottom: none;
+}
+
+.cbs-audit-dot {
+    position: absolute;
+    left: -1.55rem;
+    top: 0.7rem;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--bank-primary);
+    border: 2px solid var(--bank-surface);
+    box-shadow: 0 0 0 2px var(--bank-primary);
+}
+
+.cbs-audit-content {
+    background: #f8fafc;
+    border: 1px solid var(--bank-border);
+    border-radius: var(--ent-radius);
+    padding: 0.5rem 0.75rem;
+}
+
+/* Audit footer disclaimer */
+.audit-disclaimer {
+    text-align: center;
+    padding: 0.5rem;
+    font-size: 0.75rem;
+    color: #64748b;
+    border-top: 1px solid var(--bank-border);
+}
