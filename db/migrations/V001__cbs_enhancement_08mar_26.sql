@@ -2,12 +2,18 @@
 -- Ledgora CBS — UAT Migration Script
 -- PR: cbs-enhancement_08mar_26
 -- Target: SQL Server (UAT / PROD)
+--
+-- Connection: localhost:1433  DB: ledgora  User: sa
 -- Run BEFORE deploying the new WAR.
 -- All statements are idempotent (IF NOT EXISTS guards).
 -- ============================================================
 
+USE ledgora;
+GO
+
 PRINT '====================================================';
 PRINT 'Ledgora CBS Migration V001 — starting...';
+PRINT 'Database: ' + DB_NAME();
 PRINT '====================================================';
 GO
 

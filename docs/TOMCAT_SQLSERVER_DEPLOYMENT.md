@@ -6,6 +6,18 @@ This guide covers deploying `ledgora.war` on Apache Tomcat 10.x with SQL Server.
 
 ---
 
+## UAT Connection Details
+
+| Setting | Value |
+|---------|-------|
+| Host | `localhost` |
+| Port | `1433` |
+| Database | `ledgora` |
+| Username | `sa` |
+| Password | `sqlserver#123` |
+
+---
+
 ## Prerequisites
 
 | Component | Version |
@@ -31,7 +43,9 @@ mvn clean package -DskipTests
 Before deploying the WAR, run the migration on the UAT SQL Server:
 
 ```sql
--- Connect as DBO or db_owner
+-- Open SQL Server Management Studio (SSMS)
+-- Connect to: localhost,1433 with sa / sqlserver#123
+-- Select database: ledgora
 -- Run: db/migrations/V001__cbs_enhancement_08mar_26.sql
 ```
 
@@ -39,9 +53,33 @@ Verify it prints `Ledgora CBS Migration V001 — COMPLETE` with no errors.
 
 ---
 
-## Step 3 — Configure Tomcat environment variables
+## Step 3 — Configure Tomcat
 
-### Option A — `setenv.sh` (Linux/Mac)
+The `application.properties` already has the UAT defaults baked in, so the
+app will connect to SQL Server out of the box **without any extra configuration**
+if Tomcat runs on the same machine as SQL Server.
+
+If you need to override (e.g. different host), use one of the options below.
+
+### Option A — `setenv.bat` (Windows — recommended for UAT)
+
+Create `%CATALINA_HOME%\bin\setenv.bat`:
+
+```bat
+@echo off
+set JAVA_OPTS=%JAVA_OPTS% -Dspring.profiles.active=sqlserver
+set JAVA_OPTS=%JAVA_OPTS% -DDB_URL=jdbc:sqlserver://localhost:1433;databaseName=ledgora;encrypt=false;trustServerCertificate=true
+set JAVA_OPTS=%JAVA_OPTS% -DDB_USERNAME=sa
+set JAVA_OPTS=%JAVA_OPTS% "-DDB_PASSWORD=sqlserver#123"
+set JAVA_OPTS=%JAVA_OPTS% -DJWT_SECRET=ledgora-uat-jwt-secret-key-minimum-32chars
+set JAVA_OPTS=%JAVA_OPTS% -Dledgora.seeder.enabled=false
+set JAVA_OPTS=%JAVA_OPTS% -Dlogging.level.com.ledgora=INFO
+```
+
+> **Note:** The `#` character in the password must be quoted with double quotes
+> on the `-DDB_PASSWORD` line as shown above.
+
+### Option B — `setenv.sh` (Linux/Mac)
 
 Create `$CATALINA_HOME/bin/setenv.sh`:
 
@@ -49,39 +87,35 @@ Create `$CATALINA_HOME/bin/setenv.sh`:
 #!/bin/bash
 export JAVA_OPTS="$JAVA_OPTS \
   -Dspring.profiles.active=sqlserver \
-  -DDB_URL='jdbc:sqlserver://YOUR_HOST:1433;databaseName=ledgora;encrypt=true;trustServerCertificate=false' \
-  -DDB_USERNAME='ledgora_app' \
-  -DDB_PASSWORD='YOUR_STRONG_PASSWORD' \
-  -DJWT_SECRET='YOUR_MINIMUM_32_CHAR_SECRET_HERE' \
+  -DDB_URL='jdbc:sqlserver://localhost:1433;databaseName=ledgora;encrypt=false;trustServerCertificate=true' \
+  -DDB_USERNAME='sa' \
+  -DDB_PASSWORD='sqlserver#123' \
+  -DJWT_SECRET='ledgora-uat-jwt-secret-key-minimum-32chars' \
   -Dledgora.seeder.enabled=false \
   -Dlogging.level.com.ledgora=INFO"
 ```
 
-### Option B — `setenv.bat` (Windows)
+### Option C — Tomcat `context.xml` (alternative)
 
-Create `%CATALINA_HOME%\bin\setenv.bat`:
-
-```bat
-set JAVA_OPTS=%JAVA_OPTS% -Dspring.profiles.active=sqlserver
-set JAVA_OPTS=%JAVA_OPTS% -DDB_URL=jdbc:sqlserver://YOUR_HOST:1433;databaseName=ledgora;encrypt=true;trustServerCertificate=false
-set JAVA_OPTS=%JAVA_OPTS% -DDB_USERNAME=ledgora_app
-set JAVA_OPTS=%JAVA_OPTS% -DDB_PASSWORD=YOUR_STRONG_PASSWORD
-set JAVA_OPTS=%JAVA_OPTS% -DJWT_SECRET=YOUR_MINIMUM_32_CHAR_SECRET_HERE
-set JAVA_OPTS=%JAVA_OPTS% -Dledgora.seeder.enabled=false
-set JAVA_OPTS=%JAVA_OPTS% -Dlogging.level.com.ledgora=INFO
-```
-
-### Option C — Tomcat `context.xml` (per-application)
-
-In `$CATALINA_HOME/conf/context.xml` or `webapps/ledgora/META-INF/context.xml`:
+In `%CATALINA_HOME%\conf\context.xml`:
 
 ```xml
 <Context>
-    <Environment name="spring.profiles.active" value="sqlserver" type="java.lang.String" override="false"/>
-    <Environment name="DB_URL"      value="jdbc:sqlserver://HOST:1433;databaseName=ledgora;encrypt=true" type="java.lang.String" override="false"/>
-    <Environment name="DB_USERNAME" value="ledgora_app" type="java.lang.String" override="false"/>
-    <Environment name="DB_PASSWORD" value="YOUR_STRONG_PASSWORD" type="java.lang.String" override="false"/>
-    <Environment name="JWT_SECRET"  value="YOUR_MINIMUM_32_CHAR_SECRET_HERE" type="java.lang.String" override="false"/>
+    <Environment name="spring.profiles.active"
+                 value="sqlserver"
+                 type="java.lang.String" override="false"/>
+    <Environment name="DB_URL"
+                 value="jdbc:sqlserver://localhost:1433;databaseName=ledgora;encrypt=false;trustServerCertificate=true"
+                 type="java.lang.String" override="false"/>
+    <Environment name="DB_USERNAME"
+                 value="sa"
+                 type="java.lang.String" override="false"/>
+    <Environment name="DB_PASSWORD"
+                 value="sqlserver#123"
+                 type="java.lang.String" override="false"/>
+    <Environment name="JWT_SECRET"
+                 value="ledgora-uat-jwt-secret-key-minimum-32chars"
+                 type="java.lang.String" override="false"/>
 </Context>
 ```
 
@@ -89,56 +123,64 @@ In `$CATALINA_HOME/conf/context.xml` or `webapps/ledgora/META-INF/context.xml`:
 
 ## Step 4 — Deploy the WAR
 
+### Windows
+```bat
+copy target\ledgora.war %CATALINA_HOME%\webapps\ledgora.war
+```
+
+### Linux
 ```bash
 cp target/ledgora.war $CATALINA_HOME/webapps/ledgora.war
 ```
 
 Tomcat auto-deploys. The app will be available at:
-`http://YOUR_HOST:8080/ledgora/`
+`http://localhost:8080/ledgora/`
 
 ---
 
 ## Step 5 — Verify startup
 
-Check `$CATALINA_HOME/logs/catalina.out`:
+Check `%CATALINA_HOME%\logs\catalina.out` (Windows) or `$CATALINA_HOME/logs/catalina.out` (Linux):
 
 ```
 # Good signs:
 Ledgora DataInitializer — SKIPPED (ledgora.seeder.enabled=false)
 Started LedgoraApplication in X.XXX seconds
 
-# Bad signs (fix before going live):
-app.jwt.secret must be configured
-Failed to validate schema
+# Bad signs — fix before proceeding:
+app.jwt.secret must be configured       → JWT_SECRET env var not set
+Failed to validate schema               → migration script not run yet
+Cannot open server "..." requested by login → wrong DB_URL / credentials
+Login failed for user 'sa'              → wrong DB_USERNAME or DB_PASSWORD
 ```
 
 ---
 
 ## Key Properties Reference
 
-| Property | Where to set | Purpose |
-|----------|-------------|---------|
-| `spring.profiles.active=sqlserver` | `setenv.sh` / `-D` | Activates SQL Server dialect + validate DDL |
-| `DB_URL` | `setenv.sh` / `-D` | SQL Server JDBC URL |
-| `DB_USERNAME` | `setenv.sh` / `-D` | DB login |
-| `DB_PASSWORD` | `setenv.sh` / `-D` | DB password (never commit) |
-| `JWT_SECRET` | `setenv.sh` / `-D` | Min 32 chars, used for session tokens |
-| `ledgora.seeder.enabled=false` | `setenv.sh` / `-D` | Skip dev data seeding on UAT/PROD |
-| `spring.jpa.hibernate.ddl-auto=validate` | `application-sqlserver.properties` | Schema validation only — no DDL changes |
+| Property | Default (UAT) | Purpose |
+|----------|--------------|---------|
+| `spring.profiles.active` | `sqlserver` | Activates SQL Server dialect |
+| `DB_URL` | `jdbc:sqlserver://localhost:1433;databaseName=ledgora;...` | JDBC connection |
+| `DB_USERNAME` | `sa` | DB login |
+| `DB_PASSWORD` | `sqlserver#123` | DB password |
+| `JWT_SECRET` | *(must be set)* | Min 32 chars for HS256 |
+| `ledgora.seeder.enabled` | `false` | Skips dev data seeding |
+| `spring.jpa.hibernate.ddl-auto` | `validate` | Schema validation only |
 
 ---
 
-## SQL Server Connection String Examples
+## SQL Server Connection String Reference
 
 ```
-# Basic (no encryption — internal network only)
-jdbc:sqlserver://192.168.1.10:1433;databaseName=ledgora;encrypt=false;trustServerCertificate=true
+# UAT (local, no encryption)
+jdbc:sqlserver://localhost:1433;databaseName=ledgora;encrypt=false;trustServerCertificate=true
 
-# Encrypted (recommended for UAT/PROD)
-jdbc:sqlserver://db.internal:1433;databaseName=ledgora;encrypt=true;trustServerCertificate=false
+# Remote server (encrypted — recommended for PROD)
+jdbc:sqlserver://192.168.1.10:1433;databaseName=ledgora;encrypt=true;trustServerCertificate=false
 
 # Named instance
-jdbc:sqlserver://db.internal\\SQLEXPRESS;databaseName=ledgora;encrypt=false
+jdbc:sqlserver://localhost\SQLEXPRESS:1433;databaseName=ledgora;encrypt=false;trustServerCertificate=true
 ```
 
 ---
@@ -146,7 +188,8 @@ jdbc:sqlserver://db.internal\\SQLEXPRESS;databaseName=ledgora;encrypt=false
 ## Rollback
 
 If the deployment fails:
-1. Stop Tomcat
-2. Restore the previous `ledgora.war`
-3. The migration script is additive (no DROP statements) — no DB rollback needed for this release
-4. Start Tomcat
+1. Stop Tomcat: `%CATALINA_HOME%\bin\shutdown.bat`
+2. Delete `%CATALINA_HOME%\webapps\ledgora.war` and `webapps\ledgora\` folder
+3. Copy the previous WAR back
+4. Start Tomcat: `%CATALINA_HOME%\bin\startup.bat`
+5. The migration script is additive (no DROP statements) — no DB rollback needed
