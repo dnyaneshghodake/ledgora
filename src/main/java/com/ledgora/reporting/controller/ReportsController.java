@@ -42,7 +42,7 @@ public class ReportsController {
     public String reportsHome(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         model.addAttribute("businessDate", tenantService.getCurrentBusinessDate(tenantId));
-        return "reports/reports-home";
+        return "report/reports";
     }
 
     /** Trial Balance report. */
@@ -61,7 +61,7 @@ public class ReportsController {
         TrialBalanceReport report = reportingService.generateTrialBalance(reportDate);
         model.addAttribute("report", report);
         model.addAttribute("reportDate", reportDate);
-        return "reports/trial-balance";
+        return "report/trial-balance";
     }
 
     /** Daily Transaction Summary report. */
@@ -80,7 +80,7 @@ public class ReportsController {
         DailyTransactionSummary summary = reportingService.generateDailyTransactionSummary(reportDate);
         model.addAttribute("summary", summary);
         model.addAttribute("reportDate", reportDate);
-        return "reports/daily-summary";
+        return "report/daily-summary";
     }
 
     /** Liquidity report. */
@@ -90,7 +90,34 @@ public class ReportsController {
         resolveTenantId(session); // ensures tenant context is set
         LiquidityReport report = reportingService.generateLiquidityReport();
         model.addAttribute("report", report);
-        return "reports/liquidity-report";
+        return "report/liquidity";
+    }
+
+    /** Account Statement report. */
+    @GetMapping("/account-statement")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'TELLER', 'TENANT_ADMIN', 'SUPER_ADMIN')")
+    public String accountStatement(
+            @RequestParam(value = "accountNumber", required = false) String accountNumber,
+            @RequestParam(value = "startDate", required = false)
+                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate startDate,
+            @RequestParam(value = "endDate", required = false)
+                    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                    LocalDate endDate,
+            Model model,
+            HttpSession session) {
+        resolveTenantId(session);
+        if (accountNumber != null && !accountNumber.isBlank()) {
+            if (startDate == null) startDate = LocalDate.now().minusMonths(1);
+            if (endDate == null) endDate = LocalDate.now();
+            com.ledgora.reporting.dto.AccountStatementReport statement =
+                    reportingService.generateAccountStatement(accountNumber, startDate, endDate);
+            model.addAttribute("statement", statement);
+        }
+        model.addAttribute("accountNumber", accountNumber);
+        model.addAttribute("startDate", startDate);
+        model.addAttribute("endDate", endDate);
+        return "report/account-statement";
     }
 
     private Long resolveTenantId(HttpSession session) {

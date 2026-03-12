@@ -69,7 +69,7 @@ public class RiskMonitorController {
         model.addAttribute("limits", limits);
         model.addAttribute("recentViolations", recentViolations);
         model.addAttribute("violationCount24h", violationCount24h);
-        return "risk/hard-ceiling-monitor";
+        return "risk/risk-hard-ceiling";
     }
 
     /**
@@ -98,7 +98,7 @@ public class RiskMonitorController {
         model.addAttribute("openAlerts", openAlerts);
         model.addAttribute("recentAlerts", recentAlerts);
         model.addAttribute("openAlertCount", openAlertCount);
-        return "risk/velocity-monitor";
+        return "risk/risk-velocity";
     }
 
     private Long resolveTenantId(HttpSession session) {
