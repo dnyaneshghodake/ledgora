@@ -5,9 +5,18 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-arrow-left-right"></i> Transactions</h3>
     <div>
-        <a href="${pageContext.request.contextPath}/transactions/deposit" class="btn btn-success"><i class="bi bi-cash-stack"></i> Deposit</a>
-        <a href="${pageContext.request.contextPath}/transactions/withdraw" class="btn btn-warning"><i class="bi bi-cash-coin"></i> Withdraw</a>
-        <a href="${pageContext.request.contextPath}/transactions/transfer" class="btn btn-primary"><i class="bi bi-arrow-left-right"></i> Transfer</a>
+        <%-- Maker/Teller/Operations: transaction initiation buttons --%>
+        <c:if test="${isMaker or isTeller or isAdmin or isManager or isOperations}">
+            <a href="${pageContext.request.contextPath}/transactions/deposit" class="btn btn-success"><i class="bi bi-cash-stack"></i> Deposit</a>
+            <a href="${pageContext.request.contextPath}/transactions/withdraw" class="btn btn-warning"><i class="bi bi-cash-coin"></i> Withdraw</a>
+            <a href="${pageContext.request.contextPath}/transactions/transfer" class="btn btn-primary"><i class="bi bi-arrow-left-right"></i> Transfer</a>
+        </c:if>
+        <%-- Checker/Admin/Manager: pending approval queue --%>
+        <c:if test="${isChecker or isAdmin or isManager}">
+            <a href="${pageContext.request.contextPath}/transactions/pending" class="btn btn-outline-warning ms-1">
+                <i class="bi bi-hourglass-split"></i> Pending Approval
+            </a>
+        </c:if>
     </div>
 </div>
 
