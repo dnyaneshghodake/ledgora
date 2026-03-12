@@ -39,7 +39,7 @@ class ConfigGovernanceTest {
     @Test
     @DisplayName("Config change request is created in PENDING status")
     @WithMockUser(
-            username = "maker-user",
+            username = "maker1",
             roles = {"MAKER", "ADMIN"})
     void submitChange_createsPendingRequest() {
         TenantContextHolder.setTenantId(1L);
@@ -64,7 +64,7 @@ class ConfigGovernanceTest {
     @Test
     @DisplayName("Maker cannot approve own config change request")
     @WithMockUser(
-            username = "maker-user",
+            username = "maker1",
             roles = {"MAKER", "ADMIN"})
     void approve_ownRequest_throws() {
         TenantContextHolder.setTenantId(1L);
@@ -90,7 +90,7 @@ class ConfigGovernanceTest {
     @Test
     @DisplayName("Config governance throws when no tenant context is set")
     @WithMockUser(
-            username = "maker-user",
+            username = "maker1",
             roles = {"MAKER"})
     void submitChange_noTenantContext_throws() {
         TenantContextHolder.clear();
@@ -112,7 +112,7 @@ class ConfigGovernanceTest {
     @Test
     @DisplayName("Pending count reflects submitted requests")
     @WithMockUser(
-            username = "maker-user",
+            username = "maker1",
             roles = {"MAKER", "ADMIN"})
     void countPending_reflectsSubmittedRequests() {
         TenantContextHolder.setTenantId(1L);
