@@ -709,9 +709,8 @@ public class TransactionService {
         transaction.setCheckerRemarks(remarks);
         transactionRepository.save(transaction);
 
-        Long userId = checker != null ? checker.getId() : null;
         auditService.logTransaction(
-                userId,
+                checker.getId(),
                 transaction.getId(),
                 transaction.getTransactionRef(),
                 transaction.getTransactionType().name() + "_REJECTED");
@@ -719,7 +718,7 @@ public class TransactionService {
         log.info(
                 "Transaction {} rejected by checker {}: {}",
                 transaction.getTransactionRef(),
-                checker != null ? checker.getUsername() : "system",
+                checker.getUsername(),
                 remarks);
         return transaction;
     }
