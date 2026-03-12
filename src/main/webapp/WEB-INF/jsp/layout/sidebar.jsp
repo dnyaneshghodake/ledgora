@@ -225,6 +225,15 @@
                         </a>
                     </li>
                     </c:if>
+                    <%-- Teller: view their own pending transactions --%>
+                    <c:if test="${sessionScope.isTeller}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/transactions/pending" class="cbs-nav-link" data-page="transactions/pending">
+                            <i class="bi bi-hourglass-split"></i>
+                            <span>My Pending Transactions</span>
+                        </a>
+                    </li>
+                    </c:if>
                 </ul>
             </li>
             </c:if>
@@ -414,7 +423,7 @@
             </li>
             </c:if>
 
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin || sessionScope.isOperations}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="batch">
                     <i class="bi bi-collection"></i>
@@ -422,12 +431,15 @@
                     <i class="bi bi-chevron-down cbs-nav-arrow"></i>
                 </a>
                 <ul class="cbs-nav-submenu" id="group-batch">
+                    <%-- Day Begin and EOD execution require management roles --%>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/eod/day-begin" class="cbs-nav-link" data-page="eod/day-begin">
                             <i class="bi bi-sunrise"></i>
                             <span>Day Begin</span>
                         </a>
                     </li>
+                    </c:if>
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/batches" class="cbs-nav-link" data-page="batches">
                             <i class="bi bi-collection"></i>
@@ -440,12 +452,14 @@
                             <span>EOD Validation</span>
                         </a>
                     </li>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/eod/run" class="cbs-nav-link" data-page="eod/run">
                             <i class="bi bi-play-circle"></i>
                             <span>Execute EOD</span>
                         </a>
                     </li>
+                    </c:if>
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/eod/status" class="cbs-nav-link" data-page="eod/status">
                             <i class="bi bi-calendar-check"></i>
@@ -456,7 +470,7 @@
             </li>
             </c:if>
 
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin || sessionScope.isAuditor}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="reports">
                     <i class="bi bi-file-earmark-bar-graph"></i>
