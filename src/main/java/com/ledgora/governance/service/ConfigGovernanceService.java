@@ -150,8 +150,11 @@ public class ConfigGovernanceService {
         }
 
         User checker = getCurrentUser();
+        if (checker == null) {
+            throw new RuntimeException(
+                    "Cannot approve config change: approver identity could not be resolved");
+        }
         if (request.getRequestedBy() != null
-                && checker != null
                 && request.getRequestedBy().getId().equals(checker.getId())) {
             throw new RuntimeException(
                     "Cannot approve your own config change (maker-checker violation)");
@@ -203,6 +206,10 @@ public class ConfigGovernanceService {
         }
 
         User checker = getCurrentUser();
+        if (checker == null) {
+            throw new RuntimeException(
+                    "Cannot reject config change: reviewer identity could not be resolved");
+        }
         request.setStatus(ApprovalStatus.REJECTED);
         request.setApprovedBy(checker);
         request.setApprovedAt(LocalDateTime.now());
