@@ -29,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +47,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class TransactionViewService {
+
+    private static final Logger log = LoggerFactory.getLogger(TransactionViewService.class);
 
     private final TransactionRepository transactionRepository;
     private final VoucherRepository voucherRepository;
@@ -236,8 +240,11 @@ public class TransactionViewService {
                     if (lienAmount == null) {
                         lienAmount = BigDecimal.ZERO;
                     }
-                } catch (Exception ignored) {
-                    // Lien lookup is best-effort
+                } catch (Exception ex) {
+                    log.warn(
+                            "Lien lookup failed for account {} — defaulting to zero",
+                            accountId,
+                            ex);
                 }
 
                 AccountImpactDTO impact =
@@ -361,7 +368,7 @@ public class TransactionViewService {
                                         .amount(e.getAmount())
                                         .balanceAfter(e.getBalanceAfter())
                                         .businessDate(e.getBusinessDate())
-                                        .batchId(e.getVoucherId())
+                                        .batchId(null)
                                         .voucherId(e.getVoucherId())
                                         .reversalOfEntryId(e.getReversalOfEntryId())
                                         .narration(e.getNarration())
