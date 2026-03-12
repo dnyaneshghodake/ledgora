@@ -15,4 +15,7 @@ public interface HardTransactionLimitRepository extends JpaRepository<HardTransa
 
     /** Find default (channel=null) hard limit for tenant. */
     Optional<HardTransactionLimit> findByTenantIdAndChannelIsNullAndIsActiveTrue(Long tenantId);
+
+    /** Find all hard limits for a tenant (for monitoring dashboard). */
+    java.util.List<HardTransactionLimit> findByTenant_Id(Long tenantId);
 }

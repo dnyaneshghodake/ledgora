@@ -470,6 +470,24 @@
                             <span>Financial Reports</span>
                         </a>
                     </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/reports/trial-balance" class="cbs-nav-link" data-page="reports/trial-balance">
+                            <i class="bi bi-calculator"></i>
+                            <span>Trial Balance</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/reports/daily-summary" class="cbs-nav-link" data-page="reports/daily-summary">
+                            <i class="bi bi-bar-chart-line"></i>
+                            <span>Daily Summary</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/reports/liquidity" class="cbs-nav-link" data-page="reports/liquidity">
+                            <i class="bi bi-droplet-half"></i>
+                            <span>Liquidity Report</span>
+                        </a>
+                    </li>
                     <c:if test="${sessionScope.isAdmin || sessionScope.isOperations}">
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/admin/ledger/view/validate" class="cbs-nav-link" data-page="admin/ledger">

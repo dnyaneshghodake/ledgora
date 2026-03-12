@@ -14,4 +14,7 @@ public interface VelocityLimitRepository extends JpaRepository<VelocityLimit, Lo
 
     /** Find tenant-wide default velocity limit (accountId = null). */
     Optional<VelocityLimit> findByTenantIdAndAccountIdIsNullAndIsActiveTrue(Long tenantId);
+
+    /** Find all active velocity limits for a tenant (for monitoring dashboard). */
+    java.util.List<VelocityLimit> findByTenantIdAndIsActiveTrue(Long tenantId);
 }
