@@ -753,6 +753,10 @@ public class CustomerAccountSeeder {
                         .ledgerAccountType(ledger)
                         .tenant(tenant)
                         .status(AccountStatus.ACTIVE)
+                        // Seeded accounts are pre-approved (represent post-checker state).
+                        // Real accounts created via UI start as PENDING and require checker approval.
+                        .approvalStatus(MakerCheckerStatus.APPROVED)
+                        .approvedBy(admin)
                         .balance(balance)
                         .currency(ccy)
                         .branch(branch)

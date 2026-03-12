@@ -81,10 +81,16 @@ class ConfigGovernanceTest {
                         null);
 
         // Same user tries to approve — should throw maker-checker violation
-        assertThrows(
-                RuntimeException.class,
-                () -> governanceService.approve(request.getId(), "Self-approved"),
-                "Maker cannot approve own config change");
+        RuntimeException ex =
+                assertThrows(
+                        RuntimeException.class,
+                        () -> governanceService.approve(request.getId(), "Self-approved"),
+                        "Maker cannot approve own config change");
+        assertTrue(
+                ex.getMessage().contains("maker-checker")
+                        || ex.getMessage().contains("approve your own"),
+                "Exception must be a maker-checker violation, not a null-identity error. Got: "
+                        + ex.getMessage());
     }
 
     @Test
