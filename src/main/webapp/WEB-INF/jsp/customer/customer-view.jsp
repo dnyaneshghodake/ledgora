@@ -4,12 +4,13 @@
 
 <%-- Page Title --%>
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3><i class="bi bi-person"></i> Customer Details</h3>
-    <div>
+    <h3><i class="bi bi-person-circle"></i> Customer Details</h3>
+    <div class="d-flex gap-2">
+        <a href="${pageContext.request.contextPath}/customers/${customer.customerId}/360" class="btn btn-outline-dark btn-sm" title="Customer 360° View"><i class="bi bi-person-circle"></i> 360° View</a>
         <c:if test="${sessionScope.isMaker || sessionScope.isAdmin || sessionScope.isManager}">
-        <a href="${pageContext.request.contextPath}/customers/${customer.customerId}/edit" class="btn btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
+        <a href="${pageContext.request.contextPath}/customers/${customer.customerId}/edit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
         </c:if>
-        <a href="${pageContext.request.contextPath}/customers" class="btn btn-outline-primary"><i class="bi bi-arrow-left"></i> Back</a>
+        <a href="${pageContext.request.contextPath}/customers" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
     </div>
 </div>
 
@@ -20,18 +21,72 @@
 </c:if>
 <%@ include file="../layout/status-banner.jsp" %>
 
+<%-- ═══════════════════════════════════════════════════════════════════ --%>
+<%-- SUMMARY BANNER (Finacle-style sticky CIF strip)                   --%>
+<%-- ═══════════════════════════════════════════════════════════════════ --%>
+<div class="card border-primary mb-3 shadow-sm">
+    <div class="card-body py-2">
+        <div class="row align-items-center g-2">
+            <div class="col-md-3 d-flex align-items-center">
+                <i class="bi bi-person-circle fs-2 text-primary me-2"></i>
+                <div>
+                    <h6 class="mb-0"><c:out value="${customer.firstName}"/> <c:out value="${customer.lastName}"/></h6>
+                    <small class="text-muted">CIF: <code><c:out value="${customer.customerId}"/></code></small>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <small class="text-muted d-block">Customer Type</small>
+                <strong><c:out value="${customer.customerType}" default="INDIVIDUAL"/></strong>
+            </div>
+            <div class="col-md-2">
+                <small class="text-muted d-block">KYC Status</small>
+                <c:choose>
+                    <c:when test="${customer.kycStatus == 'VERIFIED'}"><span class="badge bg-success">VERIFIED</span></c:when>
+                    <c:when test="${customer.kycStatus == 'PENDING'}"><span class="badge bg-warning text-dark">PENDING</span></c:when>
+                    <c:when test="${customer.kycStatus == 'REJECTED'}"><span class="badge bg-danger">REJECTED</span></c:when>
+                    <c:otherwise><span class="badge bg-secondary"><c:out value="${customer.kycStatus}" default="N/A"/></span></c:otherwise>
+                </c:choose>
+            </div>
+            <div class="col-md-2">
+                <small class="text-muted d-block">Approval</small>
+                <c:choose>
+                    <c:when test="${customer.approvalStatus == 'APPROVED'}"><span class="badge cbs-badge-approved">APPROVED</span></c:when>
+                    <c:when test="${customer.approvalStatus == 'PENDING'}"><span class="badge cbs-badge-pending">PENDING</span></c:when>
+                    <c:when test="${customer.approvalStatus == 'REJECTED'}"><span class="badge cbs-badge-rejected">REJECTED</span></c:when>
+                    <c:otherwise><span class="badge bg-secondary"><c:out value="${customer.approvalStatus}" default="--"/></span></c:otherwise>
+                </c:choose>
+            </div>
+            <div class="col-md-2">
+                <small class="text-muted d-block">Risk</small>
+                <c:choose>
+                    <c:when test="${customer.riskCategory == 'HIGH'}"><span class="badge bg-danger">HIGH</span></c:when>
+                    <c:when test="${customer.riskCategory == 'MEDIUM'}"><span class="badge bg-warning text-dark">MEDIUM</span></c:when>
+                    <c:otherwise><span class="badge bg-success"><c:out value="${customer.riskCategory}" default="LOW"/></span></c:otherwise>
+                </c:choose>
+            </div>
+            <div class="col-md-1 text-end">
+                <c:if test="${customer.freezeLevel != null && customer.freezeLevel != 'NONE'}">
+                    <span class="badge bg-danger" title="Freeze: ${customer.freezeLevel}"><i class="bi bi-snow"></i> <c:out value="${customer.freezeLevel}"/></span>
+                </c:if>
+            </div>
+        </div>
+    </div>
+</div>
+
 <%-- Flash alerts already rendered and cleared by header.jsp (PART 7) --%>
 
-<ul class="nav nav-tabs mb-4" id="customerTabs">
-    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-basic">Basic Details</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-tax">Tax Profile</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-freeze">Freeze Control</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-accounts">Linked Accounts</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-approval">Approval</a></li>
-    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-freeze-history">Freeze History</a></li>
+<ul class="nav nav-tabs cbs-360-tabs mb-0" id="customerTabs">
+    <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-basic"><i class="bi bi-person-badge"></i> Basic Details</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-tax"><i class="bi bi-receipt"></i> Tax Profile</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-freeze"><i class="bi bi-snow"></i> Freeze Control</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-accounts"><i class="bi bi-wallet2"></i> Linked Accounts</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-approval"><i class="bi bi-clipboard-check"></i> Approval</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-risk"><i class="bi bi-shield-exclamation"></i> Risk Flags</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-audit-preview"><i class="bi bi-clock-history"></i> Audit Trail</a></li>
+    <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-freeze-history"><i class="bi bi-clock-history"></i> Freeze History</a></li>
 </ul>
 
-<div class="tab-content">
+<div class="tab-content cbs-360-tab-content">
 <div class="tab-pane fade show active" id="tab-basic">
     <div class="card shadow">
         <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-person-badge"></i> Customer Information</h5></div>
@@ -221,6 +276,175 @@
                 </div>
                 </c:if>
             </c:if>
+        </div>
+    </div>
+</div>
+
+<%-- ═══════════════════════════════════════════════════════════════════ --%>
+<%-- RISK FLAGS TAB                                                    --%>
+<%-- ═══════════════════════════════════════════════════════════════════ --%>
+<div class="tab-pane fade" id="tab-risk">
+    <div class="card shadow">
+        <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-shield-exclamation me-2"></i>Risk &amp; Governance Flags</h5></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <%-- Risk Category --%>
+                <div class="col-md-4">
+                    <div class="card border-0 bg-light h-100">
+                        <div class="card-body">
+                            <small class="text-muted d-block mb-1">Risk Category</small>
+                            <c:choose>
+                                <c:when test="${customer.riskCategory == 'HIGH'}"><span class="badge bg-danger fs-6">HIGH</span></c:when>
+                                <c:when test="${customer.riskCategory == 'MEDIUM'}"><span class="badge bg-warning text-dark fs-6">MEDIUM</span></c:when>
+                                <c:otherwise><span class="badge bg-success fs-6"><c:out value="${customer.riskCategory}" default="LOW"/></span></c:otherwise>
+                            </c:choose>
+                            <div class="text-muted small mt-2">RBI KYC risk-based classification.</div>
+                        </div>
+                    </div>
+                </div>
+                <%-- Freeze Level --%>
+                <div class="col-md-4">
+                    <div class="card border-0 bg-light h-100">
+                        <div class="card-body">
+                            <small class="text-muted d-block mb-1">Freeze Level</small>
+                            <c:choose>
+                                <c:when test="${customer.freezeLevel == null || customer.freezeLevel == 'NONE'}">
+                                    <span class="badge bg-success fs-6">NONE</span>
+                                </c:when>
+                                <c:when test="${customer.freezeLevel == 'FULL'}">
+                                    <span class="badge bg-danger fs-6"><i class="bi bi-snow"></i> FULL FREEZE</span>
+                                </c:when>
+                                <c:otherwise>
+                                    <span class="badge bg-warning text-dark fs-6"><i class="bi bi-snow"></i> <c:out value="${customer.freezeLevel}"/></span>
+                                </c:otherwise>
+                            </c:choose>
+                            <c:if test="${not empty customer.freezeReason}">
+                                <div class="text-muted small mt-2">Reason: <c:out value="${customer.freezeReason}"/></div>
+                            </c:if>
+                        </div>
+                    </div>
+                </div>
+                <%-- KYC Status --%>
+                <div class="col-md-4">
+                    <div class="card border-0 bg-light h-100">
+                        <div class="card-body">
+                            <small class="text-muted d-block mb-1">KYC Status</small>
+                            <c:choose>
+                                <c:when test="${customer.kycStatus == 'VERIFIED'}"><span class="badge bg-success fs-6">VERIFIED</span></c:when>
+                                <c:when test="${customer.kycStatus == 'PENDING'}"><span class="badge bg-warning text-dark fs-6">PENDING</span></c:when>
+                                <c:when test="${customer.kycStatus == 'REJECTED'}"><span class="badge bg-danger fs-6">REJECTED</span></c:when>
+                                <c:otherwise><span class="badge bg-secondary fs-6"><c:out value="${customer.kycStatus}" default="N/A"/></span></c:otherwise>
+                            </c:choose>
+                            <div class="text-muted small mt-2">RBI KYC Master Direction compliance.</div>
+                        </div>
+                    </div>
+                </div>
+                <%-- Approval Status --%>
+                <div class="col-md-4">
+                    <div class="card border-0 bg-light h-100">
+                        <div class="card-body">
+                            <small class="text-muted d-block mb-1">Approval Status</small>
+                            <c:choose>
+                                <c:when test="${customer.approvalStatus == 'APPROVED'}"><span class="badge cbs-badge-approved fs-6">APPROVED</span></c:when>
+                                <c:when test="${customer.approvalStatus == 'PENDING'}"><span class="badge cbs-badge-pending fs-6">PENDING</span></c:when>
+                                <c:when test="${customer.approvalStatus == 'REJECTED'}"><span class="badge cbs-badge-rejected fs-6">REJECTED</span></c:when>
+                                <c:otherwise><span class="badge bg-secondary fs-6"><c:out value="${customer.approvalStatus}" default="--"/></span></c:otherwise>
+                            </c:choose>
+                            <div class="text-muted small mt-2">Maker-checker dual control status.</div>
+                        </div>
+                    </div>
+                </div>
+                <%-- PEP Indicator --%>
+                <div class="col-md-4">
+                    <div class="card border-0 bg-light h-100">
+                        <div class="card-body">
+                            <small class="text-muted d-block mb-1">PEP Indicator</small>
+                            <span class="badge bg-secondary fs-6">NOT CAPTURED</span>
+                            <div class="text-muted small mt-2">Politically Exposed Person flag. Available in Customer 360° view.</div>
+                        </div>
+                    </div>
+                </div>
+                <%-- Maker / Checker --%>
+                <div class="col-md-4">
+                    <div class="card border-0 bg-light h-100">
+                        <div class="card-body">
+                            <small class="text-muted d-block mb-1">Maker / Checker</small>
+                            <div class="small">
+                                <i class="bi bi-person-fill text-primary"></i>
+                                <c:choose>
+                                    <c:when test="${customer.createdBy != null}"><c:out value="${customer.createdBy.username}"/></c:when>
+                                    <c:otherwise><span class="text-muted">System</span></c:otherwise>
+                                </c:choose>
+                                <c:if test="${customer.makerTimestamp != null}">
+                                    <br/><small class="text-muted"><c:out value="${customer.makerTimestamp}"/></small>
+                                </c:if>
+                            </div>
+                            <div class="small mt-1">
+                                <i class="bi bi-person-check-fill text-success"></i>
+                                <c:choose>
+                                    <c:when test="${customer.approvedBy != null}"><c:out value="${customer.approvedBy.username}"/></c:when>
+                                    <c:otherwise><span class="text-muted">Pending</span></c:otherwise>
+                                </c:choose>
+                                <c:if test="${customer.checkerTimestamp != null}">
+                                    <br/><small class="text-muted"><c:out value="${customer.checkerTimestamp}"/></small>
+                                </c:if>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%-- ═══════════════════════════════════════════════════════════════════ --%>
+<%-- AUDIT TRAIL PREVIEW TAB (last 5 entries)                          --%>
+<%-- ═══════════════════════════════════════════════════════════════════ --%>
+<div class="tab-pane fade" id="tab-audit-preview">
+    <div class="card shadow">
+        <div class="card-header bg-white d-flex align-items-center">
+            <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Audit Trail Preview</h5>
+            <a href="${pageContext.request.contextPath}/customers/${customer.customerId}/360#pane-audit"
+               class="btn btn-outline-secondary btn-sm ms-auto">Full Audit Trail in 360° View</a>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-light border mb-3">
+                <i class="bi bi-info-circle"></i> Showing last <strong>5</strong> audit entries for this customer. Audit trail is <strong>read-only</strong> and immutable.
+            </div>
+            <c:choose>
+                <c:when test="${not empty auditPreview}">
+                <div class="cbs-audit-timeline">
+                    <c:forEach var="al" items="${auditPreview}">
+                    <div class="cbs-audit-entry">
+                        <div class="cbs-audit-dot"></div>
+                        <div class="cbs-audit-content">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <span class="badge bg-dark me-1"><c:out value="${al.action}"/></span>
+                                    <c:if test="${al.username != null}">
+                                        <span class="text-muted">by <strong><c:out value="${al.username}"/></strong></span>
+                                    </c:if>
+                                </div>
+                                <small class="text-muted"><c:out value="${al.timestamp}"/></small>
+                            </div>
+                            <c:if test="${al.details != null}">
+                                <p class="mb-1 mt-1 small"><c:out value="${al.details}"/></p>
+                            </c:if>
+                            <c:if test="${al.ipAddress != null}">
+                                <small class="text-muted">IP: <c:out value="${al.ipAddress}"/></small>
+                            </c:if>
+                        </div>
+                    </div>
+                    </c:forEach>
+                </div>
+                </c:when>
+                <c:otherwise>
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-clock-history" style="font-size: 2rem;"></i>
+                        <p class="mt-2">No audit entries found for this customer.</p>
+                    </div>
+                </c:otherwise>
+            </c:choose>
         </div>
     </div>
 </div>
