@@ -69,6 +69,14 @@ public class AccountOwnership {
     @JoinColumn(name = "approved_by")
     private User approvedBy;
 
+    /**
+     * Optimistic locking — prevents concurrent approval of the same ownership link from two
+     * sessions. The second write throws ObjectOptimisticLockingFailureException.
+     */
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

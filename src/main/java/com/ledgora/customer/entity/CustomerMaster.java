@@ -124,6 +124,14 @@ public class CustomerMaster {
     @Column(name = "checker_timestamp")
     private LocalDateTime checkerTimestamp;
 
+    /**
+     * Optimistic locking — prevents concurrent approval of the same customer record from two
+     * sessions. The second write throws ObjectOptimisticLockingFailureException.
+     */
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
