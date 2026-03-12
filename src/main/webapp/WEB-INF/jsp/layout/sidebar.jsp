@@ -52,7 +52,8 @@
                 </ul>
             </li>
 
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isMaker || sessionScope.isChecker || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin || sessionScope.isBranchManager}">
+            <%-- Customer Management: TELLER, AUDITOR, OPERATIONS also need read access --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isMaker || sessionScope.isChecker || sessionScope.isTeller || sessionScope.isAuditor || sessionScope.isOperations || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin || sessionScope.isBranchManager}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="customer">
                     <i class="bi bi-people"></i>
@@ -67,19 +68,24 @@
                         </a>
                     </li>
                     <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/customers" class="cbs-nav-link" data-page="customers-master">
+                        <%-- Customer Master Inquiry: same list with VERIFIED filter --%>
+                        <a href="${pageContext.request.contextPath}/customers?kycStatus=VERIFIED" class="cbs-nav-link" data-page="customers-master">
                             <i class="bi bi-person-badge"></i>
                             <span>Customer Master Inquiry</span>
                         </a>
                     </li>
+                    <%-- Customer Freeze: list filtered by freeze status --%>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
                     <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/customers?tab=freeze" class="cbs-nav-link" data-page="customers-freeze">
+                        <a href="${pageContext.request.contextPath}/customers" class="cbs-nav-link" data-page="customers-freeze">
                             <i class="bi bi-snow"></i>
                             <span>Customer Freeze</span>
                         </a>
                     </li>
+                    </c:if>
+                    <%-- Tax Profile: customer list for tax profile management --%>
                     <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/customers?tab=tax" class="cbs-nav-link" data-page="customers-tax">
+                        <a href="${pageContext.request.contextPath}/customers" class="cbs-nav-link" data-page="customers-tax">
                             <i class="bi bi-receipt"></i>
                             <span>Tax Profile</span>
                         </a>
@@ -105,7 +111,8 @@
             </li>
             </c:if>
 
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTeller || sessionScope.isMaker || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
+            <%-- Account Management: CHECKER and AUDITOR also need read access --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTeller || sessionScope.isMaker || sessionScope.isChecker || sessionScope.isAuditor || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="account">
                     <i class="bi bi-wallet2"></i>
@@ -125,22 +132,25 @@
                             <span>Account Master Inquiry</span>
                         </a>
                     </li>
+                    <%-- Ownership: /ownership (OwnershipController) --%>
                     <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/accounts?view=ownership" class="cbs-nav-link" data-page="accounts-ownership">
+                        <a href="${pageContext.request.contextPath}/ownership" class="cbs-nav-link" data-page="ownership">
                             <i class="bi bi-diagram-2"></i>
                             <span>Account Ownership</span>
                         </a>
                     </li>
+                    <%-- Lien: /lien (LienController) --%>
                     <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/accounts?view=freeze" class="cbs-nav-link" data-page="accounts-freeze">
-                            <i class="bi bi-snow"></i>
-                            <span>Account Freeze</span>
-                        </a>
-                    </li>
-                    <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/accounts?view=lien" class="cbs-nav-link" data-page="accounts-lien">
+                        <a href="${pageContext.request.contextPath}/lien" class="cbs-nav-link" data-page="lien">
                             <i class="bi bi-lock"></i>
                             <span>Account Lien</span>
+                        </a>
+                    </li>
+                    <%-- Account Freeze: /accounts list with freeze filter --%>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/accounts?status=FROZEN" class="cbs-nav-link" data-page="accounts-freeze">
+                            <i class="bi bi-snow"></i>
+                            <span>Frozen Accounts</span>
                         </a>
                     </li>
                     <li class="cbs-nav-item">
@@ -149,11 +159,20 @@
                             <span>Chart of Accounts</span>
                         </a>
                     </li>
-                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isMaker}">
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isMaker || sessionScope.isTeller}">
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/accounts/create" class="cbs-nav-link cbs-lockable" data-page="accounts/create">
                             <i class="bi bi-plus-circle"></i>
                             <span>Open New Account</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <%-- Account approval queue for checkers --%>
+                    <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/accounts?status=PENDING" class="cbs-nav-link" data-page="accounts-pending">
+                            <i class="bi bi-hourglass-split"></i>
+                            <span>Pending Account Approvals</span>
                         </a>
                     </li>
                     </c:if>
@@ -652,9 +671,17 @@
                         </a>
                     </li>
                     <li class="cbs-nav-item">
-                        <a href="${pageContext.request.contextPath}/admin/audit" class="cbs-nav-link" data-page="admin/audit">
+                        <%-- Audit logs: /audit/explorer (AuditController) --%>
+                        <a href="${pageContext.request.contextPath}/audit/explorer" class="cbs-nav-link" data-page="audit/explorer">
                             <i class="bi bi-shield-check"></i>
                             <span>Audit Logs</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <%-- Ledger validation: /admin/ledger/view/validate (LedgerValidationController) --%>
+                        <a href="${pageContext.request.contextPath}/admin/ledger/view/validate" class="cbs-nav-link" data-page="admin/ledger/validate">
+                            <i class="bi bi-check2-circle"></i>
+                            <span>Ledger Validation</span>
                         </a>
                     </li>
                     <li class="cbs-nav-item">
