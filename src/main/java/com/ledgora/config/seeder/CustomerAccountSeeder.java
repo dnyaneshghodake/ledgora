@@ -714,6 +714,12 @@ public class CustomerAccountSeeder {
                 .findByNationalId(nid)
                 .orElseGet(
                         () -> {
+                            // Seeded customers with VERIFIED KYC are pre-approved (post-checker state).
+                            // Customers with PENDING KYC start in PENDING approval state.
+                            com.ledgora.common.enums.MakerCheckerStatus approvalStatus =
+                                    "VERIFIED".equals(kyc)
+                                            ? com.ledgora.common.enums.MakerCheckerStatus.APPROVED
+                                            : com.ledgora.common.enums.MakerCheckerStatus.PENDING;
                             Customer c =
                                     Customer.builder()
                                             .nationalId(nid)
@@ -724,6 +730,7 @@ public class CustomerAccountSeeder {
                                             .phone(phone)
                                             .address(addr)
                                             .kycStatus(kyc)
+                                            .approvalStatus(approvalStatus)
                                             .tenant(tenant)
                                             .createdBy(admin)
                                             .build();
