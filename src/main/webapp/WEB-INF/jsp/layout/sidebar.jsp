@@ -393,9 +393,17 @@
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/settlement/dashboard" class="cbs-nav-link" data-page="settlement/dashboard">
                             <i class="bi bi-gear-wide-connected"></i>
-                            <span>Settlement</span>
+                            <span>Settlement Dashboard</span>
                         </a>
                     </li>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/settlements/process" class="cbs-nav-link cbs-lockable" data-page="settlements/process">
+                            <i class="bi bi-play-fill"></i>
+                            <span>Run Settlement</span>
+                        </a>
+                    </li>
+                    </c:if>
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/settlements" class="cbs-nav-link" data-page="settlements">
                             <i class="bi bi-check2-square"></i>
@@ -643,7 +651,7 @@
 
     <div class="cbs-sidebar-footer">
         <div class="cbs-sidebar-version">
-            <small>Ledgora CBS v2.7</small>
+            <small>Ledgora CBS v2.8</small>
         </div>
     </div>
 </aside>

@@ -25,9 +25,15 @@ public class DashboardController {
     }
 
     @GetMapping("/dashboard")
-    public String dashboard(Model model) {
+    public String dashboard(
+            Model model,
+            jakarta.servlet.http.HttpSession session) {
         DashboardDTO dashboard = dashboardService.getDashboardData();
         model.addAttribute("dashboard", dashboard);
+
+        // Push pending counts to session so header badges stay current across pages
+        session.setAttribute("pendingApprovals", dashboard.getPendingApprovals());
+        session.setAttribute("pendingConfigChanges", dashboard.getPendingConfigChanges());
 
         // Extract roles from SecurityContext and pass to JSP for role-aware rendering
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
