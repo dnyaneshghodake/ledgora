@@ -1,6 +1,5 @@
 package com.ledgora.ledger.controller;
 
-import com.ledgora.common.service.BusinessDateService;
 import com.ledgora.ledger.entity.LedgerEntry;
 import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.ledger.repository.LedgerJournalRepository;
@@ -30,15 +29,12 @@ public class LedgerExplorerController {
 
     private final LedgerEntryRepository ledgerEntryRepository;
     private final LedgerJournalRepository ledgerJournalRepository;
-    private final BusinessDateService businessDateService;
 
     public LedgerExplorerController(
             LedgerEntryRepository ledgerEntryRepository,
-            LedgerJournalRepository ledgerJournalRepository,
-            BusinessDateService businessDateService) {
+            LedgerJournalRepository ledgerJournalRepository) {
         this.ledgerEntryRepository = ledgerEntryRepository;
         this.ledgerJournalRepository = ledgerJournalRepository;
-        this.businessDateService = businessDateService;
     }
 
     @GetMapping("/explorer")
