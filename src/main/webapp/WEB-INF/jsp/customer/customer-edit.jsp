@@ -109,12 +109,61 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Risk Category</label>
-                    <form:select path="riskCategory" cssClass="form-select">
-                        <option value="">Select</option>
-                        <option value="LOW" ${customerDTO.riskCategory == 'LOW' ? 'selected' : ''}>LOW</option>
-                        <option value="MEDIUM" ${customerDTO.riskCategory == 'MEDIUM' ? 'selected' : ''}>MEDIUM</option>
-                        <option value="HIGH" ${customerDTO.riskCategory == 'HIGH' ? 'selected' : ''}>HIGH</option>
+                    <div id="riskBadge" class="mt-1">
+                        <c:choose>
+                            <c:when test="${customerDTO.riskCategory == 'HIGH'}"><span class="badge bg-danger fs-6">HIGH</span></c:when>
+                            <c:when test="${customerDTO.riskCategory == 'MEDIUM'}"><span class="badge bg-warning text-dark fs-6">MEDIUM</span></c:when>
+                            <c:otherwise><span class="badge bg-success fs-6">LOW</span></c:otherwise>
+                        </c:choose>
+                    </div>
+                    <form:hidden path="riskCategory" id="riskCategoryHidden"/>
+                    <small class="text-muted">Auto-derived from income, occupation &amp; PEP</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%-- Governance Flags --%>
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="bi bi-flag me-2"></i>Governance Flags</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Annual Income (INR)</label>
+                    <form:input path="annualIncome" cssClass="form-control" id="annualIncome" placeholder="e.g. 500000"/>
+                    <small class="text-muted">&lt; 10L = LOW &nbsp;|&nbsp; 10L–50L = MEDIUM &nbsp;|&nbsp; &gt;= 50L = HIGH</small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Occupation</label>
+                    <form:select path="occupation" cssClass="form-select" id="occupation">
+                        <form:option value="" label="Select Occupation"/>
+                        <form:option value="SALARIED" label="Salaried"/>
+                        <form:option value="BUSINESS" label="Business"/>
+                        <form:option value="SELF_EMPLOYED" label="Self Employed"/>
+                        <form:option value="STUDENT" label="Student"/>
+                        <form:option value="RETIRED" label="Retired"/>
+                        <form:option value="GOVERNMENT_OFFICIAL" label="Government Official (HIGH RISK)"/>
+                        <form:option value="POLITICIAN" label="Politician (HIGH RISK)"/>
+                        <form:option value="FOREIGN_NATIONAL" label="Foreign National (HIGH RISK)"/>
+                        <form:option value="ARMS" label="Arms / Defence (HIGH RISK)"/>
+                        <form:option value="GAMBLING" label="Gambling (HIGH RISK)"/>
+                        <form:option value="OTHER" label="Other"/>
                     </form:select>
+                    <small class="text-muted">High-risk occupations auto-elevate risk to HIGH.</small>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">PEP (Politically Exposed Person)</label>
+                    <div class="mt-2">
+                        <div class="form-check form-switch">
+                            <form:checkbox path="isPep" cssClass="form-check-input" id="isPep"/>
+                            <label class="form-check-label" for="isPep">
+                                Mark as PEP — immediately elevates risk to <strong>HIGH</strong>
+                            </label>
+                        </div>
+                    </div>
+                    <small class="text-muted">Required per RBI KYC Master Direction.</small>
                 </div>
             </div>
         </div>
@@ -147,6 +196,17 @@
         </div>
     </div>
 
+    <%-- KYC Warning — checker cannot approve until KYC = VERIFIED --%>
+    <div class="alert alert-warning d-flex align-items-start mb-3">
+        <i class="bi bi-exclamation-triangle-fill me-2 mt-1"></i>
+        <div>
+            <strong>KYC Reminder:</strong> After submitting this update, the record will return to
+            <code>PENDING_APPROVAL</code> and KYC status will reset to <code>PENDING</code>.
+            A checker <strong>cannot approve</strong> the record until KYC is set to
+            <strong>VERIFIED</strong> by an authorised officer.
+        </div>
+    </div>
+
     <div class="card shadow-sm">
         <div class="card-body">
             <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Submit for Re-Approval</button>
@@ -156,5 +216,54 @@
     </div>
 
 </form:form>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+
+    const HIGH_RISK_OCCUPATIONS = [
+        "POLITICIAN", "GOVERNMENT_OFFICIAL", "FOREIGN_NATIONAL", "ARMS", "GAMBLING"
+    ];
+
+    function deriveRisk() {
+        const pep    = document.getElementById("isPep");
+        const income = document.getElementById("annualIncome");
+        const occ    = document.getElementById("occupation");
+        const badge  = document.getElementById("riskBadge");
+        const hidden = document.getElementById("riskCategoryHidden");
+
+        if (!badge || !hidden) return;
+
+        let risk = "LOW";
+
+        if (pep && pep.checked) {
+            risk = "HIGH";
+        } else if (occ && HIGH_RISK_OCCUPATIONS.indexOf(occ.value) !== -1) {
+            risk = "HIGH";
+        } else if (income && income.value) {
+            const amt = parseFloat(income.value);
+            if (!isNaN(amt)) {
+                if (amt >= 5000000) risk = "HIGH";
+                else if (amt >= 1000000) risk = "MEDIUM";
+            }
+        }
+
+        hidden.value = risk;
+
+        const colours = { LOW: "bg-success", MEDIUM: "bg-warning text-dark", HIGH: "bg-danger" };
+        badge.innerHTML =
+            '<span class="badge fs-6 ' + (colours[risk] || "bg-secondary") + '">' + risk + '</span>';
+    }
+
+    const pepEl    = document.getElementById("isPep");
+    const incomeEl = document.getElementById("annualIncome");
+    const occEl    = document.getElementById("occupation");
+
+    if (pepEl)    pepEl.addEventListener("change", deriveRisk);
+    if (incomeEl) incomeEl.addEventListener("input", deriveRisk);
+    if (occEl)    occEl.addEventListener("change", deriveRisk);
+
+    deriveRisk();
+});
+</script>
 
 <%@ include file="../layout/footer.jsp" %>

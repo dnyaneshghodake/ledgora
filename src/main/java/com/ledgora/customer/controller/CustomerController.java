@@ -225,6 +225,10 @@ public class CustomerController {
                                 customer.getApprovalStatus() != null
                                         ? customer.getApprovalStatus().name()
                                         : null)
+                        // Risk derivation fields — must be round-tripped for re-derivation on save
+                        .annualIncome(customer.getAnnualIncome())
+                        .occupation(customer.getOccupation())
+                        .isPep(customer.getIsPep())
                         .build();
         model.addAttribute("customerDTO", dto);
         model.addAttribute("freezeLevels", FreezeLevel.values());
