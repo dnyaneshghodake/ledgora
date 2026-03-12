@@ -1228,8 +1228,14 @@ public class TransactionService {
     }
 
     private User getCurrentUser() {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByUsername(username).orElse(null);
+        try {
+            org.springframework.security.core.Authentication auth =
+                    SecurityContextHolder.getContext().getAuthentication();
+            if (auth == null) return null;
+            return userRepository.findByUsername(auth.getName()).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private String generateTransactionRef(String prefix) {
