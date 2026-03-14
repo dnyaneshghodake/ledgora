@@ -25,8 +25,9 @@ public class TransactionViewDTO {
     private String transactionType;
     private String channel;
     private LocalDate businessDate;
-    private LocalDateTime valueDate;
+    private LocalDate valueDate;
     private String status;
+    private boolean isReversal;
     private String makerUsername;
     private String checkerUsername;
     private LocalDateTime makerTimestamp;

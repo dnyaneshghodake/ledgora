@@ -217,11 +217,13 @@ public class TransactionService {
                                         : "Cash Deposit")
                         .narration(dto.getNarration())
                         .businessDate(businessDate)
+                        .valueDate(businessDate)
                         .performedBy(currentUser)
                         .maker(currentUser)
                         .makerTimestamp(LocalDateTime.now())
                         .tenant(tenant)
                         .batch(batch)
+                        .branch(resolveBranch(account, currentUser))
                         .build();
         transaction = transactionRepository.save(transaction);
 
@@ -340,11 +342,13 @@ public class TransactionService {
                                         : "Cash Withdrawal")
                         .narration(dto.getNarration())
                         .businessDate(businessDate)
+                        .valueDate(businessDate)
                         .performedBy(currentUser)
                         .maker(currentUser)
                         .makerTimestamp(LocalDateTime.now())
                         .tenant(tenant)
                         .batch(batch)
+                        .branch(resolveBranch(account, currentUser))
                         .build();
         transaction = transactionRepository.save(transaction);
 
@@ -474,11 +478,13 @@ public class TransactionService {
                                         : "Internal Transfer")
                         .narration(dto.getNarration())
                         .businessDate(businessDate)
+                        .valueDate(businessDate)
                         .performedBy(currentUser)
                         .maker(currentUser)
                         .makerTimestamp(LocalDateTime.now())
                         .tenant(tenant)
                         .batch(batch)
+                        .branch(resolveBranch(sourceAccount, currentUser))
                         .build();
         transaction = transactionRepository.save(transaction);
 

@@ -134,6 +134,7 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
     @Query(
             "SELECT DISTINCT t FROM Transaction t "
                     + "LEFT JOIN FETCH t.tenant "
+                    + "LEFT JOIN FETCH t.branch "
                     + "LEFT JOIN FETCH t.sourceAccount "
                     + "LEFT JOIN FETCH t.destinationAccount "
                     + "LEFT JOIN FETCH t.maker "

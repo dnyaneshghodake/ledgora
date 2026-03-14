@@ -3,6 +3,7 @@ package com.ledgora.transaction.entity;
 import com.ledgora.account.entity.Account;
 import com.ledgora.auth.entity.User;
 import com.ledgora.batch.entity.TransactionBatch;
+import com.ledgora.branch.entity.Branch;
 import com.ledgora.common.enums.TransactionChannel;
 import com.ledgora.common.enums.TransactionStatus;
 import com.ledgora.common.enums.TransactionType;
@@ -43,6 +44,11 @@ public class Transaction {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "batch_id")
     private TransactionBatch batch;
+
+    /** CBS: Transaction must carry its own branch for branch-level reporting and EOD. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branch_id")
+    private Branch branch;
 
     @Column(name = "transaction_ref", length = 30, nullable = false, unique = true)
     private String transactionRef;
@@ -86,11 +92,17 @@ public class Transaction {
     @Column(name = "narration", length = 500)
     private String narration;
 
+    /** CBS value date — the date on which the transaction takes financial effect. Always a date. */
     @Column(name = "value_date")
-    private LocalDateTime valueDate;
+    private LocalDate valueDate;
 
     @Column(name = "business_date")
     private LocalDate businessDate;
+
+    /** Quick filter flag: true if this transaction is a reversal of another. */
+    @Column(name = "is_reversal", nullable = false)
+    @Builder.Default
+    private Boolean isReversal = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reversal_transaction_id")
@@ -138,7 +150,7 @@ public class Transaction {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
         if (valueDate == null) {
-            valueDate = LocalDateTime.now();
+            valueDate = LocalDate.now();
         }
     }
 

@@ -159,6 +159,7 @@ public class TransactionViewService {
         dto.setBusinessDate(txn.getBusinessDate());
         dto.setValueDate(txn.getValueDate());
         dto.setStatus(txn.getStatus() != null ? txn.getStatus().name() : null);
+        dto.setReversal(Boolean.TRUE.equals(txn.getIsReversal()));
         dto.setMakerUsername(
                 txn.getMaker() != null
                         ? txn.getMaker().getUsername()
@@ -176,8 +177,10 @@ public class TransactionViewService {
         dto.setCreatedAt(txn.getCreatedAt());
         dto.setUpdatedAt(txn.getUpdatedAt());
 
-        // Branch code from source account
-        if (txn.getSourceAccount() != null) {
+        // Branch code — prefer transaction's own branch, fall back to account's branch
+        if (txn.getBranch() != null) {
+            dto.setBranchCode(txn.getBranch().getBranchCode());
+        } else if (txn.getSourceAccount() != null) {
             dto.setBranchCode(txn.getSourceAccount().getBranchCode());
         } else if (txn.getDestinationAccount() != null) {
             dto.setBranchCode(txn.getDestinationAccount().getBranchCode());
