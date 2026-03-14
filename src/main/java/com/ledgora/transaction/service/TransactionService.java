@@ -217,11 +217,13 @@ public class TransactionService {
                                         : "Cash Deposit")
                         .narration(dto.getNarration())
                         .businessDate(businessDate)
+                        .valueDate(businessDate)
                         .performedBy(currentUser)
                         .maker(currentUser)
                         .makerTimestamp(LocalDateTime.now())
                         .tenant(tenant)
                         .batch(batch)
+                        .branch(resolveBranch(account, currentUser))
                         .build();
         transaction = transactionRepository.save(transaction);
 
@@ -340,11 +342,13 @@ public class TransactionService {
                                         : "Cash Withdrawal")
                         .narration(dto.getNarration())
                         .businessDate(businessDate)
+                        .valueDate(businessDate)
                         .performedBy(currentUser)
                         .maker(currentUser)
                         .makerTimestamp(LocalDateTime.now())
                         .tenant(tenant)
                         .batch(batch)
+                        .branch(resolveBranch(account, currentUser))
                         .build();
         transaction = transactionRepository.save(transaction);
 
@@ -474,11 +478,13 @@ public class TransactionService {
                                         : "Internal Transfer")
                         .narration(dto.getNarration())
                         .businessDate(businessDate)
+                        .valueDate(businessDate)
                         .performedBy(currentUser)
                         .maker(currentUser)
                         .makerTimestamp(LocalDateTime.now())
                         .tenant(tenant)
                         .batch(batch)
+                        .branch(resolveBranch(sourceAccount, currentUser))
                         .build();
         transaction = transactionRepository.save(transaction);
 
@@ -1297,11 +1303,29 @@ public class TransactionService {
                 "No branch mapping found for account " + account.getAccountNumber());
     }
 
+    /**
+     * Resolve the GL account for a customer account. CBS rule: every customer account MUST have a
+     * valid GL mapping. If the GL code is set but the GL account doesn't exist in the chart of
+     * accounts, this is a configuration error that must block posting (not silently skip).
+     *
+     * @return the GeneralLedger entity, or null only if no GL code is configured on the account
+     * @throws BusinessException if GL code is set but GL account not found
+     */
     private GeneralLedger resolveGlForAccount(Account account) {
         if (account.getGlAccountCode() == null || account.getGlAccountCode().isBlank()) {
             return null;
         }
-        return glRepository.findByGlCode(account.getGlAccountCode()).orElse(null);
+        return glRepository
+                .findByGlCode(account.getGlAccountCode())
+                .orElseThrow(
+                        () ->
+                                new com.ledgora.common.exception.BusinessException(
+                                        "GL_ACCOUNT_NOT_FOUND",
+                                        "GL account "
+                                                + account.getGlAccountCode()
+                                                + " not found in chart of accounts for account "
+                                                + account.getAccountNumber()
+                                                + ". CBS requires valid GL mapping for all postings."));
     }
 
     private Account resolveCashGlAccount(Long tenantId) {

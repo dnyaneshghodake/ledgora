@@ -124,13 +124,13 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 1.1: Tenant creation and lifecycle")
     void testTenantCreation() {
         Tenant tenant =
-                tenantService.createTenant("P1-TENANT-01", "Phase 1 Test Bank", LocalDate.now());
+                tenantService.createTenant("P1-TENANT-01", "Phase 1 Test Bank", nextWeekday());
 
         assertNotNull(tenant.getId(), "Tenant must have generated ID");
         assertEquals("P1-TENANT-01", tenant.getTenantCode());
         assertEquals("ACTIVE", tenant.getStatus());
         assertEquals(DayStatus.OPEN, tenant.getDayStatus());
-        assertEquals(LocalDate.now(), tenant.getCurrentBusinessDate());
+        assertEquals(nextWeekday(), tenant.getCurrentBusinessDate());
     }
 
     @Test
@@ -138,10 +138,10 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @Transactional
     @DisplayName("Phase 1.2: Duplicate tenant code rejected")
     void testDuplicateTenantCodeRejected() {
-        tenantService.createTenant("P1-DUP-01", "First Bank", LocalDate.now());
+        tenantService.createTenant("P1-DUP-01", "First Bank", nextWeekday());
         assertThrows(
                 RuntimeException.class,
-                () -> tenantService.createTenant("P1-DUP-01", "Second Bank", LocalDate.now()),
+                () -> tenantService.createTenant("P1-DUP-01", "Second Bank", nextWeekday()),
                 "Duplicate tenant code must be rejected");
     }
 
@@ -1143,7 +1143,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 6.1: Valid EOD - all conditions met, business date advances")
     void testValidEodAllConditionsMet() {
         // NOTE: No @Transactional — EOD state machine uses REQUIRES_NEW which needs committed data
-        Tenant tenant = tenantService.createTenant("P6-EOD-OK", "EOD OK Bank", LocalDate.now());
+        Tenant tenant = tenantService.createTenant("P6-EOD-OK", "EOD OK Bank", nextWeekday());
         LocalDate currentDate = tenant.getCurrentBusinessDate();
 
         try {
@@ -1169,6 +1169,10 @@ class LedgoraCbsPhase1To7IntegrationTest {
             // Delete child EodProcess records before tenant (FK constraint)
             eodProcessRepository
                     .findByTenantIdAndBusinessDate(tenant.getId(), currentDate)
+                    .ifPresent(eodProcessRepository::delete);
+            // Also clean up any EOD process for the advanced date
+            eodProcessRepository
+                    .findByTenantIdAndBusinessDate(tenant.getId(), currentDate.plusDays(1))
                     .ifPresent(eodProcessRepository::delete);
             tenantRepository.deleteById(tenant.getId());
         }
@@ -1275,7 +1279,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 6.5: After EOD close, transactions must be blocked")
     void testTransactionsBlockedAfterEodClose() {
         // NOTE: No @Transactional — EOD state machine uses REQUIRES_NEW which needs committed data
-        Tenant tenant = tenantService.createTenant("P6-BLCK", "EOD Block Bank", LocalDate.now());
+        Tenant tenant = tenantService.createTenant("P6-BLCK", "EOD Block Bank", nextWeekday());
 
         try {
             // Run EOD (no transactions, so it should pass)
@@ -1307,8 +1311,12 @@ class LedgoraCbsPhase1To7IntegrationTest {
         } finally {
             // Manual cleanup since no @Transactional rollback
             // Delete child EodProcess records before tenant (FK constraint)
+            LocalDate bizDate = tenant.getCurrentBusinessDate();
             eodProcessRepository
-                    .findByTenantIdAndBusinessDate(tenant.getId(), LocalDate.now())
+                    .findByTenantIdAndBusinessDate(tenant.getId(), bizDate)
+                    .ifPresent(eodProcessRepository::delete);
+            eodProcessRepository
+                    .findByTenantIdAndBusinessDate(tenant.getId(), bizDate.plusDays(1))
                     .ifPresent(eodProcessRepository::delete);
             tenantRepository.deleteById(tenant.getId());
         }
@@ -1607,13 +1615,28 @@ class LedgoraCbsPhase1To7IntegrationTest {
     // HELPER METHODS
     // ═══════════════════════════════════════════════════════════════
 
+    /**
+     * Returns a guaranteed weekday date (Mon-Fri) for test business dates.
+     * If today is Saturday or Sunday, returns the next Monday.
+     * This prevents BankCalendarService from blocking transactions on weekends
+     * (weekends default to holidays per RBI/CBS calendar rules when no explicit
+     * calendar entry exists).
+     */
+    private static LocalDate nextWeekday() {
+        LocalDate d = LocalDate.now();
+        while (d.getDayOfWeek().getValue() > 5) {
+            d = d.plusDays(1);
+        }
+        return d;
+    }
+
     private Tenant createTenant(String code) {
         return tenantRepository.save(
                 Tenant.builder()
                         .tenantCode(code)
                         .tenantName("Test Bank " + code)
                         .status("ACTIVE")
-                        .currentBusinessDate(LocalDate.now())
+                        .currentBusinessDate(nextWeekday())
                         .dayStatus(DayStatus.OPEN)
                         .build());
     }

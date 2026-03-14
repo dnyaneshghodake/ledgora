@@ -205,8 +205,8 @@
             </li>
             </c:if>
 
-            <%-- Transactions: visible to MAKER/TELLER (initiation) and CHECKER/ADMIN/MANAGER (approval) --%>
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTeller || sessionScope.isMaker || sessionScope.isChecker || sessionScope.isOperations}">
+            <%-- Transactions: visible to MAKER/TELLER (initiation), CHECKER/ADMIN/MANAGER (approval), AUDITOR (read-only 360° view) --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTeller || sessionScope.isMaker || sessionScope.isChecker || sessionScope.isOperations || sessionScope.isAuditor}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="transactions">
                     <i class="bi bi-cash-stack"></i>

@@ -144,24 +144,21 @@ public class CustomerController {
         try {
             model.addAttribute("linkedAccounts", accountService.getAccountsByCustomerId(id));
         } catch (Exception e) {
-            // If method not available, set empty list
             model.addAttribute("linkedAccounts", List.of());
         }
         model.addAttribute("freezeLevels", FreezeLevel.values());
-        // Load freeze history from audit logs (tenant-isolated)
+        // Load audit logs for this customer (tenant-isolated)
         try {
             Long tenantId = com.ledgora.tenant.context.TenantContextHolder.getRequiredTenantId();
-            List<AuditLog> freezeLogs =
-                    auditLogRepository
-                            .findByTenantIdAndEntityAndEntityId(tenantId, "CUSTOMER", id)
-                            .stream()
+            List<AuditLog> allLogs =
+                    auditLogRepository.findByTenantIdAndEntityAndEntityId(tenantId, "CUSTOMER", id);
+            // Freeze history
+            List<Map<String, Object>> freezeHistory =
+                    allLogs.stream()
                             .filter(
                                     log ->
                                             log.getAction() != null
                                                     && log.getAction().contains("FREEZE"))
-                            .collect(Collectors.toList());
-            List<Map<String, Object>> freezeHistory =
-                    freezeLogs.stream()
                             .map(
                                     log -> {
                                         Map<String, Object> entry = new HashMap<>();
@@ -178,8 +175,24 @@ public class CustomerController {
                                     })
                             .collect(Collectors.toList());
             model.addAttribute("freezeHistory", freezeHistory);
+            // Audit trail preview: last 5 entries across all actions
+            List<AuditLog> auditPreview =
+                    allLogs.stream()
+                            .sorted(
+                                    java.util.Comparator.comparing(
+                                                    AuditLog::getTimestamp,
+                                                    java.util.Comparator.nullsLast(
+                                                            java.util.Comparator.reverseOrder()))
+                                            .thenComparing(
+                                                    java.util.Comparator.comparingLong(
+                                                                    AuditLog::getId)
+                                                            .reversed()))
+                            .limit(5)
+                            .collect(Collectors.toList());
+            model.addAttribute("auditPreview", auditPreview);
         } catch (Exception e) {
             model.addAttribute("freezeHistory", List.of());
+            model.addAttribute("auditPreview", List.of());
         }
         return "customer/customer-view";
     }
@@ -212,9 +225,18 @@ public class CustomerController {
                                 customer.getApprovalStatus() != null
                                         ? customer.getApprovalStatus().name()
                                         : null)
+                        // Risk derivation fields — must be round-tripped for re-derivation on save
+                        .annualIncome(customer.getAnnualIncome())
+                        .occupation(customer.getOccupation())
+                        .isPep(customer.getIsPep())
                         .build();
         model.addAttribute("customerDTO", dto);
         model.addAttribute("freezeLevels", FreezeLevel.values());
+        // Audit metadata for CIF Snapshot "Last Updated" display (read-only, no business logic)
+        model.addAttribute("auditUpdatedAt", customer.getUpdatedAt());
+        model.addAttribute(
+                "auditLastModifiedBy",
+                customer.getCreatedBy() != null ? customer.getCreatedBy().getUsername() : "--");
         return "customer/customer-edit";
     }
 

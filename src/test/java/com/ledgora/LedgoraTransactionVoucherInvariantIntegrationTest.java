@@ -141,6 +141,18 @@ class LedgoraTransactionVoucherInvariantIntegrationTest {
                 "deleteAll must throw UnsupportedOperationException for CBS immutability");
     }
 
+    /**
+     * Returns a guaranteed weekday date (Mon-Fri) for test business dates.
+     * Prevents BankCalendarService from blocking transactions on weekends.
+     */
+    private static LocalDate nextWeekday() {
+        LocalDate d = LocalDate.now();
+        while (d.getDayOfWeek().getValue() > 5) {
+            d = d.plusDays(1);
+        }
+        return d;
+    }
+
     private TestData setupTestData(String suffix) {
         Tenant tenant =
                 tenantRepository.save(
@@ -148,7 +160,7 @@ class LedgoraTransactionVoucherInvariantIntegrationTest {
                                 .tenantCode("TEN-" + suffix)
                                 .tenantName("Tenant " + suffix)
                                 .status("ACTIVE")
-                                .currentBusinessDate(LocalDate.now())
+                                .currentBusinessDate(nextWeekday())
                                 .dayStatus(DayStatus.OPEN)
                                 .build());
 

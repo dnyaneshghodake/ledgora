@@ -4,7 +4,10 @@
 <%-- Page Title --%>
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-receipt"></i> Transaction Details</h3>
-    <a href="${pageContext.request.contextPath}/transactions" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+    <div class="d-flex gap-2">
+        <a href="${pageContext.request.contextPath}/transactions/${transaction.id}/view" class="btn btn-outline-dark btn-sm" title="Transaction 360° View"><i class="bi bi-eye-fill"></i> 360° View</a>
+        <a href="${pageContext.request.contextPath}/transactions" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back</a>
+    </div>
 </div>
 
 <%-- Operational Status Banner --%>
@@ -127,6 +130,29 @@
                     <tr>
                         <td class="text-muted">Business Date</td>
                         <td><c:out value="${transaction.businessDate}"/></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Batch</td>
+                        <td>
+                            <c:choose>
+                                <c:when test="${transaction.batch != null}">
+                                    <code><c:out value="${transaction.batch.batchCode}" default="BATCH-${transaction.batch.id}"/></code>
+                                    <c:choose>
+                                        <c:when test="${transaction.batch.status == 'OPEN'}"><span class="badge bg-success ms-1">OPEN</span></c:when>
+                                        <c:when test="${transaction.batch.status == 'CLOSED'}"><span class="badge bg-secondary ms-1">CLOSED</span></c:when>
+                                        <c:when test="${transaction.batch.status == 'SETTLED'}"><span class="badge bg-info ms-1">SETTLED</span></c:when>
+                                        <c:otherwise><span class="badge bg-secondary ms-1"><c:out value="${transaction.batch.status}"/></span></c:otherwise>
+                                    </c:choose>
+                                    <small class="text-muted ms-2">
+                                        <c:out value="${transaction.batch.batchType}"/>
+                                        | DR: <c:out value="${transaction.batch.totalDebit}"/>
+                                        | CR: <c:out value="${transaction.batch.totalCredit}"/>
+                                        | Txns: <c:out value="${transaction.batch.transactionCount}"/>
+                                    </small>
+                                </c:when>
+                                <c:otherwise><span class="text-muted">N/A</span></c:otherwise>
+                            </c:choose>
+                        </td>
                     </tr>
                     <tr>
                         <td class="text-muted">Created At</td>

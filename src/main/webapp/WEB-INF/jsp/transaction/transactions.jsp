@@ -75,7 +75,13 @@
                                         <c:otherwise><span class="badge bg-light text-dark"><c:out value="${tx.status}"/></span></c:otherwise>
                                     </c:choose>
                                 </td>
-                                <td><a href="${pageContext.request.contextPath}/transactions/${tx.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                                <td>
+                                    <a href="${pageContext.request.contextPath}/transactions/${tx.id}" class="btn btn-sm btn-outline-primary" title="Basic View"><i class="bi bi-eye"></i></a>
+                                    <a href="${pageContext.request.contextPath}/transactions/${tx.id}/view" class="btn btn-sm btn-outline-dark" title="360° View"><i class="bi bi-eye-fill"></i></a>
+                                    <c:if test="${(isChecker or isAdmin or isManager) and tx.status == 'PENDING_APPROVAL'}">
+                                        <a href="${pageContext.request.contextPath}/transactions/${tx.id}/authorize" class="btn btn-sm btn-outline-warning" title="Authorize"><i class="bi bi-shield-check"></i></a>
+                                    </c:if>
+                                </td>
                             </tr>
                             </c:forEach>
                         </tbody>

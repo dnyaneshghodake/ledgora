@@ -66,4 +66,33 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     long countByTenantIdAndApprovalStatus(
             @Param("tenantId") Long tenantId,
             @Param("approvalStatus") com.ledgora.common.enums.MakerCheckerStatus approvalStatus);
+
+    // ── Tenant-scoped uniqueness checks ──
+
+    /** Check PAN uniqueness within a tenant (excluding a specific customer for updates). */
+    @Query(
+            "SELECT COUNT(c) > 0 FROM Customer c WHERE c.tenant.id = :tenantId AND c.panNumber = :pan"
+                    + " AND (:excludeId IS NULL OR c.customerId <> :excludeId)")
+    boolean existsByTenantIdAndPanNumber(
+            @Param("tenantId") Long tenantId,
+            @Param("pan") String pan,
+            @Param("excludeId") Long excludeId);
+
+    /** Check Aadhaar uniqueness within a tenant (excluding a specific customer for updates). */
+    @Query(
+            "SELECT COUNT(c) > 0 FROM Customer c WHERE c.tenant.id = :tenantId AND c.aadhaarNumber = :aadhaar"
+                    + " AND (:excludeId IS NULL OR c.customerId <> :excludeId)")
+    boolean existsByTenantIdAndAadhaarNumber(
+            @Param("tenantId") Long tenantId,
+            @Param("aadhaar") String aadhaar,
+            @Param("excludeId") Long excludeId);
+
+    /** Check national ID uniqueness within a tenant (excluding a specific customer for updates). */
+    @Query(
+            "SELECT COUNT(c) > 0 FROM Customer c WHERE c.tenant.id = :tenantId AND c.nationalId = :nationalId"
+                    + " AND (:excludeId IS NULL OR c.customerId <> :excludeId)")
+    boolean existsByTenantIdAndNationalId(
+            @Param("tenantId") Long tenantId,
+            @Param("nationalId") String nationalId,
+            @Param("excludeId") Long excludeId);
 }

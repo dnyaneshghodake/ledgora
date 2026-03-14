@@ -75,6 +75,9 @@
                     <a href="${pageContext.request.contextPath}/transactions/${transaction.id}" class="btn btn-outline-secondary btn-sm">
                         <i class="bi bi-receipt"></i> View Transaction Screen
                     </a>
+                    <a href="${pageContext.request.contextPath}/transactions/${transaction.id}/view" class="btn btn-outline-dark btn-sm">
+                        <i class="bi bi-eye-fill"></i> Transaction 360° View
+                    </a>
                 </div>
             </div>
         </div>

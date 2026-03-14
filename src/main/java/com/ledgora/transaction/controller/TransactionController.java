@@ -28,18 +28,24 @@ public class TransactionController {
     private final AccountRepository accountRepository;
     private final UserRepository userRepository;
     private final VoucherRepository voucherRepository;
+    private final com.ledgora.tenant.service.TenantService tenantService;
+    private final com.ledgora.calendar.service.BankCalendarService bankCalendarService;
 
     public TransactionController(
             TransactionService transactionService,
             AccountService accountService,
             AccountRepository accountRepository,
             UserRepository userRepository,
-            VoucherRepository voucherRepository) {
+            VoucherRepository voucherRepository,
+            com.ledgora.tenant.service.TenantService tenantService,
+            com.ledgora.calendar.service.BankCalendarService bankCalendarService) {
         this.transactionService = transactionService;
         this.accountService = accountService;
         this.accountRepository = accountRepository;
         this.userRepository = userRepository;
         this.voucherRepository = voucherRepository;
+        this.tenantService = tenantService;
+        this.bankCalendarService = bankCalendarService;
     }
 
     @GetMapping
@@ -90,6 +96,7 @@ public class TransactionController {
     public String depositForm(Model model) {
         model.addAttribute("transactionDTO", new TransactionDTO());
         model.addAttribute("accounts", accountService.getAllAccounts());
+        populateTransactionFormContext(model);
         return "transaction/transaction-deposit";
     }
 
@@ -137,6 +144,7 @@ public class TransactionController {
     public String withdrawForm(Model model) {
         model.addAttribute("transactionDTO", new TransactionDTO());
         model.addAttribute("accounts", accountService.getAllAccounts());
+        populateTransactionFormContext(model);
         return "transaction/transaction-withdraw";
     }
 
@@ -183,6 +191,7 @@ public class TransactionController {
     public String transferForm(Model model) {
         model.addAttribute("transactionDTO", new TransactionDTO());
         model.addAttribute("accounts", accountService.getAllAccounts());
+        populateTransactionFormContext(model);
         return "transaction/transaction-transfer";
     }
 
@@ -363,6 +372,35 @@ public class TransactionController {
                 "ledgerEntries", transactionService.getLedgerEntriesByAccount(accountNumber));
         model.addAttribute("accountNumber", accountNumber);
         return "transaction/transaction-history";
+    }
+
+    /**
+     * Populate common transaction form context: business date, holiday status, maker name,
+     * tenant code, and currency. Called by all three form GET handlers.
+     */
+    private void populateTransactionFormContext(Model model) {
+        try {
+            Long tenantId = com.ledgora.tenant.context.TenantContextHolder.getRequiredTenantId();
+            java.time.LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
+            model.addAttribute("businessDate", businessDate);
+            model.addAttribute("isHoliday", !bankCalendarService.isWorkingDay(tenantId, businessDate));
+
+            com.ledgora.tenant.entity.Tenant tenant = tenantService.getTenantById(tenantId);
+            model.addAttribute("tenantCode", tenant.getTenantCode());
+            model.addAttribute("baseCurrency", tenant.getBaseCurrency() != null ? tenant.getBaseCurrency() : "INR");
+            model.addAttribute("dayStatus", tenant.getDayStatus() != null ? tenant.getDayStatus().name() : "--");
+        } catch (Exception e) {
+            model.addAttribute("businessDate", java.time.LocalDate.now());
+            model.addAttribute("isHoliday", false);
+            model.addAttribute("baseCurrency", "INR");
+            model.addAttribute("dayStatus", "--");
+        }
+        try {
+            String username = SecurityContextHolder.getContext().getAuthentication().getName();
+            model.addAttribute("makerName", username);
+        } catch (Exception e) {
+            model.addAttribute("makerName", "--");
+        }
     }
 
     /**

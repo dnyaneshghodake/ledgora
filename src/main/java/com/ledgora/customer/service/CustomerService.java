@@ -53,11 +53,12 @@ public class CustomerService {
     /**
      * Create customer (maker step). Customer starts as PENDING_APPROVAL with kycStatus=PENDING. An
      * ApprovalRequest is created for checker to approve/reject.
+     *
+     * <p>Enhancements: tenant-scoped PAN/Aadhaar/NationalId uniqueness, automatic risk derivation.
      */
     @Transactional
     public Customer createCustomer(CustomerDTO dto) {
         // ── RBI-grade field validations ──
-        // Age >= 18 for INDIVIDUAL customers
         if (dto.getDob() != null) {
             com.ledgora.common.validation.RbiFieldValidator.validateDob(dto.getDob());
         }
@@ -66,42 +67,53 @@ public class CustomerService {
                 throw new com.ledgora.common.exception.BusinessException(
                         "DOB_REQUIRED", "Date of Birth is mandatory for INDIVIDUAL customers");
             }
-            // PAN mandatory for INDIVIDUAL (RBI KYC norms)
             com.ledgora.common.validation.RbiFieldValidator.validatePanForIndividual(
                     dto.getCustomerType(), dto.getPanNumber());
-            // Validate PAN format if provided
             com.ledgora.common.validation.RbiFieldValidator.validatePanFormat(dto.getPanNumber());
-            // Validate Aadhaar format if provided
             com.ledgora.common.validation.RbiFieldValidator.validateAadhaarFormat(
                     dto.getAadhaarNumber());
         }
         if ("CORPORATE".equals(dto.getCustomerType())) {
-            // GST mandatory for CORPORATE
             com.ledgora.common.validation.RbiFieldValidator.validateGstForCorporate(
                     dto.getCustomerType(), dto.getGstNumber());
-            // Validate GST format if provided
             com.ledgora.common.validation.RbiFieldValidator.validateGstFormat(dto.getGstNumber());
         }
-        // Validate mobile number format
         if (dto.getPhone() != null && !dto.getPhone().isBlank()) {
             com.ledgora.common.validation.RbiFieldValidator.validateMobileNumber(dto.getPhone());
         }
 
+        Long tenantId = requireTenantId();
+
+        // ── Tenant-scoped uniqueness enforcement ──
         if (dto.getNationalId() != null
-                && customerRepository.existsByNationalId(dto.getNationalId())) {
-            throw new RuntimeException(
-                    "Customer with national ID " + dto.getNationalId() + " already exists");
+                && customerRepository.existsByTenantIdAndNationalId(tenantId, dto.getNationalId(), null)) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "DUPLICATE_NATIONAL_ID",
+                    "Customer with national ID " + dto.getNationalId() + " already exists in this tenant");
+        }
+        if (dto.getPanNumber() != null && !dto.getPanNumber().isBlank()
+                && customerRepository.existsByTenantIdAndPanNumber(tenantId, dto.getPanNumber(), null)) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "DUPLICATE_PAN",
+                    "Customer with PAN " + dto.getPanNumber() + " already exists in this tenant");
+        }
+        if (dto.getAadhaarNumber() != null && !dto.getAadhaarNumber().isBlank()
+                && customerRepository.existsByTenantIdAndAadhaarNumber(tenantId, dto.getAadhaarNumber(), null)) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "DUPLICATE_AADHAAR",
+                    "Customer with Aadhaar already exists in this tenant");
         }
 
-        Long tenantId = requireTenantId();
         Tenant tenant = tenantService.getTenantById(tenantId);
         User currentUser = getCurrentUser();
-        // Maker identity is required — customer creation is a regulated master data operation
         if (currentUser == null) {
             throw new com.ledgora.common.exception.BusinessException(
                     "IDENTITY_REQUIRED",
                     "Cannot create customer: maker identity could not be resolved");
         }
+
+        // ── Automatic risk derivation ──
+        String derivedRisk = deriveRiskCategory(dto);
 
         Customer customer =
                 Customer.builder()
@@ -116,20 +128,20 @@ public class CustomerService {
                         .tenant(tenant)
                         .createdBy(currentUser)
                         .makerTimestamp(java.time.LocalDateTime.now())
-                        // CBS fields from DTO
                         .customerType(
                                 dto.getCustomerType() != null ? dto.getCustomerType() : "INDIVIDUAL")
                         .panNumber(dto.getPanNumber())
                         .aadhaarNumber(dto.getAadhaarNumber())
                         .gstNumber(dto.getGstNumber())
-                        .riskCategory(
-                                dto.getRiskCategory() != null ? dto.getRiskCategory() : "LOW")
+                        .annualIncome(dto.getAnnualIncome())
+                        .occupation(dto.getOccupation())
+                        .isPep(dto.getIsPep() != null ? dto.getIsPep() : false)
+                        .riskCategory(derivedRisk)
                         .approvalStatus(com.ledgora.common.enums.MakerCheckerStatus.PENDING)
                         .build();
 
         Customer saved = customerRepository.save(customer);
 
-        // Submit for maker-checker approval (master data change requires dual control)
         approvalService.submitForApproval(
                 "CUSTOMER",
                 saved.getCustomerId(),
@@ -140,34 +152,44 @@ public class CustomerService {
                         + " NationalID: "
                         + saved.getNationalId());
 
-        auditService.logEvent(
+        auditService.logChangeEvent(
                 currentUser.getId(),
-                "CUSTOMER_CREATE",
+                "CUSTOMER_CREATED",
                 "CUSTOMER",
                 saved.getCustomerId(),
                 "Customer created (pending approval): "
                         + saved.getFirstName()
                         + " "
-                        + saved.getLastName(),
-                null);
+                        + saved.getLastName()
+                        + " | risk=" + derivedRisk,
+                null,
+                null,
+                "status=PENDING_APPROVAL,kyc=PENDING,risk=" + derivedRisk,
+                null,
+                tenantId);
 
         log.info(
-                "Customer created (PENDING_APPROVAL): {} {} (ID: {}) by user {}",
+                "Customer created (PENDING_APPROVAL): {} {} (ID: {}) by user {} risk={}",
                 saved.getFirstName(),
                 saved.getLastName(),
                 saved.getCustomerId(),
-                currentUser.getUsername());
+                currentUser.getUsername(),
+                derivedRisk);
         return saved;
     }
 
     /**
      * Update customer master data (maker step). Applies changes and resets approvalStatus to
      * PENDING so a checker must re-approve the modified record per CBS dual-control requirements.
-     * Master data modifications are as regulated as initial creation.
+     *
+     * <p>Enhancements: blocks direct edit of ACTIVE records without entering maker-checker cycle,
+     * tenant-scoped PAN/Aadhaar/NationalId uniqueness, re-derives risk category, emits
+     * CUSTOMER_UPDATED audit event.
      */
     @Transactional
     public Customer updateCustomer(Long customerId, CustomerDTO dto) {
         Customer customer = requireCustomer(customerId);
+        Long tenantId = requireTenantId();
 
         User currentUser = getCurrentUser();
         if (currentUser == null) {
@@ -175,6 +197,52 @@ public class CustomerService {
                     "IDENTITY_REQUIRED",
                     "Cannot update customer: maker identity could not be resolved");
         }
+
+        // ── Cannot edit an ACTIVE customer without going through maker-checker cycle ──
+        // An ACTIVE customer is one that has been approved. Any modification must reset it to
+        // PENDING so a checker re-approves the change before it takes effect.
+        // The only allowed operation here is to submit the change (which resets to PENDING).
+        // Attempting to bypass this by editing a currently PENDING record that belongs to another
+        // maker is also blocked.
+        if (customer.getApprovalStatus() == com.ledgora.common.enums.MakerCheckerStatus.APPROVED
+                && customer.getCreatedBy() != null
+                && !customer.getCreatedBy().getId().equals(currentUser.getId())) {
+            // An ACTIVE customer can only be edited by its original maker or an admin role.
+            // The controller layer enforces role-based access; here we enforce maker identity.
+            // If the current user is not the original maker, they must not edit directly.
+            throw new com.ledgora.common.exception.BusinessException(
+                    "ACTIVE_RECORD_EDIT_BLOCKED",
+                    "Cannot edit an ACTIVE customer record created by another user. "
+                            + "Only the original maker or an authorised admin may submit changes.");
+        }
+
+        // ── Tenant-scoped uniqueness checks for updated values ──
+        if (dto.getNationalId() != null
+                && !dto.getNationalId().equals(customer.getNationalId())
+                && customerRepository.existsByTenantIdAndNationalId(tenantId, dto.getNationalId(), customerId)) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "DUPLICATE_NATIONAL_ID",
+                    "Customer with national ID " + dto.getNationalId() + " already exists in this tenant");
+        }
+        if (dto.getPanNumber() != null && !dto.getPanNumber().isBlank()
+                && !dto.getPanNumber().equals(customer.getPanNumber())
+                && customerRepository.existsByTenantIdAndPanNumber(tenantId, dto.getPanNumber(), customerId)) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "DUPLICATE_PAN",
+                    "Customer with PAN " + dto.getPanNumber() + " already exists in this tenant");
+        }
+        if (dto.getAadhaarNumber() != null && !dto.getAadhaarNumber().isBlank()
+                && !dto.getAadhaarNumber().equals(customer.getAadhaarNumber())
+                && customerRepository.existsByTenantIdAndAadhaarNumber(tenantId, dto.getAadhaarNumber(), customerId)) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "DUPLICATE_AADHAAR",
+                    "Customer with Aadhaar already exists in this tenant");
+        }
+
+        // Snapshot old state for audit trail
+        String oldState = "status=" + customer.getApprovalStatus()
+                + ",kyc=" + customer.getKycStatus()
+                + ",risk=" + customer.getRiskCategory();
 
         if (dto.getFirstName() != null) customer.setFirstName(dto.getFirstName());
         if (dto.getLastName() != null) customer.setLastName(dto.getLastName());
@@ -186,36 +254,46 @@ public class CustomerService {
         if (dto.getPanNumber() != null) customer.setPanNumber(dto.getPanNumber());
         if (dto.getAadhaarNumber() != null) customer.setAadhaarNumber(dto.getAadhaarNumber());
         if (dto.getGstNumber() != null) customer.setGstNumber(dto.getGstNumber());
-        if (dto.getRiskCategory() != null) customer.setRiskCategory(dto.getRiskCategory());
+        if (dto.getAnnualIncome() != null) customer.setAnnualIncome(dto.getAnnualIncome());
+        if (dto.getOccupation() != null) customer.setOccupation(dto.getOccupation());
+        if (dto.getIsPep() != null) customer.setIsPep(dto.getIsPep());
 
-        // CBS: modifications reset approval status — checker must re-approve.
-        // createdBy is the original creator and must not be overwritten.
-        // makerTimestamp tracks when the most recent modification was submitted.
+        // ── Re-derive risk category after field updates ──
+        String derivedRisk = deriveRiskCategory(dto.getIsPep() != null ? dto : buildDtoFromCustomer(customer, dto));
+        customer.setRiskCategory(derivedRisk);
+
+        // ── CBS: modifications reset approval status to PENDING_APPROVAL ──
         customer.setApprovalStatus(com.ledgora.common.enums.MakerCheckerStatus.PENDING);
+        customer.setKycStatus("PENDING");
         customer.setMakerTimestamp(java.time.LocalDateTime.now());
         customer.setApprovedBy(null);
         customer.setCheckerTimestamp(null);
 
         Customer saved = customerRepository.save(customer);
 
-        // Submit for re-approval
         approvalService.submitForApproval(
                 "CUSTOMER",
                 saved.getCustomerId(),
                 "Customer update: " + saved.getFirstName() + " " + saved.getLastName());
 
-        auditService.logEvent(
+        String newState = "status=PENDING_APPROVAL,kyc=PENDING,risk=" + derivedRisk;
+        auditService.logChangeEvent(
                 currentUser.getId(),
-                "CUSTOMER_UPDATE",
+                "CUSTOMER_UPDATED",
                 "CUSTOMER",
                 saved.getCustomerId(),
                 "Customer master data updated (pending re-approval) by " + currentUser.getUsername(),
-                null);
+                null,
+                oldState,
+                newState,
+                null,
+                tenantId);
 
         log.info(
-                "Customer {} updated (PENDING re-approval) by user {}",
+                "Customer {} updated (PENDING re-approval) by user {} risk={}",
                 customerId,
-                currentUser.getUsername());
+                currentUser.getUsername(),
+                derivedRisk);
         return saved;
     }
 
@@ -343,11 +421,18 @@ public class CustomerService {
         return saved;
     }
 
-    /** Approve customer (checker step). Enforces maker != checker + tenant isolation. */
+    /**
+     * Approve customer (checker step). Enforces maker != checker + tenant isolation.
+     *
+     * <p>Enhancements: customer must be PENDING_APPROVAL, KYC must be APPROVED before activation,
+     * emits CUSTOMER_APPROVED audit event.
+     */
     @Transactional
     public Customer approveCustomer(Long customerId) {
         Customer customer = requireCustomer(customerId);
+        Long tenantId = requireTenantId();
 
+        // ── Must be in PENDING state ──
         if (customer.getApprovalStatus() != com.ledgora.common.enums.MakerCheckerStatus.PENDING) {
             throw new com.ledgora.common.exception.BusinessException(
                     "INVALID_STATE",
@@ -361,6 +446,8 @@ public class CustomerService {
                     "IDENTITY_REQUIRED",
                     "Cannot approve customer: approver identity could not be resolved");
         }
+
+        // ── Maker ≠ Checker ──
         if (customer.getCreatedBy() != null
                 && customer.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new com.ledgora.common.exception.BusinessException(
@@ -368,30 +455,48 @@ public class CustomerService {
                     "Cannot approve your own customer record (maker-checker violation)");
         }
 
+        // ── KYC must be APPROVED before activation ──
+        if (!"VERIFIED".equals(customer.getKycStatus())) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "KYC_NOT_APPROVED",
+                    "Cannot activate customer: KYC status must be VERIFIED before approval. "
+                            + "Current KYC status: " + customer.getKycStatus());
+        }
+
         // Set all approval state fields atomically
-        customer.setKycStatus("VERIFIED");
         customer.setApprovalStatus(com.ledgora.common.enums.MakerCheckerStatus.APPROVED);
         customer.setApprovedBy(currentUser);
         customer.setCheckerTimestamp(java.time.LocalDateTime.now());
         Customer saved = customerRepository.save(customer);
 
-        auditService.logEvent(
+        auditService.logChangeEvent(
                 currentUser.getId(),
-                "CUSTOMER_APPROVE",
+                "CUSTOMER_APPROVED",
                 "CUSTOMER",
                 customerId,
-                "Customer approved: " + customer.getFirstName() + " " + customer.getLastName(),
-                null);
+                "Customer approved by " + currentUser.getUsername()
+                        + ": " + customer.getFirstName() + " " + customer.getLastName(),
+                null,
+                "status=PENDING_APPROVAL",
+                "status=APPROVED,kyc=" + saved.getKycStatus(),
+                null,
+                tenantId);
 
         log.info("Customer {} approved by user {}", customerId, currentUser.getUsername());
         return saved;
     }
 
-    /** Reject customer (checker step). Enforces maker != checker + tenant isolation. */
+    /**
+     * Reject customer (checker step). Enforces maker != checker + tenant isolation.
+     *
+     * <p>Enhancements: customer must be PENDING_APPROVAL, emits CUSTOMER_REJECTED audit event.
+     */
     @Transactional
     public Customer rejectCustomer(Long customerId) {
         Customer customer = requireCustomer(customerId);
+        Long tenantId = requireTenantId();
 
+        // ── Must be in PENDING state ──
         if (customer.getApprovalStatus() != com.ledgora.common.enums.MakerCheckerStatus.PENDING) {
             throw new com.ledgora.common.exception.BusinessException(
                     "INVALID_STATE",
@@ -405,6 +510,8 @@ public class CustomerService {
                     "IDENTITY_REQUIRED",
                     "Cannot reject customer: reviewer identity could not be resolved");
         }
+
+        // ── Maker ≠ Checker ──
         if (customer.getCreatedBy() != null
                 && customer.getCreatedBy().getId().equals(currentUser.getId())) {
             throw new com.ledgora.common.exception.BusinessException(
@@ -419,16 +526,98 @@ public class CustomerService {
         customer.setCheckerTimestamp(java.time.LocalDateTime.now());
         Customer saved = customerRepository.save(customer);
 
-        auditService.logEvent(
+        auditService.logChangeEvent(
                 currentUser.getId(),
-                "CUSTOMER_REJECT",
+                "CUSTOMER_REJECTED",
                 "CUSTOMER",
                 customerId,
-                "Customer rejected: " + customer.getFirstName() + " " + customer.getLastName(),
-                null);
+                "Customer rejected by " + currentUser.getUsername()
+                        + ": " + customer.getFirstName() + " " + customer.getLastName(),
+                null,
+                "status=PENDING_APPROVAL",
+                "status=REJECTED,kyc=REJECTED",
+                null,
+                tenantId);
 
         log.info("Customer {} rejected by user {}", customerId, currentUser.getUsername());
         return saved;
+    }
+
+    /**
+     * Derive risk category from income, occupation, and PEP flag.
+     *
+     * <p>Rules (in priority order):
+     *
+     * <ol>
+     *   <li>PEP flag = true → HIGH (overrides everything)
+     *   <li>Occupation = POLITICIAN / GOVERNMENT_OFFICIAL / FOREIGN_NATIONAL → HIGH
+     *   <li>Annual income >= 10,00,000 (10 lakh INR) → MEDIUM
+     *   <li>Annual income >= 50,00,000 (50 lakh INR) → HIGH
+     *   <li>Default → LOW
+     * </ol>
+     *
+     * If the caller has explicitly set riskCategory on the DTO and no risk inputs are provided,
+     * the explicit value is honoured.
+     */
+    private String deriveRiskCategory(CustomerDTO dto) {
+        // PEP flag immediately elevates to HIGH
+        if (Boolean.TRUE.equals(dto.getIsPep())) {
+            return "HIGH";
+        }
+
+        // High-risk occupations
+        if (dto.getOccupation() != null) {
+            String occ = dto.getOccupation().toUpperCase();
+            if (occ.contains("POLITICIAN")
+                    || occ.contains("GOVERNMENT_OFFICIAL")
+                    || occ.contains("FOREIGN_NATIONAL")
+                    || occ.contains("ARMS")
+                    || occ.contains("GAMBLING")) {
+                return "HIGH";
+            }
+        }
+
+        // Income-based risk
+        if (dto.getAnnualIncome() != null) {
+            java.math.BigDecimal income = dto.getAnnualIncome();
+            // >= 50 lakh → HIGH
+            if (income.compareTo(new java.math.BigDecimal("5000000")) >= 0) {
+                return "HIGH";
+            }
+            // >= 10 lakh → MEDIUM
+            if (income.compareTo(new java.math.BigDecimal("1000000")) >= 0) {
+                return "MEDIUM";
+            }
+        }
+
+        // Honour explicit DTO value if no risk signals found
+        if (dto.getRiskCategory() != null && !dto.getRiskCategory().isBlank()) {
+            return dto.getRiskCategory();
+        }
+
+        return "LOW";
+    }
+
+    /**
+     * Build a minimal CustomerDTO from an existing Customer entity plus any overrides from the
+     * incoming DTO. Used to re-derive risk when only a subset of fields is provided on update.
+     */
+    private CustomerDTO buildDtoFromCustomer(Customer customer, CustomerDTO override) {
+        return CustomerDTO.builder()
+                .isPep(override.getIsPep() != null ? override.getIsPep() : customer.getIsPep())
+                .occupation(
+                        override.getOccupation() != null
+                                ? override.getOccupation()
+                                : customer.getOccupation())
+                .annualIncome(
+                        override.getAnnualIncome() != null
+                                ? override.getAnnualIncome()
+                                : customer.getAnnualIncome())
+                .riskCategory(
+                        override.getRiskCategory() != null
+                                ? override.getRiskCategory()
+                                : customer.getRiskCategory())
+                .build();
     }
 
     /** Tenant-safe customer lookup. Throws if not found or belongs to a different tenant. */

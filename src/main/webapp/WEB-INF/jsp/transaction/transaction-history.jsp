@@ -43,7 +43,10 @@
                                     </c:choose>
                                 </td>
                                 <td><c:out value="${txn.createdAt}"/></td>
-                                <td><a href="${pageContext.request.contextPath}/transactions/${txn.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a></td>
+                                <td>
+                                    <a href="${pageContext.request.contextPath}/transactions/${txn.id}" class="btn btn-sm btn-outline-primary" title="Basic View"><i class="bi bi-eye"></i></a>
+                                    <a href="${pageContext.request.contextPath}/transactions/${txn.id}/view" class="btn btn-sm btn-outline-dark" title="360° View"><i class="bi bi-eye-fill"></i></a>
+                                </td>
                             </tr>
                         </c:forEach>
                         <c:if test="${empty transactions}">

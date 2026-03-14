@@ -385,6 +385,19 @@ class LedgoraBankingInvariantTest {
 
     // ── Helper Methods ──
 
+    /**
+     * Returns a guaranteed weekday date (Mon-Fri) for test business dates.
+     * If today is Saturday or Sunday, returns the next Monday.
+     * This prevents BankCalendarService from blocking transactions on weekends.
+     */
+    private static LocalDate nextWeekday() {
+        LocalDate d = LocalDate.now();
+        while (d.getDayOfWeek().getValue() > 5) {
+            d = d.plusDays(1);
+        }
+        return d;
+    }
+
     private TestData setupTestData(String suffix) {
         Tenant tenant =
                 tenantRepository.save(
@@ -392,7 +405,7 @@ class LedgoraBankingInvariantTest {
                                 .tenantCode("TEN-" + suffix)
                                 .tenantName("Tenant " + suffix)
                                 .status("ACTIVE")
-                                .currentBusinessDate(LocalDate.now())
+                                .currentBusinessDate(nextWeekday())
                                 .dayStatus(DayStatus.OPEN)
                                 .build());
 

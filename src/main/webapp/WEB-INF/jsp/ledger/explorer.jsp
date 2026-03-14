@@ -122,7 +122,7 @@
                         </td>
                         <td>
                             <c:if test="${entry.transaction != null}">
-                                <a href="${pageContext.request.contextPath}/transactions/${entry.transaction.id}">
+                                <a href="${pageContext.request.contextPath}/transactions/${entry.transaction.id}/view" title="360° View">
                                     <code><c:out value="${entry.transaction.transactionRef}"/></code>
                                 </a>
                             </c:if>

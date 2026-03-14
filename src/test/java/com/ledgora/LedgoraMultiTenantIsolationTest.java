@@ -91,7 +91,9 @@ class LedgoraMultiTenantIsolationTest {
     void testTenantVoucherIsolation() {
         TestData data1 = setupFullTestData("MTI-02A");
         TestData data2 = setupFullTestData("MTI-02B");
+        TenantContextHolder.setTenantId(data1.tenant.getId());
         seedBalance(data1.account.getId(), "50000.0000");
+        TenantContextHolder.setTenantId(data2.tenant.getId());
         seedBalance(data2.account.getId(), "50000.0000");
 
         // Switch context to tenant 1 before creating voucher for tenant 1
@@ -134,7 +136,8 @@ class LedgoraMultiTenantIsolationTest {
         TestData data1 = setupFullTestData("MTI-03A");
         TestData data2 = setupFullTestData("MTI-03B");
 
-        // Update balance for tenant 1's account
+        // Update balance for tenant 1's account — set correct tenant context first
+        TenantContextHolder.setTenantId(data1.tenant.getId());
         cbsBalanceEngine.updateActualBalance(
                 data1.account.getId(), new BigDecimal("10000.0000"), VoucherDrCr.CR);
 
@@ -142,7 +145,8 @@ class LedgoraMultiTenantIsolationTest {
         AccountBalance bal1 = cbsBalanceEngine.getCbsBalance(data1.account.getId());
         assertEquals(0, new BigDecimal("10000.0000").compareTo(bal1.getActualTotalBalance()));
 
-        // Tenant 2's account should still be 0
+        // Tenant 2's account should still be 0 — set correct tenant context
+        TenantContextHolder.setTenantId(data2.tenant.getId());
         AccountBalance bal2 = cbsBalanceEngine.getCbsBalance(data2.account.getId());
         assertEquals(
                 0,
@@ -196,7 +200,9 @@ class LedgoraMultiTenantIsolationTest {
     void testVoucherListTenantScoped() {
         TestData data1 = setupFullTestData("MTI-05A");
         TestData data2 = setupFullTestData("MTI-05B");
+        TenantContextHolder.setTenantId(data1.tenant.getId());
         seedBalance(data1.account.getId(), "50000.0000");
+        TenantContextHolder.setTenantId(data2.tenant.getId());
         seedBalance(data2.account.getId(), "50000.0000");
 
         // Switch context to tenant 1 before creating voucher
