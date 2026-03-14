@@ -28,7 +28,7 @@ public class ExchangeRateSeeder {
             return;
         }
 
-        LocalDate today = nextWeekday();
+        LocalDate today = SeederDateUtil.nextWeekday();
         createRate("USD", "INR", new BigDecimal("83.12500000"), today);
         createRate("USD", "EUR", new BigDecimal("0.92150000"), today);
         createRate("INR", "EUR", new BigDecimal("0.01108500"), today);
@@ -37,17 +37,6 @@ public class ExchangeRateSeeder {
         createRate("INR", "USD", new BigDecimal("0.01203000"), today);
 
         log.info("  [FX] 6 exchange rates seeded (USD/INR/EUR/GBP pairs)");
-    }
-
-    /**
-     * Returns a guaranteed weekday date (Mon-Fri). CBS exchange rates are effective on working days.
-     */
-    private static LocalDate nextWeekday() {
-        LocalDate d = LocalDate.now();
-        while (d.getDayOfWeek().getValue() > 5) {
-            d = d.plusDays(1);
-        }
-        return d;
     }
 
     private void createRate(String from, String to, BigDecimal rate, LocalDate effectiveDate) {

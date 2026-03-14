@@ -3,7 +3,6 @@ package com.ledgora.config.seeder;
 import com.ledgora.common.enums.DayStatus;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
-import java.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -31,7 +30,8 @@ public class TenantDataSeeder {
                                             .tenantCode("TENANT-001")
                                             .tenantName("Ledgora Main Bank")
                                             .status("ACTIVE")
-                                            .currentBusinessDate(nextWeekday())
+                                            .currentBusinessDate(
+                                                    SeederDateUtil.nextWeekday())
                                             .dayStatus(DayStatus.OPEN)
                                             .build();
                             return tenantRepository.save(t);
@@ -48,23 +48,12 @@ public class TenantDataSeeder {
                                             .tenantCode("TENANT-002")
                                             .tenantName("Ledgora Partner Bank")
                                             .status("ACTIVE")
-                                            .currentBusinessDate(nextWeekday())
+                                            .currentBusinessDate(
+                                                    SeederDateUtil.nextWeekday())
                                             .dayStatus(DayStatus.OPEN)
                                             .build();
                             return tenantRepository.save(t);
                         });
-    }
-
-    /**
-     * Returns a guaranteed weekday date (Mon-Fri) for business date seeding. If today is Saturday
-     * or Sunday, returns the next Monday. CBS operations require a working-day business date.
-     */
-    private static LocalDate nextWeekday() {
-        LocalDate d = LocalDate.now();
-        while (d.getDayOfWeek().getValue() > 5) {
-            d = d.plusDays(1);
-        }
-        return d;
     }
 
     public void seed() {

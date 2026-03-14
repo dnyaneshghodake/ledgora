@@ -168,6 +168,7 @@ public class TransactionLedgerSeeder {
             String crGl,
             BigDecimal drBalAfter,
             BigDecimal crBalAfter) {
+        LocalDateTime bizTimestamp = biz.atStartOfDay();
         Transaction txn =
                 Transaction.builder()
                         .transactionRef(ref)
@@ -185,7 +186,7 @@ public class TransactionLedgerSeeder {
                         // maker = teller for seeded data (auto-authorized, no separate checker
                         // step)
                         .maker(teller)
-                        .makerTimestamp(LocalDateTime.now())
+                        .makerTimestamp(bizTimestamp)
                         .tenant(tenant)
                         .build();
         txn = transactionRepository.save(txn);
@@ -220,7 +221,7 @@ public class TransactionLedgerSeeder {
                         .balanceAfter(drBalAfter)
                         .currency("INR")
                         .businessDate(biz)
-                        .postingTime(LocalDateTime.now())
+                        .postingTime(bizTimestamp)
                         .narration(desc + " [DEBIT]")
                         .build());
 
@@ -237,7 +238,7 @@ public class TransactionLedgerSeeder {
                         .balanceAfter(crBalAfter)
                         .currency("INR")
                         .businessDate(biz)
-                        .postingTime(LocalDateTime.now())
+                        .postingTime(bizTimestamp)
                         .narration(desc + " [CREDIT]")
                         .build());
     }
