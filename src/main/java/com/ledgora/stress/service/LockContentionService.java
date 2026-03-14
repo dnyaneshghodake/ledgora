@@ -234,7 +234,7 @@ public class LockContentionService {
                                     eodResult[1] = true;
                                     eodTime[0] = System.currentTimeMillis() - eodStart;
                                 } catch (Exception e) {
-                                    eodTime[0] = System.currentTimeMillis();
+                                    eodTime[0] = System.currentTimeMillis() - eodStart;
                                     eodFailure[0] =
                                             e.getClass().getSimpleName() + ": " + e.getMessage();
                                     events.add("EOD_FAILED: " + eodFailure[0]);
