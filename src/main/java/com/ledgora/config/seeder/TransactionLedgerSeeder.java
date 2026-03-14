@@ -5,6 +5,8 @@ import com.ledgora.account.entity.AccountBalance;
 import com.ledgora.account.repository.AccountBalanceRepository;
 import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.auth.entity.User;
+import com.ledgora.batch.entity.TransactionBatch;
+import com.ledgora.batch.repository.TransactionBatchRepository;
 import com.ledgora.common.enums.*;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
@@ -15,6 +17,8 @@ import com.ledgora.ledger.repository.LedgerJournalRepository;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.repository.TransactionRepository;
+import com.ledgora.voucher.entity.Voucher;
+import com.ledgora.voucher.repository.VoucherRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,8 +27,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * CBS DataSeeder: Module 7 — Sample Transactions + Ledger Journals + Entries. Ensures SUM(debits) =
- * SUM(credits) for every journal (double-entry).
+ * CBS DataSeeder: Module 7 — Production-grade sample Transactions with full chain: Transaction →
+ * Batch → Voucher(DR+CR) → LedgerJournal → LedgerEntry. All flags set to authorized + posted.
+ * SUM(debits) = SUM(credits) for every journal (double-entry).
  */
 @Component
 public class TransactionLedgerSeeder {
@@ -36,6 +41,8 @@ public class TransactionLedgerSeeder {
     private final GeneralLedgerRepository glRepository;
     private final LedgerJournalRepository journalRepository;
     private final LedgerEntryRepository entryRepository;
+    private final TransactionBatchRepository batchRepository;
+    private final VoucherRepository voucherRepository;
 
     public TransactionLedgerSeeder(
             TransactionRepository transactionRepository,
@@ -43,13 +50,17 @@ public class TransactionLedgerSeeder {
             AccountBalanceRepository accountBalanceRepository,
             GeneralLedgerRepository glRepository,
             LedgerJournalRepository journalRepository,
-            LedgerEntryRepository entryRepository) {
+            LedgerEntryRepository entryRepository,
+            TransactionBatchRepository batchRepository,
+            VoucherRepository voucherRepository) {
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
         this.accountBalanceRepository = accountBalanceRepository;
         this.glRepository = glRepository;
         this.journalRepository = journalRepository;
         this.entryRepository = entryRepository;
+        this.batchRepository = batchRepository;
+        this.voucherRepository = voucherRepository;
     }
 
     public void seed(Tenant tenant, User teller) {
@@ -229,6 +240,13 @@ public class TransactionLedgerSeeder {
                         });
     }
 
+    /** Scroll counter for voucher numbering within this seeder run. */
+    private long scrollCounter = 0;
+
+    /**
+     * Create a complete production-grade transaction chain: Transaction → Batch → Voucher(DR+CR) →
+     * LedgerJournal → LedgerEntry(DR+CR). All flags set to authorized + posted state.
+     */
     private void txnAndJournal(
             Tenant tenant,
             User teller,
@@ -245,6 +263,38 @@ public class TransactionLedgerSeeder {
             BigDecimal drBalAfter,
             BigDecimal crBalAfter) {
         LocalDateTime bizTimestamp = biz.atStartOfDay();
+
+        // ── 1. Create or reuse batch for this channel + date ──
+        BatchType batchType =
+                channel == TransactionChannel.TELLER
+                        ? BatchType.TELLER
+                        : channel == TransactionChannel.ATM
+                                ? BatchType.ATM
+                                : BatchType.ONLINE;
+        String batchCode = "SEED-" + batchType.name() + "-" + biz.toString().replace("-", "");
+        TransactionBatch batch =
+                batchRepository
+                        .findByBatchCode(batchCode)
+                        .orElseGet(
+                                () ->
+                                        batchRepository.save(
+                                                TransactionBatch.builder()
+                                                        .tenant(tenant)
+                                                        .batchType(batchType)
+                                                        .batchCode(batchCode)
+                                                        .businessDate(biz)
+                                                        .status(BatchStatus.SETTLED)
+                                                        .totalDebit(BigDecimal.ZERO)
+                                                        .totalCredit(BigDecimal.ZERO)
+                                                        .transactionCount(0)
+                                                        .build()));
+        // Update batch totals
+        batch.setTotalDebit(batch.getTotalDebit().add(amt));
+        batch.setTotalCredit(batch.getTotalCredit().add(amt));
+        batch.setTransactionCount(batch.getTransactionCount() + 1);
+        batchRepository.save(batch);
+
+        // ── 2. Create transaction with batch + valueDate ──
         Transaction txn =
                 Transaction.builder()
                         .transactionRef(ref)
@@ -258,23 +308,22 @@ public class TransactionLedgerSeeder {
                         .description(desc)
                         .narration(desc)
                         .businessDate(biz)
+                        .valueDate(biz)
                         .performedBy(teller)
-                        // maker = teller for seeded data (auto-authorized, no separate checker
-                        // step)
                         .maker(teller)
                         .makerTimestamp(bizTimestamp)
                         .tenant(tenant)
+                        .batch(batch)
                         .build();
         txn = transactionRepository.save(txn);
 
-        // For double-entry: DR leg uses source account (or GL cash for deposits),
-        // CR leg uses destination account (or GL cash for withdrawals).
-        // drGl/crGl are GL codes for the GL hierarchy side of each leg.
-        Account drAccount = src != null ? src : dst; // debit side: source or dest for deposits
-        Account crAccount = dst != null ? dst : src; // credit side: dest or source for withdrawals
+        // ── 3. Resolve accounts and GL ──
+        Account drAccount = src != null ? src : dst;
+        Account crAccount = dst != null ? dst : src;
         GeneralLedger debitGL = glRepository.findByGlCode(drGl).orElse(null);
         GeneralLedger creditGL = glRepository.findByGlCode(crGl).orElse(null);
 
+        // ── 4. Create journal ──
         LedgerJournal journal =
                 LedgerJournal.builder()
                         .transaction(txn)
@@ -284,38 +333,111 @@ public class TransactionLedgerSeeder {
                         .build();
         journal = journalRepository.save(journal);
 
-        entryRepository.save(
-                LedgerEntry.builder()
-                        .journal(journal)
-                        .transaction(txn)
+        // ── 5. Create ledger entries ──
+        LedgerEntry drEntry =
+                entryRepository.save(
+                        LedgerEntry.builder()
+                                .journal(journal)
+                                .transaction(txn)
+                                .tenant(tenant)
+                                .account(drAccount)
+                                .glAccount(debitGL)
+                                .glAccountCode(drGl)
+                                .entryType(EntryType.DEBIT)
+                                .amount(amt)
+                                .balanceAfter(drBalAfter)
+                                .currency("INR")
+                                .businessDate(biz)
+                                .postingTime(bizTimestamp)
+                                .narration(desc + " [DEBIT]")
+                                .build());
+
+        LedgerEntry crEntry =
+                entryRepository.save(
+                        LedgerEntry.builder()
+                                .journal(journal)
+                                .transaction(txn)
+                                .tenant(tenant)
+                                .account(crAccount)
+                                .glAccount(creditGL)
+                                .glAccountCode(crGl)
+                                .entryType(EntryType.CREDIT)
+                                .amount(amt)
+                                .balanceAfter(crBalAfter)
+                                .currency("INR")
+                                .businessDate(biz)
+                                .postingTime(bizTimestamp)
+                                .narration(desc + " [CREDIT]")
+                                .build());
+
+        // ── 6. Create vouchers (DR + CR) — authorized + posted ──
+        String tenantCode = tenant.getTenantCode();
+        String branchCode =
+                drAccount.getBranch() != null ? drAccount.getBranch().getBranchCode() : "HQ001";
+        String dateStr = biz.toString().replace("-", "");
+
+        scrollCounter++;
+        Voucher drVoucher =
+                Voucher.builder()
+                        .voucherNumber(
+                                tenantCode + "-" + branchCode + "-" + dateStr + "-"
+                                        + String.format("%06d", scrollCounter))
                         .tenant(tenant)
+                        .branch(drAccount.getBranch() != null ? drAccount.getBranch() : dst.getBranch())
+                        .transaction(txn)
+                        .batchCode(batchCode)
+                        .setNo(1)
+                        .scrollNo(scrollCounter)
+                        .entryDate(biz)
+                        .postingDate(biz)
+                        .valueDate(biz)
+                        .effectiveDate(biz)
+                        .drCr(VoucherDrCr.DR)
                         .account(drAccount)
                         .glAccount(debitGL)
-                        .glAccountCode(drGl)
-                        .entryType(EntryType.DEBIT)
-                        .amount(amt)
-                        .balanceAfter(drBalAfter)
+                        .transactionAmount(amt)
+                        .localCurrencyAmount(amt)
                         .currency("INR")
-                        .businessDate(biz)
-                        .postingTime(bizTimestamp)
+                        .maker(teller)
+                        .authFlag("Y")
+                        .postFlag("Y")
+                        .cancelFlag("N")
+                        .financialEffectFlag("Y")
                         .narration(desc + " [DEBIT]")
-                        .build());
+                        .ledgerEntry(drEntry)
+                        .build();
+        voucherRepository.save(drVoucher);
 
-        entryRepository.save(
-                LedgerEntry.builder()
-                        .journal(journal)
-                        .transaction(txn)
+        scrollCounter++;
+        Voucher crVoucher =
+                Voucher.builder()
+                        .voucherNumber(
+                                tenantCode + "-" + branchCode + "-" + dateStr + "-"
+                                        + String.format("%06d", scrollCounter))
                         .tenant(tenant)
+                        .branch(crAccount.getBranch() != null ? crAccount.getBranch() : src.getBranch())
+                        .transaction(txn)
+                        .batchCode(batchCode)
+                        .setNo(1)
+                        .scrollNo(scrollCounter)
+                        .entryDate(biz)
+                        .postingDate(biz)
+                        .valueDate(biz)
+                        .effectiveDate(biz)
+                        .drCr(VoucherDrCr.CR)
                         .account(crAccount)
                         .glAccount(creditGL)
-                        .glAccountCode(crGl)
-                        .entryType(EntryType.CREDIT)
-                        .amount(amt)
-                        .balanceAfter(crBalAfter)
+                        .transactionAmount(amt)
+                        .localCurrencyAmount(amt)
                         .currency("INR")
-                        .businessDate(biz)
-                        .postingTime(bizTimestamp)
+                        .maker(teller)
+                        .authFlag("Y")
+                        .postFlag("Y")
+                        .cancelFlag("N")
+                        .financialEffectFlag("Y")
                         .narration(desc + " [CREDIT]")
-                        .build());
+                        .ledgerEntry(crEntry)
+                        .build();
+        voucherRepository.save(crVoucher);
     }
 }
