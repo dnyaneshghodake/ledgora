@@ -8,6 +8,7 @@ import com.ledgora.common.enums.TransactionChannel;
 import com.ledgora.common.enums.TransactionType;
 import com.ledgora.common.enums.VaultTransferStatus;
 import com.ledgora.common.exception.BusinessException;
+import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.teller.entity.TellerMaster;
 import com.ledgora.teller.entity.TellerSession;
 import com.ledgora.teller.entity.VaultMaster;
@@ -49,10 +50,9 @@ public class VaultTransferService {
     private static final String ENTITY_TELLER = "TELLER";
     private static final String ENTITY_VAULT = "VAULT";
 
-    /** GL account numbers (Account.accountNumber) used for posting. */
-    private static final String GL_BRANCH_CASH_ACCOUNT_NO = "GL-CASH-001";
-
-    private static final String GL_VAULT_CASH_ACCOUNT_NO = "GL-VAULT-001";
+    /** GL codes used for tenant-aware account resolution (not hardcoded account numbers). */
+    private static final String GL_CODE_BRANCH_CASH = "1100";
+    private static final String GL_CODE_VAULT_CASH = "1120";
 
     private final TenantService tenantService;
     private final TransactionService transactionService;
@@ -60,6 +60,7 @@ public class VaultTransferService {
     private final TellerSessionRepository tellerSessionRepository;
     private final VaultMasterRepository vaultMasterRepository;
     private final VaultTransferRepository vaultTransferRepository;
+    private final AccountRepository accountRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
 
@@ -70,6 +71,7 @@ public class VaultTransferService {
             TellerSessionRepository tellerSessionRepository,
             VaultMasterRepository vaultMasterRepository,
             VaultTransferRepository vaultTransferRepository,
+            AccountRepository accountRepository,
             UserRepository userRepository,
             AuditService auditService) {
         this.tenantService = tenantService;
@@ -78,6 +80,7 @@ public class VaultTransferService {
         this.tellerSessionRepository = tellerSessionRepository;
         this.vaultMasterRepository = vaultMasterRepository;
         this.vaultTransferRepository = vaultTransferRepository;
+        this.accountRepository = accountRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
     }
@@ -328,9 +331,13 @@ public class VaultTransferService {
                             + amount);
         }
 
+        // Resolve GL accounts dynamically per tenant (CBS multi-tenant GL isolation)
+        String branchCashAccNo = resolveGlAccountNumber(tenantId, GL_CODE_BRANCH_CASH);
+        String vaultCashAccNo = resolveGlAccountNumber(tenantId, GL_CODE_VAULT_CASH);
+
         // Post accounting entry via existing engine (transfer between GL accounts)
-        // Teller → Vault: DR GL-VAULT-001, CR GL-CASH-001
-        // Vault → Teller: DR GL-CASH-001, CR GL-VAULT-001
+        // Teller → Vault: DR Vault Cash GL, CR Branch Cash GL
+        // Vault → Teller: DR Branch Cash GL, CR Vault Cash GL
         TransactionDTO dto =
                 TransactionDTO.builder()
                         .transactionType(TransactionType.TRANSFER.name())
@@ -344,11 +351,11 @@ public class VaultTransferService {
                                         : "Vault transfer authorization")
                         .build();
         if (tellerToVault) {
-            dto.setSourceAccountNumber(GL_BRANCH_CASH_ACCOUNT_NO);
-            dto.setDestinationAccountNumber(GL_VAULT_CASH_ACCOUNT_NO);
+            dto.setSourceAccountNumber(branchCashAccNo);
+            dto.setDestinationAccountNumber(vaultCashAccNo);
         } else {
-            dto.setSourceAccountNumber(GL_VAULT_CASH_ACCOUNT_NO);
-            dto.setDestinationAccountNumber(GL_BRANCH_CASH_ACCOUNT_NO);
+            dto.setSourceAccountNumber(vaultCashAccNo);
+            dto.setDestinationAccountNumber(branchCashAccNo);
         }
 
         Transaction txn = transactionService.transfer(dto);
@@ -442,7 +449,9 @@ public class VaultTransferService {
         vt.setStatus(VaultTransferStatus.REJECTED);
         vt.setDualAuthUser2(checker);
         vt.setAuthorizedAt(LocalDateTime.now());
-        vt.setRemarks(remarks);
+        if (remarks != null && !remarks.isBlank()) {
+            vt.setRemarks(remarks);
+        }
 
         VaultTransfer saved = vaultTransferRepository.save(vt);
 
@@ -455,6 +464,26 @@ public class VaultTransferService {
                 null);
 
         return saved;
+    }
+
+    /**
+     * Resolve GL account number by GL code for a specific tenant. CBS multi-tenant rule: each
+     * tenant may have different account numbers for the same GL code. Matches the pattern used by
+     * TransactionService.resolveCashGlAccount().
+     */
+    private String resolveGlAccountNumber(Long tenantId, String glCode) {
+        return accountRepository
+                .findFirstByTenantIdAndGlAccountCode(tenantId, glCode)
+                .map(a -> a.getAccountNumber())
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        "GL_ACCOUNT_NOT_FOUND",
+                                        "GL account with code "
+                                                + glCode
+                                                + " not found for tenant "
+                                                + tenantId
+                                                + ". CBS requires valid GL mapping for vault transfers."));
     }
 
     private void validateAmount(BigDecimal amount) {

@@ -337,6 +337,7 @@ public class TellerSessionService {
         }
 
         session.setState(TellerStatus.CLOSED);
+        session.setAuthorizedBy(checker);
         session.setClosedAt(LocalDateTime.now());
         TellerSession saved = tellerSessionRepository.save(session);
 
