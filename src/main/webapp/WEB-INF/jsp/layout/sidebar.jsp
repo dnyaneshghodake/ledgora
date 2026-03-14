@@ -421,6 +421,31 @@
             </li>
             </c:if>
 
+            <%-- ═══ Deposit Management (CASA + FD + RD) ═══ --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk || sessionScope.isOperations}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="deposit">
+                    <i class="bi bi-piggy-bank"></i>
+                    <span>Deposit Management</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-deposit">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/deposit/dashboard" class="cbs-nav-link" data-page="deposit/dashboard">
+                            <i class="bi bi-speedometer"></i>
+                            <span>Deposit Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/deposit/list" class="cbs-nav-link" data-page="deposit/list">
+                            <i class="bi bi-list-ul"></i>
+                            <span>Deposit Portfolio</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            </c:if>
+
             <%-- ═══ Loan Management (Finacle Loan Module) ═══ --%>
             <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk || sessionScope.isOperations}">
             <li class="cbs-nav-group">

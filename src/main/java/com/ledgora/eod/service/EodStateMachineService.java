@@ -235,6 +235,17 @@ public class EodStateMachineService {
     public void runPhaseValidated(EodProcess process, Long tenantId, LocalDate businessDate) {
         log.info("EOD Phase VALIDATED: tenant={} date={}", tenantId, businessDate);
 
+        // ── DEPOSIT MODULE: Interest accrual BEFORE loan processing ──
+        // RBI: Deposit interest accrual runs before loan accrual and financial statements
+        try {
+            com.ledgora.deposit.service.DepositInterestAccrualService depositAccrualService =
+                    applicationContext.getBean(
+                            com.ledgora.deposit.service.DepositInterestAccrualService.class);
+            depositAccrualService.accrueDailyInterest(tenantId);
+        } catch (org.springframework.beans.factory.NoSuchBeanDefinitionException ignored) {
+            // Deposit module not deployed — skip
+        }
+
         // ── LOAN MODULE: EOD processing BEFORE validation ──
         // RBI IRAC: Accrual → DPD/NPA → Provisioning must run before statement generation
         try {
