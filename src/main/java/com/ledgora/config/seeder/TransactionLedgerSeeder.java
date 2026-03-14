@@ -267,7 +267,7 @@ public class TransactionLedgerSeeder {
         // ── 1. Create or reuse batch for this channel + date ──
         BatchType batchType =
                 channel == TransactionChannel.TELLER
-                        ? BatchType.TELLER
+                        ? BatchType.BRANCH_CASH
                         : channel == TransactionChannel.ATM
                                 ? BatchType.ATM
                                 : BatchType.ONLINE;
