@@ -10,9 +10,13 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 public class WebMvcConfig implements WebMvcConfigurer {
 
     private final BusinessDayInterceptor businessDayInterceptor;
+    private final PendingApprovalsInterceptor pendingApprovalsInterceptor;
 
-    public WebMvcConfig(BusinessDayInterceptor businessDayInterceptor) {
+    public WebMvcConfig(
+            BusinessDayInterceptor businessDayInterceptor,
+            PendingApprovalsInterceptor pendingApprovalsInterceptor) {
         this.businessDayInterceptor = businessDayInterceptor;
+        this.pendingApprovalsInterceptor = pendingApprovalsInterceptor;
     }
 
     @Override
@@ -32,5 +36,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addInterceptor(businessDayInterceptor)
                 .addPathPatterns("/**")
                 .excludePathPatterns("/css/**", "/js/**", "/resources/**", "/login", "/logout");
+        registry.addInterceptor(pendingApprovalsInterceptor)
+                .addPathPatterns("/**")
+                .excludePathPatterns(
+                        "/css/**", "/js/**", "/resources/**", "/login", "/logout", "/api/**");
     }
 }

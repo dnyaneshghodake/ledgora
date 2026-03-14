@@ -114,10 +114,12 @@
             </div>
         </c:if>
         <%-- Pending Approvals --%>
-        <c:if test="${sessionScope.pendingApprovals != null && sessionScope.pendingApprovals > 0 && (sessionScope.isAdmin || sessionScope.isManager || sessionScope.isChecker)}">
+        <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isChecker}">
             <a href="${pageContext.request.contextPath}/approvals" class="cbs-notifications" aria-label="Pending approvals">
                 <i class="bi bi-bell" aria-hidden="true"></i>
-                <span class="cbs-badge">${sessionScope.pendingApprovals}</span>
+                <c:if test="${sessionScope.pendingApprovals != null && sessionScope.pendingApprovals > 0}">
+                    <span class="cbs-badge">${sessionScope.pendingApprovals}</span>
+                </c:if>
             </a>
         </c:if>
         <%-- Pending Config Changes (governance badge) --%>
