@@ -122,6 +122,7 @@
                             </td>
                             <td><small><c:out value="${branch.createdAt}"/></small></td>
                             <td>
+                                <a href="${pageContext.request.contextPath}/admin/branches/${branch.id}" class="btn btn-sm btn-outline-primary" title="View Details"><i class="bi bi-eye"></i></a>
                                 <c:if test="${sessionScope.isAdmin || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
                                     <c:if test="${branch.isActive}">
                                         <form method="post" action="${pageContext.request.contextPath}/admin/branches/${branch.id}/deactivate" style="display:inline;">

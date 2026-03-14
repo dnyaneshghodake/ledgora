@@ -139,6 +139,7 @@
                             <td><c:out value="${tenant.effectiveFrom}" default="--"/></td>
                             <td><small><c:out value="${tenant.createdAt}"/></small></td>
                             <td>
+                                <a href="${pageContext.request.contextPath}/admin/tenants/${tenant.id}" class="btn btn-sm btn-outline-primary" title="View Details"><i class="bi bi-eye"></i></a>
                                 <c:if test="${sessionScope.isAdmin || sessionScope.isSuperAdmin}">
                                     <c:if test="${tenant.status != 'ACTIVE'}">
                                         <form method="post" action="${pageContext.request.contextPath}/admin/tenants/${tenant.id}/activate" style="display:inline;">

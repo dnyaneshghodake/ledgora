@@ -217,6 +217,30 @@ public class AdminController {
         return "redirect:/admin/branches";
     }
 
+    /** Tenant detail view — shows all entity fields + audit info. */
+    @GetMapping("/tenants/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TENANT_ADMIN', 'SUPER_ADMIN')")
+    public String viewTenant(@PathVariable Long id, Model model) {
+        Tenant tenant =
+                tenantRepository
+                        .findById(id)
+                        .orElseThrow(() -> new RuntimeException("Tenant not found: " + id));
+        model.addAttribute("tenant", tenant);
+        return "admin/tenant-view";
+    }
+
+    /** Branch detail view — shows all entity fields + audit info. */
+    @GetMapping("/branches/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TENANT_ADMIN', 'SUPER_ADMIN')")
+    public String viewBranch(@PathVariable Long id, Model model) {
+        Branch branch =
+                branchRepository
+                        .findById(id)
+                        .orElseThrow(() -> new RuntimeException("Branch not found: " + id));
+        model.addAttribute("branch", branch);
+        return "admin/branch-view";
+    }
+
     /** Activate a tenant (INITIALIZING/INACTIVE → ACTIVE). */
     @PostMapping("/tenants/{id}/activate")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
