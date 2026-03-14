@@ -53,6 +53,8 @@ public class CashDenominationTxn {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
-        totalAmount = denominationValue.multiply(new BigDecimal(count));
+        if (denominationValue != null && count != null) {
+            totalAmount = denominationValue.multiply(new BigDecimal(count));
+        }
     }
 }
