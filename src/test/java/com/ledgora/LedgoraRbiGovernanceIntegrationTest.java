@@ -741,7 +741,7 @@ class LedgoraRbiGovernanceIntegrationTest {
                                 .tenantCode("TEN-XTEN-OTH")
                                 .tenantName("Other Tenant")
                                 .status("ACTIVE")
-                                .currentBusinessDate(LocalDate.now())
+                                .currentBusinessDate(nextWeekday())
                                 .dayStatus(DayStatus.OPEN)
                                 .build());
 

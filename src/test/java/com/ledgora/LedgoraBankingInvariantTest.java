@@ -241,7 +241,7 @@ class LedgoraBankingInvariantTest {
                                 .tenantCode("TEN-BATCH-AC")
                                 .tenantName("Batch AutoCreate Tenant")
                                 .status("ACTIVE")
-                                .currentBusinessDate(LocalDate.now())
+                                .currentBusinessDate(nextWeekday())
                                 .dayStatus(DayStatus.OPEN)
                                 .build());
 
@@ -257,7 +257,7 @@ class LedgoraBankingInvariantTest {
 
         TransactionBatch batch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, nextWeekday());
 
         assertNotNull(batch, "Batch must be auto-created");
         assertEquals(BatchStatus.OPEN, batch.getStatus(), "New batch must have OPEN status");
@@ -275,7 +275,7 @@ class LedgoraBankingInvariantTest {
                                 .tenantCode("TEN-BATCH-CL")
                                 .tenantName("Batch Close Tenant")
                                 .status("ACTIVE")
-                                .currentBusinessDate(LocalDate.now())
+                                .currentBusinessDate(nextWeekday())
                                 .dayStatus(DayStatus.OPEN)
                                 .build());
 
@@ -291,7 +291,7 @@ class LedgoraBankingInvariantTest {
 
         TransactionBatch batch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, nextWeekday());
 
         // Close the batch
         batch.setStatus(BatchStatus.CLOSED);
@@ -320,7 +320,7 @@ class LedgoraBankingInvariantTest {
                                 .tenantCode("TEN-ISO-A")
                                 .tenantName("Isolation Tenant A")
                                 .status("ACTIVE")
-                                .currentBusinessDate(LocalDate.now())
+                                .currentBusinessDate(nextWeekday())
                                 .dayStatus(DayStatus.OPEN)
                                 .build());
 
@@ -330,7 +330,7 @@ class LedgoraBankingInvariantTest {
                                 .tenantCode("TEN-ISO-B")
                                 .tenantName("Isolation Tenant B")
                                 .status("ACTIVE")
-                                .currentBusinessDate(LocalDate.now())
+                                .currentBusinessDate(nextWeekday())
                                 .dayStatus(DayStatus.OPEN)
                                 .build());
 
