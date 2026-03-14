@@ -6,6 +6,7 @@ import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.auth.entity.User;
 import com.ledgora.batch.entity.TransactionBatch;
 import com.ledgora.batch.repository.TransactionBatchRepository;
+import com.ledgora.branch.entity.Branch;
 import com.ledgora.common.enums.*;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
@@ -23,6 +24,8 @@ import com.ledgora.voucher.repository.VoucherRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -252,6 +255,9 @@ public class TransactionLedgerSeeder {
     /** Scroll counter for voucher numbering within this seeder run. */
     private long scrollCounter = 0;
 
+    /** Tracks actual branch IDs used by seeded vouchers for ScrollSequence sync. */
+    private final Set<Long> seededBranchIds = new HashSet<>();
+
     /**
      * Sync the ScrollSequence table after seeding vouchers. Creates or updates entries for each
      * branch so that VoucherService.getNextScrollNo() starts AFTER the last seeded scroll number.
@@ -259,11 +265,10 @@ public class TransactionLedgerSeeder {
     private void syncScrollSequences(Tenant tenant, LocalDate biz) {
         // All seeded vouchers share the same tenant + business date.
         // We need to set lastScrollNo for each branch that has seeded vouchers.
-        // Since scrollCounter is global across all branches in this run, we set it
-        // for all 3 branches to be safe (covers HQ001, BR001, BR002).
+        // Use the actual branch IDs collected during voucher creation instead of
+        // hardcoded values, since auto-generated IDs are not guaranteed to be 1-3.
         Long tenantId = tenant.getId();
-        for (long branchId = 1; branchId <= 3; branchId++) {
-            final long bId = branchId;
+        for (Long bId : seededBranchIds) {
             ScrollSequence seq =
                     scrollSequenceRepository
                             .findByTenantIdAndBranchIdAndPostingDateWithLock(tenantId, bId, biz)
@@ -409,11 +414,23 @@ public class TransactionLedgerSeeder {
 
         // ── 6. Create vouchers (DR + CR) — authorized + posted ──
         String tenantCode = tenant.getTenantCode();
-        String branchCode =
-                drAccount.getBranch() != null ? drAccount.getBranch().getBranchCode() : "HQ001";
+        // Resolve branch safely: prefer drAccount's branch, fall back to the other account's
+        // branch. Both src and dst may be null (deposits have src=null, withdrawals have dst=null).
+        Branch resolvedBranch =
+                drAccount.getBranch() != null
+                        ? drAccount.getBranch()
+                        : (crAccount.getBranch() != null ? crAccount.getBranch() : null);
+        String branchCode = resolvedBranch != null ? resolvedBranch.getBranchCode() : "HQ001";
         String dateStr = biz.toString().replace("-", "");
 
         scrollCounter++;
+        Branch drBranch =
+                drAccount.getBranch() != null
+                        ? drAccount.getBranch()
+                        : resolvedBranch;
+        if (drBranch != null) {
+            seededBranchIds.add(drBranch.getId());
+        }
         Voucher drVoucher =
                 Voucher.builder()
                         .voucherNumber(
@@ -425,10 +442,7 @@ public class TransactionLedgerSeeder {
                                         + "-"
                                         + String.format("%06d", scrollCounter))
                         .tenant(tenant)
-                        .branch(
-                                drAccount.getBranch() != null
-                                        ? drAccount.getBranch()
-                                        : dst.getBranch())
+                        .branch(drBranch)
                         .transaction(txn)
                         .batchCode(batchCode)
                         .setNo(1)
@@ -454,6 +468,13 @@ public class TransactionLedgerSeeder {
         voucherRepository.save(drVoucher);
 
         scrollCounter++;
+        Branch crBranch =
+                crAccount.getBranch() != null
+                        ? crAccount.getBranch()
+                        : resolvedBranch;
+        if (crBranch != null) {
+            seededBranchIds.add(crBranch.getId());
+        }
         Voucher crVoucher =
                 Voucher.builder()
                         .voucherNumber(
@@ -465,10 +486,7 @@ public class TransactionLedgerSeeder {
                                         + "-"
                                         + String.format("%06d", scrollCounter))
                         .tenant(tenant)
-                        .branch(
-                                crAccount.getBranch() != null
-                                        ? crAccount.getBranch()
-                                        : src.getBranch())
+                        .branch(crBranch)
                         .transaction(txn)
                         .batchCode(batchCode)
                         .setNo(1)
