@@ -8,7 +8,7 @@ import com.ledgora.approval.service.ApprovalService;
 import com.ledgora.audit.service.AuditService;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
-import com.ledgora.balance.service.CbsBalanceEngine;
+import com.ledgora.balance.service.CbsBalanceService;
 import com.ledgora.common.enums.LienStatus;
 import com.ledgora.common.enums.LienType;
 import com.ledgora.common.enums.MakerCheckerStatus;
@@ -37,7 +37,7 @@ public class AccountLienService {
     private final AccountLienRepository lienRepository;
     private final AccountRepository accountRepository;
     private final AccountBalanceRepository accountBalanceRepository;
-    private final CbsBalanceEngine balanceEngine;
+    private final CbsBalanceService balanceEngine;
     private final TenantService tenantService;
     private final ApprovalService approvalService;
     private final AuditService auditService;
@@ -47,7 +47,7 @@ public class AccountLienService {
             AccountLienRepository lienRepository,
             AccountRepository accountRepository,
             AccountBalanceRepository accountBalanceRepository,
-            CbsBalanceEngine balanceEngine,
+            CbsBalanceService balanceEngine,
             TenantService tenantService,
             ApprovalService approvalService,
             AuditService auditService,

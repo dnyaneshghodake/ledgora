@@ -8,7 +8,7 @@ import com.ledgora.account.repository.AccountBalanceRepository;
 import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
-import com.ledgora.balance.service.CbsBalanceEngine;
+import com.ledgora.balance.service.CbsBalanceService;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.calendar.entity.BankCalendar;
@@ -59,7 +59,7 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Autowired private BankCalendarService calendarService;
     @Autowired private AccountOwnershipService ownershipService;
     @Autowired private AccountLienService lienService;
-    @Autowired private CbsBalanceEngine balanceEngine;
+    @Autowired private CbsBalanceService balanceEngine;
     @Autowired private TenantRepository tenantRepository;
     @Autowired private BranchRepository branchRepository;
     @Autowired private UserRepository userRepository;
@@ -367,7 +367,7 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Test
     @Order(30)
     @Transactional
-    @DisplayName("Lien reduces available balance via BalanceEngine")
+    @DisplayName("Lien reduces available balance via BalanceEngineService")
     void testLienReducesAvailableBalance() {
         TestContext ctx = createTestContext("LIEN");
 

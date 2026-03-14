@@ -34,9 +34,9 @@ import org.springframework.transaction.annotation.Transactional;
  * </ul>
  */
 @Service
-public class VelocityFraudEngine {
+public class VelocityFraudService {
 
-    private static final Logger log = LoggerFactory.getLogger(VelocityFraudEngine.class);
+    private static final Logger log = LoggerFactory.getLogger(VelocityFraudService.class);
 
     /** Default velocity window: 60 minutes. */
     private static final int VELOCITY_WINDOW_MINUTES = 60;
@@ -48,7 +48,7 @@ public class VelocityFraudEngine {
     private final AuditService auditService;
     private final Counter velocityBlockedCounter;
 
-    public VelocityFraudEngine(
+    public VelocityFraudService(
             VelocityLimitRepository velocityLimitRepository,
             TransactionRepository transactionRepository,
             FraudAlertRepository fraudAlertRepository,

@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 
 /**
  * Account summary for Customer 360° View — Accounts tab. Populated from Account entity +
- * BalanceEngine (ledger-derived).
+ * BalanceEngineService (ledger-derived).
  */
 @Data
 @NoArgsConstructor

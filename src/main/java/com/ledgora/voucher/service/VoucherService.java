@@ -5,7 +5,7 @@ import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.audit.service.AuditService;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
-import com.ledgora.balance.service.CbsBalanceEngine;
+import com.ledgora.balance.service.CbsBalanceService;
 import com.ledgora.batch.entity.TransactionBatch;
 import com.ledgora.batch.repository.TransactionBatchRepository;
 import com.ledgora.branch.entity.Branch;
@@ -59,7 +59,7 @@ public class VoucherService {
     private final LedgerJournalRepository journalRepository;
     private final LedgerEntryRepository entryRepository;
     private final TransactionRepository transactionRepository;
-    private final CbsBalanceEngine cbsBalanceEngine;
+    private final CbsBalanceService cbsBalanceEngine;
     private final TransactionBatchRepository transactionBatchRepository;
     private final CbsCustomerValidationService customerValidationService;
     private final GlBalanceService glBalanceService;
@@ -74,7 +74,7 @@ public class VoucherService {
             LedgerJournalRepository journalRepository,
             LedgerEntryRepository entryRepository,
             TransactionRepository transactionRepository,
-            CbsBalanceEngine cbsBalanceEngine,
+            CbsBalanceService cbsBalanceEngine,
             TransactionBatchRepository transactionBatchRepository,
             CbsCustomerValidationService customerValidationService,
             GlBalanceService glBalanceService,

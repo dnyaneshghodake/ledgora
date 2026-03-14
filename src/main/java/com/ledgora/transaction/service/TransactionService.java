@@ -88,7 +88,7 @@ public class TransactionService {
     private final com.ledgora.clearing.service.IbtService ibtService;
     private final com.ledgora.approval.service.HardTransactionCeilingService
             hardTransactionCeilingService;
-    private final com.ledgora.fraud.service.VelocityFraudEngine velocityFraudEngine;
+    private final com.ledgora.fraud.service.VelocityFraudService velocityFraudEngine;
     private final com.ledgora.currency.service.FxConversionService fxConversionService;
 
     public TransactionService(
@@ -112,7 +112,7 @@ public class TransactionService {
             com.ledgora.clearing.service.IbtService ibtService,
             com.ledgora.approval.service.HardTransactionCeilingService
                     hardTransactionCeilingService,
-            com.ledgora.fraud.service.VelocityFraudEngine velocityFraudEngine,
+            com.ledgora.fraud.service.VelocityFraudService velocityFraudEngine,
             com.ledgora.currency.service.FxConversionService fxConversionService) {
         this.transactionRepository = transactionRepository;
         this.transactionLineRepository = transactionLineRepository;
@@ -1155,7 +1155,7 @@ public class TransactionService {
      * post-transaction balance.
      *
      * <p>CBS rule: ledgerBalance, actualTotalBalance, actualClearedBalance, and availableBalance
-     * must all be consistent after every posting. The CbsBalanceEngine.updateActualBalance()
+     * must all be consistent after every posting. The CbsBalanceService.updateActualBalance()
      * handles the per-voucher-leg update, but the Account.balance field (the display cache) is the
      * authoritative source set here after both voucher legs are posted.
      */

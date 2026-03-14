@@ -4,9 +4,9 @@ import com.ledgora.diagnostics.dto.ConcurrencyAuditResult;
 import com.ledgora.diagnostics.dto.EnterpriseCertificationReport;
 import com.ledgora.stress.dto.ChaosEodResult;
 import com.ledgora.stress.dto.EodPerformanceResult;
-import com.ledgora.stress.service.ChaosEodTester;
+import com.ledgora.stress.service.ChaosEodTestService;
 import com.ledgora.stress.service.EodLoadGeneratorService;
-import com.ledgora.stress.service.EodPerformanceRunner;
+import com.ledgora.stress.service.EodPerformanceService;
 import com.ledgora.tenant.context.TenantContextHolder;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,14 +42,14 @@ public class CertificationRunnerService {
     private static final long EOD_THRESHOLD_MS = 15000;
 
     private final EodLoadGeneratorService loadGenerator;
-    private final EodPerformanceRunner performanceRunner;
-    private final ChaosEodTester chaosEodTester;
+    private final EodPerformanceService performanceRunner;
+    private final ChaosEodTestService chaosEodTester;
     private final ConcurrencyAuditService concurrencyAuditService;
 
     public CertificationRunnerService(
             EodLoadGeneratorService loadGenerator,
-            EodPerformanceRunner performanceRunner,
-            ChaosEodTester chaosEodTester,
+            EodPerformanceService performanceRunner,
+            ChaosEodTestService chaosEodTester,
             ConcurrencyAuditService concurrencyAuditService) {
         this.loadGenerator = loadGenerator;
         this.performanceRunner = performanceRunner;

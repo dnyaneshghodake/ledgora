@@ -22,13 +22,13 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Never allow negative available_balance unless OD permitted.
  */
 @Service
-public class CbsBalanceEngine {
+public class CbsBalanceService {
 
-    private static final Logger log = LoggerFactory.getLogger(CbsBalanceEngine.class);
+    private static final Logger log = LoggerFactory.getLogger(CbsBalanceService.class);
     private final AccountBalanceRepository accountBalanceRepository;
     private final AccountRepository accountRepository;
 
-    public CbsBalanceEngine(
+    public CbsBalanceService(
             AccountBalanceRepository accountBalanceRepository,
             AccountRepository accountRepository) {
         this.accountBalanceRepository = accountBalanceRepository;

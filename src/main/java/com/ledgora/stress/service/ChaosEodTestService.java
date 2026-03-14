@@ -46,9 +46,9 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @Profile("stress")
-public class ChaosEodTester {
+public class ChaosEodTestService {
 
-    private static final Logger log = LoggerFactory.getLogger(ChaosEodTester.class);
+    private static final Logger log = LoggerFactory.getLogger(ChaosEodTestService.class);
 
     private final EodValidationService eodValidationService;
     private final EodStateMachineService eodStateMachineService;
@@ -58,7 +58,7 @@ public class ChaosEodTester {
     private final VoucherRepository voucherRepository;
     private final AccountRepository accountRepository;
 
-    public ChaosEodTester(
+    public ChaosEodTestService(
             EodValidationService eodValidationService,
             EodStateMachineService eodStateMachineService,
             EodProcessRepository eodProcessRepository,

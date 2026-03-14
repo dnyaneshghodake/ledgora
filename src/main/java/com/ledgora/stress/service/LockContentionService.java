@@ -45,16 +45,16 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @Profile("stress")
-public class LockContentionSimulator {
+public class LockContentionService {
 
-    private static final Logger log = LoggerFactory.getLogger(LockContentionSimulator.class);
+    private static final Logger log = LoggerFactory.getLogger(LockContentionService.class);
     private static final long SLOW_THRESHOLD_MS = 2000;
 
     private final TransactionService transactionService;
     private final EodValidationService eodValidationService;
     private final AccountRepository accountRepository;
 
-    public LockContentionSimulator(
+    public LockContentionService(
             TransactionService transactionService,
             EodValidationService eodValidationService,
             AccountRepository accountRepository) {
