@@ -13,6 +13,8 @@ This document details step-by-step flows for all major CBS operations, including
 5. [EOD Lifecycle](#5-eod-lifecycle)
 6. [Reversal Scenario](#6-reversal-scenario)
 7. [Fraud Detection Scenario](#7-fraud-detection-scenario)
+8. [Loan Lifecycle (RBI IRAC)](#8-loan-lifecycle-rbi-irac)
+9. [Financial Statement Generation (RBI Schedule 5/14)](#9-financial-statement-generation-rbi-schedule-514)
 
 ---
 
@@ -473,6 +475,213 @@ A customer makes 6 transactions within 30 minutes, triggering a velocity count f
 
 ---
 
+## 8. Loan Lifecycle (RBI IRAC)
+
+### Flow Summary
+Complete loan lifecycle: disbursement → daily accrual → EMI payment → NPA classification → provisioning → write-off.
+
+### Step 8a: Loan Disbursement
+
+**Service: `LoanDisbursementService.disburse()`**
+
+```
+  Accounting Entry:
+    DR Loan Asset GL (9100)       5,00,000  (bank's asset — money lent out)
+    CR Customer Savings Account   5,00,000  (customer receives funds)
+
+  LoanAccount created:
+    principalAmount:       5,00,000
+    outstandingPrincipal:  5,00,000
+    status:                ACTIVE
+    npaClassification:     STANDARD
+    dpd:                   0
+
+  Amortization Schedule generated:
+    EMI = P × r × (1+r)^n / ((1+r)^n - 1)
+    24 installments with principal/interest split
+```
+
+### Step 8b: Daily Interest Accrual (EOD)
+
+**Service: `LoanAccrualService.accrueDailyInterest()` — called during EOD VALIDATED phase**
+
+```
+  For each ACTIVE loan:
+    dailyInterest = outstandingPrincipal × (annualRate / 365)
+
+  Accounting Entry:
+    DR Interest Receivable GL (9300)    164.38  (asset — money owed to bank)
+    CR Interest Income GL (9200)        164.38  (revenue — earned income)
+
+  RBI IRAC Rule: Interest accrual STOPS for NPA loans.
+  If loan.status == NPA → skip accrual (income recognition ceases)
+```
+
+### Step 8c: EMI Payment
+
+**Service: `LoanEmiPaymentService.processEmiPayment()`**
+
+```
+  EMI = 23,536 (principal: 18,536 + interest: 5,000)
+
+  Principal Component:
+    DR Customer Account     18,536
+    CR Loan Asset GL (9100) 18,536  (reduces outstanding)
+
+  Interest Component:
+    DR Customer Account          5,000
+    CR Interest Receivable (9300) 5,000  (clears accrued interest)
+
+  Controls:
+    ✗ EMI cannot exceed outstanding principal + accrued interest
+    ✗ Loan cannot close if accruedInterest > 0
+    ✗ No direct update to outstandingPrincipal
+```
+
+### Step 8d: NPA Classification (EOD)
+
+**Service: `LoanNpaService.evaluateNpaAndUpdateDpd()` — called during EOD VALIDATED phase**
+
+```
+  If DPD > 90 (RBI Prudential Norms):
+    loan.status → NPA
+    loan.npaClassification → SUBSTANDARD
+    loan.npaDate → businessDate
+
+  GL Reclassification:
+    DR NPA Loan Asset GL (9400)      3,00,000  (reclassify to NPA book)
+    CR Standard Loan Asset GL (9100) 3,00,000  (remove from standard book)
+
+  Consequences:
+    → Interest accrual STOPS
+    → Provisioning rate increases (0.4% → 15%)
+    → NPA irreversible without admin override
+```
+
+### Step 8e: Provisioning (EOD)
+
+**Service: `LoanProvisionService.calculateProvisions()` — called during EOD VALIDATED phase**
+
+```
+  RBI IRAC Provisioning Norms:
+    STANDARD:     0.40% of outstanding
+    SUBSTANDARD: 15.00% of outstanding
+    DOUBTFUL:    25.00% of outstanding
+    LOSS:       100.00% of outstanding
+
+  Accounting Entry (incremental):
+    DR Provision Expense GL (9500)   45,000  (P&L impact)
+    CR Loan Provision GL             45,000  (balance sheet — contra asset)
+
+  Example: 3,00,000 × 15% = 45,000 provision for SUBSTANDARD loan
+```
+
+### Step 8f: Write-Off
+
+**Service: `LoanWriteOffService.writeOff()`**
+
+```
+  Pre-conditions:
+    ✓ Loan must be NPA with LOSS classification
+    ✓ Provision must cover 100% of outstanding
+
+  Accounting Entry:
+    DR Loan Provision GL        3,00,000  (use up the provision)
+    CR Loan Asset GL (9400)     3,00,000  (remove from asset book)
+
+  Result:
+    outstandingPrincipal → 0
+    provisionAmount → 0
+    status → WRITTEN_OFF
+```
+
+### State Transitions
+```
+  LoanAccount.status:
+    ACTIVE → NPA (dpd > 90) → WRITTEN_OFF (100% provisioned)
+    ACTIVE → CLOSED (fully repaid)
+
+  NpaClassification:
+    STANDARD → SUBSTANDARD (dpd > 90) → DOUBTFUL (> 1yr NPA) → LOSS (> 3yr)
+```
+
+---
+
+## 9. Financial Statement Generation (RBI Schedule 5/14)
+
+### Flow Summary
+Daily Balance Sheet + P&L snapshots generated during EOD, with SHA-256 checksum for tamper detection.
+
+### Architecture
+```
+  LedgerEntry → GeneralLedger → StatementLineMapping → Statement JSON → SHA-256 → Snapshot
+
+  AccountBalance is NEVER used as accounting source of truth.
+```
+
+### Step 9a: Balance Sheet (Schedule 5)
+
+**Service: `BalanceSheetEngine.generate()` — called during EOD DATE_ADVANCED phase**
+
+```
+  For each GL with StatementLineMapping:
+    closingBalance = SUM(DEBIT entries) - SUM(CREDIT entries)
+                     for posting_date <= businessDate
+
+  Normal Balance Convention:
+    ASSET / EXPENSE:              balance = DR - CR
+    LIABILITY / EQUITY / REVENUE: balance = CR - DR
+
+  Validation (MANDATORY — blocks snapshot if violated):
+    TOTAL_ASSETS = TOTAL_LIABILITIES + TOTAL_EQUITY
+
+  If violated → AccountingException thrown → snapshot NOT generated
+```
+
+### Step 9b: P&L (Schedule 14)
+
+**Service: `PnlEngine.generate()` — date range based**
+
+```
+  Revenue = SUM(CREDIT on income GLs) - SUM(DEBIT on income GLs)
+  Expense = SUM(DEBIT on expense GLs) - SUM(CREDIT on expense GLs)
+  Net Profit = Revenue - Expense
+
+  Supports: Daily | Monthly | Financial Year (April-March per RBI)
+```
+
+### Step 9c: Snapshot Persistence
+
+**Service: `FinancialStatementService.generateDailySnapshots()`**
+
+```
+  1. Generate Balance Sheet JSON
+  2. Generate P&L JSON
+  3. Compute SHA-256 hash of each JSON payload
+  4. Store as FinancialStatementSnapshot (status=FINAL)
+  5. Log to AuditLog
+
+  Lifecycle: DRAFT → FINAL (immutable after FINAL)
+  Idempotent: Skips if FINAL snapshot already exists for the date
+```
+
+### EOD Integration
+```
+  Phase VALIDATED:
+    → LoanAccrualService.accrueDailyInterest()
+    → LoanNpaService.evaluateNpaAndUpdateDpd()
+    → LoanProvisionService.calculateProvisions()
+    → EodValidationService.validateEod()
+
+  Phase DATE_ADVANCED:
+    → FinancialStatementService.generateDailySnapshots()
+      → BalanceSheetEngine.generate() [validates A=L+E]
+      → PnlEngine.generateDaily()
+      → SHA-256 checksum + persist FINAL snapshot
+```
+
+---
+
 ## Appendix: Common Ledger Patterns
 
 ### Deposit
@@ -511,6 +720,39 @@ A customer makes 6 transactions within 30 minutes, triggering a velocity count f
 ```
   Opposite of original: swap DR/CR directions
   Original entries remain — new contra entries created
+```
+
+### Loan Disbursement
+```
+  DR Loan Asset GL (9100)    CR Customer Account
+```
+
+### Loan Interest Accrual (Daily EOD)
+```
+  DR Interest Receivable GL (9300)    CR Interest Income GL (9200)
+  NOTE: Accrual STOPS for NPA loans (RBI IRAC)
+```
+
+### Loan EMI Payment
+```
+  Principal: DR Customer Account    CR Loan Asset GL (9100)
+  Interest:  DR Customer Account    CR Interest Receivable GL (9300)
+```
+
+### Loan NPA Reclassification
+```
+  DR NPA Loan Asset GL (9400)    CR Standard Loan Asset GL (9100)
+```
+
+### Loan Provisioning
+```
+  DR Provision Expense GL (9500)    CR Loan Provision GL
+```
+
+### Loan Write-Off
+```
+  DR Loan Provision GL    CR Loan Asset GL (9400)
+  Status → WRITTEN_OFF, outstanding → 0
 ```
 
 ---
