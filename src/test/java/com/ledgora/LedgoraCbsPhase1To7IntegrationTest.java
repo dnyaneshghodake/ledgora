@@ -1732,6 +1732,10 @@ class LedgoraCbsPhase1To7IntegrationTest {
         balance.setChargeHoldBalance(BigDecimal.ZERO);
         balance.setHoldAmount(BigDecimal.ZERO);
         accountBalanceRepository.save(balance);
+        // Sync the Account entity's legacy balance field so that
+        // TransactionService.postTransferLedger() computes the correct new balance
+        account.setBalance(amount);
+        accountRepository.save(account);
     }
 
     private void verifyLedgerBalanced(Long tenantId) {
