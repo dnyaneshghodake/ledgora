@@ -213,6 +213,7 @@ public class LockContentionService {
             eodFuture =
                     executor.submit(
                             () -> {
+                                long eodStart = 0;
                                 try {
                                     SecurityContextHolder.getContext()
                                             .setAuthentication(
@@ -229,12 +230,13 @@ public class LockContentionService {
                                     Thread.sleep(500);
 
                                     eodResult[0] = true;
-                                    long eodStart = System.currentTimeMillis();
+                                    eodStart = System.currentTimeMillis();
                                     eodValidationService.runEod(tenantId);
                                     eodResult[1] = true;
                                     eodTime[0] = System.currentTimeMillis() - eodStart;
                                 } catch (Exception e) {
-                                    eodTime[0] = System.currentTimeMillis() - eodStart;
+                                    eodTime[0] = eodStart > 0
+                                            ? System.currentTimeMillis() - eodStart : 0;
                                     eodFailure[0] =
                                             e.getClass().getSimpleName() + ": " + e.getMessage();
                                     events.add("EOD_FAILED: " + eodFailure[0]);

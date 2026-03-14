@@ -142,9 +142,13 @@ public class LoanDashboardController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'AUDITOR', 'RISK', 'OPERATIONS')")
-    public String detail(@PathVariable Long id, Model model) {
+    public String detail(@PathVariable Long id, Model model, HttpSession session) {
+        Long tenantId = resolveTenantId(session);
         LoanAccount loan = loanAccountRepository.findById(id).orElse(null);
-        if (loan == null) {
+        // Tenant isolation: verify loan belongs to current tenant
+        if (loan == null
+                || loan.getTenant() == null
+                || !loan.getTenant().getId().equals(tenantId)) {
             model.addAttribute("error", "Loan not found");
             return "loan/loan-detail";
         }

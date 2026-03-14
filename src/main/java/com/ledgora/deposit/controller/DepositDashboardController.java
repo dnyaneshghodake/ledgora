@@ -86,10 +86,16 @@ public class DepositDashboardController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'AUDITOR', 'RISK', 'OPERATIONS')")
-    public String detail(@PathVariable Long id, Model model) {
+    public String detail(@PathVariable Long id, Model model, HttpSession session) {
+        Long tenantId = resolveTenantId(session);
         DepositAccount deposit = depositAccountRepository.findById(id).orElse(null);
-        if (deposit == null) {
+        // Tenant isolation: verify deposit belongs to current tenant
+        if (deposit == null
+                || deposit.getTenant() == null
+                || !deposit.getTenant().getId().equals(tenantId)) {
             model.addAttribute("error", "Deposit account not found");
+            model.addAttribute("deposit", null);
+            return "deposit/deposit-account-detail";
         }
         model.addAttribute("deposit", deposit);
         return "deposit/deposit-account-detail";
@@ -98,7 +104,18 @@ public class DepositDashboardController {
     @PostMapping("/{id}/premature-close")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public String prematureClose(
-            @PathVariable Long id, RedirectAttributes redirectAttributes) {
+            @PathVariable Long id, HttpSession session,
+            RedirectAttributes redirectAttributes) {
+        Long tenantId = resolveTenantId(session);
+        // Tenant isolation: verify deposit belongs to current tenant before closure
+        DepositAccount deposit = depositAccountRepository.findById(id).orElse(null);
+        if (deposit == null
+                || deposit.getTenant() == null
+                || !deposit.getTenant().getId().equals(tenantId)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Deposit account not found or access denied");
+            return "redirect:/deposit/list";
+        }
         try {
             prematureClosureService.prematureClose(id);
             redirectAttributes.addFlashAttribute("message",
