@@ -9,6 +9,8 @@ import com.ledgora.audit.repository.AuditLogRepository;
 import com.ledgora.balance.service.CbsBalanceEngine;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
+import com.ledgora.ledger.entity.LedgerEntry;
+import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.lien.entity.AccountLien;
 import com.ledgora.lien.service.AccountLienService;
 import com.ledgora.ownership.entity.AccountOwnership;
@@ -40,6 +42,7 @@ public class AccountController {
     private final AccountOwnershipService ownershipService;
     private final AccountLienService lienService;
     private final TransactionRepository transactionRepository;
+    private final LedgerEntryRepository ledgerEntryRepository;
 
     public AccountController(
             AccountService accountService,
@@ -47,13 +50,15 @@ public class AccountController {
             AuditLogRepository auditLogRepository,
             AccountOwnershipService ownershipService,
             AccountLienService lienService,
-            TransactionRepository transactionRepository) {
+            TransactionRepository transactionRepository,
+            LedgerEntryRepository ledgerEntryRepository) {
         this.accountService = accountService;
         this.balanceEngine = balanceEngine;
         this.auditLogRepository = auditLogRepository;
         this.ownershipService = ownershipService;
         this.lienService = lienService;
         this.transactionRepository = transactionRepository;
+        this.ledgerEntryRepository = ledgerEntryRepository;
     }
 
     @GetMapping
@@ -260,6 +265,7 @@ public class AccountController {
         // Load recent transactions for Transactions tab (safe projection)
         try {
             List<Transaction> txEntities = transactionRepository.findByAccountId(id);
+            final Long accountId = id;
             List<Map<String, Object>> recentTransactions =
                     txEntities.stream()
                             .limit(20)
@@ -273,7 +279,26 @@ public class AccountController {
                                                         ? tx.getTransactionType().name()
                                                         : "");
                                         m.put("amount", tx.getAmount());
-                                        m.put("balanceAfter", "--");
+                                        // Resolve balance-after from the immutable ledger entry
+                                        // for this account on this transaction
+                                        String balAfter = "--";
+                                        try {
+                                            List<LedgerEntry> entries =
+                                                    ledgerEntryRepository.findByTransactionId(
+                                                            tx.getId());
+                                            for (LedgerEntry le : entries) {
+                                                if (le.getAccount() != null
+                                                        && le.getAccount()
+                                                                .getId()
+                                                                .equals(accountId)
+                                                        && le.getBalanceAfter() != null) {
+                                                    balAfter = le.getBalanceAfter().toPlainString();
+                                                    break;
+                                                }
+                                            }
+                                        } catch (Exception ignored) {
+                                        }
+                                        m.put("balanceAfter", balAfter);
                                         return m;
                                     })
                             .collect(Collectors.toList());
