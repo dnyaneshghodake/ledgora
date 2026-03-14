@@ -30,8 +30,7 @@ public class TenantDataSeeder {
                                             .tenantCode("TENANT-001")
                                             .tenantName("Ledgora Main Bank")
                                             .status("ACTIVE")
-                                            .currentBusinessDate(
-                                                    SeederDateUtil.nextWeekday())
+                                            .currentBusinessDate(SeederDateUtil.nextWeekday())
                                             .dayStatus(DayStatus.OPEN)
                                             .build();
                             return tenantRepository.save(t);
@@ -48,8 +47,7 @@ public class TenantDataSeeder {
                                             .tenantCode("TENANT-002")
                                             .tenantName("Ledgora Partner Bank")
                                             .status("ACTIVE")
-                                            .currentBusinessDate(
-                                                    SeederDateUtil.nextWeekday())
+                                            .currentBusinessDate(SeederDateUtil.nextWeekday())
                                             .dayStatus(DayStatus.OPEN)
                                             .build();
                             return tenantRepository.save(t);
