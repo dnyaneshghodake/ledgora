@@ -23,6 +23,7 @@ public class TransactionViewDTO {
     private Long transactionId;
     private String transactionRef;
     private String transactionType;
+    private String transactionSubType;
     private String channel;
     private LocalDate businessDate;
     private LocalDate valueDate;
@@ -39,6 +40,7 @@ public class TransactionViewDTO {
     private String currency;
     private String description;
     private String narration;
+    private Integer riskScore;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

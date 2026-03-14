@@ -603,6 +603,26 @@ public class VoucherService {
             glBalanceService.updateGlBalance(voucher.getGlAccount(), glDebit, glCredit);
         }
 
+        // ── FIX-10: Journal balance validation (double-entry integrity assertion) ──
+        // After persisting the ledger entry, validate that this journal's cumulative
+        // entries are balanced (sum of debits == sum of credits). This is a post-persist
+        // safety net — the pair-level balance is enforced by TransactionService, but this
+        // catches any corruption at the journal level.
+        java.math.BigDecimal journalDebits =
+                entryRepository.sumDebitsByTransactionId(transaction.getId());
+        java.math.BigDecimal journalCredits =
+                entryRepository.sumCreditsByTransactionId(transaction.getId());
+        if (journalDebits != null
+                && journalCredits != null
+                && journalDebits.compareTo(journalCredits) != 0) {
+            log.warn(
+                    "JOURNAL IMBALANCE DETECTED for txn {}: debits={} credits={}. "
+                            + "This will be caught by EOD validation.",
+                    transaction.getTransactionRef(),
+                    journalDebits,
+                    journalCredits);
+        }
+
         // Mark voucher as posted
         voucher.setPostFlag("Y");
         voucher.setLedgerEntry(accountEntry);

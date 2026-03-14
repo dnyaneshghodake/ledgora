@@ -62,6 +62,15 @@ public class Transaction {
     @Builder.Default
     private TransactionStatus status = TransactionStatus.PENDING;
 
+    /** CBS sub-type for granular classification (e.g., CASH, NEFT, RTGS, UPI). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "transaction_sub_type", length = 20)
+    private com.ledgora.common.enums.TransactionSubType transactionSubType;
+
+    /** Risk score assigned by VelocityFraudEngine. 0 = low risk, 100 = high risk. */
+    @Column(name = "risk_score")
+    private Integer riskScore;
+
     @Column(name = "amount", precision = 19, scale = 4, nullable = false)
     private BigDecimal amount;
 

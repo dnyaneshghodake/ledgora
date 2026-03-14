@@ -155,6 +155,8 @@ public class TransactionViewService {
         dto.setTransactionRef(txn.getTransactionRef());
         dto.setTransactionType(
                 txn.getTransactionType() != null ? txn.getTransactionType().name() : null);
+        dto.setTransactionSubType(
+                txn.getTransactionSubType() != null ? txn.getTransactionSubType().name() : null);
         dto.setChannel(txn.getChannel() != null ? txn.getChannel().name() : null);
         dto.setBusinessDate(txn.getBusinessDate());
         dto.setValueDate(txn.getValueDate());
@@ -174,6 +176,7 @@ public class TransactionViewService {
         dto.setCurrency(txn.getCurrency());
         dto.setDescription(txn.getDescription());
         dto.setNarration(txn.getNarration());
+        dto.setRiskScore(txn.getRiskScore());
         dto.setCreatedAt(txn.getCreatedAt());
         dto.setUpdatedAt(txn.getUpdatedAt());
 
