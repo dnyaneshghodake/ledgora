@@ -330,7 +330,13 @@ function showAlert(message, type) {
     var alertDiv = document.createElement('div');
     alertDiv.className = 'alert alert-' + type + ' alert-dismissible fade show';
     alertDiv.setAttribute('role', 'alert');
-    alertDiv.innerHTML = message + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
+    // XSS-safe: use textContent for message, createElement for close button (CWE-79)
+    alertDiv.textContent = message;
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close';
+    closeBtn.setAttribute('data-bs-dismiss', 'alert');
+    alertDiv.appendChild(closeBtn);
     container.insertBefore(alertDiv, container.firstChild);
     setTimeout(function() {
         var bsAlert = new bootstrap.Alert(alertDiv);

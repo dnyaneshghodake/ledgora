@@ -113,8 +113,15 @@
         var banner = document.createElement('div');
         banner.className = 'alert alert-warning text-center mb-0';
         banner.setAttribute('role', 'alert');
-        banner.innerHTML = '<i class="bi bi-lock-fill"></i> <strong>Business Day ' + dayStatus +
-            '</strong> - Financial operations are locked until the business day is OPEN.';
+        // XSS-safe: use DOM API instead of innerHTML (CWE-79 defense-in-depth)
+        var icon = document.createElement('i');
+        icon.className = 'bi bi-lock-fill';
+        banner.appendChild(icon);
+        banner.appendChild(document.createTextNode(' '));
+        var strong = document.createElement('strong');
+        strong.textContent = 'Business Day ' + dayStatus;
+        banner.appendChild(strong);
+        banner.appendChild(document.createTextNode(' - Financial operations are locked until the business day is OPEN.'));
         var main = document.querySelector('.cbs-content') || document.querySelector('.container-fluid');
         if (main) { main.insertBefore(banner, main.firstChild); }
     }
