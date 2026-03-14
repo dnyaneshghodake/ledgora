@@ -185,21 +185,31 @@ SET IDENTITY_INSERT ledger_journals OFF;
 -- ============================================================================
 SET IDENTITY_INSERT ledger_entries ON;
 INSERT INTO ledger_entries (id, tenant_id, journal_id, transaction_id, account_id, gl_account_id, gl_account_code, entry_type, amount, balance_after, currency, business_date, posting_time, narration, voucher_id, created_at) VALUES
--- Journal 11: Interest posting 1,250 (DR expense, CR customer) → balanced
-(25, 1, 11, 13, 1,  14, 'GL-T1-INT-EXP', 'DEBIT',  1250.0000, 1250.0000,    'INR', '2026-03-14', SYSUTCDATETIME(), 'Interest posting - expense leg',     25, SYSUTCDATETIME()),
-(26, 1, 11, 13, 8,  7,  'GL-T1-SAVINGS', 'CREDIT', 1250.0000, 176250.0000,  'INR', '2026-03-14', SYSUTCDATETIME(), 'Interest posting - customer credit',  26, SYSUTCDATETIME()),
--- Journal 12: Charge deduction 150 (DR customer, CR fee income) → balanced
+-- Journal 11: Interest posting 1,250 (DR cash/expense proxy, CR customer) → balanced
+-- Account 1 (Cash BR001): base=5,140,000 + DR 1,250 = 5,141,250
+-- Account 8 (SAV-0001): base=135,000 + CR 1,250 = 136,250
+(25, 1, 11, 13, 1,  14, 'GL-T1-INT-EXP', 'DEBIT',  1250.0000, 5141250.0000, 'INR', '2026-03-14', SYSUTCDATETIME(), 'Interest posting - expense leg',     25, SYSUTCDATETIME()),
+(26, 1, 11, 13, 8,  7,  'GL-T1-SAVINGS', 'CREDIT', 1250.0000, 136250.0000,  'INR', '2026-03-14', SYSUTCDATETIME(), 'Interest posting - customer credit',  26, SYSUTCDATETIME()),
+-- Journal 12: Charge deduction 150 (DR customer, CR cash/fee proxy) → balanced
+-- Account 18 (CUR-0001): base=950,000 - DR 150 = 949,850
+-- Account 1 (Cash BR001): 5,141,250 - CR 150 = 5,141,100
 (27, 1, 12, 14, 18, 8,  'GL-T1-CURRENT', 'DEBIT',  150.0000, 949850.0000,   'INR', '2026-03-14', SYSUTCDATETIME(), 'Service charge - customer debit',    27, SYSUTCDATETIME()),
-(28, 1, 12, 14, 1,  33, 'GL-T1-CHARGES', 'CREDIT', 150.0000, 150.0000,      'INR', '2026-03-14', SYSUTCDATETIME(), 'Service charge - fee income',        28, SYSUTCDATETIME()),
+(28, 1, 12, 14, 1,  33, 'GL-T1-CHARGES', 'CREDIT', 150.0000, 5141100.0000,  'INR', '2026-03-14', SYSUTCDATETIME(), 'Service charge - fee income',        28, SYSUTCDATETIME()),
 -- Journal 13: Reversal 50,000 (CR cash, DR customer) → balanced; reverses original journal 1
-(29, 1, 13, 15, 1,  6,  'GL-T1-CASH',    'CREDIT', 50000.0000, 5090000.0000, 'INR', '2026-03-14', SYSUTCDATETIME(), 'Reversal - cash leg',               29, SYSUTCDATETIME()),
-(30, 1, 13, 15, 8,  7,  'GL-T1-SAVINGS', 'DEBIT',  50000.0000, 126250.0000,  'INR', '2026-03-14', SYSUTCDATETIME(), 'Reversal - customer leg',           30, SYSUTCDATETIME()),
--- Journal 14: T2 Interest posting 950 (DR expense, CR customer) → balanced
-(31, 2, 14, 17, 28, 29, 'GL-T2-INT-EXP', 'DEBIT',  950.0000, 950.0000,      'INR', '2026-03-14', SYSUTCDATETIME(), 'Interest posting - expense leg',    31, SYSUTCDATETIME()),
-(32, 2, 14, 17, 35, 22, 'GL-T2-SAVINGS', 'CREDIT', 950.0000, 185950.0000,   'INR', '2026-03-14', SYSUTCDATETIME(), 'Interest posting - customer credit', 32, SYSUTCDATETIME()),
--- Journal 15: T2 Charge deduction 100 (DR customer, CR fee income) → balanced
+-- Account 1 (Cash BR001): 5,141,100 - CR 50,000 = 5,091,100
+-- Account 8 (SAV-0001): 136,250 - DR 50,000 = 86,250
+(29, 1, 13, 15, 1,  6,  'GL-T1-CASH',    'CREDIT', 50000.0000, 5091100.0000, 'INR', '2026-03-14', SYSUTCDATETIME(), 'Reversal - cash leg',               29, SYSUTCDATETIME()),
+(30, 1, 13, 15, 8,  7,  'GL-T1-SAVINGS', 'DEBIT',  50000.0000,  86250.0000,  'INR', '2026-03-14', SYSUTCDATETIME(), 'Reversal - customer leg',           30, SYSUTCDATETIME()),
+-- Journal 14: T2 Interest posting 950 (DR cash/expense proxy, CR customer) → balanced
+-- Account 28 (Cash BR003): base=4,045,000 + DR 950 = 4,045,950
+-- Account 35 (SAV-0001): base=145,000 + CR 950 = 145,950
+(31, 2, 14, 17, 28, 29, 'GL-T2-INT-EXP', 'DEBIT',  950.0000, 4045950.0000,  'INR', '2026-03-14', SYSUTCDATETIME(), 'Interest posting - expense leg',    31, SYSUTCDATETIME()),
+(32, 2, 14, 17, 35, 22, 'GL-T2-SAVINGS', 'CREDIT', 950.0000, 145950.0000,   'INR', '2026-03-14', SYSUTCDATETIME(), 'Interest posting - customer credit', 32, SYSUTCDATETIME()),
+-- Journal 15: T2 Charge deduction 100 (DR customer, CR cash/fee proxy) → balanced
+-- Account 45 (CUR-0001): base=750,000 - DR 100 = 749,900
+-- Account 28 (Cash BR003): 4,045,950 - CR 100 = 4,045,850
 (33, 2, 15, 18, 45, 23, 'GL-T2-CURRENT', 'DEBIT',  100.0000, 749900.0000,   'INR', '2026-03-14', SYSUTCDATETIME(), 'Account charge - customer debit',   33, SYSUTCDATETIME()),
-(34, 2, 15, 18, 28, 36, 'GL-T2-CHARGES', 'CREDIT', 100.0000, 100.0000,      'INR', '2026-03-14', SYSUTCDATETIME(), 'Account charge - fee income',       34, SYSUTCDATETIME());
+(34, 2, 15, 18, 28, 36, 'GL-T2-CHARGES', 'CREDIT', 100.0000, 4045850.0000,  'INR', '2026-03-14', SYSUTCDATETIME(), 'Account charge - fee income',       34, SYSUTCDATETIME());
 SET IDENTITY_INSERT ledger_entries OFF;
 
 -- ============================================================================
@@ -230,7 +240,7 @@ INSERT INTO teller_sessions (id, tenant_id, teller_id, branch_id, business_date,
 -- Teller 2 (BR002): Opened, still active
 (2, 1, 2, 2, '2026-03-14', 300000.0000, 300000.0000, 0.0000, 0.0000, 'OPEN', 16, 3, NULL, '2026-03-14T08:30:00', NULL, 0, SYSUTCDATETIME(), SYSUTCDATETIME()),
 -- Teller 3 (T2, BR003): Opened, transacted, closed
-(3, 2, 3, 3, '2026-03-14', 400000.0000, 444850.0000, 75950.0000, 31050.0000, 'CLOSED', 10, 9, 10, '2026-03-14T08:00:00', '2026-03-14T17:00:00', 0, SYSUTCDATETIME(), SYSUTCDATETIME());
+(3, 2, 3, 3, '2026-03-14', 400000.0000, 444900.0000, 75950.0000, 31050.0000, 'CLOSED', 10, 9, 10, '2026-03-14T08:00:00', '2026-03-14T17:00:00', 0, SYSUTCDATETIME(), SYSUTCDATETIME());
 SET IDENTITY_INSERT teller_sessions OFF;
 
 -- ============================================================================
@@ -238,20 +248,20 @@ SET IDENTITY_INSERT teller_sessions OFF;
 -- ============================================================================
 SET IDENTITY_INSERT teller_session_denominations ON;
 INSERT INTO teller_session_denominations (id, session_id, event_type, denomination_value, count, total_amount, created_at) VALUES
--- Session 1 OPENING: 500000 = 100x2000 + 50x1000 + 100x500 + 200x200 + 500x100 + 200x50 + 100x20
-(1,  1, 'OPENING', 2000.0000, 100, 200000.0000, SYSUTCDATETIME()),
+-- Session 1 OPENING: 500,000 = 150x2000 + 50x1000 + 80x500 + 100x200 + 500x100 + 200x50
+(1,  1, 'OPENING', 2000.0000, 150, 300000.0000, SYSUTCDATETIME()),
 (2,  1, 'OPENING', 1000.0000, 50,   50000.0000, SYSUTCDATETIME()),
-(3,  1, 'OPENING', 500.0000,  100,  50000.0000, SYSUTCDATETIME()),
-(4,  1, 'OPENING', 200.0000,  200,  40000.0000, SYSUTCDATETIME()),
+(3,  1, 'OPENING', 500.0000,  80,   40000.0000, SYSUTCDATETIME()),
+(4,  1, 'OPENING', 200.0000,  100,  20000.0000, SYSUTCDATETIME()),
 (5,  1, 'OPENING', 100.0000,  500,  50000.0000, SYSUTCDATETIME()),
-(6,  1, 'OPENING', 50.0000,   200,  10000.0000, SYSUTCDATETIME()),
--- Session 1 CLOSING: adjusted after day transactions
-(7,  1, 'CLOSING', 2000.0000, 120, 240000.0000, SYSUTCDATETIME()),
+(6,  1, 'OPENING', 50.0000,   800,  40000.0000, SYSUTCDATETIME()),
+-- Session 1 CLOSING: 541,100 = 170x2000 + 60x1000 + 82x500 + 130x200 + 502x100 + 222x50
+(7,  1, 'CLOSING', 2000.0000, 170, 340000.0000, SYSUTCDATETIME()),
 (8,  1, 'CLOSING', 1000.0000, 60,   60000.0000, SYSUTCDATETIME()),
-(9,  1, 'CLOSING', 500.0000,  120,  60000.0000, SYSUTCDATETIME()),
-(10, 1, 'CLOSING', 200.0000,  250,  50000.0000, SYSUTCDATETIME()),
-(11, 1, 'CLOSING', 100.0000,  600,  60000.0000, SYSUTCDATETIME()),
-(12, 1, 'CLOSING', 50.0000,   222,  11100.0000, SYSUTCDATETIME()),
+(9,  1, 'CLOSING', 500.0000,  82,   41000.0000, SYSUTCDATETIME()),
+(10, 1, 'CLOSING', 200.0000,  130,  26000.0000, SYSUTCDATETIME()),
+(11, 1, 'CLOSING', 100.0000,  502,  50200.0000, SYSUTCDATETIME()),
+(12, 1, 'CLOSING', 50.0000,   478,  23900.0000, SYSUTCDATETIME()),
 -- Session 2 OPENING (still open, no closing)
 (13, 2, 'OPENING', 2000.0000, 75,  150000.0000, SYSUTCDATETIME()),
 (14, 2, 'OPENING', 1000.0000, 40,   40000.0000, SYSUTCDATETIME()),
@@ -265,12 +275,13 @@ INSERT INTO teller_session_denominations (id, session_id, event_type, denominati
 (21, 3, 'OPENING', 200.0000,  200,  40000.0000, SYSUTCDATETIME()),
 (22, 3, 'OPENING', 100.0000,  500,  50000.0000, SYSUTCDATETIME()),
 (23, 3, 'OPENING', 50.0000,   200,  10000.0000, SYSUTCDATETIME()),
+-- Session 3 CLOSING: 444,900 = 110x2000 + 55x1000 + 110x500 + 220x200 + 550x100 + 318x50
 (24, 3, 'CLOSING', 2000.0000, 110, 220000.0000, SYSUTCDATETIME()),
 (25, 3, 'CLOSING', 1000.0000, 55,   55000.0000, SYSUTCDATETIME()),
 (26, 3, 'CLOSING', 500.0000,  110,  55000.0000, SYSUTCDATETIME()),
 (27, 3, 'CLOSING', 200.0000,  220,  44000.0000, SYSUTCDATETIME()),
 (28, 3, 'CLOSING', 100.0000,  550,  55000.0000, SYSUTCDATETIME()),
-(29, 3, 'CLOSING', 50.0000,   317,  15850.0000, SYSUTCDATETIME());
+(29, 3, 'CLOSING', 50.0000,   318,  15900.0000, SYSUTCDATETIME());
 SET IDENTITY_INSERT teller_session_denominations OFF;
 
 -- ============================================================================
@@ -339,8 +350,8 @@ SET IDENTITY_INSERT fraud_alerts OFF;
 -- ============================================================================
 
 -- Verify SUM(DR) = SUM(CR) for Tenant 1 (including new transactions)
--- T1 Debits:  50000+20000+15000+25000+25000+100000+10000+10000+1250+150+50000+50000 = 356400
--- T1 Credits: 50000+20000+15000+25000+25000+100000+10000+10000+1250+150+50000+50000 = 356400
+-- T1 Debits:  50000+20000+15000+25000+25000+100000+10000+10000 (base=255000) + 1250+150+50000 (tier1=51400) = 306400
+-- T1 Credits: 50000+20000+15000+25000+25000+100000+10000+10000 (base=255000) + 1250+150+50000 (tier1=51400) = 306400
 -- SELECT
 --     SUM(CASE WHEN entry_type = 'DEBIT'  THEN amount ELSE 0 END) AS total_debits,
 --     SUM(CASE WHEN entry_type = 'CREDIT' THEN amount ELSE 0 END) AS total_credits
