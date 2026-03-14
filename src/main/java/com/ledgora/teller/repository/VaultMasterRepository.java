@@ -2,6 +2,7 @@ package com.ledgora.teller.repository;
 
 import com.ledgora.teller.entity.VaultMaster;
 import jakarta.persistence.LockModeType;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -13,6 +14,8 @@ import org.springframework.stereotype.Repository;
 public interface VaultMasterRepository extends JpaRepository<VaultMaster, Long> {
 
     Optional<VaultMaster> findByBranchId(Long branchId);
+
+    List<VaultMaster> findByTenantId(Long tenantId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT v FROM VaultMaster v WHERE v.branch.id = :branchId")
