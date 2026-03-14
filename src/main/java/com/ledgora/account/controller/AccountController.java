@@ -124,6 +124,23 @@ public class AccountController {
         model.addAttribute("queryString", qs.toString());
         model.addAttribute("accountTypes", AccountType.values());
         model.addAttribute("accountStatuses", AccountStatus.values());
+
+        // Build balance lookup map from CbsBalanceEngine for accurate display on list page
+        @SuppressWarnings("unchecked")
+        List<Account> accountList = (List<Account>) model.getAttribute("accounts");
+        if (accountList != null) {
+            Map<Long, java.math.BigDecimal> balanceMap = new HashMap<>();
+            for (Account acct : accountList) {
+                try {
+                    AccountBalance cb = balanceEngine.getCbsBalance(acct.getId());
+                    balanceMap.put(acct.getId(), cb.getLedgerBalance());
+                } catch (Exception e) {
+                    balanceMap.put(acct.getId(), acct.getBalance());
+                }
+            }
+            model.addAttribute("balanceMap", balanceMap);
+        }
+
         return "account/accounts";
     }
 

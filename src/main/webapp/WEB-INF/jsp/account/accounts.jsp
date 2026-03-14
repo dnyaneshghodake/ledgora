@@ -90,7 +90,7 @@
                                         <c:otherwise><span class="badge bg-success">NONE</span></c:otherwise>
                                     </c:choose>
                                 </td>
-                                <td class="fw-bold"><c:out value="${a.balance}"/> <c:out value="${a.currency}"/></td>
+                                <td class="fw-bold"><c:out value="${balanceMap != null && balanceMap[a.id] != null ? balanceMap[a.id] : a.balance}"/> <c:out value="${a.currency}"/></td>
                                 <td>
                                     <a href="${pageContext.request.contextPath}/accounts/${a.id}" class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></a>
                                     <a href="${pageContext.request.contextPath}/accounts/${a.id}/master" class="btn btn-sm btn-outline-info" title="Account Master"><i class="bi bi-wallet2"></i></a>
