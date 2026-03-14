@@ -15,10 +15,7 @@ import lombok.*;
 @Table(
         name = "vault_masters",
         indexes = {
-            @Index(
-                    name = "idx_vault_master_branch",
-                    columnList = "branch_id",
-                    unique = true),
+            @Index(name = "idx_vault_master_branch", columnList = "branch_id", unique = true),
             @Index(name = "idx_vault_master_tenant", columnList = "tenant_id")
         })
 @Data

@@ -4,13 +4,13 @@ import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.common.enums.TellerStatus;
-import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.teller.entity.CashDenominationMaster;
 import com.ledgora.teller.entity.TellerMaster;
 import com.ledgora.teller.entity.VaultMaster;
 import com.ledgora.teller.repository.CashDenominationMasterRepository;
 import com.ledgora.teller.repository.TellerMasterRepository;
 import com.ledgora.teller.repository.VaultMasterRepository;
+import com.ledgora.tenant.entity.Tenant;
 import java.math.BigDecimal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -101,7 +101,8 @@ public class TellerDataSeeder {
                             .dualCustodyFlag(true)
                             .build());
         }
-        log.info("  [Vaults] VaultMaster seeded for HQ001, BR001, BR002 (₹2Cr limit, dual-custody)");
+        log.info(
+                "  [Vaults] VaultMaster seeded for HQ001, BR001, BR002 (₹2Cr limit, dual-custody)");
     }
 
     // ── TellerMaster ────────────────────────────────────────────────────────

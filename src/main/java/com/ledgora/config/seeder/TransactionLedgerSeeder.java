@@ -223,10 +223,7 @@ public class TransactionLedgerSeeder {
             bulkDepositTotal = bulkDepositTotal.add(new BigDecimal(i * 1000));
         }
         BigDecimal cashGlDelta =
-                DEP_RAJESH_AMT
-                        .add(DEP_PRIYA_AMT)
-                        .add(bulkDepositTotal)
-                        .subtract(WDR_RAJESH_AMT);
+                DEP_RAJESH_AMT.add(DEP_PRIYA_AMT).add(bulkDepositTotal).subtract(WDR_RAJESH_AMT);
         Account glCash = accountRepository.findByAccountNumber("GL-CASH-001").orElse(null);
         if (glCash != null) {
             syncBalanceAfterSeed(glCash, cashGlDelta);
@@ -449,10 +446,7 @@ public class TransactionLedgerSeeder {
         String dateStr = biz.toString().replace("-", "");
 
         scrollCounter++;
-        Branch drBranch =
-                drAccount.getBranch() != null
-                        ? drAccount.getBranch()
-                        : resolvedBranch;
+        Branch drBranch = drAccount.getBranch() != null ? drAccount.getBranch() : resolvedBranch;
         if (drBranch != null) {
             seededBranchIds.add(drBranch.getId());
         }
@@ -493,10 +487,7 @@ public class TransactionLedgerSeeder {
         voucherRepository.save(drVoucher);
 
         scrollCounter++;
-        Branch crBranch =
-                crAccount.getBranch() != null
-                        ? crAccount.getBranch()
-                        : resolvedBranch;
+        Branch crBranch = crAccount.getBranch() != null ? crAccount.getBranch() : resolvedBranch;
         if (crBranch != null) {
             seededBranchIds.add(crBranch.getId());
         }

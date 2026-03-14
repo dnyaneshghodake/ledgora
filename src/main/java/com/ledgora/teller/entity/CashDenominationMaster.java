@@ -5,17 +5,14 @@ import java.math.BigDecimal;
 import lombok.*;
 
 /**
- * Cash Denomination Master — defines valid Indian currency denominations. Seeded at startup:
- * ₹2000, ₹500, ₹200, ₹100, ₹50, ₹20, ₹10. Immutable reference data.
+ * Cash Denomination Master — defines valid Indian currency denominations. Seeded at startup: ₹2000,
+ * ₹500, ₹200, ₹100, ₹50, ₹20, ₹10. Immutable reference data.
  */
 @Entity
 @Table(
         name = "cash_denomination_masters",
         indexes = {
-            @Index(
-                    name = "idx_denom_value",
-                    columnList = "denomination_value",
-                    unique = true)
+            @Index(name = "idx_denom_value", columnList = "denomination_value", unique = true)
         })
 @Data
 @NoArgsConstructor

@@ -1,15 +1,12 @@
 package com.ledgora.teller.service;
 
+import com.ledgora.audit.service.AuditService;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
-import com.ledgora.audit.service.AuditService;
 import com.ledgora.common.enums.TellerStatus;
 import com.ledgora.common.enums.TransactionChannel;
 import com.ledgora.common.enums.TransactionType;
 import com.ledgora.common.exception.BusinessException;
-import com.ledgora.tenant.context.TenantContextHolder;
-import com.ledgora.tenant.entity.Tenant;
-import com.ledgora.tenant.service.TenantService;
 import com.ledgora.teller.dto.DenominationEntry;
 import com.ledgora.teller.dto.TellerCashRequest;
 import com.ledgora.teller.entity.CashDenominationTxn;
@@ -18,6 +15,9 @@ import com.ledgora.teller.entity.TellerSession;
 import com.ledgora.teller.repository.CashDenominationTxnRepository;
 import com.ledgora.teller.repository.TellerMasterRepository;
 import com.ledgora.teller.repository.TellerSessionRepository;
+import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.tenant.entity.Tenant;
+import com.ledgora.tenant.service.TenantService;
 import com.ledgora.transaction.dto.TransactionDTO;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.service.TransactionService;
@@ -93,7 +93,10 @@ public class CashEngineService {
         if (denomTotal.compareTo(req.getAmount()) != 0) {
             throw new BusinessException(
                     "DENOMINATION_MISMATCH",
-                    "Denomination total " + denomTotal + " does not match amount " + req.getAmount());
+                    "Denomination total "
+                            + denomTotal
+                            + " does not match amount "
+                            + req.getAmount());
         }
 
         // Limits: single deposit
@@ -192,7 +195,10 @@ public class CashEngineService {
         if (denomTotal.compareTo(req.getAmount()) != 0) {
             throw new BusinessException(
                     "DENOMINATION_MISMATCH",
-                    "Denomination total " + denomTotal + " does not match amount " + req.getAmount());
+                    "Denomination total "
+                            + denomTotal
+                            + " does not match amount "
+                            + req.getAmount());
         }
 
         // Limits: single withdrawal
@@ -280,17 +286,24 @@ public class CashEngineService {
 
     private BigDecimal validateAndSumDenominations(List<DenominationEntry> entries) {
         BigDecimal sum = BigDecimal.ZERO;
+
         for (DenominationEntry e : entries) {
             if (e == null || e.getDenominationValue() == null) {
-                throw new BusinessException("INVALID_DENOMINATION", "Denomination value is required");
+                throw new BusinessException(
+                        "INVALID_DENOMINATION", "Denomination value is required");
             }
+
             if (e.getCount() == null || e.getCount() < 0) {
                 throw new BusinessException(
                         "INVALID_DENOMINATION", "Denomination count must be >= 0");
             }
-            }             
-            sum = sum.add(e.getDenominationValue().multiply(new BigDecimal(e.getCount())));
+
+            BigDecimal lineTotal =
+                    e.getDenominationValue().multiply(BigDecimal.valueOf(e.getCount()));
+
+            sum = sum.add(lineTotal);
         }
+
         return sum;
     }
 
@@ -345,8 +358,7 @@ public class CashEngineService {
                                                 "TELLER_NOT_CONFIGURED",
                                                 "No teller master configured for user " + userId));
         if (tm.getActiveFlag() == null || !tm.getActiveFlag()) {
-            throw new BusinessException(
-                    "TELLER_INACTIVE", "Teller is inactive for user " + userId);
+            throw new BusinessException("TELLER_INACTIVE", "Teller is inactive for user " + userId);
         }
         return tm;
     }
