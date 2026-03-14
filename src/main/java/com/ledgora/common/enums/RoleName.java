@@ -16,5 +16,10 @@ public enum RoleName {
     /**
      * System pseudo-role for SYSTEM_AUTO user. Cannot login via UI. Used as checker in STP flows.
      */
-    ROLE_SYSTEM
+    ROLE_SYSTEM,
+    /**
+     * RBI Master Direction on KYC — Designated Compliance Officer for AML/CFT oversight, suspicious
+     * transaction reporting (STR), and regulatory return filing.
+     */
+    ROLE_COMPLIANCE_OFFICER
 }

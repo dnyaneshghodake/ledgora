@@ -57,6 +57,7 @@ public class UserDataSeeder {
         Role tenantAdminRole = role(RoleName.ROLE_TENANT_ADMIN);
         Role branchMgrRole = role(RoleName.ROLE_BRANCH_MANAGER);
         Role systemRole = role(RoleName.ROLE_SYSTEM);
+        Role complianceRole = role(RoleName.ROLE_COMPLIANCE_OFFICER);
 
         User adminUser =
                 create(
@@ -219,6 +220,31 @@ public class UserDataSeeder {
                 defaultTenant,
                 TenantScope.SINGLE);
 
+        // Compliance Officer — RBI KYC Master Direction: designated CO for AML/CFT
+        create(
+                "compliance1",
+                "compliance123",
+                "Compliance Officer",
+                "compliance1@ledgora.com",
+                "+91-9000000014",
+                hqBranch,
+                Set.of(complianceRole),
+                defaultTenant,
+                TenantScope.SINGLE);
+
+        // ATM System user — channel-level system identity for ATM transactions
+        Role atmRole = role(RoleName.ROLE_ATM_SYSTEM);
+        create(
+                "ATM_SYSTEM",
+                "ATM_SYSTEM_NO_LOGIN_" + java.util.UUID.randomUUID(),
+                "ATM System Channel",
+                "atm@ledgora.internal",
+                "+00-0000000001",
+                hqBranch,
+                Set.of(atmRole),
+                defaultTenant,
+                TenantScope.MULTI);
+
         create(
                 "teller3",
                 "teller123",
@@ -241,7 +267,7 @@ public class UserDataSeeder {
                 defaultTenant,
                 TenantScope.MULTI);
 
-        log.info("  [Users] 17 users ready");
+        log.info("  [Users] 19 users ready");
         return new User[] {adminUser, managerUser, teller1User};
     }
 

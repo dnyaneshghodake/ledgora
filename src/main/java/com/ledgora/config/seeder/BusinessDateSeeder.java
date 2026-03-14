@@ -3,7 +3,6 @@ package com.ledgora.config.seeder;
 import com.ledgora.common.entity.SystemDate;
 import com.ledgora.common.enums.BusinessDateStatus;
 import com.ledgora.common.repository.SystemDateRepository;
-import java.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -25,7 +24,7 @@ public class BusinessDateSeeder {
         if (systemDateRepository.count() == 0) {
             SystemDate sd =
                     SystemDate.builder()
-                            .businessDate(LocalDate.now())
+                            .businessDate(SeederDateUtil.nextWeekday())
                             .status(BusinessDateStatus.OPEN)
                             .build();
             systemDateRepository.save(sd);

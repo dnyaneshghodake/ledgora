@@ -5,8 +5,8 @@ import com.ledgora.approval.service.ApprovalService;
 import com.ledgora.common.enums.ApprovalStatus;
 import com.ledgora.customer.service.CustomerService;
 import com.ledgora.transaction.service.TransactionService;
+import java.util.List;
 import org.springframework.stereotype.Controller;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -36,17 +36,12 @@ public class ApprovalController {
     }
 
     @GetMapping
-    public String listApprovals(
-            @RequestParam(value = "status", required = false) String status, Model model) {
-        if (status != null && !status.isEmpty()) {
-            model.addAttribute(
-                    "approvals",
-                    approvalService.getByEntityType("TRANSACTION", ApprovalStatus.valueOf(status)));
-        } else {
-            model.addAttribute("approvals", approvalService.getAllRequests());
-        }
-        // Populate categorized pending data for unified approval queue tabs
-        model.addAttribute("pendingCount", approvalService.getPendingRequests().size());
+    public String listApprovals(Model model) {
+        // CBS Standard: Approval queue shows ONLY pending records.
+        // Approved/rejected records are visible via audit trail, not the work queue.
+        List<ApprovalRequest> pendingRequests = approvalService.getPendingRequests();
+        model.addAttribute("approvals", pendingRequests);
+        model.addAttribute("pendingCount", pendingRequests.size());
         model.addAttribute(
                 "pendingCustomers",
                 approvalService.getByEntityType("CUSTOMER", ApprovalStatus.PENDING));
@@ -66,8 +61,7 @@ public class ApprovalController {
 
     @GetMapping("/pending")
     public String pendingApprovals(Model model) {
-        model.addAttribute("approvals", approvalService.getPendingRequests());
-        return "approval/approvals";
+        return listApprovals(model);
     }
 
     @GetMapping("/{id}")
@@ -81,11 +75,11 @@ public class ApprovalController {
     }
 
     /**
-     * Approve a pending request (checker step). @Transactional ensures atomicity: if
-     * entity-specific approval fails, the ApprovalRequest status change is also rolled back.
+     * Approve a pending request (checker step). Each service call has its own @Transactional
+     * boundary. If entity-specific approval fails, the error is reported to the user and the
+     * ApprovalRequest remains in its updated state (service-level rollback handles its own scope).
      */
     @PostMapping("/{id}/approve")
-    @Transactional
     public String approve(
             @PathVariable Long id,
             @RequestParam(required = false) String remarks,
@@ -108,11 +102,10 @@ public class ApprovalController {
     }
 
     /**
-     * Reject a pending request (checker step). @Transactional ensures atomicity: if entity-specific
-     * rejection fails, the ApprovalRequest status change is also rolled back.
+     * Reject a pending request (checker step). Each service call has its own @Transactional
+     * boundary.
      */
     @PostMapping("/{id}/reject")
-    @Transactional
     public String reject(
             @PathVariable Long id,
             @RequestParam(required = false) String remarks,

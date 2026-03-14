@@ -49,7 +49,8 @@ public class TransactionController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
+    @PreAuthorize(
+            "hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String listTransactions(
             @RequestParam(value = "accountNumber", required = false) String accountNumber,
             @RequestParam(value = "page", defaultValue = "0") int page,
@@ -77,7 +78,8 @@ public class TransactionController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
+    @PreAuthorize(
+            "hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String viewTransaction(@PathVariable Long id, Model model) {
         Transaction transaction =
                 transactionService
@@ -127,8 +129,7 @@ public class TransactionController {
                                 + ". A checker must approve before posting.");
             } else {
                 redirectAttributes.addFlashAttribute(
-                        "message",
-                        "Deposit posted successfully. Ref: " + txn.getTransactionRef());
+                        "message", "Deposit posted successfully. Ref: " + txn.getTransactionRef());
             }
             // CBS: redirect to transaction detail — teller must see voucher + ledger confirmation
             return "redirect:/transactions/" + txn.getId();
@@ -222,8 +223,7 @@ public class TransactionController {
                                 + ". A checker must approve before posting.");
             } else {
                 redirectAttributes.addFlashAttribute(
-                        "message",
-                        "Transfer posted successfully. Ref: " + txn.getTransactionRef());
+                        "message", "Transfer posted successfully. Ref: " + txn.getTransactionRef());
             }
             return "redirect:/transactions/" + txn.getId();
         } catch (Exception e) {
@@ -315,7 +315,8 @@ public class TransactionController {
      * ownership check is recommended.
      */
     @GetMapping("/history/{accountNumber}")
-    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'CUSTOMER')")
+    @PreAuthorize(
+            "hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'CUSTOMER')")
     public String transactionHistory(@PathVariable String accountNumber, Model model) {
         // Validate account number format to prevent path traversal / injection
         if (accountNumber == null || !accountNumber.matches("^[A-Za-z0-9\\-]+$")) {
@@ -375,20 +376,25 @@ public class TransactionController {
     }
 
     /**
-     * Populate common transaction form context: business date, holiday status, maker name,
-     * tenant code, and currency. Called by all three form GET handlers.
+     * Populate common transaction form context: business date, holiday status, maker name, tenant
+     * code, and currency. Called by all three form GET handlers.
      */
     private void populateTransactionFormContext(Model model) {
         try {
             Long tenantId = com.ledgora.tenant.context.TenantContextHolder.getRequiredTenantId();
             java.time.LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
             model.addAttribute("businessDate", businessDate);
-            model.addAttribute("isHoliday", !bankCalendarService.isWorkingDay(tenantId, businessDate));
+            model.addAttribute(
+                    "isHoliday", !bankCalendarService.isWorkingDay(tenantId, businessDate));
 
             com.ledgora.tenant.entity.Tenant tenant = tenantService.getTenantById(tenantId);
             model.addAttribute("tenantCode", tenant.getTenantCode());
-            model.addAttribute("baseCurrency", tenant.getBaseCurrency() != null ? tenant.getBaseCurrency() : "INR");
-            model.addAttribute("dayStatus", tenant.getDayStatus() != null ? tenant.getDayStatus().name() : "--");
+            model.addAttribute(
+                    "baseCurrency",
+                    tenant.getBaseCurrency() != null ? tenant.getBaseCurrency() : "INR");
+            model.addAttribute(
+                    "dayStatus",
+                    tenant.getDayStatus() != null ? tenant.getDayStatus().name() : "--");
         } catch (Exception e) {
             model.addAttribute("businessDate", java.time.LocalDate.now());
             model.addAttribute("isHoliday", false);

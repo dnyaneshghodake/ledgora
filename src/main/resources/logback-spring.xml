@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ═══════════════════════════════════════════════════════════════════════════
+  Ledgora CBS — Logback Configuration (Finacle-grade)
+  ═══════════════════════════════════════════════════════════════════════════
+
+  Log Channels (RBI IT Framework / CBS Standard):
+    1. APPLICATION  — General application logs (ledgora-app.log)
+    2. TRANSACTION  — Financial transaction lifecycle (ledgora-txn.log)
+    3. AUDIT        — Immutable audit trail mirror (ledgora-audit.log)
+    4. SECURITY     — Authentication, authorization, session events (ledgora-security.log)
+    5. EOD          — End-of-day processing (ledgora-eod.log)
+
+  Retention:
+    - Application : 30 days, 500 MB cap
+    - Transaction : 90 days, 1 GB cap  (RBI: minimum 8 years in DB, 90-day hot log)
+    - Audit       : 90 days, 1 GB cap  (mirrors DB audit_log table for DR)
+    - Security    : 90 days, 500 MB cap (RBI-F5 session/auth compliance)
+    - EOD         : 90 days, 500 MB cap
+
+  Override log directory:
+    -Dledgora.log.dir=/var/log/ledgora   (Linux/UAT/PROD)
+    -Dledgora.log.dir=C:/ledgora/logs    (Windows dev)
+    Default: ./logs
+  ═══════════════════════════════════════════════════════════════════════════
+-->
+<configuration scan="true" scanPeriod="30 seconds">
+
+    <!-- ─── Properties ─── -->
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name"
+                    defaultValue="ledgora"/>
+    <property name="LOG_DIR" value="${ledgora.log.dir:-logs}"/>
+    <property name="CBS_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{tenantId:-SYSTEM}] [%X{userId:-ANON}] [%X{txnRef:-}] %-5level %logger{40} - %msg%n"/>
+    <property name="AUDIT_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{tenantId:-SYSTEM}] [%X{userId:-ANON}] [%X{action:-}] [%X{entity:-}] [%X{entityId:-}] %msg%n"/>
+
+    <!-- ─── 1. CONSOLE (all profiles) ─── -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CBS_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ─── 2. APPLICATION LOG ─── -->
+    <appender name="APP_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/ledgora-app.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archive/ledgora-app.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${CBS_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ─── 3. TRANSACTION LOG (financial operations only) ─── -->
+    <appender name="TXN_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/ledgora-txn.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archive/ledgora-txn.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>90</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${CBS_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ─── 4. AUDIT LOG (immutable mirror of DB audit trail) ─── -->
+    <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/ledgora-audit.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archive/ledgora-audit.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>90</maxHistory>
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${AUDIT_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ─── 5. SECURITY LOG (auth, session, access control) ─── -->
+    <appender name="SECURITY_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/ledgora-security.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archive/ledgora-security.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>90</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${CBS_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ─── 6. EOD LOG (end-of-day processing) ─── -->
+    <appender name="EOD_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/ledgora-eod.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archive/ledgora-eod.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>50MB</maxFileSize>
+            <maxHistory>90</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${CBS_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ─── 7. SQL LOG (Hibernate SQL + bind parameter values) ─── -->
+    <appender name="SQL_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/ledgora-sql.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/archive/ledgora-sql.%d{yyyy-MM-dd}.%i.log.gz</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>7</maxHistory>
+            <totalSizeCap>500MB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%X{tenantId:-SYSTEM}] [%X{userId:-ANON}] %-5level %logger{60} - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+    <!-- CBS Logger Routing                                             -->
+    <!-- ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- Transaction lifecycle: deposit, withdraw, transfer, approval, reversal -->
+    <logger name="com.ledgora.transaction" level="INFO" additivity="true">
+        <appender-ref ref="TXN_FILE"/>
+    </logger>
+    <logger name="com.ledgora.voucher" level="INFO" additivity="true">
+        <appender-ref ref="TXN_FILE"/>
+    </logger>
+    <logger name="com.ledgora.ledger" level="INFO" additivity="true">
+        <appender-ref ref="TXN_FILE"/>
+    </logger>
+    <logger name="com.ledgora.batch" level="INFO" additivity="true">
+        <appender-ref ref="TXN_FILE"/>
+    </logger>
+    <logger name="com.ledgora.balance" level="INFO" additivity="true">
+        <appender-ref ref="TXN_FILE"/>
+    </logger>
+    <logger name="com.ledgora.clearing" level="INFO" additivity="true">
+        <appender-ref ref="TXN_FILE"/>
+    </logger>
+
+    <!-- Audit trail: immutable CBS audit events -->
+    <logger name="com.ledgora.audit" level="DEBUG" additivity="true">
+        <appender-ref ref="AUDIT_FILE"/>
+    </logger>
+    <logger name="com.ledgora.governance" level="INFO" additivity="true">
+        <appender-ref ref="AUDIT_FILE"/>
+    </logger>
+
+    <!-- Security: authentication, authorization, JWT, session -->
+    <logger name="com.ledgora.auth" level="INFO" additivity="true">
+        <appender-ref ref="SECURITY_FILE"/>
+    </logger>
+    <logger name="com.ledgora.config.SecurityConfig" level="INFO" additivity="true">
+        <appender-ref ref="SECURITY_FILE"/>
+    </logger>
+    <logger name="com.ledgora.fraud" level="INFO" additivity="true">
+        <appender-ref ref="SECURITY_FILE"/>
+    </logger>
+    <logger name="org.springframework.security" level="WARN" additivity="true">
+        <appender-ref ref="SECURITY_FILE"/>
+    </logger>
+
+    <!-- EOD: end-of-day validation, state machine, reconciliation -->
+    <logger name="com.ledgora.eod" level="INFO" additivity="true">
+        <appender-ref ref="EOD_FILE"/>
+    </logger>
+    <logger name="com.ledgora.reconciliation" level="INFO" additivity="true">
+        <appender-ref ref="EOD_FILE"/>
+    </logger>
+
+    <!-- Approval workflow -->
+    <logger name="com.ledgora.approval" level="INFO" additivity="true">
+        <appender-ref ref="TXN_FILE"/>
+        <appender-ref ref="AUDIT_FILE"/>
+    </logger>
+
+    <!-- Suppress noisy framework loggers -->
+    <logger name="org.apache.catalina" level="WARN"/>
+    <logger name="org.apache.tomcat" level="WARN"/>
+    <logger name="org.apache.coyote" level="WARN"/>
+
+    <!--
+      ═══════════════════════════════════════════════════════════════
+      SQL Logging — Profile-aware Hibernate SQL trace
+      ═══════════════════════════════════════════════════════════════
+      H2 / Dev:  Full SQL + bind parameter values → ledgora-sql.log
+                 (org.hibernate.SQL = DEBUG, org.hibernate.orm.jdbc.bind = TRACE)
+      UAT/PROD:  SQL statements only (no values) → ledgora-sql.log
+                 (org.hibernate.SQL = DEBUG, bind = OFF)
+      Test:      No SQL logging (console only, no file)
+    -->
+
+    <!-- H2 / Dev: full SQL with bind values for debugging -->
+    <springProfile name="h2">
+        <!-- Hibernate SQL statements (INSERT, UPDATE, SELECT, DELETE) -->
+        <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+            <appender-ref ref="SQL_FILE"/>
+        </logger>
+        <!-- Hibernate 6.x bind parameter values (shows actual ? values) -->
+        <logger name="org.hibernate.orm.jdbc.bind" level="TRACE" additivity="false">
+            <appender-ref ref="SQL_FILE"/>
+        </logger>
+        <!-- Spring JDBC template (if used) -->
+        <logger name="org.springframework.jdbc.core" level="DEBUG" additivity="false">
+            <appender-ref ref="SQL_FILE"/>
+        </logger>
+        <root level="DEBUG">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="APP_FILE"/>
+        </root>
+    </springProfile>
+
+    <!-- Test profile: console only, no SQL file logging -->
+    <springProfile name="test">
+        <logger name="org.hibernate.SQL" level="WARN"/>
+        <logger name="org.hibernate.orm.jdbc.bind" level="WARN"/>
+        <root level="DEBUG">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- Default (UAT/PROD): SQL statements only, no bind values (security) -->
+    <springProfile name="default">
+        <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+            <appender-ref ref="SQL_FILE"/>
+        </logger>
+        <logger name="org.hibernate.orm.jdbc.bind" level="WARN"/>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="APP_FILE"/>
+        </root>
+    </springProfile>
+
+    <!-- Explicit production profile: same as default -->
+    <springProfile name="prod">
+        <logger name="org.hibernate.SQL" level="DEBUG" additivity="false">
+            <appender-ref ref="SQL_FILE"/>
+        </logger>
+        <logger name="org.hibernate.orm.jdbc.bind" level="WARN"/>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="APP_FILE"/>
+        </root>
+    </springProfile>
+
+</configuration>

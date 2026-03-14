@@ -7,6 +7,7 @@ import java.util.Set;
  * CBS-grade Transaction Status with state machine enforcement.
  *
  * <p>Allowed transitions (Finacle model):
+ *
  * <pre>
  *   PENDING          → PENDING_APPROVAL, COMPLETED, FAILED, PARKED
  *   PENDING_APPROVAL → APPROVED, REJECTED
@@ -18,8 +19,8 @@ import java.util.Set;
  *   PARKED           → COMPLETED, REVERSED, FAILED
  * </pre>
  *
- * <p>RBI compliance: No backward transitions allowed. Terminal states are immutable.
- * Use {@link #canTransitionTo(TransactionStatus)} before any status change.
+ * <p>RBI compliance: No backward transitions allowed. Terminal states are immutable. Use {@link
+ * #canTransitionTo(TransactionStatus)} before any status change.
  */
 public enum TransactionStatus {
     PENDING,

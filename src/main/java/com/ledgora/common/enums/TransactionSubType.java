@@ -1,8 +1,8 @@
 package com.ledgora.common.enums;
 
 /**
- * CBS Transaction sub-type classification per Finacle model.
- * Used alongside TransactionType for granular reporting and RBI returns.
+ * CBS Transaction sub-type classification per Finacle model. Used alongside TransactionType for
+ * granular reporting and RBI returns.
  */
 public enum TransactionSubType {
     CASH,

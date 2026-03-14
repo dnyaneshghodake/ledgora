@@ -58,6 +58,31 @@
             });
         }
 
+        // ── FX info helpers ──
+        var currencyInput = document.getElementById('currencyInput');
+        var fxInfoRow = document.getElementById('fxInfoRow');
+        var fxFromCcy = document.getElementById('fxFromCcy');
+        var fxToCcy = document.getElementById('fxToCcy');
+        var fxAcctCcy = document.getElementById('fxAcctCcy');
+        var _accountCurrency = null; // tracks selected account's currency
+
+        function updateFxInfo() {
+            if (!currencyInput || !fxInfoRow) return;
+            var txnCcy = currencyInput.value;
+            if (_accountCurrency && txnCcy && txnCcy !== _accountCurrency) {
+                if (fxFromCcy) fxFromCcy.textContent = txnCcy;
+                if (fxToCcy) fxToCcy.textContent = _accountCurrency;
+                if (fxAcctCcy) fxAcctCcy.textContent = _accountCurrency;
+                show(fxInfoRow);
+            } else {
+                hide(fxInfoRow);
+            }
+        }
+
+        if (currencyInput) {
+            currencyInput.addEventListener('change', updateFxInfo);
+        }
+
         // ── Single-account pages (deposit / withdrawal) ──
         if (txnType === 'DEPOSIT' || txnType === 'WITHDRAWAL') {
             var acctInput = document.getElementById('accountNumber');
@@ -84,15 +109,22 @@
                     .then(function (data) {
                         if (!data) return;
                         if (acctName) acctName.value = data.accountName || '';
-                        if (ledgerBal) ledgerBal.textContent = formatCurrency(data.balance);
+                        if (ledgerBal) ledgerBal.textContent = formatCurrency(data.ledgerBalance || data.balance);
                         _availBal = parseFloat(data.availableBalance || data.balance) || 0;
                         if (availBal) availBal.textContent = formatCurrency(_availBal);
                         if (lienAmt) lienAmt.textContent = formatCurrency(data.totalLien);
 
+                        // Display account currency and auto-select in currency dropdown
+                        _accountCurrency = data.currency || 'INR';
+                        if (currencyInput) {
+                            currencyInput.value = _accountCurrency;
+                        }
+                        updateFxInfo();
+
                         // Freeze check
                         if (data.freezeLevel && data.freezeLevel !== 'NONE') {
                             show(freezeWarn);
-                            if (freezeMsg) freezeMsg.textContent = 'Account freeze level: ' + data.freezeLevel;
+                            if (freezeMsg) freezeMsg.textContent = 'Account freeze level: ' + data.freezeLevel + ' | Currency: ' + _accountCurrency;
                             var blocked = data.freezeLevel === 'FULL'
                                 || (freezeBlockDirection === 'CREDIT' && data.freezeLevel === 'CREDIT_ONLY')
                                 || (freezeBlockDirection === 'DEBIT' && data.freezeLevel === 'DEBIT_ONLY');
@@ -171,9 +203,16 @@
                     .then(function (r) { return r.json(); })
                     .then(function (d) {
                         if (!d) return;
+                        var acctCcy = d.currency || 'INR';
                         var infoEl = document.getElementById(infoId);
                         if (infoEl) {
-                            infoEl.innerHTML = '<small><strong>' + (d.accountName || '') + '</strong> | Type: ' + (d.accountType || '') + ' | Status: ' + (d.status || '') + '</small>';
+                            infoEl.innerHTML = '<small><strong>' + (d.accountName || '') + '</strong> | Type: ' + (d.accountType || '') + ' | Status: ' + (d.status || '') + ' | <span class="badge bg-secondary">' + acctCcy + '</span></small>';
+                        }
+                        // For source account, track currency for FX detection
+                        if (side === 'from') {
+                            _accountCurrency = acctCcy;
+                            if (currencyInput) currencyInput.value = acctCcy;
+                            updateFxInfo();
                         }
 
                         var balRow = document.getElementById(balRowId);

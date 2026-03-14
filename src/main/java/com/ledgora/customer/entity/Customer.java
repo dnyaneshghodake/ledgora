@@ -124,8 +124,8 @@ public class Customer {
     // ── Maker-Checker fields ──
 
     /**
-     * Approval status — PENDING until checker approves or rejects.
-     * Transactions are blocked while status is PENDING.
+     * Approval status — PENDING until checker approves or rejects. Transactions are blocked while
+     * status is PENDING.
      */
     @Enumerated(EnumType.STRING)
     @Column(name = "approval_status", length = 20, nullable = false)
@@ -148,9 +148,7 @@ public class Customer {
     @Column(name = "checker_timestamp")
     private LocalDateTime checkerTimestamp;
 
-    /**
-     * Optimistic locking — prevents concurrent approval of the same customer from two sessions.
-     */
+    /** Optimistic locking — prevents concurrent approval of the same customer from two sessions. */
     @Version
     @Column(name = "version")
     private Long version;

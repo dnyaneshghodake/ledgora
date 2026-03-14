@@ -28,7 +28,7 @@ public class ExchangeRateSeeder {
             return;
         }
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = SeederDateUtil.nextWeekday();
         createRate("USD", "INR", new BigDecimal("83.12500000"), today);
         createRate("USD", "EUR", new BigDecimal("0.92150000"), today);
         createRate("INR", "EUR", new BigDecimal("0.01108500"), today);

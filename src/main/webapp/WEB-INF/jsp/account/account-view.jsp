@@ -82,7 +82,7 @@
     </div>
 </div>
 
-<%-- Balances Tab --%>
+<%-- Balances Tab — all values from CbsBalanceEngine (authoritative source) --%>
 <div class="tab-pane fade" id="tab-balances">
     <div class="card shadow">
         <div class="card-body">
@@ -91,7 +91,7 @@
                     <div class="card border-primary">
                         <div class="card-body text-center">
                             <h6 class="text-primary">Ledger Balance</h6>
-                            <h3 class="fw-bold"><c:out value="${account.balance}"/> <small><c:out value="${account.currency}"/></small></h3>
+                            <h3 class="fw-bold"><c:out value="${ledgerBalance != null ? ledgerBalance : account.balance}"/> <small><c:out value="${account.currency}"/></small></h3>
                         </div>
                     </div>
                 </div>

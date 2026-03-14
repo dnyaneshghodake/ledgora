@@ -9,6 +9,8 @@ import com.ledgora.audit.repository.AuditLogRepository;
 import com.ledgora.balance.service.CbsBalanceEngine;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
+import com.ledgora.ledger.entity.LedgerEntry;
+import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.lien.entity.AccountLien;
 import com.ledgora.lien.service.AccountLienService;
 import com.ledgora.ownership.entity.AccountOwnership;
@@ -40,6 +42,7 @@ public class AccountController {
     private final AccountOwnershipService ownershipService;
     private final AccountLienService lienService;
     private final TransactionRepository transactionRepository;
+    private final LedgerEntryRepository ledgerEntryRepository;
 
     public AccountController(
             AccountService accountService,
@@ -47,17 +50,20 @@ public class AccountController {
             AuditLogRepository auditLogRepository,
             AccountOwnershipService ownershipService,
             AccountLienService lienService,
-            TransactionRepository transactionRepository) {
+            TransactionRepository transactionRepository,
+            LedgerEntryRepository ledgerEntryRepository) {
         this.accountService = accountService;
         this.balanceEngine = balanceEngine;
         this.auditLogRepository = auditLogRepository;
         this.ownershipService = ownershipService;
         this.lienService = lienService;
         this.transactionRepository = transactionRepository;
+        this.ledgerEntryRepository = ledgerEntryRepository;
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
+    @PreAuthorize(
+            "hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String listAccounts(
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "type", required = false) String type,
@@ -118,6 +124,23 @@ public class AccountController {
         model.addAttribute("queryString", qs.toString());
         model.addAttribute("accountTypes", AccountType.values());
         model.addAttribute("accountStatuses", AccountStatus.values());
+
+        // Build balance lookup map from CbsBalanceEngine for accurate display on list page
+        @SuppressWarnings("unchecked")
+        List<Account> accountList = (List<Account>) model.getAttribute("accounts");
+        if (accountList != null) {
+            Map<Long, java.math.BigDecimal> balanceMap = new HashMap<>();
+            for (Account acct : accountList) {
+                try {
+                    AccountBalance cb = balanceEngine.getCbsBalance(acct.getId());
+                    balanceMap.put(acct.getId(), cb.getLedgerBalance());
+                } catch (Exception e) {
+                    balanceMap.put(acct.getId(), acct.getBalance());
+                }
+            }
+            model.addAttribute("balanceMap", balanceMap);
+        }
+
         return "account/accounts";
     }
 
@@ -156,7 +179,8 @@ public class AccountController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
+    @PreAuthorize(
+            "hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String viewAccount(@PathVariable Long id, Model model) {
         Account account =
                 accountService
@@ -184,13 +208,17 @@ public class AccountController {
         }
         model.addAttribute("approvedByUsername", approvedByUsername);
 
-        // Load balance data for Balances tab
+        // Load balance data for Balances tab — always from CbsBalanceEngine (authoritative source)
         try {
             AccountBalance cbsBalance = balanceEngine.getCbsBalance(id);
+            model.addAttribute("ledgerBalance", cbsBalance.getLedgerBalance());
             model.addAttribute("availableBalance", cbsBalance.getAvailableBalance());
+            model.addAttribute("actualBalance", cbsBalance.getActualTotalBalance());
             model.addAttribute("totalLien", cbsBalance.getLienBalance());
         } catch (Exception e) {
+            model.addAttribute("ledgerBalance", account.getBalance());
             model.addAttribute("availableBalance", account.getBalance());
+            model.addAttribute("actualBalance", account.getBalance());
             model.addAttribute("totalLien", "0.00");
         }
 
@@ -258,6 +286,7 @@ public class AccountController {
         // Load recent transactions for Transactions tab (safe projection)
         try {
             List<Transaction> txEntities = transactionRepository.findByAccountId(id);
+            final Long accountId = id;
             List<Map<String, Object>> recentTransactions =
                     txEntities.stream()
                             .limit(20)
@@ -271,7 +300,26 @@ public class AccountController {
                                                         ? tx.getTransactionType().name()
                                                         : "");
                                         m.put("amount", tx.getAmount());
-                                        m.put("balanceAfter", "--");
+                                        // Resolve balance-after from the immutable ledger entry
+                                        // for this account on this transaction
+                                        String balAfter = "--";
+                                        try {
+                                            List<LedgerEntry> entries =
+                                                    ledgerEntryRepository.findByTransactionId(
+                                                            tx.getId());
+                                            for (LedgerEntry le : entries) {
+                                                if (le.getAccount() != null
+                                                        && le.getAccount()
+                                                                .getId()
+                                                                .equals(accountId)
+                                                        && le.getBalanceAfter() != null) {
+                                                    balAfter = le.getBalanceAfter().toPlainString();
+                                                    break;
+                                                }
+                                            }
+                                        } catch (Exception ignored) {
+                                        }
+                                        m.put("balanceAfter", balAfter);
                                         return m;
                                     })
                             .collect(Collectors.toList());

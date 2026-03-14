@@ -1,5 +1,6 @@
 package com.ledgora.tenant.service;
 
+import com.ledgora.audit.service.AuditService;
 import com.ledgora.common.enums.DayStatus;
 import com.ledgora.common.exception.BusinessDayClosedException;
 import com.ledgora.tenant.entity.Tenant;
@@ -12,15 +13,23 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Service for tenant management including business date and day status control. */
+/**
+ * Service for tenant management including business date and day status control.
+ *
+ * <p>CBS/RBI Governance: All tenant lifecycle changes (create, activate, deactivate, day
+ * begin/close) are audited. Tenant creation starts in INITIALIZING status per Finacle bootstrap
+ * standard.
+ */
 @Service
 public class TenantService {
 
     private static final Logger log = LoggerFactory.getLogger(TenantService.class);
     private final TenantRepository tenantRepository;
+    private final AuditService auditService;
 
-    public TenantService(TenantRepository tenantRepository) {
+    public TenantService(TenantRepository tenantRepository, AuditService auditService) {
         this.tenantRepository = tenantRepository;
+        this.auditService = auditService;
     }
 
     public Tenant getTenantById(Long id) {
@@ -138,7 +147,75 @@ public class TenantService {
                         .dayStatus(DayStatus.OPEN)
                         .build();
         Tenant saved = tenantRepository.save(tenant);
+
+        auditService.logEvent(
+                null,
+                "TENANT_CREATED",
+                "TENANT",
+                saved.getId(),
+                "Tenant created: " + saved.getTenantCode() + " - " + saved.getTenantName(),
+                null);
+
         log.info("Tenant created: {} - {}", saved.getTenantCode(), saved.getTenantName());
+        return saved;
+    }
+
+    /**
+     * Activate a tenant (transition from INITIALIZING or INACTIVE to ACTIVE). CBS/Finacle: only
+     * ACTIVE tenants can perform financial operations.
+     */
+    @Transactional
+    public Tenant activateTenant(Long tenantId) {
+        Tenant tenant = getTenantById(tenantId);
+        if ("ACTIVE".equals(tenant.getStatus())) {
+            throw new RuntimeException("Tenant " + tenantId + " is already ACTIVE");
+        }
+        String oldStatus = tenant.getStatus();
+        tenant.setStatus("ACTIVE");
+        Tenant saved = tenantRepository.save(tenant);
+
+        auditService.logEvent(
+                null,
+                "TENANT_ACTIVATED",
+                "TENANT",
+                tenantId,
+                "Tenant activated: " + oldStatus + " → ACTIVE",
+                null);
+
+        log.info("Tenant {} activated (was {})", tenantId, oldStatus);
+        return saved;
+    }
+
+    /**
+     * Deactivate a tenant (transition from ACTIVE to INACTIVE). CBS/RBI: deactivated tenants cannot
+     * perform any financial operations. Business day must be CLOSED before deactivation.
+     */
+    @Transactional
+    public Tenant deactivateTenant(Long tenantId) {
+        Tenant tenant = getTenantById(tenantId);
+        if ("INACTIVE".equals(tenant.getStatus())) {
+            throw new RuntimeException("Tenant " + tenantId + " is already INACTIVE");
+        }
+        if (tenant.getDayStatus() == DayStatus.OPEN
+                || tenant.getDayStatus() == DayStatus.DAY_CLOSING) {
+            throw new RuntimeException(
+                    "Cannot deactivate tenant "
+                            + tenantId
+                            + ": business day must be CLOSED first. Current: "
+                            + tenant.getDayStatus());
+        }
+        tenant.setStatus("INACTIVE");
+        Tenant saved = tenantRepository.save(tenant);
+
+        auditService.logEvent(
+                null,
+                "TENANT_DEACTIVATED",
+                "TENANT",
+                tenantId,
+                "Tenant deactivated: " + saved.getTenantCode(),
+                null);
+
+        log.info("Tenant {} deactivated", tenantId);
         return saved;
     }
 }

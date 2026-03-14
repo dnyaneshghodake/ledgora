@@ -121,10 +121,7 @@ public class ApprovalService {
                 "Approved: " + remarks,
                 null);
 
-        log.info(
-                "Approval request {} approved by {}",
-                requestId,
-                currentUser.getUsername());
+        log.info("Approval request {} approved by {}", requestId, currentUser.getUsername());
         return saved;
     }
 
@@ -161,10 +158,7 @@ public class ApprovalService {
                 "Rejected: " + remarks,
                 null);
 
-        log.info(
-                "Approval request {} rejected by {}",
-                requestId,
-                currentUser.getUsername());
+        log.info("Approval request {} rejected by {}", requestId, currentUser.getUsername());
         return saved;
     }
 

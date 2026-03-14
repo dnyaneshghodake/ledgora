@@ -557,6 +557,51 @@
             </li>
             </c:if>
 
+            <%-- ═══ Tenant Management (SUPER_ADMIN / ADMIN / TENANT_ADMIN) ═══ --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isTenantAdmin || sessionScope.isSuperAdmin}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="tenant-mgmt">
+                    <i class="bi bi-building"></i>
+                    <span>Tenant Management</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-tenant-mgmt">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/admin/tenants" class="cbs-nav-link" data-page="admin/tenants">
+                            <i class="bi bi-list-ul"></i>
+                            <span>Tenant Registry</span>
+                        </a>
+                    </li>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isSuperAdmin}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/admin/tenants" class="cbs-nav-link" data-page="admin/tenants-onboard">
+                            <i class="bi bi-plus-circle"></i>
+                            <span>Onboard Tenant</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/admin/branches" class="cbs-nav-link" data-page="admin/branches">
+                            <i class="bi bi-geo-alt"></i>
+                            <span>Branch Management</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/calendar" class="cbs-nav-link" data-page="calendar-tenant">
+                            <i class="bi bi-calendar3"></i>
+                            <span>Banking Calendar</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/fx-rates" class="cbs-nav-link" data-page="fx-rates-tenant">
+                            <i class="bi bi-currency-exchange"></i>
+                            <span>FX Rates</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            </c:if>
+
             <%-- ═══ Audit & Governance Section ═══ --%>
             <c:if test="${sessionScope.isAuditor || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isSuperAdmin || sessionScope.isChecker}">
             <li class="cbs-nav-group">

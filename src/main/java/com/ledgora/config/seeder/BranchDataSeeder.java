@@ -21,7 +21,18 @@ public class BranchDataSeeder {
         this.branchRepository = branchRepository;
     }
 
-    public Branch seedBranch(String branchCode, String branchName, String address, Tenant tenant) {
+    public Branch seedBranch(
+            String branchCode,
+            String branchName,
+            String address,
+            String city,
+            String state,
+            String pincode,
+            String ifscCode,
+            String micrCode,
+            String branchType,
+            String contactPhone,
+            Tenant tenant) {
         return branchRepository
                 .findByBranchCode(branchCode)
                 .orElseGet(
@@ -32,6 +43,13 @@ public class BranchDataSeeder {
                                             .branchName(branchName)
                                             .name(branchName)
                                             .address(address)
+                                            .city(city)
+                                            .state(state)
+                                            .pincode(pincode)
+                                            .ifscCode(ifscCode)
+                                            .micrCode(micrCode)
+                                            .branchType(branchType)
+                                            .contactPhone(contactPhone)
                                             .tenant(tenant)
                                             .isActive(true)
                                             .build();
@@ -39,12 +57,48 @@ public class BranchDataSeeder {
                         });
     }
 
-    /** Seeds standard CBS branches. Returns [hqBranch, branch1, branch2]. */
+    /** Seeds standard CBS branches with full RBI attributes. Returns [hqBranch, branch1, branch2]. */
     public Branch[] seed(Tenant defaultTenant) {
-        Branch hq = seedBranch("HQ001", "Head Office", "Main Street, City Center", defaultTenant);
-        Branch br1 = seedBranch("BR001", "Downtown Branch", "1st Avenue, Downtown", defaultTenant);
-        Branch br2 = seedBranch("BR002", "Uptown Branch", "2nd Avenue, Uptown", defaultTenant);
-        log.info("  [Branches] HQ001, BR001, BR002 ready");
+        Branch hq =
+                seedBranch(
+                        "HQ001",
+                        "Head Office",
+                        "Main Street, City Center",
+                        "Mumbai",
+                        "Maharashtra",
+                        "400001",
+                        "LDGR0000001",
+                        "400002001",
+                        "HEAD_OFFICE",
+                        "022-40001001",
+                        defaultTenant);
+        Branch br1 =
+                seedBranch(
+                        "BR001",
+                        "Downtown Branch",
+                        "1st Avenue, Downtown",
+                        "Mumbai",
+                        "Maharashtra",
+                        "400002",
+                        "LDGR0000002",
+                        "400002002",
+                        "BRANCH",
+                        "022-40001002",
+                        defaultTenant);
+        Branch br2 =
+                seedBranch(
+                        "BR002",
+                        "Uptown Branch",
+                        "2nd Avenue, Uptown",
+                        "Delhi",
+                        "Delhi",
+                        "110001",
+                        "LDGR0000003",
+                        "110002001",
+                        "BRANCH",
+                        "011-40001003",
+                        defaultTenant);
+        log.info("  [Branches] HQ001, BR001, BR002 ready (with IFSC, MICR, branchType)");
         return new Branch[] {hq, br1, br2};
     }
 }

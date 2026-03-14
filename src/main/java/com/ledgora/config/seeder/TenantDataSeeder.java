@@ -3,7 +3,6 @@ package com.ledgora.config.seeder;
 import com.ledgora.common.enums.DayStatus;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
-import java.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -31,8 +30,17 @@ public class TenantDataSeeder {
                                             .tenantCode("TENANT-001")
                                             .tenantName("Ledgora Main Bank")
                                             .status("ACTIVE")
-                                            .currentBusinessDate(LocalDate.now())
+                                            .currentBusinessDate(SeederDateUtil.nextWeekday())
                                             .dayStatus(DayStatus.OPEN)
+                                            .country("IN")
+                                            .baseCurrency("INR")
+                                            .timezone("Asia/Kolkata")
+                                            .regulatoryCode("RBI/2024/BANK/001")
+                                            .multiBranchEnabled(true)
+                                            .eodStatus("NOT_STARTED")
+                                            .effectiveFrom(
+                                                    java.time.LocalDate.of(2024, 1, 1))
+                                            .remarks("Primary tenant — seeded by DataInitializer")
                                             .build();
                             return tenantRepository.save(t);
                         });
@@ -48,8 +56,18 @@ public class TenantDataSeeder {
                                             .tenantCode("TENANT-002")
                                             .tenantName("Ledgora Partner Bank")
                                             .status("ACTIVE")
-                                            .currentBusinessDate(LocalDate.now())
+                                            .currentBusinessDate(SeederDateUtil.nextWeekday())
                                             .dayStatus(DayStatus.OPEN)
+                                            .country("IN")
+                                            .baseCurrency("INR")
+                                            .timezone("Asia/Kolkata")
+                                            .regulatoryCode("RBI/2024/BANK/002")
+                                            .multiBranchEnabled(false)
+                                            .eodStatus("NOT_STARTED")
+                                            .effectiveFrom(
+                                                    java.time.LocalDate.of(2024, 6, 1))
+                                            .remarks(
+                                                    "Secondary tenant — partner bank for multi-tenant testing")
                                             .build();
                             return tenantRepository.save(t);
                         });

@@ -87,6 +87,8 @@
                         </tbody>
                     </table>
                 </div>
+                <%-- Pagination --%>
+                <%@ include file="../layout/pagination.jsp" %>
             </c:when>
             <c:otherwise>
                 <div class="text-center py-4 text-muted">

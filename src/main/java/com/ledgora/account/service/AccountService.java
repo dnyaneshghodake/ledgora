@@ -287,7 +287,10 @@ public class AccountService {
                 "Account updated: " + saved.getAccountNumber() + " by " + currentUser.getUsername(),
                 null);
 
-        log.info("Account {} updated by user {}", saved.getAccountNumber(), currentUser.getUsername());
+        log.info(
+                "Account {} updated by user {}",
+                saved.getAccountNumber(),
+                currentUser.getUsername());
         return saved;
     }
 
@@ -295,7 +298,8 @@ public class AccountService {
     @Transactional
     public Account updateFreezeStatus(
             Long id, com.ledgora.common.enums.FreezeLevel freezeLevel, String freezeReason) {
-        // Identity check BEFORE any persistence — freeze must not be applied without an auditable maker
+        // Identity check BEFORE any persistence — freeze must not be applied without an auditable
+        // maker
         User currentUser = getCurrentUser();
         if (currentUser == null) {
             throw new com.ledgora.common.exception.BusinessException(

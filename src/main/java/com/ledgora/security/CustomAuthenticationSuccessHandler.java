@@ -70,6 +70,14 @@ public class CustomAuthenticationSuccessHandler
         session.setAttribute("isAuditor", roles.contains("ROLE_AUDITOR"));
         session.setAttribute("isOperations", roles.contains("ROLE_OPERATIONS"));
         session.setAttribute("isAtmSystem", roles.contains("ROLE_ATM_SYSTEM"));
+        session.setAttribute("isComplianceOfficer", roles.contains("ROLE_COMPLIANCE_OFFICER"));
+
+        // Store user ID in session for maker-checker own-request detection in JSPs
+        User userEntity =
+                userRepository.findByUsername(userDetails.getUsername()).orElse(null);
+        if (userEntity != null) {
+            session.setAttribute("userId", userEntity.getId());
+        }
 
         // Resolve tenant context from User entity and generate JWT with tenant claims
         User user = userRepository.findByUsername(userDetails.getUsername()).orElse(null);

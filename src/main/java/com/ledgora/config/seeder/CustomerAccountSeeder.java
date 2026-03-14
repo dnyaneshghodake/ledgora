@@ -52,6 +52,15 @@ public class CustomerAccountSeeder {
                         "VERIFIED",
                         tenant,
                         admin);
+        // CBS-grade KYC: VERIFIED customers must have PAN + realistic profile
+        c1.setCustomerType("INDIVIDUAL");
+        c1.setPanNumber("ABCDE1234F");
+        c1.setAadhaarNumber("123456789012");
+        c1.setOccupation("SALARIED");
+        c1.setAnnualIncome(new BigDecimal("1200000"));
+        c1.setRiskCategory("MEDIUM");
+        customerRepository.save(c1);
+
         Customer c2 =
                 cust(
                         "CUST-NID-002",
@@ -64,6 +73,14 @@ public class CustomerAccountSeeder {
                         "VERIFIED",
                         tenant,
                         admin);
+        c2.setCustomerType("INDIVIDUAL");
+        c2.setPanNumber("FGHIJ5678K");
+        c2.setAadhaarNumber("987654321098");
+        c2.setOccupation("BUSINESS");
+        c2.setAnnualIncome(new BigDecimal("5500000"));
+        c2.setRiskCategory("HIGH");
+        customerRepository.save(c2);
+
         Customer c3 =
                 cust(
                         "CUST-NID-003",
@@ -76,6 +93,13 @@ public class CustomerAccountSeeder {
                         "PENDING",
                         tenant,
                         admin);
+        c3.setCustomerType("INDIVIDUAL");
+        c3.setPanNumber("KLMNO9012P");
+        c3.setOccupation("SELF_EMPLOYED");
+        c3.setAnnualIncome(new BigDecimal("800000"));
+        c3.setRiskCategory("LOW");
+        customerRepository.save(c3);
+
         Customer c4 =
                 cust(
                         "CUST-NID-004",
@@ -88,6 +112,11 @@ public class CustomerAccountSeeder {
                         "PENDING",
                         tenant,
                         admin);
+        c4.setCustomerType("INDIVIDUAL");
+        c4.setPanNumber("PQRST3456U");
+        c4.setOccupation("STUDENT");
+        c4.setRiskCategory("LOW");
+        customerRepository.save(c4);
         // ── Bulk customers for pagination testing (26 more) ──
         String[][] bulkCustomers = {
             {
@@ -411,6 +440,10 @@ public class CustomerAccountSeeder {
         log.info("  [Customers] 30 customers ready (bulk seeded for pagination testing)");
 
         // GL / System accounts
+        // Balances include the impact of seeded transactions (TransactionLedgerSeeder):
+        // Cash GL 1100: opening 5,000,000 + deposits DR - withdrawal CR
+        // Deposits GL 2100: opening 3,000,000 (transfer GL — net zero impact from TRF)
+        // Loans GL 1200: no seeded transactions
         Account glCash =
                 acct(
                         "GL-CASH-001",
@@ -714,7 +747,8 @@ public class CustomerAccountSeeder {
                 .findByNationalId(nid)
                 .orElseGet(
                         () -> {
-                            // Seeded customers with VERIFIED KYC are pre-approved (post-checker state).
+                            // Seeded customers with VERIFIED KYC are pre-approved (post-checker
+                            // state).
                             // Customers with PENDING KYC start in PENDING approval state.
                             com.ledgora.common.enums.MakerCheckerStatus approvalStatus =
                                     "VERIFIED".equals(kyc)
@@ -761,7 +795,8 @@ public class CustomerAccountSeeder {
                         .tenant(tenant)
                         .status(AccountStatus.ACTIVE)
                         // Seeded accounts are pre-approved (represent post-checker state).
-                        // Real accounts created via UI start as PENDING and require checker approval.
+                        // Real accounts created via UI start as PENDING and require checker
+                        // approval.
                         .approvalStatus(MakerCheckerStatus.APPROVED)
                         .approvedBy(admin)
                         .balance(balance)

@@ -89,6 +89,7 @@ public class TransactionService {
     private final com.ledgora.approval.service.HardTransactionCeilingService
             hardTransactionCeilingService;
     private final com.ledgora.fraud.service.VelocityFraudEngine velocityFraudEngine;
+    private final com.ledgora.currency.service.FxConversionService fxConversionService;
 
     public TransactionService(
             TransactionRepository transactionRepository,
@@ -111,7 +112,8 @@ public class TransactionService {
             com.ledgora.clearing.service.IbtService ibtService,
             com.ledgora.approval.service.HardTransactionCeilingService
                     hardTransactionCeilingService,
-            com.ledgora.fraud.service.VelocityFraudEngine velocityFraudEngine) {
+            com.ledgora.fraud.service.VelocityFraudEngine velocityFraudEngine,
+            com.ledgora.currency.service.FxConversionService fxConversionService) {
         this.transactionRepository = transactionRepository;
         this.transactionLineRepository = transactionLineRepository;
         this.accountRepository = accountRepository;
@@ -132,6 +134,7 @@ public class TransactionService {
         this.ibtService = ibtService;
         this.hardTransactionCeilingService = hardTransactionCeilingService;
         this.velocityFraudEngine = velocityFraudEngine;
+        this.fxConversionService = fxConversionService;
     }
 
     /**
@@ -785,17 +788,20 @@ public class TransactionService {
                 dto.getAmount(),
                 "Cash deposit - credit customer account");
 
-        BigDecimal newBalance = account.getBalance().add(dto.getAmount());
+        // FX conversion: resolve amount in account currency for balance updates
+        String txnCurrency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
+        BigDecimal accountCurrencyAmount =
+                resolveAmountInAccountCurrency(dto, account, businessDate);
+        BigDecimal newBalance = account.getBalance().add(accountCurrencyAmount);
         Account cashAccount = resolveCashGlAccount(tenant.getId());
-        String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
         postVoucher(
                 transaction,
                 tenant,
                 poster,
                 cashAccount,
                 VoucherDrCr.DR,
-                dto.getAmount(),
-                currency,
+                accountCurrencyAmount,
+                txnCurrency,
                 businessDate,
                 batch,
                 "Cash deposit - cash ledger leg");
@@ -805,8 +811,8 @@ public class TransactionService {
                 poster,
                 account,
                 VoucherDrCr.CR,
-                dto.getAmount(),
-                currency,
+                accountCurrencyAmount,
+                txnCurrency,
                 businessDate,
                 batch,
                 "Cash deposit - customer ledger leg");
@@ -841,17 +847,20 @@ public class TransactionService {
                 dto.getAmount(),
                 "Cash withdrawal - credit cash account");
 
-        BigDecimal newBalance = account.getBalance().subtract(dto.getAmount());
+        // FX conversion: resolve amount in account currency for balance updates
+        String txnCurrency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
+        BigDecimal accountCurrencyAmount =
+                resolveAmountInAccountCurrency(dto, account, businessDate);
+        BigDecimal newBalance = account.getBalance().subtract(accountCurrencyAmount);
         Account cashAccount = resolveCashGlAccount(tenant.getId());
-        String currency = dto.getCurrency() != null ? dto.getCurrency() : "INR";
         postVoucher(
                 transaction,
                 tenant,
                 poster,
                 account,
                 VoucherDrCr.DR,
-                dto.getAmount(),
-                currency,
+                accountCurrencyAmount,
+                txnCurrency,
                 businessDate,
                 batch,
                 "Cash withdrawal - customer ledger leg");
@@ -861,8 +870,8 @@ public class TransactionService {
                 poster,
                 cashAccount,
                 VoucherDrCr.CR,
-                dto.getAmount(),
-                currency,
+                accountCurrencyAmount,
+                txnCurrency,
                 businessDate,
                 batch,
                 "Cash withdrawal - cash ledger leg");
@@ -1140,6 +1149,16 @@ public class TransactionService {
         transactionLineRepository.save(line);
     }
 
+    /**
+     * Sync the AccountBalance cache after a transaction posts. Updates ALL balance fields to ensure
+     * the Balances tab, deposit form, and withdrawal validation all see the correct post-transaction
+     * balance.
+     *
+     * <p>CBS rule: ledgerBalance, actualTotalBalance, actualClearedBalance, and availableBalance
+     * must all be consistent after every posting. The CbsBalanceEngine.updateActualBalance() handles
+     * the per-voucher-leg update, but the Account.balance field (the display cache) is the
+     * authoritative source set here after both voucher legs are posted.
+     */
     private void updateAccountBalanceCache(Account account, BigDecimal newLedgerBalance) {
         AccountBalance balance =
                 accountBalanceRepository
@@ -1149,9 +1168,30 @@ public class TransactionService {
                                         AccountBalance.builder()
                                                 .account(account)
                                                 .holdAmount(BigDecimal.ZERO)
+                                                .lienBalance(BigDecimal.ZERO)
+                                                .chargeHoldBalance(BigDecimal.ZERO)
+                                                .unclearedEffectBalance(BigDecimal.ZERO)
                                                 .build());
+        // Sync all balance fields to the authoritative post-transaction value
         balance.setLedgerBalance(newLedgerBalance);
-        balance.setAvailableBalance(newLedgerBalance.subtract(balance.getHoldAmount()));
+        balance.setActualTotalBalance(newLedgerBalance);
+        balance.setActualClearedBalance(
+                newLedgerBalance.subtract(
+                        balance.getUnclearedEffectBalance() != null
+                                ? balance.getUnclearedEffectBalance()
+                                : BigDecimal.ZERO));
+        // Available = cleared - liens - holds
+        BigDecimal available =
+                balance.getActualClearedBalance()
+                        .subtract(
+                                balance.getLienBalance() != null
+                                        ? balance.getLienBalance()
+                                        : BigDecimal.ZERO)
+                        .subtract(
+                                balance.getChargeHoldBalance() != null
+                                        ? balance.getChargeHoldBalance()
+                                        : BigDecimal.ZERO);
+        balance.setAvailableBalance(available);
         accountBalanceRepository.save(balance);
     }
 
@@ -1162,6 +1202,32 @@ public class TransactionService {
      */
     private void validateAmountPositive(BigDecimal amount) {
         com.ledgora.common.validation.RbiFieldValidator.validateTransactionAmount(amount);
+    }
+
+    /**
+     * Finacle-grade multi-currency support: if the DTO currency differs from the account currency,
+     * perform automatic FX conversion using the business-date exchange rate. The converted amount
+     * (in account currency) is used for balance updates, while the original amount is recorded on
+     * the transaction for audit.
+     *
+     * <p>If the DTO currency is null or blank, it defaults to the account's currency (no conversion
+     * needed). If FX rate is not configured, a clear error is thrown.
+     *
+     * @return the amount in the account's currency (may differ from dto.getAmount() if converted)
+     */
+    private BigDecimal resolveAmountInAccountCurrency(
+            TransactionDTO dto, Account account, LocalDate businessDate) {
+        String accountCurrency = account.getCurrency() != null ? account.getCurrency() : "INR";
+        if (dto.getCurrency() == null || dto.getCurrency().isBlank()) {
+            dto.setCurrency(accountCurrency);
+            return dto.getAmount();
+        }
+        if (dto.getCurrency().equalsIgnoreCase(accountCurrency)) {
+            return dto.getAmount();
+        }
+        // Cross-currency: convert using FX rate
+        return fxConversionService.convert(
+                dto.getAmount(), dto.getCurrency(), accountCurrency, businessDate);
     }
 
     private void validateAccountActive(Account account) {

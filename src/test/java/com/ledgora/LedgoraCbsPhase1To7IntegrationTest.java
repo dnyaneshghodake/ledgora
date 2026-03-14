@@ -288,9 +288,10 @@ class LedgoraCbsPhase1To7IntegrationTest {
         assertNotNull(txn.getBatch(), "Transaction must have batch assigned");
 
         // Verify vouchers created (2 legs: DR cash, CR customer)
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
         List<Voucher> vouchers =
                 voucherRepository.findByTenantIdAndBranchIdAndPostingDate(
-                        data.tenant.getId(), data.branch.getId(), LocalDate.now());
+                        data.tenant.getId(), data.branch.getId(), bizDate);
         assertTrue(vouchers.size() >= 2, "Deposit must create at least 2 vouchers (DR+CR)");
 
         // Verify all vouchers are authorized and posted
@@ -302,7 +303,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         // Verify ledger entries created and balanced
         List<LedgerEntry> entries =
                 ledgerEntryRepository.findByBusinessDateAndTenantId(
-                        LocalDate.now(), data.tenant.getId());
+                        bizDate, data.tenant.getId());
         BigDecimal totalDebits =
                 entries.stream()
                         .filter(e -> e.getEntryType() == EntryType.DEBIT)
@@ -462,7 +463,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
         List<LedgerEntry> entries =
                 ledgerEntryRepository.findByBusinessDateAndTenantId(
-                        LocalDate.now(), data.tenant.getId());
+                        data.tenant.getCurrentBusinessDate(), data.tenant.getId());
         assertFalse(entries.isEmpty(), "Ledger entries must exist after deposit");
 
         long countBefore = ledgerEntryRepository.count();
@@ -665,6 +666,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         FullTestData data = setupFullTestData("P3-MC");
 
         TenantContextHolder.setTenantId(data.tenant.getId());
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
 
         Voucher voucher =
                 voucherService.createVoucher(
@@ -676,8 +678,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         new BigDecimal("1000.00"),
                         new BigDecimal("1000.00"),
                         "INR",
-                        LocalDate.now(),
-                        LocalDate.now(),
+                        bizDate,
+                        bizDate,
                         "BATCH-MC",
                         1,
                         data.maker,
@@ -698,6 +700,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         FullTestData data = setupFullTestData("P3-CANC");
 
         TenantContextHolder.setTenantId(data.tenant.getId());
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
 
         Voucher voucher =
                 voucherService.createVoucher(
@@ -709,8 +712,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         new BigDecimal("1000.00"),
                         new BigDecimal("1000.00"),
                         "INR",
-                        LocalDate.now(),
-                        LocalDate.now(),
+                        bizDate,
+                        bizDate,
                         "BATCH-CANC",
                         1,
                         data.maker,
@@ -734,6 +737,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         FullTestData data = setupFullTestData("P3-DAUTH");
 
         TenantContextHolder.setTenantId(data.tenant.getId());
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
 
         Voucher voucher =
                 voucherService.createVoucher(
@@ -745,8 +749,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         new BigDecimal("1000.00"),
                         new BigDecimal("1000.00"),
                         "INR",
-                        LocalDate.now(),
-                        LocalDate.now(),
+                        bizDate,
+                        bizDate,
                         "BATCH-DAUTH",
                         1,
                         data.maker,
@@ -770,6 +774,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         FullTestData data = setupFullTestData("P3-UNAUTH");
 
         TenantContextHolder.setTenantId(data.tenant.getId());
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
 
         Voucher voucher =
                 voucherService.createVoucher(
@@ -781,8 +786,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         new BigDecimal("1000.00"),
                         new BigDecimal("1000.00"),
                         "INR",
-                        LocalDate.now(),
-                        LocalDate.now(),
+                        bizDate,
+                        bizDate,
                         "BATCH-UA",
                         1,
                         data.maker,
@@ -837,7 +842,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
         TransactionBatch batch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, tenant.getCurrentBusinessDate());
 
         assertNotNull(batch.getId());
         assertEquals(BatchStatus.OPEN, batch.getStatus());
@@ -855,7 +860,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
         TransactionBatch batch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, tenant.getCurrentBusinessDate());
 
         // Simulate multiple transaction postings
         batchService.updateBatchTotals(
@@ -883,13 +888,14 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 4.3: Post in CLOSED batch must fail")
     void testClosedBatchPostFails() {
         Tenant tenant = createTenant("P4-CLSD");
+        LocalDate bizDate = tenant.getCurrentBusinessDate();
 
         TransactionBatch batch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, bizDate);
 
         // Close the batch
-        batchService.closeAllBatches(tenant.getId(), LocalDate.now());
+        batchService.closeAllBatches(tenant.getId(), bizDate);
 
         // Try to update closed batch - should fail
         assertThrows(
@@ -906,15 +912,16 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 4.4: Close balanced batch must pass")
     void testCloseBalancedBatch() {
         Tenant tenant = createTenant("P4-BAL");
+        LocalDate bizDate = tenant.getCurrentBusinessDate();
 
         TransactionBatch batch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, bizDate);
         batchService.updateBatchTotals(
                 batch.getId(), new BigDecimal("5000.00"), new BigDecimal("5000.00"));
 
         // Close batch
-        batchService.closeAllBatches(tenant.getId(), LocalDate.now());
+        batchService.closeAllBatches(tenant.getId(), bizDate);
 
         TransactionBatch closed = batchRepository.findById(batch.getId()).orElseThrow();
         assertEquals(
@@ -922,7 +929,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
         // Settle balanced batch
         assertDoesNotThrow(
-                () -> batchService.settleAllBatches(tenant.getId(), LocalDate.now()),
+                () -> batchService.settleAllBatches(tenant.getId(), bizDate),
                 "Balanced batch must settle successfully");
 
         TransactionBatch settled = batchRepository.findById(batch.getId()).orElseThrow();
@@ -936,10 +943,11 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 4.5: Settle unbalanced batch must fail")
     void testSettleUnbalancedBatchFails() {
         Tenant tenant = createTenant("P4-UNBAL");
+        LocalDate bizDate = tenant.getCurrentBusinessDate();
 
         TransactionBatch batch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, bizDate);
 
         // Create unbalanced batch
         batchService.updateBatchTotals(
@@ -948,7 +956,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         // Close should fail due to debit != credit (batch close now validates balance)
         assertThrows(
                 RuntimeException.class,
-                () -> batchService.closeAllBatches(tenant.getId(), LocalDate.now()),
+                () -> batchService.closeAllBatches(tenant.getId(), bizDate),
                 "Unbalanced batch close must fail");
     }
 
@@ -958,13 +966,14 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 4.6: Same channel/tenant/date returns same open batch")
     void testBatchIdempotency() {
         Tenant tenant = createTenant("P4-IDMP");
+        LocalDate bizDate = tenant.getCurrentBusinessDate();
 
         TransactionBatch batch1 =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, bizDate);
         TransactionBatch batch2 =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, bizDate);
 
         assertEquals(
                 batch1.getId(),
@@ -978,13 +987,14 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 4.7: Different channels create different batches")
     void testDifferentChannelsDifferentBatches() {
         Tenant tenant = createTenant("P4-CHAN");
+        LocalDate bizDate = tenant.getCurrentBusinessDate();
 
         TransactionBatch tellerBatch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, bizDate);
         TransactionBatch onlineBatch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.ONLINE, LocalDate.now());
+                        tenant.getId(), TransactionChannel.ONLINE, bizDate);
 
         assertNotEquals(
                 tellerBatch.getId(),
@@ -1018,12 +1028,13 @@ class LedgoraCbsPhase1To7IntegrationTest {
         transactionService.deposit(dto);
 
         // Verify ledger entries balanced
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
         BigDecimal debits =
                 ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(
-                        LocalDate.now(), data.tenant.getId());
+                        bizDate, data.tenant.getId());
         BigDecimal credits =
                 ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(
-                        LocalDate.now(), data.tenant.getId());
+                        bizDate, data.tenant.getId());
         assertEquals(0, debits.compareTo(credits), "GL: Total debits must equal total credits");
     }
 
@@ -1048,7 +1059,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         .build());
 
         // Verify ledger integrity
-        boolean balanced = ledgerService.validateLedgerIntegrity(LocalDate.now());
+        boolean balanced =
+                ledgerService.validateLedgerIntegrity(data.tenant.getCurrentBusinessDate());
         assertTrue(balanced, "Trial balance must be balanced after transactions");
     }
 
@@ -1186,6 +1198,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         FullTestData data = setupFullTestData("P6-UNAUTH");
 
         TenantContextHolder.setTenantId(data.tenant.getId());
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
 
         // Create an unauthorized voucher (auth_flag = N)
         voucherService.createVoucher(
@@ -1197,8 +1210,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 new BigDecimal("1000.00"),
                 new BigDecimal("1000.00"),
                 "INR",
-                LocalDate.now(),
-                LocalDate.now(),
+                bizDate,
+                bizDate,
                 "BATCH-EOD",
                 1,
                 data.maker,
@@ -1206,7 +1219,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
         // EOD should fail
         List<String> errors =
-                eodValidationService.validateEod(data.tenant.getId(), LocalDate.now());
+                eodValidationService.validateEod(data.tenant.getId(), bizDate);
         assertFalse(errors.isEmpty(), "EOD must be blocked when unauthorized vouchers exist");
         assertTrue(
                 errors.stream().anyMatch(e -> e.contains("unauthorized")),
@@ -1221,6 +1234,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         FullTestData data = setupFullTestData("P6-UNPST");
 
         TenantContextHolder.setTenantId(data.tenant.getId());
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
 
         // Create and authorize a voucher but don't post it
         Voucher voucher =
@@ -1233,8 +1247,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         new BigDecimal("1000.00"),
                         new BigDecimal("1000.00"),
                         "INR",
-                        LocalDate.now(),
-                        LocalDate.now(),
+                        bizDate,
+                        bizDate,
                         "BATCH-EOD",
                         1,
                         data.maker,
@@ -1243,7 +1257,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
         // EOD should fail
         List<String> errors =
-                eodValidationService.validateEod(data.tenant.getId(), LocalDate.now());
+                eodValidationService.validateEod(data.tenant.getId(), bizDate);
         assertFalse(errors.isEmpty(), "EOD must be blocked when unposted vouchers exist");
         assertTrue(
                 errors.stream().anyMatch(e -> e.contains("unposted")),
@@ -1267,7 +1281,9 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         .requestedBy(null)
                         .build());
 
-        List<String> errors = eodValidationService.validateEod(tenant.getId(), LocalDate.now());
+        List<String> errors =
+                eodValidationService.validateEod(
+                        tenant.getId(), tenant.getCurrentBusinessDate());
         assertFalse(errors.isEmpty(), "EOD must be blocked when pending approvals exist");
         assertTrue(
                 errors.stream().anyMatch(e -> e.contains("pending approval")),
@@ -1330,6 +1346,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         FullTestData data = setupFullTestData("P6-FAIL");
 
         TenantContextHolder.setTenantId(data.tenant.getId());
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
 
         // Create unauthorized voucher to force EOD failure
         voucherService.createVoucher(
@@ -1341,8 +1358,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 new BigDecimal("1000.00"),
                 new BigDecimal("1000.00"),
                 "INR",
-                LocalDate.now(),
-                LocalDate.now(),
+                bizDate,
+                bizDate,
                 "BATCH-FAIL",
                 1,
                 data.maker,
@@ -1356,7 +1373,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         // Verify business date did NOT advance
         Tenant tenant = tenantRepository.findById(data.tenant.getId()).orElseThrow();
         assertEquals(
-                LocalDate.now(),
+                nextWeekday(),
                 tenant.getCurrentBusinessDate(),
                 "Business date must NOT advance on failed EOD");
     }
@@ -1476,8 +1493,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         new BigDecimal("1000.00"),
                         new BigDecimal("1000.00"),
                         "INR",
-                        LocalDate.now(),
-                        LocalDate.now(),
+                        data1.tenant.getCurrentBusinessDate(),
+                        data1.tenant.getCurrentBusinessDate(),
                         "BATCH-V1",
                         1,
                         data1.maker,
@@ -1495,8 +1512,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         new BigDecimal("2000.00"),
                         new BigDecimal("2000.00"),
                         "INR",
-                        LocalDate.now(),
-                        LocalDate.now(),
+                        data2.tenant.getCurrentBusinessDate(),
+                        data2.tenant.getCurrentBusinessDate(),
                         "BATCH-V2",
                         1,
                         data2.maker,
@@ -1616,10 +1633,9 @@ class LedgoraCbsPhase1To7IntegrationTest {
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Returns a guaranteed weekday date (Mon-Fri) for test business dates.
-     * If today is Saturday or Sunday, returns the next Monday.
-     * This prevents BankCalendarService from blocking transactions on weekends
-     * (weekends default to holidays per RBI/CBS calendar rules when no explicit
+     * Returns a guaranteed weekday date (Mon-Fri) for test business dates. If today is Saturday or
+     * Sunday, returns the next Monday. This prevents BankCalendarService from blocking transactions
+     * on weekends (weekends default to holidays per RBI/CBS calendar rules when no explicit
      * calendar entry exists).
      */
     private static LocalDate nextWeekday() {
@@ -1723,11 +1739,12 @@ class LedgoraCbsPhase1To7IntegrationTest {
     }
 
     private void verifyLedgerBalanced(Long tenantId) {
+        Tenant tenant = tenantRepository.findById(tenantId).orElseThrow();
+        LocalDate bizDate = tenant.getCurrentBusinessDate();
         BigDecimal debits =
-                ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(LocalDate.now(), tenantId);
+                ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(bizDate, tenantId);
         BigDecimal credits =
-                ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(
-                        LocalDate.now(), tenantId);
+                ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(bizDate, tenantId);
         assertEquals(
                 0,
                 debits.compareTo(credits),

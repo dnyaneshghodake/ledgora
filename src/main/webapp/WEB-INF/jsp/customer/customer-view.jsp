@@ -556,8 +556,8 @@
 <c:set var="auditLastModifiedBy" value="${customer.createdBy != null ? customer.createdBy.username : ''}" scope="request"/>
 <c:set var="auditUpdatedAt" value="${customer.updatedAt}" scope="request"/>
 <c:set var="auditApprovedBy" value="${customer.approvedBy != null ? customer.approvedBy.username : ''}" scope="request"/>
-<c:set var="auditApprovalStatus" value="${customer.approvalStatus}" scope="request"/>
-<c:set var="auditCurrentStatus" value="${customer.approvalStatus}" scope="request"/>
+<c:set var="auditApprovalStatus" value="${customer.approvalStatus != null ? customer.approvalStatus.name() : ''}" scope="request"/>
+<c:set var="auditCurrentStatus" value="${customer.kycStatus != null ? customer.kycStatus : ''}" scope="request"/>
 <c:set var="auditEntityType" value="Customer" scope="request"/>
 <c:set var="auditEntityId" value="${customer.customerId}" scope="request"/>
 <%@ include file="../layout/audit-info.jsp" %>

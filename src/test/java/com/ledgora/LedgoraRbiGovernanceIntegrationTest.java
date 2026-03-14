@@ -741,7 +741,7 @@ class LedgoraRbiGovernanceIntegrationTest {
                                 .tenantCode("TEN-XTEN-OTH")
                                 .tenantName("Other Tenant")
                                 .status("ACTIVE")
-                                .currentBusinessDate(LocalDate.now())
+                                .currentBusinessDate(nextWeekday())
                                 .dayStatus(DayStatus.OPEN)
                                 .build());
 
@@ -1120,10 +1120,10 @@ class LedgoraRbiGovernanceIntegrationTest {
     @Test
     @Order(95)
     @Transactional
-    @DisplayName("RoleName enum has all 13 required roles")
+    @DisplayName("RoleName enum has all 14 required roles")
     void testRoleNameEnumValues() {
         RoleName[] roles = RoleName.values();
-        assertEquals(13, roles.length, "RoleName must have 13 values");
+        assertEquals(14, roles.length, "RoleName must have 14 values");
         assertNotNull(RoleName.valueOf("ROLE_ADMIN"));
         assertNotNull(RoleName.valueOf("ROLE_MANAGER"));
         assertNotNull(RoleName.valueOf("ROLE_TELLER"));
@@ -1137,6 +1137,7 @@ class LedgoraRbiGovernanceIntegrationTest {
         assertNotNull(RoleName.valueOf("ROLE_AUDITOR"));
         assertNotNull(RoleName.valueOf("ROLE_ATM_SYSTEM"));
         assertNotNull(RoleName.valueOf("ROLE_SYSTEM"));
+        assertNotNull(RoleName.valueOf("ROLE_COMPLIANCE_OFFICER"));
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -1144,8 +1145,8 @@ class LedgoraRbiGovernanceIntegrationTest {
     // ════════════════════════════════════════════════════════════════════════
 
     /**
-     * Returns a guaranteed weekday date (Mon-Fri) for test business dates.
-     * Prevents BankCalendarService from blocking transactions on weekends.
+     * Returns a guaranteed weekday date (Mon-Fri) for test business dates. Prevents
+     * BankCalendarService from blocking transactions on weekends.
      */
     private static LocalDate nextWeekday() {
         LocalDate d = LocalDate.now();

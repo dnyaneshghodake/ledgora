@@ -28,9 +28,8 @@ public class DataInitializer implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
     /**
-     * Controls whether the data seeder runs on startup.
-     * Default: true (for local/dev). Set to false for UAT/PROD.
-     * Override via environment variable: LEDGORA_SEEDER_ENABLED=false
+     * Controls whether the data seeder runs on startup. Default: true (for local/dev). Set to false
+     * for UAT/PROD. Override via environment variable: LEDGORA_SEEDER_ENABLED=false
      */
     @Value("${ledgora.seeder.enabled:true}")
     private boolean seederEnabled;
