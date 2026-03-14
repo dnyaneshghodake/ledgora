@@ -50,9 +50,34 @@ public class Branch {
     @Column(name = "pincode", length = 10)
     private String pincode;
 
+    /** RBI IFSC code (11-char alphanumeric, e.g. LDGR0000001). Mandatory for NEFT/RTGS/IMPS. */
+    @Column(name = "ifsc_code", length = 11)
+    private String ifscCode;
+
+    /** MICR code (9-digit numeric). Used for cheque clearing per RBI CTS guidelines. */
+    @Column(name = "micr_code", length = 9)
+    private String micrCode;
+
+    /**
+     * RBI branch classification: HEAD_OFFICE, REGIONAL_OFFICE, BRANCH, EXTENSION_COUNTER, ATM_SITE.
+     */
+    @Column(name = "branch_type", length = 30)
+    @Builder.Default
+    private String branchType = "BRANCH";
+
+    @Column(name = "contact_phone", length = 20)
+    private String contactPhone;
+
+    @Column(name = "contact_email", length = 100)
+    private String contactEmail;
+
     @Column(name = "is_active", nullable = false)
     @Builder.Default
     private Boolean isActive = true;
+
+    @Version
+    @Column(name = "version")
+    private Long version;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
