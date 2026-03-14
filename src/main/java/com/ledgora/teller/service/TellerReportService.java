@@ -4,7 +4,6 @@ import com.ledgora.teller.entity.CashDenominationTxn;
 import com.ledgora.teller.entity.CashDifferenceLog;
 import com.ledgora.teller.entity.TellerSession;
 import com.ledgora.teller.entity.VaultMaster;
-import com.ledgora.teller.entity.VaultTransfer;
 import com.ledgora.teller.repository.CashDenominationTxnRepository;
 import com.ledgora.teller.repository.CashDifferenceLogRepository;
 import com.ledgora.teller.repository.TellerSessionRepository;
@@ -79,9 +78,7 @@ public class TellerReportService {
                         s.getTeller() != null && s.getTeller().getUser() != null
                                 ? s.getTeller().getUser().getFullName()
                                 : "--");
-                row.put(
-                        "branchCode",
-                        s.getBranch() != null ? s.getBranch().getBranchCode() : "--");
+                row.put("branchCode", s.getBranch() != null ? s.getBranch().getBranchCode() : "--");
             } catch (Exception e) {
                 row.put("tellerName", "--");
                 row.put("branchCode", "--");
@@ -110,12 +107,8 @@ public class TellerReportService {
             row.put("holdingLimit", v.getHoldingLimit());
             row.put("dualCustody", v.getDualCustodyFlag());
             try {
-                row.put(
-                        "branchCode",
-                        v.getBranch() != null ? v.getBranch().getBranchCode() : "--");
-                row.put(
-                        "branchName",
-                        v.getBranch() != null ? v.getBranch().getName() : "--");
+                row.put("branchCode", v.getBranch() != null ? v.getBranch().getBranchCode() : "--");
+                row.put("branchName", v.getBranch() != null ? v.getBranch().getName() : "--");
             } catch (Exception e) {
                 row.put("branchCode", "--");
                 row.put("branchName", "--");
@@ -173,9 +166,8 @@ public class TellerReportService {
         List<CashDenominationTxn> txns = cashDenominationTxnRepository.findBySessionId(sessionId);
         Map<BigDecimal, int[]> denomMap = new HashMap<>();
         for (CashDenominationTxn t : txns) {
-            denomMap
-                    .computeIfAbsent(t.getDenominationValue(), k -> new int[] {0})
-                    [0] += (t.getCount() != null ? t.getCount() : 0);
+            denomMap.computeIfAbsent(t.getDenominationValue(), k -> new int[] {0})[0] +=
+                    (t.getCount() != null ? t.getCount() : 0);
         }
         List<Map<String, Object>> rows = new ArrayList<>();
         denomMap.entrySet().stream()
@@ -201,8 +193,7 @@ public class TellerReportService {
                 tellerSessionRepository.findByTenantIdAndBusinessDate(tenantId, businessDate);
         List<Map<String, Object>> rows = new ArrayList<>();
         for (TellerSession s : sessions) {
-            List<CashDifferenceLog> diffs =
-                    cashDifferenceLogRepository.findBySessionId(s.getId());
+            List<CashDifferenceLog> diffs = cashDifferenceLogRepository.findBySessionId(s.getId());
             for (CashDifferenceLog d : diffs) {
                 Map<String, Object> row = new HashMap<>();
                 row.put("sessionId", s.getId());

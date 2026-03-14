@@ -1,5 +1,6 @@
 package com.ledgora.teller.service;
 
+import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.audit.service.AuditService;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
@@ -8,7 +9,6 @@ import com.ledgora.common.enums.TransactionChannel;
 import com.ledgora.common.enums.TransactionType;
 import com.ledgora.common.enums.VaultTransferStatus;
 import com.ledgora.common.exception.BusinessException;
-import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.teller.entity.TellerMaster;
 import com.ledgora.teller.entity.TellerSession;
 import com.ledgora.teller.entity.VaultMaster;
@@ -52,6 +52,7 @@ public class VaultTransferService {
 
     /** GL codes used for tenant-aware account resolution (not hardcoded account numbers). */
     private static final String GL_CODE_BRANCH_CASH = "1100";
+
     private static final String GL_CODE_VAULT_CASH = "1120";
 
     private final TenantService tenantService;
