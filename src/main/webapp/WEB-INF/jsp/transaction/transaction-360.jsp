@@ -186,9 +186,36 @@
                             </c:choose>
                         </td></tr>
                         <tr><td class="cbs-label">Created At</td><td><c:out value="${txn.createdAt}"/></td></tr>
+                        <tr><td class="cbs-label">Batch</td><td>
+                            <c:choose>
+                                <c:when test="${txn.batchCode != null}">
+                                    <code><c:out value="${txn.batchCode}"/></code>
+                                    <c:choose>
+                                        <c:when test="${txn.batchStatus == 'OPEN'}"><span class="badge bg-success ms-1">OPEN</span></c:when>
+                                        <c:when test="${txn.batchStatus == 'CLOSED'}"><span class="badge bg-secondary ms-1">CLOSED</span></c:when>
+                                        <c:when test="${txn.batchStatus == 'SETTLED'}"><span class="badge bg-info ms-1">SETTLED</span></c:when>
+                                        <c:otherwise><span class="badge bg-secondary ms-1"><c:out value="${txn.batchStatus}"/></span></c:otherwise>
+                                    </c:choose>
+                                </c:when>
+                                <c:otherwise><span class="text-muted">--</span></c:otherwise>
+                            </c:choose>
+                        </td></tr>
                     </table>
                 </div>
             </div>
+
+            <%-- Batch closed warning for pending approval transactions --%>
+            <c:if test="${txn.pendingApproval && txn.batchStatus == 'CLOSED'}">
+            <div class="alert alert-info mt-3 d-flex align-items-start">
+                <i class="bi bi-info-circle-fill me-2 mt-1"></i>
+                <div>
+                    <strong>Original batch is CLOSED.</strong>
+                    On approval, this transaction will be posted to a <strong>new OPEN batch</strong>
+                    for the current business date. This is standard CBS behaviour — approval may occur
+                    on a different business date than creation.
+                </div>
+            </div>
+            </c:if>
 
             <%-- Reversal Linkage --%>
             <c:if test="${txn.reversalOfTransactionId != null}">

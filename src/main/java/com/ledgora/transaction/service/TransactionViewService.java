@@ -188,6 +188,14 @@ public class TransactionViewService {
             dto.setTenantCode(txn.getTenant().getTenantCode());
         }
 
+        // Batch info
+        if (txn.getBatch() != null) {
+            dto.setBatchId(txn.getBatch().getId());
+            dto.setBatchCode(txn.getBatch().getBatchCode());
+            dto.setBatchStatus(
+                    txn.getBatch().getStatus() != null ? txn.getBatch().getStatus().name() : null);
+        }
+
         // Reversal reference
         if (txn.getReversalOf() != null) {
             dto.setReversalOfTransactionId(txn.getReversalOf().getId());

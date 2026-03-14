@@ -41,6 +41,11 @@ public class TransactionViewDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    // Batch info
+    private Long batchId;
+    private String batchCode;
+    private String batchStatus;
+
     // Reversal reference
     private Long reversalOfTransactionId;
     private String reversalOfTransactionRef;
