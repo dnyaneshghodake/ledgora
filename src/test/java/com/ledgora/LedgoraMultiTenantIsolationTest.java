@@ -8,7 +8,7 @@ import com.ledgora.account.repository.AccountBalanceRepository;
 import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
-import com.ledgora.balance.service.CbsBalanceEngine;
+import com.ledgora.balance.service.CbsBalanceService;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.common.enums.*;
@@ -50,7 +50,7 @@ class LedgoraMultiTenantIsolationTest {
 
     @Autowired private VoucherService voucherService;
     @Autowired private VoucherRepository voucherRepository;
-    @Autowired private CbsBalanceEngine cbsBalanceEngine;
+    @Autowired private CbsBalanceService cbsBalanceEngine;
     @Autowired private CbsCustomerValidationService validationService;
     @Autowired private AccountBalanceRepository accountBalanceRepository;
     @Autowired private AccountRepository accountRepository;

@@ -6,7 +6,7 @@ import com.ledgora.approval.entity.HardTransactionLimit;
 import com.ledgora.approval.repository.HardTransactionLimitRepository;
 import com.ledgora.audit.entity.AuditLog;
 import com.ledgora.audit.repository.AuditLogRepository;
-import com.ledgora.balance.service.BalanceEngine;
+import com.ledgora.balance.service.BalanceEngineService;
 import com.ledgora.clearing.entity.InterBranchTransfer;
 import com.ledgora.clearing.repository.InterBranchTransferRepository;
 import com.ledgora.common.enums.AccountStatus;
@@ -54,7 +54,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>Uses JOIN FETCH to prevent N+1
  *   <li>Tenant isolation enforced via TenantContextHolder
  *   <li>No entity leakage — all data mapped to DTOs
- *   <li>Reuses existing BalanceEngine for balance computation
+ *   <li>Reuses existing BalanceEngineService for balance computation
  * </ul>
  */
 @Service
@@ -72,7 +72,7 @@ public class Customer360Service {
     private final HardTransactionLimitRepository hardTransactionLimitRepository;
     private final AccountLienRepository accountLienRepository;
     private final AuditLogRepository auditLogRepository;
-    private final BalanceEngine balanceEngine;
+    private final BalanceEngineService balanceEngine;
 
     public Customer360Service(
             CustomerRepository customerRepository,
@@ -85,7 +85,7 @@ public class Customer360Service {
             HardTransactionLimitRepository hardTransactionLimitRepository,
             AccountLienRepository accountLienRepository,
             AuditLogRepository auditLogRepository,
-            BalanceEngine balanceEngine) {
+            BalanceEngineService balanceEngine) {
         this.customerRepository = customerRepository;
         this.accountRepository = accountRepository;
         this.transactionRepository = transactionRepository;

@@ -21,5 +21,10 @@ public enum RoleName {
      * RBI Master Direction on KYC — Designated Compliance Officer for AML/CFT oversight, suspicious
      * transaction reporting (STR), and regulatory return filing.
      */
-    ROLE_COMPLIANCE_OFFICER
+    ROLE_COMPLIANCE_OFFICER,
+    /**
+     * Risk Management role — can view fraud flags, velocity alerts, and risk dashboards but cannot
+     * post vouchers or modify financial data. RBI Basel III / ICAAP compliance.
+     */
+    ROLE_RISK
 }

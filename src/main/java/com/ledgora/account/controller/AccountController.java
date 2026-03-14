@@ -6,7 +6,7 @@ import com.ledgora.account.entity.AccountBalance;
 import com.ledgora.account.service.AccountService;
 import com.ledgora.audit.entity.AuditLog;
 import com.ledgora.audit.repository.AuditLogRepository;
-import com.ledgora.balance.service.CbsBalanceEngine;
+import com.ledgora.balance.service.CbsBalanceService;
 import com.ledgora.common.enums.AccountStatus;
 import com.ledgora.common.enums.AccountType;
 import com.ledgora.ledger.entity.LedgerEntry;
@@ -37,7 +37,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class AccountController {
 
     private final AccountService accountService;
-    private final CbsBalanceEngine balanceEngine;
+    private final CbsBalanceService balanceEngine;
     private final AuditLogRepository auditLogRepository;
     private final AccountOwnershipService ownershipService;
     private final AccountLienService lienService;
@@ -46,7 +46,7 @@ public class AccountController {
 
     public AccountController(
             AccountService accountService,
-            CbsBalanceEngine balanceEngine,
+            CbsBalanceService balanceEngine,
             AuditLogRepository auditLogRepository,
             AccountOwnershipService ownershipService,
             AccountLienService lienService,
@@ -125,7 +125,7 @@ public class AccountController {
         model.addAttribute("accountTypes", AccountType.values());
         model.addAttribute("accountStatuses", AccountStatus.values());
 
-        // Build balance lookup map from CbsBalanceEngine for accurate display on list page
+        // Build balance lookup map from CbsBalanceService for accurate display on list page
         @SuppressWarnings("unchecked")
         List<Account> accountList = (List<Account>) model.getAttribute("accounts");
         if (accountList != null) {
@@ -208,7 +208,7 @@ public class AccountController {
         }
         model.addAttribute("approvedByUsername", approvedByUsername);
 
-        // Load balance data for Balances tab — always from CbsBalanceEngine (authoritative source)
+        // Load balance data for Balances tab — always from CbsBalanceService (authoritative source)
         try {
             AccountBalance cbsBalance = balanceEngine.getCbsBalance(id);
             model.addAttribute("ledgerBalance", cbsBalance.getLedgerBalance());
@@ -560,7 +560,7 @@ public class AccountController {
                 account.getFreezeLevel() != null ? account.getFreezeLevel().name() : null);
         result.put("freezeReason", account.getFreezeReason());
         result.put("customerName", account.getCustomerName());
-        // Use CbsBalanceEngine for real available balance and lien data
+        // Use CbsBalanceService for real available balance and lien data
         try {
             AccountBalance cbsBalance = balanceEngine.getCbsBalance(account.getId());
             result.put("availableBalance", cbsBalance.getAvailableBalance());
