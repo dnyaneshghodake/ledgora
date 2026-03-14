@@ -71,7 +71,7 @@ class DoubleEntryEnforcementTest {
                         .destinationAccountNumber(data.account.getAccountNumber())
                         .amount(new BigDecimal("25000.00"))
                         .currency("INR")
-                        .channel(TransactionChannel.TELLER.name())
+                        .channel(TransactionChannel.BATCH.name())
                         .clientReferenceId("DBL-DEP-REF-001")
                         .description("Double-entry deposit test")
                         .narration("Deposit 25K")
@@ -84,6 +84,7 @@ class DoubleEntryEnforcementTest {
 
         assertNotNull(debits, "Debits must not be null after deposit");
         assertNotNull(credits, "Credits must not be null after deposit");
+        assertTrue(debits.compareTo(BigDecimal.ZERO) > 0, "Debits must be positive (not vacuously zero)");
         assertEquals(
                 0,
                 debits.compareTo(credits),
@@ -103,7 +104,7 @@ class DoubleEntryEnforcementTest {
                         .sourceAccountNumber(data.account.getAccountNumber())
                         .amount(new BigDecimal("1000.00"))
                         .currency("INR")
-                        .channel(TransactionChannel.TELLER.name())
+                        .channel(TransactionChannel.BATCH.name())
                         .clientReferenceId("DBL-WDR-REF-001")
                         .description("Double-entry withdrawal test")
                         .narration("Withdrawal 1K")
@@ -116,6 +117,7 @@ class DoubleEntryEnforcementTest {
 
         assertNotNull(debits);
         assertNotNull(credits);
+        assertTrue(debits.compareTo(BigDecimal.ZERO) > 0, "Debits must be positive (not vacuously zero)");
         assertEquals(0, debits.compareTo(credits), "Double-entry invariant violated on withdrawal");
     }
 
@@ -163,7 +165,7 @@ class DoubleEntryEnforcementTest {
                         .destinationAccountNumber(data.account.getAccountNumber())
                         .amount(new BigDecimal("1000.00"))
                         .currency("INR")
-                        .channel(TransactionChannel.TELLER.name())
+                        .channel(TransactionChannel.BATCH.name())
                         .clientReferenceId("DBL-IMM-REF-001")
                         .description("Immutability test")
                         .narration("Check entry types")
@@ -172,7 +174,7 @@ class DoubleEntryEnforcementTest {
         var txn = transactionService.deposit(dto);
 
         List<LedgerEntry> entries = ledgerEntryRepository.findByTransactionId(txn.getId());
-        assertFalse(entries.isEmpty(), "Ledger entries must exist");
+        assertFalse(entries.isEmpty(), "Ledger entries must exist — BATCH channel auto-authorizes");
 
         long debitCount = entries.stream().filter(e -> e.getEntryType() == EntryType.DEBIT).count();
         long creditCount =
