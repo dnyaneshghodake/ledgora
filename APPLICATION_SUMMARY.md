@@ -25,8 +25,13 @@ Ledgora targets Tier-1 CBS capabilities comparable to Finacle (Infosys) and Finn
 | Customer Master | Implemented | KYC, tax profiles, 360-degree view |
 | Batch Processing | Implemented | Transaction batching with settlement lifecycle |
 | Idempotency | Implemented | Duplicate transaction prevention via clientReferenceId+channel |
-| Audit Trail | Implemented | Immutable audit log for all financial operations |
+| Audit Trail | Implemented | Immutable audit log with SHA-256 hash chain |
 | RBAC | Implemented | 15 CBS roles with RBI-compliant segregation constraints |
+| Loan Module | Implemented | Disbursement, EMI, NPA classification (90-day DPD), IRAC provisioning, write-off |
+| Deposit Module | Implemented | CASA + FD + RD with daily interest accrual, premature closure, CRR/SLR flags |
+| Financial Statements | Implemented | Balance Sheet (Schedule 5) + P&L (Schedule 14) from immutable ledger entries |
+| Regulatory Reporting | Implemented | Trial Balance, CRAR (Basel III, 9% min), ALM (8-bucket structural liquidity) |
+| Regulatory Dashboard | Implemented | Finacle-grade UI with snapshot-only rendering, RBAC, SHA-256 checksums |
 
 ---
 
@@ -37,7 +42,12 @@ Ledgora targets Tier-1 CBS capabilities comparable to Finacle (Infosys) and Finn
 | **RBI Master Direction on KYC** | CustomerMaster entity with KYC status tracking, Compliance Officer role (ROLE_COMPLIANCE_OFFICER) for AML/CFT oversight |
 | **RBI IT Framework** | Crash-safe EOD state machine, immutable audit trail, business continuity via phase-by-phase commits |
 | **RBI Fraud Risk Management** | FraudAlert entity (immutable), velocity monitoring, hard ceiling enforcement, ROLE_RISK for risk dashboard access |
-| **RBI Basel III / ICAAP** | Risk role separation, GL balance validation, capital adequacy via GL hierarchy |
+| **RBI Basel III / ICAAP** | CRAR Engine (9% minimum), Tier 1/Tier 2 capital computation, RWA standardised approach, PCA warning |
+| **RBI IRAC Norms** | Loan NPA classification at 90-day DPD, provisioning (0.4%/15%/25%/100%), income recognition stop for NPA |
+| **RBI ALM Guidelines** | 8-bucket structural liquidity statement, gap ratio analysis, -15% risk threshold |
+| **RBI Master Directions on Deposits** | CASA quarterly compounding, FD/RD daily accrual, premature closure penalty, CRR/SLR eligibility |
+| **RBI Schedule 5 (Balance Sheet)** | GL-driven balance sheet with A=L+E validation, SHA-256 snapshot checksums |
+| **RBI Schedule 14 (P&L)** | Period-based P&L (daily/monthly/FY April-March), revenue/expense from ledger entries only |
 | **RBI Cyber Security Framework** | JWT-based authentication, role-based access control, tenant isolation, no credential exposure |
 | **RBI Guidelines on Outsourcing** | Multi-tenant architecture allows independent tenant operations with isolated data |
 | **RBI Master Direction on Digital Payment Security** | Idempotency enforcement, transaction reference tracking, channel-based duplicate prevention |
@@ -59,6 +69,14 @@ Ledgora targets Tier-1 CBS capabilities comparable to Finacle (Infosys) and Finn
 | **SCROLL SEQUENCE** | `ScrollSequence` entity with PESSIMISTIC_WRITE locking |
 | **MAKER-CHECKER** | Enforced at `VoucherService.authorizeVoucher()` — maker != checker |
 | **CUSTOMER 360** | `CustomerMaster` with linked accounts, fraud alerts, and risk summary |
+| **LOAN MODULE** | `LoanProduct` + `LoanAccount` with disbursement, EMI, NPA, provisioning, write-off |
+| **DEPOSIT MODULE** | `DepositProduct` + `DepositAccount` — CASA/FD/RD with interest accrual engine |
+| **BALANCE SHEET** | `BalanceSheetEngine` — GL-derived, A=L+E validated, SHA-256 snapshot |
+| **P&L STATEMENT** | `PnlEngine` — daily/monthly/FY (April-March), revenue/expense from ledger |
+| **TRIAL BALANCE** | `TrialBalanceEngine` — date-aware, DR=CR validation, contra balance handling |
+| **CRAR ENGINE** | `CrarEngine` — Basel III Tier1/Tier2, RWA standardised approach, 9% minimum |
+| **ALM MODULE** | `AlmEngine` — 8-bucket structural liquidity, gap ratio, risk threshold |
+| **REGULATORY DASHBOARD** | Snapshot-only rendering, RBAC, admin regeneration, audit checksums |
 
 ---
 

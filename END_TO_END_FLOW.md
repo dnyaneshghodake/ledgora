@@ -15,6 +15,7 @@ This document details step-by-step flows for all major CBS operations, including
 7. [Fraud Detection Scenario](#7-fraud-detection-scenario)
 8. [Loan Lifecycle (RBI IRAC)](#8-loan-lifecycle-rbi-irac)
 9. [Financial Statement Generation (RBI Schedule 5/14)](#9-financial-statement-generation-rbi-schedule-514)
+10. [Deposit Interest Accrual (CASA/FD/RD)](#10-deposit-interest-accrual-casafdrd)
 
 ---
 
@@ -682,6 +683,54 @@ Daily Balance Sheet + P&L snapshots generated during EOD, with SHA-256 checksum 
 
 ---
 
+## 10. Deposit Interest Accrual (CASA/FD/RD)
+
+### Flow Summary
+Daily interest accrual for all deposit types during EOD, with quarterly/maturity posting.
+
+### Step 10a: Daily Accrual (EOD)
+
+**Service: `DepositInterestAccrualService.accrueDailyInterest()` — called during EOD VALIDATED phase**
+
+```
+  SAVINGS: dailyInterest = balance × (rate / 365)
+  CURRENT: zero interest (RBI regulation — skipped)
+  FD:      dailyInterest = principal × (rate / 365)
+  RD:      dailyInterest = cumulative × (rate / 365)
+
+  Accounting Entry:
+    DR Interest Expense GL (P&L impact)
+    CR Customer Deposit Account (Liability — Balance Sheet)
+```
+
+### Step 10b: Premature Closure (FD/RD)
+
+**Service: `DepositPrematureClosureService.prematureClose()`**
+
+```
+  Penalty = interestEarned × prematurePenaltyPercent / 100
+  AdjustedInterest = interestEarned - penalty
+  NetPayout = principal + adjustedInterest
+
+  Accounting Entry:
+    DR Deposit Liability GL (close the deposit)
+    CR Customer Account (net payout)
+    DR Interest Adjustment GL (penalty)
+
+  Status → PREMATURED
+  Maker-checker mandatory.
+```
+
+### RBI Compliance
+```
+  CRR Eligible: All deposit types contribute to NDTL
+  SLR Eligible: Configurable per product
+  DICGC Coverage: Up to ₹5,00,000 per depositor per bank
+  Compounding: CASA quarterly (RBI mandated), FD/RD per product
+```
+
+---
+
 ## Appendix: Common Ledger Patterns
 
 ### Deposit
@@ -753,6 +802,18 @@ Daily Balance Sheet + P&L snapshots generated during EOD, with SHA-256 checksum 
 ```
   DR Loan Provision GL    CR Loan Asset GL (9400)
   Status → WRITTEN_OFF, outstanding → 0
+```
+
+### Deposit Interest Accrual (Daily EOD)
+```
+  DR Interest Expense GL (5100)    CR Customer Deposit Account
+  NOTE: CURRENT accounts have zero interest (RBI regulation)
+```
+
+### FD/RD Premature Closure
+```
+  DR Deposit Liability GL    CR Customer Account (net payout)
+  DR Interest Adjustment GL (penalty)
 ```
 
 ---

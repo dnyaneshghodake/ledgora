@@ -99,6 +99,10 @@ Ledgora is a **Tier-1 Core Banking System** designed for Indian banking operatio
 | **Audit** | `com.ledgora.audit` | Immutable audit trail |
 | **Idempotency** | `com.ledgora.idempotency` | Duplicate transaction prevention |
 | **Balance** | `com.ledgora.balance` | CBS balance engine (shadow + actual) |
+| **Loan** | `com.ledgora.loan` | Loan lifecycle — disbursement, EMI, NPA, provisioning, write-off |
+| **Deposit** | `com.ledgora.deposit` | CASA + FD + RD — interest accrual, premature closure, CRR/SLR |
+| **Reporting** | `com.ledgora.reporting` | Balance Sheet, P&L, Trial Balance, CRAR, ALM engines + snapshots |
+| **Risk** | `com.ledgora.risk` | Velocity fraud dashboard, hard ceiling monitor |
 
 ## 4. Accounting Engine
 
@@ -181,6 +185,23 @@ The End-of-Day process uses a **crash-safe state machine** with independent phas
 
 ```
 VALIDATED -> DAY_CLOSING -> BATCH_CLOSED -> SETTLED -> DATE_ADVANCED
+```
+
+### EOD Processing Pipeline
+
+```
+Phase VALIDATED:
+  1. Deposit interest accrual (CASA daily, FD/RD compound)
+  2. Loan interest accrual (stops for NPA per RBI IRAC)
+  3. Loan DPD update + NPA classification (90-day threshold)
+  4. Loan provisioning (STANDARD 0.4%, SUBSTANDARD 15%, DOUBTFUL 25%, LOSS 100%)
+  5. EOD validation (10 checks — all must pass)
+
+Phase DAY_CLOSING → BATCH_CLOSED → SETTLED
+
+Phase DATE_ADVANCED:
+  6. Financial statement snapshots (Balance Sheet + P&L) with SHA-256
+  7. Regulatory snapshots (Trial Balance + CRAR + ALM) with SHA-256
 ```
 
 ### EOD Validation Checks (must ALL pass before proceeding):
@@ -301,6 +322,10 @@ mvn verify
 
 ### Test Categories
 - **Integration tests** (`com.ledgora.integration.*`): Double-entry, maker-checker, IBT, suspense, EOD, idempotency, fraud, RBAC, business date, ledger immutability
+- **Reporting integrity tests**: Balance Sheet (A=L+E), P&L (NetProfit=Revenue-Expense), Trial Balance (DR=CR), snapshot checksum stability
+- **CRAR engine tests**: Capital=Tier1+Tier2, RWA non-negative, compliance status, reproducibility
+- **ALM engine tests**: 8 buckets, gap=assets-liabilities, cumulative gap sequential, risk assessment
+- **Loan accounting tests**: Accrual math, NPA at DPD>90, IRAC provisioning rates, NPA stops accrual
 - **Banking invariant tests** (`LedgoraBankingInvariantTest`): Comprehensive banking rule validation
 - **Voucher lifecycle tests** (`LedgoraVoucherLifecycleTest`): Voucher create/auth/post/cancel
 - **CBS balance tests** (`LedgoraCbsBalanceTest`): Shadow vs actual balance
@@ -335,11 +360,21 @@ ledgora/
 |   |   |   +-- tenant/           # Multi-tenant management
 |   |   |   +-- transaction/      # Transaction orchestration
 |   |   |   +-- voucher/          # Voucher lifecycle
+|   |   |   +-- loan/             # Loan module (disbursement, EMI, NPA, provisioning)
+|   |   |   +-- deposit/          # Deposit module (CASA, FD, RD, interest accrual)
+|   |   |   +-- reporting/        # Financial statements, regulatory reporting engines
+|   |   |   +-- risk/             # Risk dashboards (velocity fraud, hard ceiling)
 |   |   +-- resources/
 |   |       +-- application.properties
+|   |   +-- webapp/WEB-INF/jsp/
+|   |       +-- layout/           # Header, footer, sidebar (role-aware)
+|   |       +-- regulatory/       # CRAR, ALM, Trial Balance, Dashboard
+|   |       +-- financial/        # P&L, Balance Sheet
+|   |       +-- loan/             # Loan dashboard, list, detail, NPA monitor
+|   |       +-- deposit/          # Deposit dashboard, list, detail
 |   +-- test/
 |       +-- java/com/ledgora/
-|       |   +-- integration/      # Module-level integration tests
+|       |   +-- integration/      # Module-level integration tests (17 test classes)
 |       |   +-- ...               # Other test classes
 |       +-- resources/
 |           +-- application-test.properties
@@ -378,20 +413,28 @@ ledgora/
 - Crash-safe EOD state machine
 - Teller operations with denomination tracking
 - Role matrix with RBI-compliant segregation of duties
-- Comprehensive integration test suite
-- Production seed data
+- Comprehensive integration test suite (17 test classes)
+- Production seed data (arithmetically verified)
+- **Loan Module** — Disbursement, daily accrual, EMI payment, NPA classification (90-day DPD), IRAC provisioning (0.4%/15%/25%/100%), write-off
+- **Deposit Module** — CASA + FD + RD with daily interest accrual, premature closure with penalty, CRR/SLR eligibility flags
+- **Financial Statement Engine** — Balance Sheet (RBI Schedule 5, A=L+E validation) + P&L (Schedule 14, daily/monthly/FY)
+- **Regulatory Reporting** — Trial Balance (DR=CR), CRAR (Basel III, 9% min), ALM (8-bucket structural liquidity)
+- **Regulatory Dashboard UI** — Finacle-grade JSP with snapshot-only rendering, RBAC, SHA-256 checksums
+- **Loan UI** — Dashboard, portfolio list, detail view, NPA monitor with DPD tracking
+- **Deposit UI** — Dashboard with CASA/FD/RD/Interest Payable KPIs, portfolio list
+- **Financial Statement UI** — P&L and Balance Sheet from immutable snapshots
 
 ### Planned
-- [ ] Real-time transaction monitoring dashboard
-- [ ] Automated interest calculation batch
-- [ ] Loan origination and servicing module
 - [ ] NEFT/RTGS/IMPS integration adapters
 - [ ] Mobile banking API layer
-- [ ] KYC document management
-- [ ] Regulatory reporting (RBI returns)
+- [ ] KYC document management with OCR
 - [ ] Multi-currency support with FX engine
 - [ ] High-availability deployment with clustering
 - [ ] Performance benchmarking and optimization
+- [ ] Deposit maturity auto-renewal engine
+- [ ] Loan prepayment and schedule recalculation
+- [ ] RBI statutory returns (DSB, BSR, OSMOS)
+- [ ] Customer onboarding workflow with video KYC
 
 ---
 
