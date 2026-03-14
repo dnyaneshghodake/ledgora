@@ -182,6 +182,8 @@ public class SecurityConfig {
                                     .authenticated()
                                     .requestMatchers("/reports/**")
                                     .authenticated()
+                                    .requestMatchers("/teller/**")
+                                    .authenticated()
                                     .anyRequest()
                                     .authenticated();
                         })

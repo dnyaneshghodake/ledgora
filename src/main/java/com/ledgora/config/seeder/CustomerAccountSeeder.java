@@ -490,6 +490,21 @@ public class CustomerAccountSeeder {
                         tenant,
                         admin);
         acct(
+                "GL-VAULT-001",
+                "Vault Cash GL Account",
+                AccountType.GL_ACCOUNT,
+                LedgerAccountType.GL_ACCOUNT,
+                BigDecimal.ZERO,
+                "INR",
+                hq,
+                null,
+                null,
+                "1120",
+                null,
+                tenant,
+                admin);
+
+        acct(
                 "INT-SUSP-001",
                 "Internal Suspense Account",
                 AccountType.INTERNAL_ACCOUNT,

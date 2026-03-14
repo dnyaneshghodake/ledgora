@@ -57,7 +57,9 @@ public class BranchDataSeeder {
                         });
     }
 
-    /** Seeds standard CBS branches with full RBI attributes. Returns [hqBranch, branch1, branch2]. */
+    /**
+     * Seeds standard CBS branches with full RBI attributes. Returns [hqBranch, branch1, branch2].
+     */
     public Branch[] seed(Tenant defaultTenant) {
         Branch hq =
                 seedBranch(

@@ -38,8 +38,7 @@ public class TenantDataSeeder {
                                             .regulatoryCode("RBI/2024/BANK/001")
                                             .multiBranchEnabled(true)
                                             .eodStatus("NOT_STARTED")
-                                            .effectiveFrom(
-                                                    java.time.LocalDate.of(2024, 1, 1))
+                                            .effectiveFrom(java.time.LocalDate.of(2024, 1, 1))
                                             .remarks("Primary tenant — seeded by DataInitializer")
                                             .build();
                             return tenantRepository.save(t);
@@ -64,8 +63,7 @@ public class TenantDataSeeder {
                                             .regulatoryCode("RBI/2024/BANK/002")
                                             .multiBranchEnabled(false)
                                             .eodStatus("NOT_STARTED")
-                                            .effectiveFrom(
-                                                    java.time.LocalDate.of(2024, 6, 1))
+                                            .effectiveFrom(java.time.LocalDate.of(2024, 6, 1))
                                             .remarks(
                                                     "Secondary tenant — partner bank for multi-tenant testing")
                                             .build();

@@ -113,8 +113,7 @@ public class AdminController {
             @RequestParam(required = false) String remarks,
             RedirectAttributes redirectAttributes) {
         try {
-            java.time.LocalDate bizDate =
-                    com.ledgora.config.seeder.SeederDateUtil.nextWeekday();
+            java.time.LocalDate bizDate = com.ledgora.config.seeder.SeederDateUtil.nextWeekday();
             Tenant tenant = tenantService.createTenant(tenantCode, tenantName, bizDate);
             // Set additional RBI/CBS fields not covered by the base createTenant method
             tenant.setRegulatoryCode(regulatoryCode);
@@ -186,14 +185,16 @@ public class AdminController {
     /** Activate a branch. */
     @PostMapping("/branches/{id}/activate")
     @PreAuthorize("hasAnyRole('ADMIN', 'TENANT_ADMIN', 'SUPER_ADMIN')")
-    public String activateBranch(
-            @PathVariable Long id, RedirectAttributes redirectAttributes) {
+    public String activateBranch(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             Branch branch =
-                    branchRepository.findById(id).orElseThrow(() -> new RuntimeException("Branch not found"));
+                    branchRepository
+                            .findById(id)
+                            .orElseThrow(() -> new RuntimeException("Branch not found"));
             branch.setIsActive(true);
             branchRepository.save(branch);
-            redirectAttributes.addFlashAttribute("message", "Branch activated: " + branch.getBranchCode());
+            redirectAttributes.addFlashAttribute(
+                    "message", "Branch activated: " + branch.getBranchCode());
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -203,14 +204,16 @@ public class AdminController {
     /** Deactivate a branch. */
     @PostMapping("/branches/{id}/deactivate")
     @PreAuthorize("hasAnyRole('ADMIN', 'TENANT_ADMIN', 'SUPER_ADMIN')")
-    public String deactivateBranch(
-            @PathVariable Long id, RedirectAttributes redirectAttributes) {
+    public String deactivateBranch(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             Branch branch =
-                    branchRepository.findById(id).orElseThrow(() -> new RuntimeException("Branch not found"));
+                    branchRepository
+                            .findById(id)
+                            .orElseThrow(() -> new RuntimeException("Branch not found"));
             branch.setIsActive(false);
             branchRepository.save(branch);
-            redirectAttributes.addFlashAttribute("message", "Branch deactivated: " + branch.getBranchCode());
+            redirectAttributes.addFlashAttribute(
+                    "message", "Branch deactivated: " + branch.getBranchCode());
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
         }
@@ -244,8 +247,7 @@ public class AdminController {
     /** Activate a tenant (INITIALIZING/INACTIVE → ACTIVE). */
     @PostMapping("/tenants/{id}/activate")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    public String activateTenant(
-            @PathVariable Long id, RedirectAttributes redirectAttributes) {
+    public String activateTenant(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             tenantService.activateTenant(id);
             redirectAttributes.addFlashAttribute("message", "Tenant activated successfully");
@@ -258,8 +260,7 @@ public class AdminController {
     /** Deactivate a tenant (ACTIVE → INACTIVE). Business day must be CLOSED. */
     @PostMapping("/tenants/{id}/deactivate")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
-    public String deactivateTenant(
-            @PathVariable Long id, RedirectAttributes redirectAttributes) {
+    public String deactivateTenant(@PathVariable Long id, RedirectAttributes redirectAttributes) {
         try {
             tenantService.deactivateTenant(id);
             redirectAttributes.addFlashAttribute("message", "Tenant deactivated successfully");

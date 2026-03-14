@@ -300,6 +300,65 @@
             </li>
             </c:if>
 
+            <%-- ═══ Teller Operations (Finacle-grade) ═══ --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isTeller || sessionScope.isChecker || sessionScope.isAuditor}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="teller">
+                    <i class="bi bi-person-workspace"></i>
+                    <span>Teller Operations</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-teller">
+                    <c:if test="${sessionScope.isTeller || sessionScope.isAdmin || sessionScope.isManager}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/teller/open" class="cbs-nav-link cbs-lockable" data-page="teller/open">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                            <span>Open Teller Session</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/teller/deposit" class="cbs-nav-link cbs-lockable" data-page="teller/deposit">
+                            <i class="bi bi-arrow-down-circle"></i>
+                            <span>Cash Deposit</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/teller/withdraw" class="cbs-nav-link cbs-lockable" data-page="teller/withdraw">
+                            <i class="bi bi-arrow-up-circle"></i>
+                            <span>Cash Withdrawal</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/teller/vault-transfer" class="cbs-nav-link cbs-lockable" data-page="teller/vault-transfer">
+                            <i class="bi bi-safe"></i>
+                            <span>Vault Transfer</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/teller/close" class="cbs-nav-link cbs-lockable" data-page="teller/close">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Teller Closure</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/teller/inquiry" class="cbs-nav-link" data-page="teller/inquiry">
+                            <i class="bi bi-search"></i>
+                            <span>Teller Inquiry</span>
+                        </a>
+                    </li>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isAuditor}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/teller/reports" class="cbs-nav-link" data-page="teller/reports">
+                            <i class="bi bi-file-earmark-bar-graph"></i>
+                            <span>Cash Reports</span>
+                        </a>
+                    </li>
+                    </c:if>
+                </ul>
+            </li>
+            </c:if>
+
             <%-- ═══ Inter-Branch Transfer (IBT) ═══ --%>
             <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isMaker || sessionScope.isChecker || sessionScope.isOperations || sessionScope.isAuditor || sessionScope.isTeller}">
             <li class="cbs-nav-group">

@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>Execution order: 0. Tenants → 1. Roles → 2. Branches → 3. Users → 4. GL Hierarchy → 5.
  * Business Date → 6. Customers & Accounts → 7. Transactions & Ledger → 8. Exchange Rates → 9.
- * Idempotency Keys → 10. CBS CustomerMaster + Tax
+ * Idempotency Keys → 10. CBS CustomerMaster + Tax → 11. Teller Operations Master Data
  *
  * <p>Set {@code ledgora.seeder.enabled=false} in application.properties (or via environment
  * variable) to skip seeding on UAT/PROD deployments where real data already exists.
@@ -45,6 +45,7 @@ public class DataInitializer implements CommandLineRunner {
     private final ExchangeRateSeeder exchangeRateSeeder;
     private final IdempotencyKeySeeder idempotencyKeySeeder;
     private final CbsCustomerSeeder cbsCustomerSeeder;
+    private final TellerDataSeeder tellerDataSeeder;
 
     public DataInitializer(
             TenantDataSeeder tenantSeeder,
@@ -57,7 +58,8 @@ public class DataInitializer implements CommandLineRunner {
             TransactionLedgerSeeder transactionLedgerSeeder,
             ExchangeRateSeeder exchangeRateSeeder,
             IdempotencyKeySeeder idempotencyKeySeeder,
-            CbsCustomerSeeder cbsCustomerSeeder) {
+            CbsCustomerSeeder cbsCustomerSeeder,
+            TellerDataSeeder tellerDataSeeder) {
         this.tenantSeeder = tenantSeeder;
         this.roleSeeder = roleSeeder;
         this.branchSeeder = branchSeeder;
@@ -69,6 +71,7 @@ public class DataInitializer implements CommandLineRunner {
         this.exchangeRateSeeder = exchangeRateSeeder;
         this.idempotencyKeySeeder = idempotencyKeySeeder;
         this.cbsCustomerSeeder = cbsCustomerSeeder;
+        this.tellerDataSeeder = tellerDataSeeder;
     }
 
     @Override
@@ -124,6 +127,9 @@ public class DataInitializer implements CommandLineRunner {
 
         // 10. CBS CustomerMaster + Tax Profiles
         cbsCustomerSeeder.seed(defaultTenant);
+
+        // 11. Teller Operations Master Data (denominations, vaults, teller masters)
+        tellerDataSeeder.seed(defaultTenant, hq, br1, br2);
 
         log.info("═══════════════════════════════════════════════════════════");
         log.info("  Ledgora DataInitializer — seeding complete.");

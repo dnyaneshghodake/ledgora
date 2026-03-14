@@ -206,7 +206,18 @@
                         var acctCcy = d.currency || 'INR';
                         var infoEl = document.getElementById(infoId);
                         if (infoEl) {
-                            infoEl.innerHTML = '<small><strong>' + (d.accountName || '') + '</strong> | Type: ' + (d.accountType || '') + ' | Status: ' + (d.status || '') + ' | <span class="badge bg-secondary">' + acctCcy + '</span></small>';
+                            // XSS-safe: use textContent instead of innerHTML (CWE-79 fix)
+                            infoEl.textContent = '';
+                            var small = document.createElement('small');
+                            var strong = document.createElement('strong');
+                            strong.textContent = d.accountName || '';
+                            small.appendChild(strong);
+                            small.appendChild(document.createTextNode(' | Type: ' + (d.accountType || '') + ' | Status: ' + (d.status || '') + ' | '));
+                            var badge = document.createElement('span');
+                            badge.className = 'badge bg-secondary';
+                            badge.textContent = acctCcy;
+                            small.appendChild(badge);
+                            infoEl.appendChild(small);
                         }
                         // For source account, track currency for FX detection
                         if (side === 'from') {

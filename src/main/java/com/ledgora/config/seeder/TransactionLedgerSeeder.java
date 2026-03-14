@@ -1,12 +1,12 @@
 package com.ledgora.config.seeder;
 
 import com.ledgora.account.entity.Account;
-import com.ledgora.account.entity.AccountBalance;
 import com.ledgora.account.repository.AccountBalanceRepository;
 import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.auth.entity.User;
 import com.ledgora.batch.entity.TransactionBatch;
 import com.ledgora.batch.repository.TransactionBatchRepository;
+import com.ledgora.branch.entity.Branch;
 import com.ledgora.common.enums.*;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
@@ -17,11 +17,15 @@ import com.ledgora.ledger.repository.LedgerJournalRepository;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.repository.TransactionRepository;
+import com.ledgora.voucher.entity.ScrollSequence;
 import com.ledgora.voucher.entity.Voucher;
+import com.ledgora.voucher.repository.ScrollSequenceRepository;
 import com.ledgora.voucher.repository.VoucherRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -35,6 +39,29 @@ import org.springframework.stereotype.Component;
 public class TransactionLedgerSeeder {
 
     private static final Logger log = LoggerFactory.getLogger(TransactionLedgerSeeder.class);
+
+    /**
+     * Default branch code used as a last-resort fallback for voucher numbering when neither the
+     * debit nor credit account has a branch assigned. Must match the HQ branch code seeded by
+     * BranchDataSeeder.
+     */
+    private static final String DEFAULT_BRANCH_CODE = "HQ001";
+
+    /** Default currency for seeded transactions. Must match the tenant's base currency. */
+    private static final String DEFAULT_CURRENCY = "INR";
+
+    /** Start index for bulk customer accounts (must match CustomerAccountSeeder bulkIdx + 5). */
+    private static final int BULK_START = 5;
+
+    /** End index (inclusive) for bulk customer accounts. */
+    private static final int BULK_END = 30;
+
+    // ── Named transaction amounts — used both for creating transactions and for balance sync ──
+    private static final BigDecimal DEP_RAJESH_AMT = new BigDecimal("10000.0000");
+    private static final BigDecimal DEP_PRIYA_AMT = new BigDecimal("15000.0000");
+    private static final BigDecimal TRF_RAJESH_PRIYA_AMT = new BigDecimal("5000.0000");
+    private static final BigDecimal WDR_RAJESH_AMT = new BigDecimal("2000.0000");
+
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
     private final AccountBalanceRepository accountBalanceRepository;
@@ -43,6 +70,7 @@ public class TransactionLedgerSeeder {
     private final LedgerEntryRepository entryRepository;
     private final TransactionBatchRepository batchRepository;
     private final VoucherRepository voucherRepository;
+    private final ScrollSequenceRepository scrollSequenceRepository;
 
     public TransactionLedgerSeeder(
             TransactionRepository transactionRepository,
@@ -52,7 +80,8 @@ public class TransactionLedgerSeeder {
             LedgerJournalRepository journalRepository,
             LedgerEntryRepository entryRepository,
             TransactionBatchRepository batchRepository,
-            VoucherRepository voucherRepository) {
+            VoucherRepository voucherRepository,
+            ScrollSequenceRepository scrollSequenceRepository) {
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
         this.accountBalanceRepository = accountBalanceRepository;
@@ -61,6 +90,7 @@ public class TransactionLedgerSeeder {
         this.entryRepository = entryRepository;
         this.batchRepository = batchRepository;
         this.voucherRepository = voucherRepository;
+        this.scrollSequenceRepository = scrollSequenceRepository;
     }
 
     public void seed(Tenant tenant, User teller) {
@@ -87,7 +117,7 @@ public class TransactionLedgerSeeder {
                 TransactionChannel.TELLER,
                 null,
                 rSav,
-                new BigDecimal("10000.0000"),
+                DEP_RAJESH_AMT,
                 "Opening Deposit - Rajesh Savings",
                 "1100",
                 "2110",
@@ -103,7 +133,7 @@ public class TransactionLedgerSeeder {
                 TransactionChannel.TELLER,
                 null,
                 pSav,
-                new BigDecimal("15000.0000"),
+                DEP_PRIYA_AMT,
                 "Opening Deposit - Priya Savings",
                 "1100",
                 "2110",
@@ -119,7 +149,7 @@ public class TransactionLedgerSeeder {
                 TransactionChannel.ONLINE,
                 rSav,
                 pSav,
-                new BigDecimal("5000.0000"),
+                TRF_RAJESH_PRIYA_AMT,
                 "Internal Transfer - Rajesh to Priya",
                 "2100",
                 "2100",
@@ -135,7 +165,7 @@ public class TransactionLedgerSeeder {
                 TransactionChannel.ATM,
                 rCur,
                 null,
-                new BigDecimal("2000.0000"),
+                WDR_RAJESH_AMT,
                 "ATM Withdrawal - Rajesh Current",
                 "2100",
                 "1100",
@@ -143,7 +173,7 @@ public class TransactionLedgerSeeder {
                 new BigDecimal("148000.0000"));
 
         // ── Bulk transactions for pagination testing (26 more deposits across bulk accounts) ──
-        for (int i = 5; i <= 30; i++) {
+        for (int i = BULK_START; i <= BULK_END; i++) {
             String savNum = String.format("SAV-%04d-0001", i);
             Account bulkAcct = accountRepository.findByAccountNumber(savNum).orElse(null);
             if (bulkAcct == null) continue;
@@ -170,15 +200,15 @@ public class TransactionLedgerSeeder {
         // The seeder creates ledger entries with correct balanceAfter values, but the
         // Account.balance and AccountBalance records were set by CustomerAccountSeeder
         // BEFORE these transactions. We must sync them to the post-transaction state.
-        syncBalanceAfterSeed(rSav, new BigDecimal("10000.0000").subtract(new BigDecimal("5000.0000")));
+        syncBalanceAfterSeed(rSav, DEP_RAJESH_AMT.subtract(TRF_RAJESH_PRIYA_AMT));
         // rSav: +10000 (DEP-SEED-0001) -5000 (TRF-SEED-0001) = net +5000
-        syncBalanceAfterSeed(pSav, new BigDecimal("15000.0000").add(new BigDecimal("5000.0000")));
+        syncBalanceAfterSeed(pSav, DEP_PRIYA_AMT.add(TRF_RAJESH_PRIYA_AMT));
         // pSav: +15000 (DEP-SEED-0002) +5000 (TRF-SEED-0001) = net +20000
-        syncBalanceAfterSeed(rCur, new BigDecimal("2000.0000").negate());
+        syncBalanceAfterSeed(rCur, WDR_RAJESH_AMT.negate());
         // rCur: -2000 (WDR-SEED-0001) = net -2000
 
         // Bulk accounts: each got a deposit of (i * 1000)
-        for (int i = 5; i <= 30; i++) {
+        for (int i = BULK_START; i <= BULK_END; i++) {
             String savNum = String.format("SAV-%04d-0001", i);
             Account bulkAcct = accountRepository.findByAccountNumber(savNum).orElse(null);
             if (bulkAcct != null) {
@@ -189,16 +219,12 @@ public class TransactionLedgerSeeder {
         // ── Sync GL account balances to reflect seeded transactions ──
         // Cash GL 1100: DR from deposits (+10000+15000+bulk) minus CR from withdrawal (-2000)
         BigDecimal bulkDepositTotal = BigDecimal.ZERO;
-        for (int i = 5; i <= 30; i++) {
+        for (int i = BULK_START; i <= BULK_END; i++) {
             bulkDepositTotal = bulkDepositTotal.add(new BigDecimal(i * 1000));
         }
         BigDecimal cashGlDelta =
-                new BigDecimal("10000")
-                        .add(new BigDecimal("15000"))
-                        .add(bulkDepositTotal)
-                        .subtract(new BigDecimal("2000"));
-        Account glCash =
-                accountRepository.findByAccountNumber("GL-CASH-001").orElse(null);
+                DEP_RAJESH_AMT.add(DEP_PRIYA_AMT).add(bulkDepositTotal).subtract(WDR_RAJESH_AMT);
+        Account glCash = accountRepository.findByAccountNumber("GL-CASH-001").orElse(null);
         if (glCash != null) {
             syncBalanceAfterSeed(glCash, cashGlDelta);
         }
@@ -208,14 +234,21 @@ public class TransactionLedgerSeeder {
         // Note: GL-DEP-001 maps to GL code 2100, not 2110. The savings deposits sub-GL
         // doesn't have a separate Account entity — only the parent 2100 does.
         // Customer Deposits GL 2100: net DR from withdrawal = -2000
-        Account glDep =
-                accountRepository.findByAccountNumber("GL-DEP-001").orElse(null);
+        Account glDep = accountRepository.findByAccountNumber("GL-DEP-001").orElse(null);
         if (glDep != null) {
-            syncBalanceAfterSeed(glDep, new BigDecimal("-2000"));
+            syncBalanceAfterSeed(glDep, WDR_RAJESH_AMT.negate());
         }
 
-        log.info("  [Transactions] 30 sample transactions with balanced ledger journals created");
+        // ── Sync ScrollSequence table so live voucher numbering starts after seeded scrolls ──
+        // Without this, VoucherService.getNextScrollNo() would return 1 and collide with
+        // seeded voucher numbers (duplicate key on idx_voucher_number).
+        syncScrollSequences(tenant, biz);
+
+        log.info(
+                "  [Transactions] {} sample transactions with balanced ledger journals created",
+                scrollCounter / 2);
         log.info("  [Balances] Account + GL balances synced to post-transaction state");
+        log.info("  [ScrollSeq] Scroll sequences synced (lastScrollNo={})", scrollCounter);
     }
 
     /**
@@ -243,6 +276,38 @@ public class TransactionLedgerSeeder {
     /** Scroll counter for voucher numbering within this seeder run. */
     private long scrollCounter = 0;
 
+    /** Tracks actual branch IDs used by seeded vouchers for ScrollSequence sync. */
+    private final Set<Long> seededBranchIds = new HashSet<>();
+
+    /**
+     * Sync the ScrollSequence table after seeding vouchers. Creates or updates entries for each
+     * branch so that VoucherService.getNextScrollNo() starts AFTER the last seeded scroll number.
+     */
+    private void syncScrollSequences(Tenant tenant, LocalDate biz) {
+        // All seeded vouchers share the same tenant + business date.
+        // We need to set lastScrollNo for each branch that has seeded vouchers.
+        // Use the actual branch IDs collected during voucher creation instead of
+        // hardcoded values, since auto-generated IDs are not guaranteed to be 1-3.
+        Long tenantId = tenant.getId();
+        for (Long bId : seededBranchIds) {
+            ScrollSequence seq =
+                    scrollSequenceRepository
+                            .findByTenantIdAndBranchIdAndPostingDateWithLock(tenantId, bId, biz)
+                            .orElseGet(
+                                    () ->
+                                            ScrollSequence.builder()
+                                                    .tenantId(tenantId)
+                                                    .branchId(bId)
+                                                    .postingDate(biz)
+                                                    .lastScrollNo(0L)
+                                                    .build());
+            if (seq.getLastScrollNo() < scrollCounter) {
+                seq.setLastScrollNo(scrollCounter);
+                scrollSequenceRepository.save(seq);
+            }
+        }
+    }
+
     /**
      * Create a complete production-grade transaction chain: Transaction → Batch → Voucher(DR+CR) →
      * LedgerJournal → LedgerEntry(DR+CR). All flags set to authorized + posted state.
@@ -268,9 +333,7 @@ public class TransactionLedgerSeeder {
         BatchType batchType =
                 channel == TransactionChannel.TELLER
                         ? BatchType.BRANCH_CASH
-                        : channel == TransactionChannel.ATM
-                                ? BatchType.ATM
-                                : BatchType.ONLINE;
+                        : channel == TransactionChannel.ATM ? BatchType.ATM : BatchType.ONLINE;
         String batchCode = "SEED-" + batchType.name() + "-" + biz.toString().replace("-", "");
         TransactionBatch batch =
                 batchRepository
@@ -301,7 +364,7 @@ public class TransactionLedgerSeeder {
                         .transactionType(type)
                         .status(TransactionStatus.COMPLETED)
                         .amount(amt)
-                        .currency("INR")
+                        .currency(DEFAULT_CURRENCY)
                         .channel(channel)
                         .sourceAccount(src)
                         .destinationAccount(dst)
@@ -346,7 +409,7 @@ public class TransactionLedgerSeeder {
                                 .entryType(EntryType.DEBIT)
                                 .amount(amt)
                                 .balanceAfter(drBalAfter)
-                                .currency("INR")
+                                .currency(DEFAULT_CURRENCY)
                                 .businessDate(biz)
                                 .postingTime(bizTimestamp)
                                 .narration(desc + " [DEBIT]")
@@ -364,7 +427,7 @@ public class TransactionLedgerSeeder {
                                 .entryType(EntryType.CREDIT)
                                 .amount(amt)
                                 .balanceAfter(crBalAfter)
-                                .currency("INR")
+                                .currency(DEFAULT_CURRENCY)
                                 .businessDate(biz)
                                 .postingTime(bizTimestamp)
                                 .narration(desc + " [CREDIT]")
@@ -372,18 +435,33 @@ public class TransactionLedgerSeeder {
 
         // ── 6. Create vouchers (DR + CR) — authorized + posted ──
         String tenantCode = tenant.getTenantCode();
+        // Resolve branch safely: prefer drAccount's branch, fall back to the other account's
+        // branch. Both src and dst may be null (deposits have src=null, withdrawals have dst=null).
+        Branch resolvedBranch =
+                drAccount.getBranch() != null
+                        ? drAccount.getBranch()
+                        : (crAccount.getBranch() != null ? crAccount.getBranch() : null);
         String branchCode =
-                drAccount.getBranch() != null ? drAccount.getBranch().getBranchCode() : "HQ001";
+                resolvedBranch != null ? resolvedBranch.getBranchCode() : DEFAULT_BRANCH_CODE;
         String dateStr = biz.toString().replace("-", "");
 
         scrollCounter++;
+        Branch drBranch = drAccount.getBranch() != null ? drAccount.getBranch() : resolvedBranch;
+        if (drBranch != null) {
+            seededBranchIds.add(drBranch.getId());
+        }
         Voucher drVoucher =
                 Voucher.builder()
                         .voucherNumber(
-                                tenantCode + "-" + branchCode + "-" + dateStr + "-"
+                                tenantCode
+                                        + "-"
+                                        + branchCode
+                                        + "-"
+                                        + dateStr
+                                        + "-"
                                         + String.format("%06d", scrollCounter))
                         .tenant(tenant)
-                        .branch(drAccount.getBranch() != null ? drAccount.getBranch() : dst.getBranch())
+                        .branch(drBranch)
                         .transaction(txn)
                         .batchCode(batchCode)
                         .setNo(1)
@@ -397,7 +475,7 @@ public class TransactionLedgerSeeder {
                         .glAccount(debitGL)
                         .transactionAmount(amt)
                         .localCurrencyAmount(amt)
-                        .currency("INR")
+                        .currency(DEFAULT_CURRENCY)
                         .maker(teller)
                         .authFlag("Y")
                         .postFlag("Y")
@@ -409,13 +487,22 @@ public class TransactionLedgerSeeder {
         voucherRepository.save(drVoucher);
 
         scrollCounter++;
+        Branch crBranch = crAccount.getBranch() != null ? crAccount.getBranch() : resolvedBranch;
+        if (crBranch != null) {
+            seededBranchIds.add(crBranch.getId());
+        }
         Voucher crVoucher =
                 Voucher.builder()
                         .voucherNumber(
-                                tenantCode + "-" + branchCode + "-" + dateStr + "-"
+                                tenantCode
+                                        + "-"
+                                        + branchCode
+                                        + "-"
+                                        + dateStr
+                                        + "-"
                                         + String.format("%06d", scrollCounter))
                         .tenant(tenant)
-                        .branch(crAccount.getBranch() != null ? crAccount.getBranch() : src.getBranch())
+                        .branch(crBranch)
                         .transaction(txn)
                         .batchCode(batchCode)
                         .setNo(1)
@@ -429,7 +516,7 @@ public class TransactionLedgerSeeder {
                         .glAccount(creditGL)
                         .transactionAmount(amt)
                         .localCurrencyAmount(amt)
-                        .currency("INR")
+                        .currency(DEFAULT_CURRENCY)
                         .maker(teller)
                         .authFlag("Y")
                         .postFlag("Y")
