@@ -90,48 +90,47 @@
         <div class="table-responsive">
             <table class="table table-hover mb-0">
                 <thead class="table-light">
-                    <tr><th>ID</th><th>Entity Type</th><th>Entity ID</th><th>Requested By</th><th>Status</th><th>Created</th><th>Actions</th></tr>
+                    <tr><th>ID</th><th>Entity Type</th><th>Entity ID</th><th>Requested By</th><th>Request Details</th><th>Created</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                     <c:forEach var="approval" items="${approvals}">
                     <tr>
                         <td>${approval.id}</td>
                         <td><span class="badge bg-info">${approval.entityType}</span></td>
-                        <td>${approval.entityId}</td>
-                        <td><c:out value="${approval.requestedBy != null ? approval.requestedBy.fullName : 'System'}"/></td>
                         <td>
                             <c:choose>
-                                <c:when test="${approval.status == 'PENDING'}"><span class="badge bg-warning">PENDING</span></c:when>
-                                <c:when test="${approval.status == 'APPROVED'}"><span class="badge bg-success">APPROVED</span></c:when>
-                                <c:when test="${approval.status == 'REJECTED'}"><span class="badge bg-danger">REJECTED</span></c:when>
+                                <c:when test="${approval.entityType == 'CUSTOMER'}"><a href="${pageContext.request.contextPath}/customers/${approval.entityId}">${approval.entityId}</a></c:when>
+                                <c:when test="${approval.entityType == 'ACCOUNT'}"><a href="${pageContext.request.contextPath}/accounts/${approval.entityId}">${approval.entityId}</a></c:when>
+                                <c:when test="${approval.entityType == 'TRANSACTION'}"><a href="${pageContext.request.contextPath}/transactions/${approval.entityId}">${approval.entityId}</a></c:when>
+                                <c:otherwise>${approval.entityId}</c:otherwise>
                             </c:choose>
                         </td>
+                        <td><c:out value="${approval.requestedBy != null ? approval.requestedBy.fullName : 'System'}"/></td>
+                        <td><small class="text-muted"><c:out value="${approval.requestData}" default="--"/></small></td>
                         <td><small>${approval.createdAt}</small></td>
                         <td>
-                            <a href="${pageContext.request.contextPath}/approvals/${approval.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i> View</a>
-                            <c:if test="${approval.status == 'PENDING'}">
-                                <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isSuperAdmin}">
-                                <%-- Maker cannot approve own records --%>
-                                <c:if test="${approval.requestedBy == null || approval.requestedBy.id != sessionScope.userId}">
-                                    <form method="post" action="${pageContext.request.contextPath}/approvals/${approval.id}/approve" style="display:inline;">
-                                        <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
-                                        <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Approve this request?')"><i class="bi bi-check-lg"></i> Approve</button>
-                                    </form>
-                                    <form method="post" action="${pageContext.request.contextPath}/approvals/${approval.id}/reject" style="display:inline;">
-                                        <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
-                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reject this request?')"><i class="bi bi-x-lg"></i> Reject</button>
-                                    </form>
-                                </c:if>
-                                <c:if test="${approval.requestedBy != null && approval.requestedBy.id == sessionScope.userId}">
-                                    <span class="badge bg-light text-dark border" title="Maker cannot approve own records"><i class="bi bi-lock"></i> Own Request</span>
-                                </c:if>
-                                </c:if>
+                            <a href="${pageContext.request.contextPath}/approvals/${approval.id}" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+                            <c:if test="${sessionScope.isChecker || sessionScope.isAdmin || sessionScope.isManager || sessionScope.isBranchManager || sessionScope.isSuperAdmin}">
+                            <%-- Maker cannot approve own records --%>
+                            <c:if test="${approval.requestedBy == null || approval.requestedBy.id != sessionScope.userId}">
+                                <form method="post" action="${pageContext.request.contextPath}/approvals/${approval.id}/approve" style="display:inline;">
+                                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                                    <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('Approve this request?')"><i class="bi bi-check-lg"></i> Approve</button>
+                                </form>
+                                <form method="post" action="${pageContext.request.contextPath}/approvals/${approval.id}/reject" style="display:inline;">
+                                    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+                                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Reject this request?')"><i class="bi bi-x-lg"></i> Reject</button>
+                                </form>
+                            </c:if>
+                            <c:if test="${approval.requestedBy != null && approval.requestedBy.id == sessionScope.userId}">
+                                <span class="badge bg-light text-dark border" title="Maker cannot approve own records"><i class="bi bi-lock"></i> Own Request</span>
+                            </c:if>
                             </c:if>
                         </td>
                     </tr>
                     </c:forEach>
                     <c:if test="${empty approvals}">
-                        <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-clipboard-check" style="font-size: 2rem;"></i><br>No approval requests found</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted py-4"><i class="bi bi-clipboard-check" style="font-size: 2rem;"></i><br>No pending approvals. All records have been actioned.</td></tr>
                     </c:if>
                 </tbody>
             </table>
