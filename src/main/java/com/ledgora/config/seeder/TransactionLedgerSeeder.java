@@ -175,8 +175,36 @@ public class TransactionLedgerSeeder {
             }
         }
 
+        // ── Sync GL account balances to reflect seeded transactions ──
+        // Cash GL 1100: DR from deposits (+10000+15000+bulk) minus CR from withdrawal (-2000)
+        BigDecimal bulkDepositTotal = BigDecimal.ZERO;
+        for (int i = 5; i <= 30; i++) {
+            bulkDepositTotal = bulkDepositTotal.add(new BigDecimal(i * 1000));
+        }
+        BigDecimal cashGlDelta =
+                new BigDecimal("10000")
+                        .add(new BigDecimal("15000"))
+                        .add(bulkDepositTotal)
+                        .subtract(new BigDecimal("2000"));
+        Account glCash =
+                accountRepository.findByAccountNumber("GL-CASH-001").orElse(null);
+        if (glCash != null) {
+            syncBalanceAfterSeed(glCash, cashGlDelta);
+        }
+
+        // Savings Deposits GL 2110: CR from all deposits
+        // (GL account entity tracks net balance; for liability GL, credits increase it)
+        // Note: GL-DEP-001 maps to GL code 2100, not 2110. The savings deposits sub-GL
+        // doesn't have a separate Account entity — only the parent 2100 does.
+        // Customer Deposits GL 2100: net DR from withdrawal = -2000
+        Account glDep =
+                accountRepository.findByAccountNumber("GL-DEP-001").orElse(null);
+        if (glDep != null) {
+            syncBalanceAfterSeed(glDep, new BigDecimal("-2000"));
+        }
+
         log.info("  [Transactions] 30 sample transactions with balanced ledger journals created");
-        log.info("  [Balances] Account balances synced to post-transaction state");
+        log.info("  [Balances] Account + GL balances synced to post-transaction state");
     }
 
     /**
