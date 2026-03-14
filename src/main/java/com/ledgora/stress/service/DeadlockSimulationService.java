@@ -54,9 +54,9 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @Profile("stress")
-public class DeadlockSimulator {
+public class DeadlockSimulationService {
 
-    private static final Logger log = LoggerFactory.getLogger(DeadlockSimulator.class);
+    private static final Logger log = LoggerFactory.getLogger(DeadlockSimulationService.class);
 
     private final TransactionService transactionService;
     private final AccountRepository accountRepository;
@@ -64,7 +64,7 @@ public class DeadlockSimulator {
     private final LedgerEntryRepository ledgerEntryRepository;
     private final TenantService tenantService;
 
-    public DeadlockSimulator(
+    public DeadlockSimulationService(
             TransactionService transactionService,
             AccountRepository accountRepository,
             VoucherRepository voucherRepository,

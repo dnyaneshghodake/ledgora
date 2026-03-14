@@ -10,7 +10,7 @@ import com.ledgora.approval.entity.ApprovalRequest;
 import com.ledgora.approval.repository.ApprovalRequestRepository;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
-import com.ledgora.balance.service.CbsBalanceEngine;
+import com.ledgora.balance.service.CbsBalanceService;
 import com.ledgora.batch.entity.TransactionBatch;
 import com.ledgora.batch.repository.TransactionBatchRepository;
 import com.ledgora.batch.service.BatchService;
@@ -89,7 +89,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @Autowired private BatchService batchService;
     @Autowired private TenantService tenantService;
     @Autowired private LedgerService ledgerService;
-    @Autowired private CbsBalanceEngine cbsBalanceEngine;
+    @Autowired private CbsBalanceService cbsBalanceEngine;
     @Autowired private CbsGlBalanceService cbsGlBalanceService;
     @Autowired private EodValidationService eodValidationService;
     @Autowired private EodProcessRepository eodProcessRepository;

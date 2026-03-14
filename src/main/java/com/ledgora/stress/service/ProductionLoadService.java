@@ -49,15 +49,15 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @Profile("stress")
-public class ProductionLoadGenerator {
+public class ProductionLoadService {
 
-    private static final Logger log = LoggerFactory.getLogger(ProductionLoadGenerator.class);
+    private static final Logger log = LoggerFactory.getLogger(ProductionLoadService.class);
 
     private final TransactionService transactionService;
     private final AccountRepository accountRepository;
     private final BranchRepository branchRepository;
 
-    public ProductionLoadGenerator(
+    public ProductionLoadService(
             TransactionService transactionService,
             AccountRepository accountRepository,
             BranchRepository branchRepository) {

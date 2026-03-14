@@ -1,6 +1,6 @@
 package com.ledgora.events.listener;
 
-import com.ledgora.balance.service.BalanceEngine;
+import com.ledgora.balance.service.BalanceEngineService;
 import com.ledgora.events.AccountCreatedEvent;
 import com.ledgora.events.LedgerPostedEvent;
 import com.ledgora.events.SettlementCompletedEvent;
@@ -20,9 +20,9 @@ import org.springframework.stereotype.Component;
 public class BalanceEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(BalanceEventListener.class);
-    private final BalanceEngine balanceEngine;
+    private final BalanceEngineService balanceEngine;
 
-    public BalanceEventListener(BalanceEngine balanceEngine) {
+    public BalanceEventListener(BalanceEngineService balanceEngine) {
         this.balanceEngine = balanceEngine;
     }
 

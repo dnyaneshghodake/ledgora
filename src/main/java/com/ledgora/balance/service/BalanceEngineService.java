@@ -19,15 +19,15 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>Balance calculation: snapshot_balance + ledger_entries - holds
  */
 @Service
-public class BalanceEngine {
+public class BalanceEngineService {
 
-    private static final Logger log = LoggerFactory.getLogger(BalanceEngine.class);
+    private static final Logger log = LoggerFactory.getLogger(BalanceEngineService.class);
     private final AccountRepository accountRepository;
     private final AccountBalanceRepository accountBalanceRepository;
     private final LedgerEntryRepository ledgerEntryRepository;
     private final LedgerSnapshotService snapshotService;
 
-    public BalanceEngine(
+    public BalanceEngineService(
             AccountRepository accountRepository,
             AccountBalanceRepository accountBalanceRepository,
             LedgerEntryRepository ledgerEntryRepository,

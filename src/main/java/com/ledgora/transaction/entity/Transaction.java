@@ -67,7 +67,7 @@ public class Transaction {
     @Column(name = "transaction_sub_type", length = 20)
     private com.ledgora.common.enums.TransactionSubType transactionSubType;
 
-    /** Risk score assigned by VelocityFraudEngine. 0 = low risk, 100 = high risk. */
+    /** Risk score assigned by VelocityFraudService. 0 = low risk, 100 = high risk. */
     @Column(name = "risk_score")
     private Integer riskScore;
 

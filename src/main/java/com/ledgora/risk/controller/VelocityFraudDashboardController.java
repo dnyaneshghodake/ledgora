@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
  *
  * <p>RBI Fraud Risk Management: Velocity breaches auto-freeze accounts to UNDER_REVIEW pending
  * investigation. This dashboard provides operational monitoring without modifying
- * VelocityFraudEngine or freeze logic.
+ * VelocityFraudService or freeze logic.
  *
  * <p>Performance: Max 3 SELECTs. No N+1. No lazy loading in JSP.
  *

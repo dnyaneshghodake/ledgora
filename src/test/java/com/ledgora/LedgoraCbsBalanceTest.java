@@ -6,7 +6,7 @@ import com.ledgora.account.entity.Account;
 import com.ledgora.account.entity.AccountBalance;
 import com.ledgora.account.repository.AccountBalanceRepository;
 import com.ledgora.account.repository.AccountRepository;
-import com.ledgora.balance.service.CbsBalanceEngine;
+import com.ledgora.balance.service.CbsBalanceService;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.common.enums.*;
@@ -29,7 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class LedgoraCbsBalanceTest {
 
-    @Autowired private CbsBalanceEngine cbsBalanceEngine;
+    @Autowired private CbsBalanceService cbsBalanceEngine;
     @Autowired private AccountBalanceRepository accountBalanceRepository;
     @Autowired private AccountRepository accountRepository;
     @Autowired private TenantRepository tenantRepository;

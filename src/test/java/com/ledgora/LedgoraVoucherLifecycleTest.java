@@ -8,7 +8,7 @@ import com.ledgora.account.repository.AccountBalanceRepository;
 import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
-import com.ledgora.balance.service.CbsBalanceEngine;
+import com.ledgora.balance.service.CbsBalanceService;
 import com.ledgora.batch.entity.TransactionBatch;
 import com.ledgora.batch.repository.TransactionBatchRepository;
 import com.ledgora.branch.entity.Branch;
@@ -46,7 +46,7 @@ class LedgoraVoucherLifecycleTest {
     @Autowired private VoucherService voucherService;
     @Autowired private VoucherRepository voucherRepository;
     @Autowired private TransactionBatchRepository transactionBatchRepository;
-    @Autowired private CbsBalanceEngine cbsBalanceEngine;
+    @Autowired private CbsBalanceService cbsBalanceEngine;
     @Autowired private AccountBalanceRepository accountBalanceRepository;
     @Autowired private AccountRepository accountRepository;
     @Autowired private TenantRepository tenantRepository;

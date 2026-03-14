@@ -43,9 +43,9 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @Profile("stress")
-public class EodPerformanceRunner {
+public class EodPerformanceService {
 
-    private static final Logger log = LoggerFactory.getLogger(EodPerformanceRunner.class);
+    private static final Logger log = LoggerFactory.getLogger(EodPerformanceService.class);
 
     private final EodValidationService eodValidationService;
     private final EntityManagerFactory entityManagerFactory;
@@ -56,7 +56,7 @@ public class EodPerformanceRunner {
     private final SuspenseCaseRepository suspenseCaseRepository;
     private final AccountRepository accountRepository;
 
-    public EodPerformanceRunner(
+    public EodPerformanceService(
             EodValidationService eodValidationService,
             EntityManagerFactory entityManagerFactory,
             TransactionRepository transactionRepository,
