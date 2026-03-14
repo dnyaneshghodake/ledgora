@@ -288,9 +288,10 @@ class LedgoraCbsPhase1To7IntegrationTest {
         assertNotNull(txn.getBatch(), "Transaction must have batch assigned");
 
         // Verify vouchers created (2 legs: DR cash, CR customer)
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
         List<Voucher> vouchers =
                 voucherRepository.findByTenantIdAndBranchIdAndPostingDate(
-                        data.tenant.getId(), data.branch.getId(), LocalDate.now());
+                        data.tenant.getId(), data.branch.getId(), bizDate);
         assertTrue(vouchers.size() >= 2, "Deposit must create at least 2 vouchers (DR+CR)");
 
         // Verify all vouchers are authorized and posted
@@ -302,7 +303,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         // Verify ledger entries created and balanced
         List<LedgerEntry> entries =
                 ledgerEntryRepository.findByBusinessDateAndTenantId(
-                        LocalDate.now(), data.tenant.getId());
+                        bizDate, data.tenant.getId());
         BigDecimal totalDebits =
                 entries.stream()
                         .filter(e -> e.getEntryType() == EntryType.DEBIT)
@@ -462,7 +463,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
         List<LedgerEntry> entries =
                 ledgerEntryRepository.findByBusinessDateAndTenantId(
-                        LocalDate.now(), data.tenant.getId());
+                        data.tenant.getCurrentBusinessDate(), data.tenant.getId());
         assertFalse(entries.isEmpty(), "Ledger entries must exist after deposit");
 
         long countBefore = ledgerEntryRepository.count();
@@ -1018,12 +1019,13 @@ class LedgoraCbsPhase1To7IntegrationTest {
         transactionService.deposit(dto);
 
         // Verify ledger entries balanced
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
         BigDecimal debits =
                 ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(
-                        LocalDate.now(), data.tenant.getId());
+                        bizDate, data.tenant.getId());
         BigDecimal credits =
                 ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(
-                        LocalDate.now(), data.tenant.getId());
+                        bizDate, data.tenant.getId());
         assertEquals(0, debits.compareTo(credits), "GL: Total debits must equal total credits");
     }
 
@@ -1048,7 +1050,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         .build());
 
         // Verify ledger integrity
-        boolean balanced = ledgerService.validateLedgerIntegrity(LocalDate.now());
+        boolean balanced =
+                ledgerService.validateLedgerIntegrity(data.tenant.getCurrentBusinessDate());
         assertTrue(balanced, "Trial balance must be balanced after transactions");
     }
 
@@ -1186,6 +1189,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         FullTestData data = setupFullTestData("P6-UNAUTH");
 
         TenantContextHolder.setTenantId(data.tenant.getId());
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
 
         // Create an unauthorized voucher (auth_flag = N)
         voucherService.createVoucher(
@@ -1197,8 +1201,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 new BigDecimal("1000.00"),
                 new BigDecimal("1000.00"),
                 "INR",
-                LocalDate.now(),
-                LocalDate.now(),
+                bizDate,
+                bizDate,
                 "BATCH-EOD",
                 1,
                 data.maker,
@@ -1206,7 +1210,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
         // EOD should fail
         List<String> errors =
-                eodValidationService.validateEod(data.tenant.getId(), LocalDate.now());
+                eodValidationService.validateEod(data.tenant.getId(), bizDate);
         assertFalse(errors.isEmpty(), "EOD must be blocked when unauthorized vouchers exist");
         assertTrue(
                 errors.stream().anyMatch(e -> e.contains("unauthorized")),
@@ -1221,6 +1225,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         FullTestData data = setupFullTestData("P6-UNPST");
 
         TenantContextHolder.setTenantId(data.tenant.getId());
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
 
         // Create and authorize a voucher but don't post it
         Voucher voucher =
@@ -1233,8 +1238,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         new BigDecimal("1000.00"),
                         new BigDecimal("1000.00"),
                         "INR",
-                        LocalDate.now(),
-                        LocalDate.now(),
+                        bizDate,
+                        bizDate,
                         "BATCH-EOD",
                         1,
                         data.maker,
@@ -1243,7 +1248,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
         // EOD should fail
         List<String> errors =
-                eodValidationService.validateEod(data.tenant.getId(), LocalDate.now());
+                eodValidationService.validateEod(data.tenant.getId(), bizDate);
         assertFalse(errors.isEmpty(), "EOD must be blocked when unposted vouchers exist");
         assertTrue(
                 errors.stream().anyMatch(e -> e.contains("unposted")),
@@ -1267,7 +1272,9 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         .requestedBy(null)
                         .build());
 
-        List<String> errors = eodValidationService.validateEod(tenant.getId(), LocalDate.now());
+        List<String> errors =
+                eodValidationService.validateEod(
+                        tenant.getId(), tenant.getCurrentBusinessDate());
         assertFalse(errors.isEmpty(), "EOD must be blocked when pending approvals exist");
         assertTrue(
                 errors.stream().anyMatch(e -> e.contains("pending approval")),
@@ -1330,6 +1337,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         FullTestData data = setupFullTestData("P6-FAIL");
 
         TenantContextHolder.setTenantId(data.tenant.getId());
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
 
         // Create unauthorized voucher to force EOD failure
         voucherService.createVoucher(
@@ -1341,8 +1349,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 new BigDecimal("1000.00"),
                 new BigDecimal("1000.00"),
                 "INR",
-                LocalDate.now(),
-                LocalDate.now(),
+                bizDate,
+                bizDate,
                 "BATCH-FAIL",
                 1,
                 data.maker,
@@ -1356,7 +1364,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         // Verify business date did NOT advance
         Tenant tenant = tenantRepository.findById(data.tenant.getId()).orElseThrow();
         assertEquals(
-                LocalDate.now(),
+                nextWeekday(),
                 tenant.getCurrentBusinessDate(),
                 "Business date must NOT advance on failed EOD");
     }
@@ -1722,11 +1730,12 @@ class LedgoraCbsPhase1To7IntegrationTest {
     }
 
     private void verifyLedgerBalanced(Long tenantId) {
+        Tenant tenant = tenantRepository.findById(tenantId).orElseThrow();
+        LocalDate bizDate = tenant.getCurrentBusinessDate();
         BigDecimal debits =
-                ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(LocalDate.now(), tenantId);
+                ledgerEntryRepository.sumDebitsByBusinessDateAndTenantId(bizDate, tenantId);
         BigDecimal credits =
-                ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(
-                        LocalDate.now(), tenantId);
+                ledgerEntryRepository.sumCreditsByBusinessDateAndTenantId(bizDate, tenantId);
         assertEquals(
                 0,
                 debits.compareTo(credits),
