@@ -666,6 +666,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         FullTestData data = setupFullTestData("P3-MC");
 
         TenantContextHolder.setTenantId(data.tenant.getId());
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
 
         Voucher voucher =
                 voucherService.createVoucher(
@@ -677,8 +678,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         new BigDecimal("1000.00"),
                         new BigDecimal("1000.00"),
                         "INR",
-                        LocalDate.now(),
-                        LocalDate.now(),
+                        bizDate,
+                        bizDate,
                         "BATCH-MC",
                         1,
                         data.maker,
@@ -699,6 +700,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         FullTestData data = setupFullTestData("P3-CANC");
 
         TenantContextHolder.setTenantId(data.tenant.getId());
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
 
         Voucher voucher =
                 voucherService.createVoucher(
@@ -710,8 +712,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         new BigDecimal("1000.00"),
                         new BigDecimal("1000.00"),
                         "INR",
-                        LocalDate.now(),
-                        LocalDate.now(),
+                        bizDate,
+                        bizDate,
                         "BATCH-CANC",
                         1,
                         data.maker,
@@ -735,6 +737,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         FullTestData data = setupFullTestData("P3-DAUTH");
 
         TenantContextHolder.setTenantId(data.tenant.getId());
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
 
         Voucher voucher =
                 voucherService.createVoucher(
@@ -746,8 +749,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         new BigDecimal("1000.00"),
                         new BigDecimal("1000.00"),
                         "INR",
-                        LocalDate.now(),
-                        LocalDate.now(),
+                        bizDate,
+                        bizDate,
                         "BATCH-DAUTH",
                         1,
                         data.maker,
@@ -771,6 +774,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         FullTestData data = setupFullTestData("P3-UNAUTH");
 
         TenantContextHolder.setTenantId(data.tenant.getId());
+        LocalDate bizDate = data.tenant.getCurrentBusinessDate();
 
         Voucher voucher =
                 voucherService.createVoucher(
@@ -782,8 +786,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         new BigDecimal("1000.00"),
                         new BigDecimal("1000.00"),
                         "INR",
-                        LocalDate.now(),
-                        LocalDate.now(),
+                        bizDate,
+                        bizDate,
                         "BATCH-UA",
                         1,
                         data.maker,
@@ -838,7 +842,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
         TransactionBatch batch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, tenant.getCurrentBusinessDate());
 
         assertNotNull(batch.getId());
         assertEquals(BatchStatus.OPEN, batch.getStatus());
@@ -856,7 +860,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
         TransactionBatch batch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, tenant.getCurrentBusinessDate());
 
         // Simulate multiple transaction postings
         batchService.updateBatchTotals(
@@ -884,13 +888,14 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 4.3: Post in CLOSED batch must fail")
     void testClosedBatchPostFails() {
         Tenant tenant = createTenant("P4-CLSD");
+        LocalDate bizDate = tenant.getCurrentBusinessDate();
 
         TransactionBatch batch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, bizDate);
 
         // Close the batch
-        batchService.closeAllBatches(tenant.getId(), LocalDate.now());
+        batchService.closeAllBatches(tenant.getId(), bizDate);
 
         // Try to update closed batch - should fail
         assertThrows(
@@ -907,15 +912,16 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 4.4: Close balanced batch must pass")
     void testCloseBalancedBatch() {
         Tenant tenant = createTenant("P4-BAL");
+        LocalDate bizDate = tenant.getCurrentBusinessDate();
 
         TransactionBatch batch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, bizDate);
         batchService.updateBatchTotals(
                 batch.getId(), new BigDecimal("5000.00"), new BigDecimal("5000.00"));
 
         // Close batch
-        batchService.closeAllBatches(tenant.getId(), LocalDate.now());
+        batchService.closeAllBatches(tenant.getId(), bizDate);
 
         TransactionBatch closed = batchRepository.findById(batch.getId()).orElseThrow();
         assertEquals(
@@ -923,7 +929,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
         // Settle balanced batch
         assertDoesNotThrow(
-                () -> batchService.settleAllBatches(tenant.getId(), LocalDate.now()),
+                () -> batchService.settleAllBatches(tenant.getId(), bizDate),
                 "Balanced batch must settle successfully");
 
         TransactionBatch settled = batchRepository.findById(batch.getId()).orElseThrow();
@@ -937,10 +943,11 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 4.5: Settle unbalanced batch must fail")
     void testSettleUnbalancedBatchFails() {
         Tenant tenant = createTenant("P4-UNBAL");
+        LocalDate bizDate = tenant.getCurrentBusinessDate();
 
         TransactionBatch batch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, bizDate);
 
         // Create unbalanced batch
         batchService.updateBatchTotals(
@@ -949,7 +956,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         // Close should fail due to debit != credit (batch close now validates balance)
         assertThrows(
                 RuntimeException.class,
-                () -> batchService.closeAllBatches(tenant.getId(), LocalDate.now()),
+                () -> batchService.closeAllBatches(tenant.getId(), bizDate),
                 "Unbalanced batch close must fail");
     }
 
@@ -959,13 +966,14 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 4.6: Same channel/tenant/date returns same open batch")
     void testBatchIdempotency() {
         Tenant tenant = createTenant("P4-IDMP");
+        LocalDate bizDate = tenant.getCurrentBusinessDate();
 
         TransactionBatch batch1 =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, bizDate);
         TransactionBatch batch2 =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, bizDate);
 
         assertEquals(
                 batch1.getId(),
@@ -979,13 +987,14 @@ class LedgoraCbsPhase1To7IntegrationTest {
     @DisplayName("Phase 4.7: Different channels create different batches")
     void testDifferentChannelsDifferentBatches() {
         Tenant tenant = createTenant("P4-CHAN");
+        LocalDate bizDate = tenant.getCurrentBusinessDate();
 
         TransactionBatch tellerBatch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.TELLER, LocalDate.now());
+                        tenant.getId(), TransactionChannel.TELLER, bizDate);
         TransactionBatch onlineBatch =
                 batchService.getOrCreateOpenBatch(
-                        tenant.getId(), TransactionChannel.ONLINE, LocalDate.now());
+                        tenant.getId(), TransactionChannel.ONLINE, bizDate);
 
         assertNotEquals(
                 tellerBatch.getId(),
@@ -1484,8 +1493,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         new BigDecimal("1000.00"),
                         new BigDecimal("1000.00"),
                         "INR",
-                        LocalDate.now(),
-                        LocalDate.now(),
+                        data1.tenant.getCurrentBusinessDate(),
+                        data1.tenant.getCurrentBusinessDate(),
                         "BATCH-V1",
                         1,
                         data1.maker,
@@ -1503,8 +1512,8 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         new BigDecimal("2000.00"),
                         new BigDecimal("2000.00"),
                         "INR",
-                        LocalDate.now(),
-                        LocalDate.now(),
+                        data2.tenant.getCurrentBusinessDate(),
+                        data2.tenant.getCurrentBusinessDate(),
                         "BATCH-V2",
                         1,
                         data2.maker,

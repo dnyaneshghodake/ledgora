@@ -53,7 +53,7 @@ public class TransactionLedgerSeeder {
             return;
         }
 
-        LocalDate biz = LocalDate.now();
+        LocalDate biz = tenant.getCurrentBusinessDate();
         Account rSav = accountRepository.findByAccountNumber("SAV-1001-0001").orElse(null);
         Account pSav = accountRepository.findByAccountNumber("SAV-1002-0001").orElse(null);
         Account rCur = accountRepository.findByAccountNumber("CUR-1001-0001").orElse(null);
