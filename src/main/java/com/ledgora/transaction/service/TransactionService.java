@@ -1140,6 +1140,16 @@ public class TransactionService {
         transactionLineRepository.save(line);
     }
 
+    /**
+     * Sync the AccountBalance cache after a transaction posts. Updates ALL balance fields to ensure
+     * the Balances tab, deposit form, and withdrawal validation all see the correct post-transaction
+     * balance.
+     *
+     * <p>CBS rule: ledgerBalance, actualTotalBalance, actualClearedBalance, and availableBalance
+     * must all be consistent after every posting. The CbsBalanceEngine.updateActualBalance() handles
+     * the per-voucher-leg update, but the Account.balance field (the display cache) is the
+     * authoritative source set here after both voucher legs are posted.
+     */
     private void updateAccountBalanceCache(Account account, BigDecimal newLedgerBalance) {
         AccountBalance balance =
                 accountBalanceRepository
@@ -1149,9 +1159,30 @@ public class TransactionService {
                                         AccountBalance.builder()
                                                 .account(account)
                                                 .holdAmount(BigDecimal.ZERO)
+                                                .lienBalance(BigDecimal.ZERO)
+                                                .chargeHoldBalance(BigDecimal.ZERO)
+                                                .unclearedEffectBalance(BigDecimal.ZERO)
                                                 .build());
+        // Sync all balance fields to the authoritative post-transaction value
         balance.setLedgerBalance(newLedgerBalance);
-        balance.setAvailableBalance(newLedgerBalance.subtract(balance.getHoldAmount()));
+        balance.setActualTotalBalance(newLedgerBalance);
+        balance.setActualClearedBalance(
+                newLedgerBalance.subtract(
+                        balance.getUnclearedEffectBalance() != null
+                                ? balance.getUnclearedEffectBalance()
+                                : BigDecimal.ZERO));
+        // Available = cleared - liens - holds
+        BigDecimal available =
+                balance.getActualClearedBalance()
+                        .subtract(
+                                balance.getLienBalance() != null
+                                        ? balance.getLienBalance()
+                                        : BigDecimal.ZERO)
+                        .subtract(
+                                balance.getChargeHoldBalance() != null
+                                        ? balance.getChargeHoldBalance()
+                                        : BigDecimal.ZERO);
+        balance.setAvailableBalance(available);
         accountBalanceRepository.save(balance);
     }
 
