@@ -107,12 +107,12 @@ public class TellerDataSeeder {
     // ── TellerMaster ────────────────────────────────────────────────────────
 
     private void seedTellerMasters(Tenant tenant, Branch hq, Branch br1, Branch br2) {
-        // teller1 → BR001, teller2 → BR002, teller3 → BR002 (partner bank but same branch object)
+        // teller1 → BR001, teller2 → BR002
         seedOneTeller(tenant, "teller1", br1);
         seedOneTeller(tenant, "teller2", br2);
-        // teller3 belongs to secondTenant in UserDataSeeder, but the branch object (br2) is shared.
-        // Only seed if the user exists in this tenant scope.
-        seedOneTeller(tenant, "teller3", br2);
+        // NOTE: teller3 belongs to secondTenant (seeded in UserDataSeeder) — do NOT seed under
+        // defaultTenant here. That would create a cross-tenant TellerMaster (TellerMaster.tenant !=
+        // User.tenant), making the record inaccessible via CashEngineService.requireTellerMaster().
         log.info(
                 "  [Tellers] TellerMaster seeded (status=ASSIGNED, limits: deposit=₹2L, withdrawal=₹50K, daily=₹5L, holding=₹10L)");
     }
