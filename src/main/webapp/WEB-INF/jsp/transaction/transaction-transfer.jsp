@@ -3,8 +3,8 @@
 
 <%-- Page Title --%>
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3><i class="bi bi-arrow-left-right"></i> Transfer</h3>
-    <a href="${pageContext.request.contextPath}/transactions" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+    <h3><i class="bi bi-arrow-left-right"></i> Fund Transfer</h3>
+    <a href="${pageContext.request.contextPath}/transactions" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Back to Transactions</a>
 </div>
 
 <%-- Operational Status Banner --%>
@@ -14,25 +14,63 @@
     <div class="alert alert-danger"><c:out value="${error}"/></div>
 </c:if>
 
-<%-- Main Content Section --%>
-<div class="card shadow">
-    <div class="card-body">
-        <form method="post" action="${pageContext.request.contextPath}/transactions/transfer" id="transferForm"
-              data-context-path="${pageContext.request.contextPath}"
-              data-is-holiday="${isHoliday}" data-txn-type="TRANSFER">
-            <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
-            <input type="hidden" name="transactionType" value="TRANSFER"/>
-            <div class="row g-3">
-                <%-- Holiday Warning --%>
-                <c:if test="${isHoliday}">
-                <div class="col-12">
-                    <div class="cbs-txn-holiday-warning">
-                        <i class="bi bi-calendar-x"></i>
-                        <span>Today is a bank holiday. Transactions are restricted.</span>
-                    </div>
-                </div>
-                </c:if>
+<%-- Holiday Warning --%>
+<c:if test="${isHoliday}">
+<div class="alert alert-danger d-flex align-items-center mb-3">
+    <i class="bi bi-calendar-x-fill fs-4 me-2"></i>
+    <div><strong>Bank Holiday.</strong> Manual (TELLER) transactions are blocked. ATM/Digital channels may be restricted.</div>
+</div>
+</c:if>
 
+<form method="post" action="${pageContext.request.contextPath}/transactions/transfer" id="transferForm"
+      data-context-path="${pageContext.request.contextPath}"
+      data-is-holiday="${isHoliday}" data-txn-type="TRANSFER">
+    <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}" />
+    <input type="hidden" name="transactionType" value="TRANSFER"/>
+
+    <%-- ═══════════════════════════════════════════════════════════════════ --%>
+    <%-- SECTION 1: TRANSACTION CONTEXT (Finacle-style header strip)       --%>
+    <%-- ═══════════════════════════════════════════════════════════════════ --%>
+    <div class="card border-primary shadow-sm mb-3">
+        <div class="card-body py-2">
+            <div class="row align-items-center g-2">
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Transaction Type</small>
+                    <span class="badge bg-info fs-6">TRANSFER</span>
+                </div>
+                <div class="col-md-2">
+                    <small class="text-muted d-block">Business Date</small>
+                    <strong><c:out value="${businessDate}" default="--"/></strong>
+                </div>
+                <div class="col-md-2">
+                    <small class="text-muted d-block">Day Status</small>
+                    <c:choose>
+                        <c:when test="${dayStatus == 'OPEN'}"><span class="badge bg-success">OPEN</span></c:when>
+                        <c:when test="${dayStatus == 'CLOSED'}"><span class="badge bg-danger">CLOSED</span></c:when>
+                        <c:otherwise><span class="badge bg-warning text-dark"><c:out value="${dayStatus}" default="--"/></span></c:otherwise>
+                    </c:choose>
+                </div>
+                <div class="col-md-2">
+                    <small class="text-muted d-block">Currency</small>
+                    <strong><c:out value="${baseCurrency}" default="INR"/></strong>
+                </div>
+                <div class="col-md-3">
+                    <small class="text-muted d-block">Maker</small>
+                    <i class="bi bi-person-fill text-primary"></i> <strong><c:out value="${makerName}" default="--"/></strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <%-- ═══════════════════════════════════════════════════════════════════ --%>
+    <%-- SECTION 2: ACCOUNT SELECTION (Dual Panel)                          --%>
+    <%-- ═══════════════════════════════════════════════════════════════════ --%>
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="bi bi-arrow-left-right me-2"></i>Account Selection</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
                 <div class="col-md-6">
                     <div class="card bg-light">
                         <div class="card-header"><strong><i class="bi bi-arrow-up-circle text-danger"></i> From Account (Debit)</strong></div>
@@ -112,53 +150,62 @@
                     </div>
                 </div>
 
-                <%-- Business Date --%>
-                <div class="col-md-3">
-                    <div class="card border-info cbs-txn-balance-card">
-                        <div class="card-body p-2 text-center">
-                            <small class="text-info">Business Date</small>
-                            <h5 class="mb-0 text-info"><c:out value="${businessDate}" default="--"/></h5>
-                        </div>
-                    </div>
-                </div>
+            </div>
+        </div>
+    </div>
 
-                <div class="col-md-5">
-                    <label class="form-label cbs-field-required">Amount</label>
+    <%-- ═══════════════════════════════════════════════════════════════════ --%>
+    <%-- SECTION 3: TRANSACTION DETAILS                                     --%>
+    <%-- ═══════════════════════════════════════════════════════════════════ --%>
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="bi bi-arrow-left-right me-2"></i>Transaction Details</h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label cbs-field-required">Amount (<c:out value="${baseCurrency}" default="INR"/>)</label>
                     <input type="number" name="amount" class="form-control" required step="0.01" min="0.01" id="amountInput"
                            placeholder="Enter transfer amount"/>
                     <div id="amtInlineError" class="cbs-inline-error">Amount must be greater than zero.</div>
                     <div id="balanceExceedError" class="cbs-inline-error">Amount exceeds source available balance.</div>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label">Description</label>
-                    <input type="text" name="description" class="form-control" maxlength="255" placeholder="Transfer description"/>
-                </div>
-                <div class="col-md-5">
                     <label for="channelInput" class="form-label cbs-field-required">Channel</label>
                     <select name="channel" id="channelInput" class="form-select" required>
                         <option value="">-- Select Channel --</option>
-                        <option value="TELLER">TELLER</option>
+                        <option value="TELLER" selected>TELLER</option>
                         <option value="ATM">ATM</option>
                         <option value="ONLINE">ONLINE (Internet Banking)</option>
                         <option value="MOBILE">MOBILE (Mobile Banking)</option>
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <label for="narrationInput" class="form-label">Narration</label>
-                    <input type="text" name="narration" id="narrationInput" class="form-control" maxlength="500" placeholder="Narration (for audit trail)"/>
+                    <label class="form-label">Description</label>
+                    <input type="text" name="description" class="form-control" maxlength="255" placeholder="Transfer description"/>
                 </div>
-                <div class="col-12"><hr>
-                    <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" ${isHoliday ? 'disabled' : ''}>
-                        <i class="bi bi-arrow-left-right"></i> Execute Transfer
-                    </button>
-                    <c:if test="${isHoliday}">
-                        <small class="text-danger ms-3"><i class="bi bi-info-circle"></i> Submissions disabled on holidays.</small>
-                    </c:if>
+                <div class="col-12">
+                    <label for="narrationInput" class="form-label">Narration</label>
+                    <input type="text" name="narration" id="narrationInput" class="form-control" maxlength="500" placeholder="Narration (for audit trail and passbook)"/>
                 </div>
             </div>
-        </form>
+        </div>
     </div>
-</div>
+
+    <%-- ═══════════════════════════════════════════════════════════════════ --%>
+    <%-- SUBMIT                                                             --%>
+    <%-- ═══════════════════════════════════════════════════════════════════ --%>
+    <div class="d-flex gap-2 align-items-center">
+        <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" ${isHoliday ? 'disabled' : ''}>
+            <i class="bi bi-arrow-left-right"></i> Execute Transfer
+        </button>
+        <a href="${pageContext.request.contextPath}/transactions" class="btn btn-outline-secondary">Cancel</a>
+        <c:if test="${isHoliday}">
+            <small class="text-danger ms-3"><i class="bi bi-info-circle"></i> Submissions disabled on holidays.</small>
+        </c:if>
+    </div>
+
+</form>
 
 <script src="${pageContext.request.contextPath}/resources/js/transaction.js"></script>
 <%@ include file="../layout/footer.jsp" %>
