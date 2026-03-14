@@ -170,6 +170,7 @@ public class TransactionService {
                                                         + dto.getDestinationAccountNumber()));
         validateAccountActive(account);
         validateAccountFreezeLevel(account, VoucherDrCr.CR);
+        validateCurrencyMatch(dto, account);
 
         User currentUser = getCurrentUser();
         // For non-BATCH channels, a human maker identity is required for audit trail and
@@ -286,6 +287,7 @@ public class TransactionService {
                                                         + dto.getSourceAccountNumber()));
         validateAccountActive(account);
         validateAccountFreezeLevel(account, VoucherDrCr.DR);
+        validateCurrencyMatch(dto, account);
         if (account.getBalance().compareTo(dto.getAmount()) < 0) {
             throw new com.ledgora.common.exception.InsufficientBalanceException(
                     account.getAccountNumber(),
@@ -1193,6 +1195,35 @@ public class TransactionService {
      */
     private void validateAmountPositive(BigDecimal amount) {
         com.ledgora.common.validation.RbiFieldValidator.validateTransactionAmount(amount);
+    }
+
+    /**
+     * CBS/RBI: Validate transaction currency matches the account currency. Cross-currency
+     * transactions require explicit FX conversion through a dedicated workflow — direct posting in a
+     * mismatched currency is blocked to prevent accounting errors.
+     *
+     * <p>If the DTO currency is null or blank, it defaults to the account's currency (safe
+     * fallback). If the DTO specifies a currency that differs from the account, the transaction is
+     * rejected.
+     */
+    private void validateCurrencyMatch(TransactionDTO dto, Account account) {
+        String accountCurrency = account.getCurrency() != null ? account.getCurrency() : "INR";
+        if (dto.getCurrency() == null || dto.getCurrency().isBlank()) {
+            // Default to account currency when not specified
+            dto.setCurrency(accountCurrency);
+            return;
+        }
+        if (!dto.getCurrency().equalsIgnoreCase(accountCurrency)) {
+            throw new com.ledgora.common.exception.BusinessException(
+                    "CURRENCY_MISMATCH",
+                    "Transaction currency "
+                            + dto.getCurrency()
+                            + " does not match account currency "
+                            + accountCurrency
+                            + " for account "
+                            + account.getAccountNumber()
+                            + ". Cross-currency transactions require FX conversion.");
+        }
     }
 
     private void validateAccountActive(Account account) {
