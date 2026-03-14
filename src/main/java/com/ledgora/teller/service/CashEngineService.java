@@ -293,6 +293,11 @@ public class CashEngineService {
                         "INVALID_DENOMINATION", "Denomination value is required");
             }
 
+            if (e.getDenominationValue().compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BusinessException(
+                        "INVALID_DENOMINATION", "Denomination value must be positive");
+            }
+
             if (e.getCount() == null || e.getCount() < 0) {
                 throw new BusinessException(
                         "INVALID_DENOMINATION", "Denomination count must be >= 0");
