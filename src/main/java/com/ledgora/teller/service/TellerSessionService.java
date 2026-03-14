@@ -76,14 +76,19 @@ public class TellerSessionService {
                 .findByTellerIdAndBusinessDate(tellerMaster.getId(), bizDate)
                 .ifPresent(
                         existing -> {
-                            if (existing.getState() != TellerStatus.CLOSED) {
+                            if (existing.getState() == TellerStatus.CLOSED) {
                                 throw new BusinessException(
-                                        "TELLER_SESSION_EXISTS",
-                                        "Teller session already exists for business date "
+                                        "TELLER_SESSION_CLOSED",
+                                        "Teller session already closed for business date "
                                                 + bizDate
-                                                + " state="
-                                                + existing.getState());
+                                                + ". Cannot reopen.");
                             }
+                            throw new BusinessException(
+                                    "TELLER_SESSION_EXISTS",
+                                    "Teller session already exists for business date "
+                                            + bizDate
+                                            + " state="
+                                            + existing.getState());
                         });
 
         BigDecimal denomTotal = sumDenominations(req.getDenominations());
@@ -153,6 +158,14 @@ public class TellerSessionService {
                                         new BusinessException(
                                                 "NO_TELLER_SESSION",
                                                 "No teller session found: " + sessionId));
+
+        // Tenant isolation: session must belong to the current tenant
+        if (session.getTenant() == null
+                || !session.getTenant().getId().equals(tenantId)) {
+            throw new BusinessException(
+                    "TENANT_MISMATCH",
+                    "Session does not belong to current tenant. sessionId=" + sessionId);
+        }
 
         if (session.getState() != TellerStatus.OPEN_REQUESTED) {
             throw new BusinessException(
@@ -291,6 +304,14 @@ public class TellerSessionService {
                                         new BusinessException(
                                                 "NO_TELLER_SESSION",
                                                 "No teller session found: " + sessionId));
+
+        // Tenant isolation: session must belong to the current tenant
+        if (session.getTenant() == null
+                || !session.getTenant().getId().equals(tenantId)) {
+            throw new BusinessException(
+                    "TENANT_MISMATCH",
+                    "Session does not belong to current tenant. sessionId=" + sessionId);
+        }
 
         if (session.getState() != TellerStatus.CLOSING_REQUESTED) {
             throw new BusinessException(
