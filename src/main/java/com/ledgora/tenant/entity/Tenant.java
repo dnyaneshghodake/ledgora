@@ -10,8 +10,8 @@ import lombok.*;
  * CBS-grade Multi-tenant entity.
  *
  * <p>Lifecycle: INITIALIZING → ACTIVE (after bootstrap completes). INACTIVE = suspended. Each
- * tenant has its own business date, day status, GL chart, branch set, and user base. No cross-tenant
- * data leakage is possible — all child entities carry a tenant_id FK.
+ * tenant has its own business date, day status, GL chart, branch set, and user base. No
+ * cross-tenant data leakage is possible — all child entities carry a tenant_id FK.
  *
  * <p>RBI alignment: regulatory_code maps to RBI-assigned entity identifier. base_currency enforces
  * INR by default per RBI guidelines. effective_from is the date from which the tenant is legally
@@ -37,8 +37,8 @@ public class Tenant {
     private String tenantName;
 
     /**
-     * Lifecycle status: INITIALIZING → ACTIVE → INACTIVE.
-     * INITIALIZING is set during bootstrap; no operations are allowed until ACTIVE.
+     * Lifecycle status: INITIALIZING → ACTIVE → INACTIVE. INITIALIZING is set during bootstrap; no
+     * operations are allowed until ACTIVE.
      */
     @Column(name = "status", length = 20, nullable = false)
     @Builder.Default
@@ -79,8 +79,7 @@ public class Tenant {
     private Boolean multiBranchEnabled = false;
 
     /**
-     * EOD processing status for the current business date.
-     * NOT_STARTED → IN_PROGRESS → COMPLETED.
+     * EOD processing status for the current business date. NOT_STARTED → IN_PROGRESS → COMPLETED.
      */
     @Column(name = "eod_status", length = 20)
     @Builder.Default

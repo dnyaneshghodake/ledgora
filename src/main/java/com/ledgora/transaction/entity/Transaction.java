@@ -141,8 +141,8 @@ public class Transaction {
 
     /**
      * Optimistic locking version — prevents concurrent approval of the same transaction from
-     * multiple sessions. If two checkers attempt to approve simultaneously, the second write
-     * throws OptimisticLockException, preventing double-posting.
+     * multiple sessions. If two checkers attempt to approve simultaneously, the second write throws
+     * OptimisticLockException, preventing double-posting.
      */
     @Version
     @Column(name = "version")

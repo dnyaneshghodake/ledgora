@@ -42,7 +42,8 @@ public class CustomerController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
+    @PreAuthorize(
+            "hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String listCustomers(
             @RequestParam(value = "search", required = false) String search,
             @RequestParam(value = "kycStatus", required = false) String kycStatus,
@@ -133,7 +134,8 @@ public class CustomerController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
+    @PreAuthorize(
+            "hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String viewCustomer(@PathVariable Long id, Model model) {
         Customer customer =
                 customerService
@@ -335,7 +337,8 @@ public class CustomerController {
      * issues)
      */
     @GetMapping("/api/search")
-    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
+    @PreAuthorize(
+            "hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     @ResponseBody
     public List<Map<String, Object>> searchCustomersApi(@RequestParam("q") String query) {
         return customerService.searchByName(query).stream()

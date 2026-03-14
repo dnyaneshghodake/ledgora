@@ -1144,8 +1144,8 @@ class LedgoraRbiGovernanceIntegrationTest {
     // ════════════════════════════════════════════════════════════════════════
 
     /**
-     * Returns a guaranteed weekday date (Mon-Fri) for test business dates.
-     * Prevents BankCalendarService from blocking transactions on weekends.
+     * Returns a guaranteed weekday date (Mon-Fri) for test business dates. Prevents
+     * BankCalendarService from blocking transactions on weekends.
      */
     private static LocalDate nextWeekday() {
         LocalDate d = LocalDate.now();

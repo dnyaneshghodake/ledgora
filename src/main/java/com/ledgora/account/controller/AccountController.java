@@ -57,7 +57,8 @@ public class AccountController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
+    @PreAuthorize(
+            "hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String listAccounts(
             @RequestParam(value = "status", required = false) String status,
             @RequestParam(value = "type", required = false) String type,
@@ -156,7 +157,8 @@ public class AccountController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
+    @PreAuthorize(
+            "hasAnyRole('MAKER', 'CHECKER', 'TELLER', 'ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
     public String viewAccount(@PathVariable Long id, Model model) {
         Account account =
                 accountService

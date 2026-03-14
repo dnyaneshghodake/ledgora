@@ -145,7 +145,8 @@ public class SecurityConfig {
                                     // BEFORE /admin/** catch-all (Spring evaluates in order).
                                     .requestMatchers("/admin/ledger/**")
                                     .hasAnyRole("ADMIN", "OPERATIONS", "AUDITOR", "SUPER_ADMIN")
-                                    // /admin/users|branches|tenants — TENANT_ADMIN also needs access
+                                    // /admin/users|branches|tenants — TENANT_ADMIN also needs
+                                    // access
                                     .requestMatchers(
                                             "/admin/users/**",
                                             "/admin/branches/**",

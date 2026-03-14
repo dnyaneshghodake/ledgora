@@ -1616,10 +1616,9 @@ class LedgoraCbsPhase1To7IntegrationTest {
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Returns a guaranteed weekday date (Mon-Fri) for test business dates.
-     * If today is Saturday or Sunday, returns the next Monday.
-     * This prevents BankCalendarService from blocking transactions on weekends
-     * (weekends default to holidays per RBI/CBS calendar rules when no explicit
+     * Returns a guaranteed weekday date (Mon-Fri) for test business dates. If today is Saturday or
+     * Sunday, returns the next Monday. This prevents BankCalendarService from blocking transactions
+     * on weekends (weekends default to holidays per RBI/CBS calendar rules when no explicit
      * calendar entry exists).
      */
     private static LocalDate nextWeekday() {

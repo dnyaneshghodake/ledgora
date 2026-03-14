@@ -58,8 +58,8 @@ public class ApprovalRequest {
     private String remarks;
 
     /**
-     * Optimistic locking version — prevents concurrent approval of the same request from
-     * multiple sessions. The second concurrent approve/reject throws OptimisticLockException.
+     * Optimistic locking version — prevents concurrent approval of the same request from multiple
+     * sessions. The second concurrent approve/reject throws OptimisticLockException.
      */
     @Version
     @Column(name = "version")

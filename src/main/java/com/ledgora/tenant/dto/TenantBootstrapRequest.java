@@ -14,8 +14,8 @@ import lombok.NoArgsConstructor;
  * DTO for the Tenant Onboarding form (Maker step).
  *
  * <p>This DTO is submitted to POST /admin/tenants/create and serialised into the ApprovalRequest's
- * requestData JSON field. The Bootstrap Service reads it back on approval to drive the
- * controlled bootstrap sequence.
+ * requestData JSON field. The Bootstrap Service reads it back on approval to drive the controlled
+ * bootstrap sequence.
  *
  * <p>No tenant ID is present — tenant creation happens AFTER approval, not before.
  */
@@ -54,13 +54,14 @@ public class TenantBootstrapRequest {
     private String timezone = "Asia/Kolkata";
 
     /**
-     * RBI-assigned regulatory code. Format: RBI/YYYY/TYPE/NNN.
-     * Validated server-side against the pattern.
+     * RBI-assigned regulatory code. Format: RBI/YYYY/TYPE/NNN. Validated server-side against the
+     * pattern.
      */
     @NotBlank(message = "Regulatory Code is required")
     @Pattern(
             regexp = "^RBI/[0-9]{4}/[A-Z]+/[0-9]{3,}$",
-            message = "Regulatory Code must match format RBI/YYYY/TYPE/NNN (e.g. RBI/2024/BANK/001)")
+            message =
+                    "Regulatory Code must match format RBI/YYYY/TYPE/NNN (e.g. RBI/2024/BANK/001)")
     private String regulatoryCode;
 
     // ── Section 2: Initial Business Setup ──
@@ -68,8 +69,7 @@ public class TenantBootstrapRequest {
     @NotNull(message = "Initial Business Date is required")
     private LocalDate initialBusinessDate;
 
-    @Builder.Default
-    private Boolean multiBranchEnabled = false;
+    @Builder.Default private Boolean multiBranchEnabled = false;
 
     // ── Section 3: Governance ──
 

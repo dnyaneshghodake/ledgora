@@ -79,8 +79,8 @@ public class AccountLien {
     private User approvedBy;
 
     /**
-     * Optimistic locking — prevents two checkers from concurrently approving or releasing the
-     * same lien. The second write throws ObjectOptimisticLockingFailureException.
+     * Optimistic locking — prevents two checkers from concurrently approving or releasing the same
+     * lien. The second write throws ObjectOptimisticLockingFailureException.
      */
     @Version
     @Column(name = "version")

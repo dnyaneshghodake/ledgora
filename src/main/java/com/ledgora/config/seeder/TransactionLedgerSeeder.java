@@ -182,7 +182,8 @@ public class TransactionLedgerSeeder {
                         .narration(desc)
                         .businessDate(biz)
                         .performedBy(teller)
-                        // maker = teller for seeded data (auto-authorized, no separate checker step)
+                        // maker = teller for seeded data (auto-authorized, no separate checker
+                        // step)
                         .maker(teller)
                         .makerTimestamp(LocalDateTime.now())
                         .tenant(tenant)

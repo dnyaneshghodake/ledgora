@@ -86,22 +86,28 @@ public class CustomerService {
 
         // ── Tenant-scoped uniqueness enforcement ──
         if (dto.getNationalId() != null
-                && customerRepository.existsByTenantIdAndNationalId(tenantId, dto.getNationalId(), null)) {
+                && customerRepository.existsByTenantIdAndNationalId(
+                        tenantId, dto.getNationalId(), null)) {
             throw new com.ledgora.common.exception.BusinessException(
                     "DUPLICATE_NATIONAL_ID",
-                    "Customer with national ID " + dto.getNationalId() + " already exists in this tenant");
+                    "Customer with national ID "
+                            + dto.getNationalId()
+                            + " already exists in this tenant");
         }
-        if (dto.getPanNumber() != null && !dto.getPanNumber().isBlank()
-                && customerRepository.existsByTenantIdAndPanNumber(tenantId, dto.getPanNumber(), null)) {
+        if (dto.getPanNumber() != null
+                && !dto.getPanNumber().isBlank()
+                && customerRepository.existsByTenantIdAndPanNumber(
+                        tenantId, dto.getPanNumber(), null)) {
             throw new com.ledgora.common.exception.BusinessException(
                     "DUPLICATE_PAN",
                     "Customer with PAN " + dto.getPanNumber() + " already exists in this tenant");
         }
-        if (dto.getAadhaarNumber() != null && !dto.getAadhaarNumber().isBlank()
-                && customerRepository.existsByTenantIdAndAadhaarNumber(tenantId, dto.getAadhaarNumber(), null)) {
+        if (dto.getAadhaarNumber() != null
+                && !dto.getAadhaarNumber().isBlank()
+                && customerRepository.existsByTenantIdAndAadhaarNumber(
+                        tenantId, dto.getAadhaarNumber(), null)) {
             throw new com.ledgora.common.exception.BusinessException(
-                    "DUPLICATE_AADHAAR",
-                    "Customer with Aadhaar already exists in this tenant");
+                    "DUPLICATE_AADHAAR", "Customer with Aadhaar already exists in this tenant");
         }
 
         Tenant tenant = tenantService.getTenantById(tenantId);
@@ -129,7 +135,9 @@ public class CustomerService {
                         .createdBy(currentUser)
                         .makerTimestamp(java.time.LocalDateTime.now())
                         .customerType(
-                                dto.getCustomerType() != null ? dto.getCustomerType() : "INDIVIDUAL")
+                                dto.getCustomerType() != null
+                                        ? dto.getCustomerType()
+                                        : "INDIVIDUAL")
                         .panNumber(dto.getPanNumber())
                         .aadhaarNumber(dto.getAadhaarNumber())
                         .gstNumber(dto.getGstNumber())
@@ -161,7 +169,8 @@ public class CustomerService {
                         + saved.getFirstName()
                         + " "
                         + saved.getLastName()
-                        + " | risk=" + derivedRisk,
+                        + " | risk="
+                        + derivedRisk,
                 null,
                 null,
                 "status=PENDING_APPROVAL,kyc=PENDING,risk=" + derivedRisk,
@@ -219,30 +228,40 @@ public class CustomerService {
         // ── Tenant-scoped uniqueness checks for updated values ──
         if (dto.getNationalId() != null
                 && !dto.getNationalId().equals(customer.getNationalId())
-                && customerRepository.existsByTenantIdAndNationalId(tenantId, dto.getNationalId(), customerId)) {
+                && customerRepository.existsByTenantIdAndNationalId(
+                        tenantId, dto.getNationalId(), customerId)) {
             throw new com.ledgora.common.exception.BusinessException(
                     "DUPLICATE_NATIONAL_ID",
-                    "Customer with national ID " + dto.getNationalId() + " already exists in this tenant");
+                    "Customer with national ID "
+                            + dto.getNationalId()
+                            + " already exists in this tenant");
         }
-        if (dto.getPanNumber() != null && !dto.getPanNumber().isBlank()
+        if (dto.getPanNumber() != null
+                && !dto.getPanNumber().isBlank()
                 && !dto.getPanNumber().equals(customer.getPanNumber())
-                && customerRepository.existsByTenantIdAndPanNumber(tenantId, dto.getPanNumber(), customerId)) {
+                && customerRepository.existsByTenantIdAndPanNumber(
+                        tenantId, dto.getPanNumber(), customerId)) {
             throw new com.ledgora.common.exception.BusinessException(
                     "DUPLICATE_PAN",
                     "Customer with PAN " + dto.getPanNumber() + " already exists in this tenant");
         }
-        if (dto.getAadhaarNumber() != null && !dto.getAadhaarNumber().isBlank()
+        if (dto.getAadhaarNumber() != null
+                && !dto.getAadhaarNumber().isBlank()
                 && !dto.getAadhaarNumber().equals(customer.getAadhaarNumber())
-                && customerRepository.existsByTenantIdAndAadhaarNumber(tenantId, dto.getAadhaarNumber(), customerId)) {
+                && customerRepository.existsByTenantIdAndAadhaarNumber(
+                        tenantId, dto.getAadhaarNumber(), customerId)) {
             throw new com.ledgora.common.exception.BusinessException(
-                    "DUPLICATE_AADHAAR",
-                    "Customer with Aadhaar already exists in this tenant");
+                    "DUPLICATE_AADHAAR", "Customer with Aadhaar already exists in this tenant");
         }
 
         // Snapshot old state for audit trail
-        String oldState = "status=" + customer.getApprovalStatus()
-                + ",kyc=" + customer.getKycStatus()
-                + ",risk=" + customer.getRiskCategory();
+        String oldState =
+                "status="
+                        + customer.getApprovalStatus()
+                        + ",kyc="
+                        + customer.getKycStatus()
+                        + ",risk="
+                        + customer.getRiskCategory();
 
         if (dto.getFirstName() != null) customer.setFirstName(dto.getFirstName());
         if (dto.getLastName() != null) customer.setLastName(dto.getLastName());
@@ -259,7 +278,9 @@ public class CustomerService {
         if (dto.getIsPep() != null) customer.setIsPep(dto.getIsPep());
 
         // ── Re-derive risk category after field updates ──
-        String derivedRisk = deriveRiskCategory(dto.getIsPep() != null ? dto : buildDtoFromCustomer(customer, dto));
+        String derivedRisk =
+                deriveRiskCategory(
+                        dto.getIsPep() != null ? dto : buildDtoFromCustomer(customer, dto));
         customer.setRiskCategory(derivedRisk);
 
         // ── CBS: modifications reset approval status to PENDING_APPROVAL ──
@@ -282,7 +303,8 @@ public class CustomerService {
                 "CUSTOMER_UPDATED",
                 "CUSTOMER",
                 saved.getCustomerId(),
-                "Customer master data updated (pending re-approval) by " + currentUser.getUsername(),
+                "Customer master data updated (pending re-approval) by "
+                        + currentUser.getUsername(),
                 null,
                 oldState,
                 newState,
@@ -366,7 +388,8 @@ public class CustomerService {
     /** Get customers by approval status (for checker pending queue). Tenant-isolated. */
     public List<Customer> getByApprovalStatus(
             com.ledgora.common.enums.MakerCheckerStatus approvalStatus) {
-        return customerRepository.findByTenantIdAndApprovalStatus(requireTenantId(), approvalStatus);
+        return customerRepository.findByTenantIdAndApprovalStatus(
+                requireTenantId(), approvalStatus);
     }
 
     /** Count customers pending approval (for dashboard badge). */
@@ -385,7 +408,8 @@ public class CustomerService {
      */
     @Transactional
     public Customer updateFreezeStatus(Long customerId, String freezeLevel, String freezeReason) {
-        // Identity check BEFORE any persistence — freeze must not be applied without an auditable maker
+        // Identity check BEFORE any persistence — freeze must not be applied without an auditable
+        // maker
         User currentUser = getCurrentUser();
         if (currentUser == null) {
             throw new com.ledgora.common.exception.BusinessException(
@@ -460,7 +484,8 @@ public class CustomerService {
             throw new com.ledgora.common.exception.BusinessException(
                     "KYC_NOT_APPROVED",
                     "Cannot activate customer: KYC status must be VERIFIED before approval. "
-                            + "Current KYC status: " + customer.getKycStatus());
+                            + "Current KYC status: "
+                            + customer.getKycStatus());
         }
 
         // Set all approval state fields atomically
@@ -474,8 +499,12 @@ public class CustomerService {
                 "CUSTOMER_APPROVED",
                 "CUSTOMER",
                 customerId,
-                "Customer approved by " + currentUser.getUsername()
-                        + ": " + customer.getFirstName() + " " + customer.getLastName(),
+                "Customer approved by "
+                        + currentUser.getUsername()
+                        + ": "
+                        + customer.getFirstName()
+                        + " "
+                        + customer.getLastName(),
                 null,
                 "status=PENDING_APPROVAL",
                 "status=APPROVED,kyc=" + saved.getKycStatus(),
@@ -531,8 +560,12 @@ public class CustomerService {
                 "CUSTOMER_REJECTED",
                 "CUSTOMER",
                 customerId,
-                "Customer rejected by " + currentUser.getUsername()
-                        + ": " + customer.getFirstName() + " " + customer.getLastName(),
+                "Customer rejected by "
+                        + currentUser.getUsername()
+                        + ": "
+                        + customer.getFirstName()
+                        + " "
+                        + customer.getLastName(),
                 null,
                 "status=PENDING_APPROVAL",
                 "status=REJECTED,kyc=REJECTED",
@@ -556,8 +589,8 @@ public class CustomerService {
      *   <li>Default → LOW
      * </ol>
      *
-     * If the caller has explicitly set riskCategory on the DTO and no risk inputs are provided,
-     * the explicit value is honoured.
+     * If the caller has explicitly set riskCategory on the DTO and no risk inputs are provided, the
+     * explicit value is honoured.
      */
     private String deriveRiskCategory(CustomerDTO dto) {
         // PEP flag immediately elevates to HIGH

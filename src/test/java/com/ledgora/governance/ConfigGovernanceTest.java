@@ -28,8 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
  * </ol>
  *
  * <p>Each test is {@code @Transactional} + {@code @Rollback} to prevent PENDING config change
- * requests written by one test from leaking into subsequent tests and making
- * {@code countPending_reflectsSubmittedRequests} non-deterministic.
+ * requests written by one test from leaking into subsequent tests and making {@code
+ * countPending_reflectsSubmittedRequests} non-deterministic.
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -141,7 +141,9 @@ class ConfigGovernanceTest {
 
     @Test
     @DisplayName("Unresolvable user identity throws on submitChange")
-    @WithMockUser(username = "nonexistent-user-xyz", roles = {"MAKER"})
+    @WithMockUser(
+            username = "nonexistent-user-xyz",
+            roles = {"MAKER"})
     void submitChange_unknownUser_throws() {
         TenantContextHolder.setTenantId(1L);
         RuntimeException ex =

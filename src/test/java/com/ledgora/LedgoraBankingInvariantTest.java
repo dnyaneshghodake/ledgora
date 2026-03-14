@@ -386,9 +386,9 @@ class LedgoraBankingInvariantTest {
     // ── Helper Methods ──
 
     /**
-     * Returns a guaranteed weekday date (Mon-Fri) for test business dates.
-     * If today is Saturday or Sunday, returns the next Monday.
-     * This prevents BankCalendarService from blocking transactions on weekends.
+     * Returns a guaranteed weekday date (Mon-Fri) for test business dates. If today is Saturday or
+     * Sunday, returns the next Monday. This prevents BankCalendarService from blocking transactions
+     * on weekends.
      */
     private static LocalDate nextWeekday() {
         LocalDate d = LocalDate.now();
