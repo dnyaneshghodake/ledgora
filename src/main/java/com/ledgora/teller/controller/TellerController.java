@@ -64,7 +64,8 @@ public class TellerController {
         try {
             TellerSession session = tellerSessionService.requestOpen(req);
             redirectAttributes.addFlashAttribute(
-                    "message", "Teller session open request submitted. sessionId=" + session.getId());
+                    "message",
+                    "Teller session open request submitted. sessionId=" + session.getId());
             return "redirect:/teller/inquiry";
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
@@ -75,8 +76,7 @@ public class TellerController {
     @PostMapping("/authorize-open")
     @PreAuthorize("hasAnyRole('MANAGER', 'CHECKER', 'ADMIN')")
     public String authorizeOpen(
-            @RequestParam("sessionId") Long sessionId,
-            RedirectAttributes redirectAttributes) {
+            @RequestParam("sessionId") Long sessionId, RedirectAttributes redirectAttributes) {
         try {
             TellerSession session = tellerSessionService.authorizeOpen(sessionId);
             redirectAttributes.addFlashAttribute(
@@ -108,8 +108,7 @@ public class TellerController {
         }
         try {
             Transaction txn = cashEngineService.cashDeposit(req);
-            redirectAttributes.addFlashAttribute(
-                    "message", "Deposit posted. txnId=" + txn.getId());
+            redirectAttributes.addFlashAttribute("message", "Deposit posted. txnId=" + txn.getId());
             return "redirect:/transactions/" + txn.getId();
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
@@ -246,8 +245,7 @@ public class TellerController {
     @PostMapping("/authorize-close")
     @PreAuthorize("hasAnyRole('MANAGER', 'CHECKER', 'ADMIN')")
     public String authorizeClose(
-            @RequestParam("sessionId") Long sessionId,
-            RedirectAttributes redirectAttributes) {
+            @RequestParam("sessionId") Long sessionId, RedirectAttributes redirectAttributes) {
         try {
             TellerSession session = tellerSessionService.authorizeClose(sessionId);
             redirectAttributes.addFlashAttribute(

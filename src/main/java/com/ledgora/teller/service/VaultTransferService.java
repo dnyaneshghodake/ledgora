@@ -51,6 +51,7 @@ public class VaultTransferService {
 
     /** GL account numbers (Account.accountNumber) used for posting. */
     private static final String GL_BRANCH_CASH_ACCOUNT_NO = "GL-CASH-001";
+
     private static final String GL_VAULT_CASH_ACCOUNT_NO = "GL-VAULT-001";
 
     private final TenantService tenantService;
@@ -307,8 +308,7 @@ public class VaultTransferService {
         boolean vaultToTeller = ENTITY_VAULT.equalsIgnoreCase(vt.getFromEntity());
         if (!tellerToVault && !vaultToTeller) {
             throw new BusinessException(
-                    "INVALID_TRANSFER",
-                    "Invalid fromEntity: " + vt.getFromEntity());
+                    "INVALID_TRANSFER", "Invalid fromEntity: " + vt.getFromEntity());
         }
 
         if (tellerToVault && lockedSession.getCurrentBalance().compareTo(amount) < 0) {

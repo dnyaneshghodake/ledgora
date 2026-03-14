@@ -160,8 +160,7 @@ public class TellerSessionService {
                                                 "No teller session found: " + sessionId));
 
         // Tenant isolation: session must belong to the current tenant
-        if (session.getTenant() == null
-                || !session.getTenant().getId().equals(tenantId)) {
+        if (session.getTenant() == null || !session.getTenant().getId().equals(tenantId)) {
             throw new BusinessException(
                     "TENANT_MISMATCH",
                     "Session does not belong to current tenant. sessionId=" + sessionId);
@@ -178,8 +177,7 @@ public class TellerSessionService {
                 && session.getOpenedBy().getId() != null
                 && session.getOpenedBy().getId().equals(checker.getId())) {
             throw new BusinessException(
-                    "MAKER_CHECKER_VIOLATION",
-                    "Teller cannot authorize own session open request");
+                    "MAKER_CHECKER_VIOLATION", "Teller cannot authorize own session open request");
         }
 
         session.setState(TellerStatus.OPEN);
@@ -219,7 +217,8 @@ public class TellerSessionService {
 
         TellerSession session = requireSessionWithLock(tellerMaster.getId(), bizDate);
 
-        if (session.getState() != TellerStatus.OPEN && session.getState() != TellerStatus.SUSPENDED) {
+        if (session.getState() != TellerStatus.OPEN
+                && session.getState() != TellerStatus.SUSPENDED) {
             throw new BusinessException(
                     "INVALID_TELLER_STATE",
                     "Close request allowed only when session is OPEN or SUSPENDED. Current="
@@ -245,7 +244,9 @@ public class TellerSessionService {
         if (diff.compareTo(BigDecimal.ZERO) != 0) {
             BigDecimal absDiff = diff.abs();
             CashDifferenceType type =
-                    diff.compareTo(BigDecimal.ZERO) < 0 ? CashDifferenceType.SHORT : CashDifferenceType.EXCESS;
+                    diff.compareTo(BigDecimal.ZERO) < 0
+                            ? CashDifferenceType.SHORT
+                            : CashDifferenceType.EXCESS;
 
             cashDifferenceLogRepository.save(
                     CashDifferenceLog.builder()
@@ -306,8 +307,7 @@ public class TellerSessionService {
                                                 "No teller session found: " + sessionId));
 
         // Tenant isolation: session must belong to the current tenant
-        if (session.getTenant() == null
-                || !session.getTenant().getId().equals(tenantId)) {
+        if (session.getTenant() == null || !session.getTenant().getId().equals(tenantId)) {
             throw new BusinessException(
                     "TENANT_MISMATCH",
                     "Session does not belong to current tenant. sessionId=" + sessionId);
@@ -324,8 +324,7 @@ public class TellerSessionService {
                 && session.getClosedBy().getId() != null
                 && session.getClosedBy().getId().equals(checker.getId())) {
             throw new BusinessException(
-                    "MAKER_CHECKER_VIOLATION",
-                    "Teller cannot authorize own session close request");
+                    "MAKER_CHECKER_VIOLATION", "Teller cannot authorize own session close request");
         }
 
         List<CashDifferenceLog> unresolved =
@@ -333,7 +332,8 @@ public class TellerSessionService {
         if (unresolved != null && !unresolved.isEmpty()) {
             throw new BusinessException(
                     "CASH_DIFF_UNRESOLVED",
-                    "Cannot close teller session: cash difference unresolved. sessionId=" + sessionId);
+                    "Cannot close teller session: cash difference unresolved. sessionId="
+                            + sessionId);
         }
 
         session.setState(TellerStatus.CLOSED);
@@ -436,7 +436,8 @@ public class TellerSessionService {
         if (req == null) {
             throw new BusinessException("INVALID_REQUEST", "Request must not be null");
         }
-        if (req.getOpeningBalance() == null || req.getOpeningBalance().compareTo(BigDecimal.ZERO) < 0) {
+        if (req.getOpeningBalance() == null
+                || req.getOpeningBalance().compareTo(BigDecimal.ZERO) < 0) {
             throw new BusinessException("INVALID_REQUEST", "Opening balance must be >= 0");
         }
         if (req.getDenominations() == null || req.getDenominations().isEmpty()) {
@@ -448,7 +449,8 @@ public class TellerSessionService {
         if (req == null) {
             throw new BusinessException("INVALID_REQUEST", "Request must not be null");
         }
-        if (req.getDeclaredAmount() == null || req.getDeclaredAmount().compareTo(BigDecimal.ZERO) < 0) {
+        if (req.getDeclaredAmount() == null
+                || req.getDeclaredAmount().compareTo(BigDecimal.ZERO) < 0) {
             throw new BusinessException("INVALID_REQUEST", "Declared amount must be >= 0");
         }
         if (req.getDenominations() == null || req.getDenominations().isEmpty()) {
@@ -460,14 +462,16 @@ public class TellerSessionService {
         BigDecimal sum = BigDecimal.ZERO;
         for (DenominationEntry e : entries) {
             if (e == null || e.getDenominationValue() == null) {
-                throw new BusinessException("INVALID_DENOMINATION", "Denomination value is required");
+                throw new BusinessException(
+                        "INVALID_DENOMINATION", "Denomination value is required");
             }
             if (e.getDenominationValue().compareTo(BigDecimal.ZERO) <= 0) {
                 throw new BusinessException(
                         "INVALID_DENOMINATION", "Denomination value must be positive");
             }
             if (e.getCount() == null || e.getCount() < 0) {
-                throw new BusinessException("INVALID_DENOMINATION", "Denomination count must be >= 0");
+                throw new BusinessException(
+                        "INVALID_DENOMINATION", "Denomination count must be >= 0");
             }
             BigDecimal lineTotal =
                     e.getDenominationValue().multiply(BigDecimal.valueOf(e.getCount()));
