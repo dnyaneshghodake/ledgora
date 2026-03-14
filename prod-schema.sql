@@ -130,7 +130,7 @@ CREATE TABLE general_ledgers (
     CONSTRAINT uk_gl_code UNIQUE (gl_code),
     CONSTRAINT fk_gl_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE NO ACTION,
     CONSTRAINT fk_gl_parent FOREIGN KEY (parent_id) REFERENCES general_ledgers(id) ON DELETE NO ACTION,
-    CONSTRAINT chk_gl_account_type CHECK (account_type IN ('ASSET','LIABILITY','EQUITY','REVENUE','EXPENSE','CLEARING','SUSPENSE'))
+    CONSTRAINT chk_gl_account_type CHECK (account_type IN ('ASSET','LIABILITY','EQUITY','REVENUE','EXPENSE'))
 );
 CREATE NONCLUSTERED INDEX idx_gl_tenant ON general_ledgers (tenant_id);
 CREATE NONCLUSTERED INDEX idx_gl_parent ON general_ledgers (parent_id);
@@ -184,8 +184,8 @@ CREATE TABLE accounts (
     CONSTRAINT fk_account_approved_by FOREIGN KEY (approved_by) REFERENCES users(id) ON DELETE NO ACTION,
     CONSTRAINT fk_account_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE NO ACTION,
     CONSTRAINT fk_account_last_modified FOREIGN KEY (last_modified_by) REFERENCES users(id) ON DELETE NO ACTION,
-    CONSTRAINT chk_account_type CHECK (account_type IN ('SAVINGS','CURRENT','TERM_DEPOSIT','LOAN','OVERDRAFT','NRE','NRO','GL','CLEARING','SUSPENSE','CASH')),
-    CONSTRAINT chk_freeze_level CHECK (freeze_level IN ('NONE','DEBIT_FREEZE','CREDIT_FREEZE','TOTAL_FREEZE')),
+    CONSTRAINT chk_account_type CHECK (account_type IN ('SAVINGS','CURRENT','LOAN','FIXED_DEPOSIT','CUSTOMER_ACCOUNT','GL_ACCOUNT','INTERNAL_ACCOUNT','CLEARING_ACCOUNT','SETTLEMENT_ACCOUNT','SUSPENSE_ACCOUNT')),
+    CONSTRAINT chk_freeze_level CHECK (freeze_level IN ('NONE','DEBIT_ONLY','CREDIT_ONLY','FULL')),
     CONSTRAINT chk_approval_status CHECK (approval_status IN ('PENDING','APPROVED','REJECTED'))
 );
 CREATE NONCLUSTERED INDEX idx_account_number ON accounts (account_number);
@@ -285,8 +285,8 @@ CREATE TABLE transactions (
     CONSTRAINT fk_txn_performer FOREIGN KEY (performed_by) REFERENCES users(id) ON DELETE NO ACTION,
     CONSTRAINT fk_txn_maker FOREIGN KEY (maker_id) REFERENCES users(id) ON DELETE NO ACTION,
     CONSTRAINT fk_txn_checker FOREIGN KEY (checker_id) REFERENCES users(id) ON DELETE NO ACTION,
-    CONSTRAINT chk_txn_type CHECK (transaction_type IN ('DEPOSIT','WITHDRAWAL','TRANSFER','REVERSAL','INTEREST','CHARGE','ADJUSTMENT')),
-    CONSTRAINT chk_txn_status CHECK (status IN ('PENDING','PENDING_APPROVAL','COMPLETED','FAILED','REVERSED','REJECTED')),
+    CONSTRAINT chk_txn_type CHECK (transaction_type IN ('DEPOSIT','WITHDRAWAL','TRANSFER','REVERSAL','SETTLEMENT')),
+    CONSTRAINT chk_txn_status CHECK (status IN ('PENDING','PENDING_APPROVAL','APPROVED','COMPLETED','FAILED','REVERSED','REJECTED','PARKED')),
     CONSTRAINT chk_txn_amount CHECK (amount >= 0)
 );
 CREATE NONCLUSTERED INDEX idx_transaction_ref ON transactions (transaction_ref);

@@ -155,13 +155,13 @@ SET IDENTITY_INSERT general_ledgers OFF;
 SET IDENTITY_INSERT accounts ON;
 INSERT INTO accounts (id, tenant_id, account_number, account_name, account_type, status, balance, currency, branch_code, branch_id, customer_name, gl_account_code, freeze_level, npa_flag, approval_status, created_at, version, updated_at) VALUES
 -- ── Tenant 1: Internal / GL Accounts ──
-(1,  1, 'T1-CASH-BR001',     'Cash Account BR001',            'CASH',       'ACTIVE', 5000000.0000, 'INR', 'BR001', 1, NULL,                'GL-T1-CASH',    'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(2,  1, 'T1-CASH-BR002',     'Cash Account BR002',            'CASH',       'ACTIVE', 3000000.0000, 'INR', 'BR002', 2, NULL,                'GL-T1-CASH',    'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(3,  1, 'T1-CLR-OUT-BR001',  'IBC Outward Clearing BR001',    'CLEARING',   'ACTIVE', 0.0000,       'INR', 'BR001', 1, NULL,                'GL-T1-CLR-OUT', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(4,  1, 'T1-CLR-IN-BR001',   'IBC Inward Clearing BR001',     'CLEARING',   'ACTIVE', 0.0000,       'INR', 'BR001', 1, NULL,                'GL-T1-CLR-IN',  'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(5,  1, 'T1-CLR-OUT-BR002',  'IBC Outward Clearing BR002',    'CLEARING',   'ACTIVE', 0.0000,       'INR', 'BR002', 2, NULL,                'GL-T1-CLR-OUT', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(6,  1, 'T1-CLR-IN-BR002',   'IBC Inward Clearing BR002',     'CLEARING',   'ACTIVE', 0.0000,       'INR', 'BR002', 2, NULL,                'GL-T1-CLR-IN',  'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(7,  1, 'T1-SUSPENSE',       'Suspense Account',              'SUSPENSE',   'ACTIVE', 0.0000,       'INR', 'BR001', 1, NULL,                'GL-T1-SUSPENSE','NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(1,  1, 'T1-CASH-BR001',     'Cash Account BR001',            'INTERNAL_ACCOUNT', 'ACTIVE', 5000000.0000, 'INR', 'BR001', 1, NULL,                'GL-T1-CASH',    'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(2,  1, 'T1-CASH-BR002',     'Cash Account BR002',            'INTERNAL_ACCOUNT', 'ACTIVE', 3000000.0000, 'INR', 'BR002', 2, NULL,                'GL-T1-CASH',    'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(3,  1, 'T1-CLR-OUT-BR001',  'IBC Outward Clearing BR001',    'CLEARING_ACCOUNT', 'ACTIVE', 0.0000,       'INR', 'BR001', 1, NULL,                'GL-T1-CLR-OUT', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(4,  1, 'T1-CLR-IN-BR001',   'IBC Inward Clearing BR001',     'CLEARING_ACCOUNT', 'ACTIVE', 0.0000,       'INR', 'BR001', 1, NULL,                'GL-T1-CLR-IN',  'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(5,  1, 'T1-CLR-OUT-BR002',  'IBC Outward Clearing BR002',    'CLEARING_ACCOUNT', 'ACTIVE', 0.0000,       'INR', 'BR002', 2, NULL,                'GL-T1-CLR-OUT', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(6,  1, 'T1-CLR-IN-BR002',   'IBC Inward Clearing BR002',     'CLEARING_ACCOUNT', 'ACTIVE', 0.0000,       'INR', 'BR002', 2, NULL,                'GL-T1-CLR-IN',  'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(7,  1, 'T1-SUSPENSE',       'Suspense Account',              'SUSPENSE_ACCOUNT', 'ACTIVE', 0.0000,       'INR', 'BR001', 1, NULL,                'GL-T1-SUSPENSE','NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 -- ── Tenant 1: Savings Accounts (10) ──
 (8,  1, 'T1-SAV-0001', 'Arun Joshi Savings',        'SAVINGS', 'ACTIVE',  125000.0000, 'INR', 'BR001', 1, 'Arun Joshi',        'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 (9,  1, 'T1-SAV-0002', 'Meena Kapoor Savings',      'SAVINGS', 'ACTIVE',   87500.0000, 'INR', 'BR001', 1, 'Meena Kapoor',      'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
@@ -180,20 +180,20 @@ INSERT INTO accounts (id, tenant_id, account_number, account_name, account_type,
 (21, 1, 'T1-CUR-0004', 'Delta Services Current',    'CURRENT', 'ACTIVE',  675000.0000, 'INR', 'BR002', 2, 'Delta Services',    'GL-T1-CURRENT', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 (22, 1, 'T1-CUR-0005', 'Sigma Corp Current',        'CURRENT', 'ACTIVE',  950000.0000, 'INR', 'BR001', 1, 'Sigma Corp',        'GL-T1-CURRENT', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 -- ── Tenant 1: Term Deposit Accounts (5) ──
-(23, 1, 'T1-TD-0001', 'Arun Joshi FD',             'TERM_DEPOSIT', 'ACTIVE',  500000.0000, 'INR', 'BR001', 1, 'Arun Joshi',   'GL-T1-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(24, 1, 'T1-TD-0002', 'Meena Kapoor FD',           'TERM_DEPOSIT', 'ACTIVE', 1000000.0000, 'INR', 'BR001', 1, 'Meena Kapoor', 'GL-T1-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(25, 1, 'T1-TD-0003', 'Ravi Shankar FD',           'TERM_DEPOSIT', 'ACTIVE',  750000.0000, 'INR', 'BR002', 2, 'Ravi Shankar', 'GL-T1-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(26, 1, 'T1-TD-0004', 'ABC Enterprises FD',        'TERM_DEPOSIT', 'ACTIVE', 2000000.0000, 'INR', 'BR001', 1, 'ABC Enterprises','GL-T1-TD','NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(27, 1, 'T1-TD-0005', 'XYZ Trading FD',            'TERM_DEPOSIT', 'ACTIVE',  300000.0000, 'INR', 'BR002', 2, 'XYZ Trading Co','GL-T1-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(23, 1, 'T1-TD-0001', 'Arun Joshi FD',             'FIXED_DEPOSIT', 'ACTIVE',  500000.0000, 'INR', 'BR001', 1, 'Arun Joshi',   'GL-T1-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(24, 1, 'T1-TD-0002', 'Meena Kapoor FD',           'FIXED_DEPOSIT', 'ACTIVE', 1000000.0000, 'INR', 'BR001', 1, 'Meena Kapoor', 'GL-T1-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(25, 1, 'T1-TD-0003', 'Ravi Shankar FD',           'FIXED_DEPOSIT', 'ACTIVE',  750000.0000, 'INR', 'BR002', 2, 'Ravi Shankar', 'GL-T1-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(26, 1, 'T1-TD-0004', 'ABC Enterprises FD',        'FIXED_DEPOSIT', 'ACTIVE', 2000000.0000, 'INR', 'BR001', 1, 'ABC Enterprises','GL-T1-TD','NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(27, 1, 'T1-TD-0005', 'XYZ Trading FD',            'FIXED_DEPOSIT', 'ACTIVE',  300000.0000, 'INR', 'BR002', 2, 'XYZ Trading Co','GL-T1-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 
 -- ── Tenant 2: Internal / GL Accounts ──
-(28, 2, 'T2-CASH-BR003',     'Cash Account BR003',            'CASH',       'ACTIVE', 4000000.0000, 'INR', 'BR003', 3, NULL,                'GL-T2-CASH',    'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(29, 2, 'T2-CASH-BR004',     'Cash Account BR004',            'CASH',       'ACTIVE', 2500000.0000, 'INR', 'BR004', 4, NULL,                'GL-T2-CASH',    'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(30, 2, 'T2-CLR-OUT-BR003',  'IBC Outward Clearing BR003',    'CLEARING',   'ACTIVE', 0.0000,       'INR', 'BR003', 3, NULL,                'GL-T2-CLR-OUT', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(31, 2, 'T2-CLR-IN-BR003',   'IBC Inward Clearing BR003',     'CLEARING',   'ACTIVE', 0.0000,       'INR', 'BR003', 3, NULL,                'GL-T2-CLR-IN',  'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(32, 2, 'T2-CLR-OUT-BR004',  'IBC Outward Clearing BR004',    'CLEARING',   'ACTIVE', 0.0000,       'INR', 'BR004', 4, NULL,                'GL-T2-CLR-OUT', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(33, 2, 'T2-CLR-IN-BR004',   'IBC Inward Clearing BR004',     'CLEARING',   'ACTIVE', 0.0000,       'INR', 'BR004', 4, NULL,                'GL-T2-CLR-IN',  'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(34, 2, 'T2-SUSPENSE',       'Suspense Account',              'SUSPENSE',   'ACTIVE', 0.0000,       'INR', 'BR003', 3, NULL,                'GL-T2-SUSPENSE','NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(28, 2, 'T2-CASH-BR003',     'Cash Account BR003',            'INTERNAL_ACCOUNT', 'ACTIVE', 4000000.0000, 'INR', 'BR003', 3, NULL,                'GL-T2-CASH',    'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(29, 2, 'T2-CASH-BR004',     'Cash Account BR004',            'INTERNAL_ACCOUNT', 'ACTIVE', 2500000.0000, 'INR', 'BR004', 4, NULL,                'GL-T2-CASH',    'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(30, 2, 'T2-CLR-OUT-BR003',  'IBC Outward Clearing BR003',    'CLEARING_ACCOUNT', 'ACTIVE', 0.0000,       'INR', 'BR003', 3, NULL,                'GL-T2-CLR-OUT', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(31, 2, 'T2-CLR-IN-BR003',   'IBC Inward Clearing BR003',     'CLEARING_ACCOUNT', 'ACTIVE', 0.0000,       'INR', 'BR003', 3, NULL,                'GL-T2-CLR-IN',  'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(32, 2, 'T2-CLR-OUT-BR004',  'IBC Outward Clearing BR004',    'CLEARING_ACCOUNT', 'ACTIVE', 0.0000,       'INR', 'BR004', 4, NULL,                'GL-T2-CLR-OUT', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(33, 2, 'T2-CLR-IN-BR004',   'IBC Inward Clearing BR004',     'CLEARING_ACCOUNT', 'ACTIVE', 0.0000,       'INR', 'BR004', 4, NULL,                'GL-T2-CLR-IN',  'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(34, 2, 'T2-SUSPENSE',       'Suspense Account',              'SUSPENSE_ACCOUNT', 'ACTIVE', 0.0000,       'INR', 'BR003', 3, NULL,                'GL-T2-SUSPENSE','NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 -- ── Tenant 2: Savings Accounts (10) ──
 (35, 2, 'T2-SAV-0001', 'Mohan Lal Savings',         'SAVINGS', 'ACTIVE',  110000.0000, 'INR', 'BR003', 3, 'Mohan Lal',         'GL-T2-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 (36, 2, 'T2-SAV-0002', 'Sita Ram Savings',          'SAVINGS', 'ACTIVE',   95000.0000, 'INR', 'BR003', 3, 'Sita Ram',          'GL-T2-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
@@ -212,11 +212,11 @@ INSERT INTO accounts (id, tenant_id, account_number, account_name, account_type,
 (48, 2, 'T2-CUR-0004', 'Zeta Logistics Current',    'CURRENT', 'ACTIVE',  560000.0000, 'INR', 'BR004', 4, 'Zeta Logistics',    'GL-T2-CURRENT', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 (49, 2, 'T2-CUR-0005', 'Theta Pharma Current',      'CURRENT', 'ACTIVE',  920000.0000, 'INR', 'BR003', 3, 'Theta Pharma',      'GL-T2-CURRENT', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 -- ── Tenant 2: Term Deposit Accounts (5) ──
-(50, 2, 'T2-TD-0001', 'Mohan Lal FD',              'TERM_DEPOSIT', 'ACTIVE',  450000.0000, 'INR', 'BR003', 3, 'Mohan Lal',     'GL-T2-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(51, 2, 'T2-TD-0002', 'Sita Ram FD',               'TERM_DEPOSIT', 'ACTIVE',  800000.0000, 'INR', 'BR003', 3, 'Sita Ram',      'GL-T2-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(52, 2, 'T2-TD-0003', 'Alpha Industries FD',       'TERM_DEPOSIT', 'ACTIVE', 1500000.0000, 'INR', 'BR004', 4, 'Alpha Industries','GL-T2-TD','NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(53, 2, 'T2-TD-0004', 'Beta Traders FD',           'TERM_DEPOSIT', 'ACTIVE',  250000.0000, 'INR', 'BR004', 4, 'Beta Traders',  'GL-T2-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(54, 2, 'T2-TD-0005', 'Gamma Tech FD',             'TERM_DEPOSIT', 'ACTIVE', 1800000.0000, 'INR', 'BR003', 3, 'Gamma Tech',    'GL-T2-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME());
+(50, 2, 'T2-TD-0001', 'Mohan Lal FD',              'FIXED_DEPOSIT', 'ACTIVE',  450000.0000, 'INR', 'BR003', 3, 'Mohan Lal',     'GL-T2-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(51, 2, 'T2-TD-0002', 'Sita Ram FD',               'FIXED_DEPOSIT', 'ACTIVE',  800000.0000, 'INR', 'BR003', 3, 'Sita Ram',      'GL-T2-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(52, 2, 'T2-TD-0003', 'Alpha Industries FD',       'FIXED_DEPOSIT', 'ACTIVE', 1500000.0000, 'INR', 'BR004', 4, 'Alpha Industries','GL-T2-TD','NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(53, 2, 'T2-TD-0004', 'Beta Traders FD',           'FIXED_DEPOSIT', 'ACTIVE',  250000.0000, 'INR', 'BR004', 4, 'Beta Traders',  'GL-T2-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(54, 2, 'T2-TD-0005', 'Gamma Tech FD',             'FIXED_DEPOSIT', 'ACTIVE', 1800000.0000, 'INR', 'BR003', 3, 'Gamma Tech',    'GL-T2-TD', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME());
 SET IDENTITY_INSERT accounts OFF;
 
 -- ============================================================================
