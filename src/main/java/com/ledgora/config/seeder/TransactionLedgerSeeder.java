@@ -50,6 +50,18 @@ public class TransactionLedgerSeeder {
     /** Default currency for seeded transactions. Must match the tenant's base currency. */
     private static final String DEFAULT_CURRENCY = "INR";
 
+    /** Start index for bulk customer accounts (must match CustomerAccountSeeder bulkIdx + 5). */
+    private static final int BULK_START = 5;
+
+    /** End index (inclusive) for bulk customer accounts. */
+    private static final int BULK_END = 30;
+
+    // ── Named transaction amounts — used both for creating transactions and for balance sync ──
+    private static final BigDecimal DEP_RAJESH_AMT = new BigDecimal("10000.0000");
+    private static final BigDecimal DEP_PRIYA_AMT = new BigDecimal("15000.0000");
+    private static final BigDecimal TRF_RAJESH_PRIYA_AMT = new BigDecimal("5000.0000");
+    private static final BigDecimal WDR_RAJESH_AMT = new BigDecimal("2000.0000");
+
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
     private final AccountBalanceRepository accountBalanceRepository;
@@ -105,7 +117,7 @@ public class TransactionLedgerSeeder {
                 TransactionChannel.TELLER,
                 null,
                 rSav,
-                new BigDecimal("10000.0000"),
+                DEP_RAJESH_AMT,
                 "Opening Deposit - Rajesh Savings",
                 "1100",
                 "2110",
@@ -121,7 +133,7 @@ public class TransactionLedgerSeeder {
                 TransactionChannel.TELLER,
                 null,
                 pSav,
-                new BigDecimal("15000.0000"),
+                DEP_PRIYA_AMT,
                 "Opening Deposit - Priya Savings",
                 "1100",
                 "2110",
@@ -137,7 +149,7 @@ public class TransactionLedgerSeeder {
                 TransactionChannel.ONLINE,
                 rSav,
                 pSav,
-                new BigDecimal("5000.0000"),
+                TRF_RAJESH_PRIYA_AMT,
                 "Internal Transfer - Rajesh to Priya",
                 "2100",
                 "2100",
@@ -153,7 +165,7 @@ public class TransactionLedgerSeeder {
                 TransactionChannel.ATM,
                 rCur,
                 null,
-                new BigDecimal("2000.0000"),
+                WDR_RAJESH_AMT,
                 "ATM Withdrawal - Rajesh Current",
                 "2100",
                 "1100",
@@ -161,7 +173,7 @@ public class TransactionLedgerSeeder {
                 new BigDecimal("148000.0000"));
 
         // ── Bulk transactions for pagination testing (26 more deposits across bulk accounts) ──
-        for (int i = 5; i <= 30; i++) {
+        for (int i = BULK_START; i <= BULK_END; i++) {
             String savNum = String.format("SAV-%04d-0001", i);
             Account bulkAcct = accountRepository.findByAccountNumber(savNum).orElse(null);
             if (bulkAcct == null) continue;
@@ -188,16 +200,15 @@ public class TransactionLedgerSeeder {
         // The seeder creates ledger entries with correct balanceAfter values, but the
         // Account.balance and AccountBalance records were set by CustomerAccountSeeder
         // BEFORE these transactions. We must sync them to the post-transaction state.
-        syncBalanceAfterSeed(
-                rSav, new BigDecimal("10000.0000").subtract(new BigDecimal("5000.0000")));
+        syncBalanceAfterSeed(rSav, DEP_RAJESH_AMT.subtract(TRF_RAJESH_PRIYA_AMT));
         // rSav: +10000 (DEP-SEED-0001) -5000 (TRF-SEED-0001) = net +5000
-        syncBalanceAfterSeed(pSav, new BigDecimal("15000.0000").add(new BigDecimal("5000.0000")));
+        syncBalanceAfterSeed(pSav, DEP_PRIYA_AMT.add(TRF_RAJESH_PRIYA_AMT));
         // pSav: +15000 (DEP-SEED-0002) +5000 (TRF-SEED-0001) = net +20000
-        syncBalanceAfterSeed(rCur, new BigDecimal("2000.0000").negate());
+        syncBalanceAfterSeed(rCur, WDR_RAJESH_AMT.negate());
         // rCur: -2000 (WDR-SEED-0001) = net -2000
 
         // Bulk accounts: each got a deposit of (i * 1000)
-        for (int i = 5; i <= 30; i++) {
+        for (int i = BULK_START; i <= BULK_END; i++) {
             String savNum = String.format("SAV-%04d-0001", i);
             Account bulkAcct = accountRepository.findByAccountNumber(savNum).orElse(null);
             if (bulkAcct != null) {
@@ -208,14 +219,14 @@ public class TransactionLedgerSeeder {
         // ── Sync GL account balances to reflect seeded transactions ──
         // Cash GL 1100: DR from deposits (+10000+15000+bulk) minus CR from withdrawal (-2000)
         BigDecimal bulkDepositTotal = BigDecimal.ZERO;
-        for (int i = 5; i <= 30; i++) {
+        for (int i = BULK_START; i <= BULK_END; i++) {
             bulkDepositTotal = bulkDepositTotal.add(new BigDecimal(i * 1000));
         }
         BigDecimal cashGlDelta =
-                new BigDecimal("10000")
-                        .add(new BigDecimal("15000"))
+                DEP_RAJESH_AMT
+                        .add(DEP_PRIYA_AMT)
                         .add(bulkDepositTotal)
-                        .subtract(new BigDecimal("2000"));
+                        .subtract(WDR_RAJESH_AMT);
         Account glCash = accountRepository.findByAccountNumber("GL-CASH-001").orElse(null);
         if (glCash != null) {
             syncBalanceAfterSeed(glCash, cashGlDelta);
@@ -228,7 +239,7 @@ public class TransactionLedgerSeeder {
         // Customer Deposits GL 2100: net DR from withdrawal = -2000
         Account glDep = accountRepository.findByAccountNumber("GL-DEP-001").orElse(null);
         if (glDep != null) {
-            syncBalanceAfterSeed(glDep, new BigDecimal("-2000"));
+            syncBalanceAfterSeed(glDep, WDR_RAJESH_AMT.negate());
         }
 
         // ── Sync ScrollSequence table so live voucher numbering starts after seeded scrolls ──
