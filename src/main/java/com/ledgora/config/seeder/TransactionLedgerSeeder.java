@@ -39,6 +39,17 @@ import org.springframework.stereotype.Component;
 public class TransactionLedgerSeeder {
 
     private static final Logger log = LoggerFactory.getLogger(TransactionLedgerSeeder.class);
+
+    /**
+     * Default branch code used as a last-resort fallback for voucher numbering when neither the
+     * debit nor credit account has a branch assigned. Must match the HQ branch code seeded by
+     * BranchDataSeeder.
+     */
+    private static final String DEFAULT_BRANCH_CODE = "HQ001";
+
+    /** Default currency for seeded transactions. Must match the tenant's base currency. */
+    private static final String DEFAULT_CURRENCY = "INR";
+
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
     private final AccountBalanceRepository accountBalanceRepository;
@@ -225,7 +236,9 @@ public class TransactionLedgerSeeder {
         // seeded voucher numbers (duplicate key on idx_voucher_number).
         syncScrollSequences(tenant, biz);
 
-        log.info("  [Transactions] 30 sample transactions with balanced ledger journals created");
+        log.info(
+                "  [Transactions] {} sample transactions with balanced ledger journals created",
+                scrollCounter / 2);
         log.info("  [Balances] Account + GL balances synced to post-transaction state");
         log.info("  [ScrollSeq] Scroll sequences synced (lastScrollNo={})", scrollCounter);
     }
@@ -343,7 +356,7 @@ public class TransactionLedgerSeeder {
                         .transactionType(type)
                         .status(TransactionStatus.COMPLETED)
                         .amount(amt)
-                        .currency("INR")
+                        .currency(DEFAULT_CURRENCY)
                         .channel(channel)
                         .sourceAccount(src)
                         .destinationAccount(dst)
@@ -388,7 +401,7 @@ public class TransactionLedgerSeeder {
                                 .entryType(EntryType.DEBIT)
                                 .amount(amt)
                                 .balanceAfter(drBalAfter)
-                                .currency("INR")
+                                .currency(DEFAULT_CURRENCY)
                                 .businessDate(biz)
                                 .postingTime(bizTimestamp)
                                 .narration(desc + " [DEBIT]")
@@ -406,7 +419,7 @@ public class TransactionLedgerSeeder {
                                 .entryType(EntryType.CREDIT)
                                 .amount(amt)
                                 .balanceAfter(crBalAfter)
-                                .currency("INR")
+                                .currency(DEFAULT_CURRENCY)
                                 .businessDate(biz)
                                 .postingTime(bizTimestamp)
                                 .narration(desc + " [CREDIT]")
@@ -420,7 +433,8 @@ public class TransactionLedgerSeeder {
                 drAccount.getBranch() != null
                         ? drAccount.getBranch()
                         : (crAccount.getBranch() != null ? crAccount.getBranch() : null);
-        String branchCode = resolvedBranch != null ? resolvedBranch.getBranchCode() : "HQ001";
+        String branchCode =
+                resolvedBranch != null ? resolvedBranch.getBranchCode() : DEFAULT_BRANCH_CODE;
         String dateStr = biz.toString().replace("-", "");
 
         scrollCounter++;
@@ -456,7 +470,7 @@ public class TransactionLedgerSeeder {
                         .glAccount(debitGL)
                         .transactionAmount(amt)
                         .localCurrencyAmount(amt)
-                        .currency("INR")
+                        .currency(DEFAULT_CURRENCY)
                         .maker(teller)
                         .authFlag("Y")
                         .postFlag("Y")
@@ -500,7 +514,7 @@ public class TransactionLedgerSeeder {
                         .glAccount(creditGL)
                         .transactionAmount(amt)
                         .localCurrencyAmount(amt)
-                        .currency("INR")
+                        .currency(DEFAULT_CURRENCY)
                         .maker(teller)
                         .authFlag("Y")
                         .postFlag("Y")
