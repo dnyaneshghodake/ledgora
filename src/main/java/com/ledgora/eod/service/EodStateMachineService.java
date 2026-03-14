@@ -235,6 +235,31 @@ public class EodStateMachineService {
     public void runPhaseValidated(EodProcess process, Long tenantId, LocalDate businessDate) {
         log.info("EOD Phase VALIDATED: tenant={} date={}", tenantId, businessDate);
 
+        // ── LOAN MODULE: EOD processing BEFORE validation ──
+        // RBI IRAC: Accrual → DPD/NPA → Provisioning must run before statement generation
+        try {
+            com.ledgora.loan.service.LoanAccrualService accrualService =
+                    applicationContext.getBean(com.ledgora.loan.service.LoanAccrualService.class);
+            accrualService.accrueDailyInterest(tenantId);
+        } catch (org.springframework.beans.factory.NoSuchBeanDefinitionException ignored) {
+            // Loan module not deployed — skip
+        }
+
+        try {
+            com.ledgora.loan.service.LoanNpaService npaService =
+                    applicationContext.getBean(com.ledgora.loan.service.LoanNpaService.class);
+            npaService.evaluateNpaAndUpdateDpd(tenantId);
+        } catch (org.springframework.beans.factory.NoSuchBeanDefinitionException ignored) {
+        }
+
+        try {
+            com.ledgora.loan.service.LoanProvisionService provisionService =
+                    applicationContext.getBean(
+                            com.ledgora.loan.service.LoanProvisionService.class);
+            provisionService.calculateProvisions(tenantId);
+        } catch (org.springframework.beans.factory.NoSuchBeanDefinitionException ignored) {
+        }
+
         List<String> errors = eodValidationService.validateEod(tenantId, businessDate);
         if (!errors.isEmpty()) {
             throw new RuntimeException("EOD validation failed: " + String.join("; ", errors));
@@ -295,6 +320,23 @@ public class EodStateMachineService {
         process.setStatus("COMPLETED");
         process.setCompletedAt(LocalDateTime.now());
         eodProcessRepository.save(process);
+
+        // ── FINANCIAL STATEMENT ENGINE: Generate snapshots AFTER date advance ──
+        // RBI Master Directions: Daily Balance Sheet + P&L snapshots with SHA-256 checksum
+        try {
+            com.ledgora.reporting.service.FinancialStatementService statementService =
+                    applicationContext.getBean(
+                            com.ledgora.reporting.service.FinancialStatementService.class);
+            statementService.generateDailySnapshots(tenantId);
+        } catch (org.springframework.beans.factory.NoSuchBeanDefinitionException ignored) {
+            // Reporting module not deployed — skip
+        } catch (Exception e) {
+            // Statement generation failure should NOT block EOD completion
+            log.warn(
+                    "Financial statement snapshot generation failed for tenant {}: {}",
+                    tenantId,
+                    e.getMessage());
+        }
 
         auditService.logEvent(
                 null,
