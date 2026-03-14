@@ -338,6 +338,23 @@ public class EodStateMachineService {
                     e.getMessage());
         }
 
+        // ── REGULATORY REPORTING: Trial Balance → CRAR → ALM snapshots ──
+        // RBI Supervisory Reporting: Generated after financial statements, before EOD completion
+        try {
+            com.ledgora.reporting.service.RegulatorySnapshotService regulatoryService =
+                    applicationContext.getBean(
+                            com.ledgora.reporting.service.RegulatorySnapshotService.class);
+            regulatoryService.generateAllSnapshots(tenantId);
+        } catch (org.springframework.beans.factory.NoSuchBeanDefinitionException ignored) {
+            // Regulatory reporting module not deployed — skip
+        } catch (Exception e) {
+            // Regulatory snapshot failure should NOT block EOD completion
+            log.warn(
+                    "Regulatory snapshot generation failed for tenant {}: {}",
+                    tenantId,
+                    e.getMessage());
+        }
+
         auditService.logEvent(
                 null,
                 "EOD_COMPLETED",
