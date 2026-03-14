@@ -191,13 +191,17 @@ public class AccountController {
         }
         model.addAttribute("approvedByUsername", approvedByUsername);
 
-        // Load balance data for Balances tab
+        // Load balance data for Balances tab — always from CbsBalanceEngine (authoritative source)
         try {
             AccountBalance cbsBalance = balanceEngine.getCbsBalance(id);
+            model.addAttribute("ledgerBalance", cbsBalance.getLedgerBalance());
             model.addAttribute("availableBalance", cbsBalance.getAvailableBalance());
+            model.addAttribute("actualBalance", cbsBalance.getActualTotalBalance());
             model.addAttribute("totalLien", cbsBalance.getLienBalance());
         } catch (Exception e) {
+            model.addAttribute("ledgerBalance", account.getBalance());
             model.addAttribute("availableBalance", account.getBalance());
+            model.addAttribute("actualBalance", account.getBalance());
             model.addAttribute("totalLien", "0.00");
         }
 
