@@ -10,6 +10,7 @@ import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
+import com.ledgora.tenant.service.TenantService;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -17,8 +18,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
  * Admin management controller.
@@ -42,18 +46,21 @@ public class AdminController {
     private final BranchRepository branchRepository;
     private final TenantRepository tenantRepository;
     private final AuditLogRepository auditLogRepository;
+    private final TenantService tenantService;
 
     public AdminController(
             UserRepository userRepository,
             RoleRepository roleRepository,
             BranchRepository branchRepository,
             TenantRepository tenantRepository,
-            AuditLogRepository auditLogRepository) {
+            AuditLogRepository auditLogRepository,
+            TenantService tenantService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.branchRepository = branchRepository;
         this.tenantRepository = tenantRepository;
         this.auditLogRepository = auditLogRepository;
+        this.tenantService = tenantService;
     }
 
     /** User management — list all users with roles. */
@@ -89,6 +96,34 @@ public class AdminController {
         model.addAttribute("tenants", tenants);
         model.addAttribute("tenantCount", tenants.size());
         return "admin/tenants";
+    }
+
+    /** Activate a tenant (INITIALIZING/INACTIVE → ACTIVE). */
+    @PostMapping("/tenants/{id}/activate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public String activateTenant(
+            @PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            tenantService.activateTenant(id);
+            redirectAttributes.addFlashAttribute("message", "Tenant activated successfully");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/admin/tenants";
+    }
+
+    /** Deactivate a tenant (ACTIVE → INACTIVE). Business day must be CLOSED. */
+    @PostMapping("/tenants/{id}/deactivate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public String deactivateTenant(
+            @PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            tenantService.deactivateTenant(id);
+            redirectAttributes.addFlashAttribute("message", "Tenant deactivated successfully");
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/admin/tenants";
     }
 
     /** Audit log viewer — paginated, filterable. */
