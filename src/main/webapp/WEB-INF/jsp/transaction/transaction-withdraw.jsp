@@ -146,14 +146,23 @@
         </div>
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-4">
-                    <label for="amountInput" class="form-label cbs-field-required">Amount (<c:out value="${baseCurrency}" default="INR"/>)</label>
+                <div class="col-md-3">
+                    <label for="amountInput" class="form-label cbs-field-required">Amount</label>
                     <input type="number" name="amount" class="form-control" required step="0.01" min="0.01" id="amountInput"/>
                     <small class="text-muted">Cannot exceed available balance.</small>
                     <div id="amtInlineError" class="cbs-inline-error">Amount must be greater than zero.</div>
                     <div id="balanceExceedError" class="cbs-inline-error">Amount exceeds available balance.</div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-2">
+                    <label for="currencyInput" class="form-label cbs-field-required">Currency</label>
+                    <select name="currency" id="currencyInput" class="form-select" required>
+                        <option value="INR" selected>INR</option>
+                        <option value="USD">USD</option>
+                        <option value="EUR">EUR</option>
+                        <option value="GBP">GBP</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
                     <label for="channelInput" class="form-label cbs-field-required">Channel</label>
                     <select name="channel" id="channelInput" class="form-select" required>
                         <option value="">-- Select Channel --</option>
@@ -170,6 +179,15 @@
                 <div class="col-12">
                     <label for="narrationInput" class="form-label">Narration</label>
                     <input type="text" name="narration" id="narrationInput" class="form-control" maxlength="500" placeholder="Narration (for audit trail and passbook)"/>
+                </div>
+                <%-- FX Info --%>
+                <div class="col-12 d-none" id="fxInfoRow">
+                    <div class="alert alert-info d-flex align-items-center mb-0 py-2">
+                        <i class="bi bi-currency-exchange me-2 fs-5"></i>
+                        <span>Cross-currency: <strong id="fxFromCcy">--</strong> → <strong id="fxToCcy">--</strong>
+                        | Account currency: <strong id="fxAcctCcy">--</strong>
+                        | FX conversion will be applied at the business-date rate on submission.</span>
+                    </div>
                 </div>
             </div>
         </div>
