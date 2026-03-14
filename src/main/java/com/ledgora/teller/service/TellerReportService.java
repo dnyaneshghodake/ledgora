@@ -1,15 +1,14 @@
 package com.ledgora.teller.service;
 
+import com.ledgora.common.exception.BusinessException;
 import com.ledgora.teller.entity.CashDenominationTxn;
 import com.ledgora.teller.entity.CashDifferenceLog;
 import com.ledgora.teller.entity.TellerSession;
 import com.ledgora.teller.entity.VaultMaster;
-import com.ledgora.teller.entity.VaultTransfer;
 import com.ledgora.teller.repository.CashDenominationTxnRepository;
 import com.ledgora.teller.repository.CashDifferenceLogRepository;
 import com.ledgora.teller.repository.TellerSessionRepository;
 import com.ledgora.teller.repository.VaultMasterRepository;
-import com.ledgora.teller.repository.VaultTransferRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.service.TenantService;
 import java.math.BigDecimal;
@@ -38,7 +37,6 @@ public class TellerReportService {
 
     private final TellerSessionRepository tellerSessionRepository;
     private final VaultMasterRepository vaultMasterRepository;
-    private final VaultTransferRepository vaultTransferRepository;
     private final CashDenominationTxnRepository cashDenominationTxnRepository;
     private final CashDifferenceLogRepository cashDifferenceLogRepository;
     private final TenantService tenantService;
@@ -46,13 +44,11 @@ public class TellerReportService {
     public TellerReportService(
             TellerSessionRepository tellerSessionRepository,
             VaultMasterRepository vaultMasterRepository,
-            VaultTransferRepository vaultTransferRepository,
             CashDenominationTxnRepository cashDenominationTxnRepository,
             CashDifferenceLogRepository cashDifferenceLogRepository,
             TenantService tenantService) {
         this.tellerSessionRepository = tellerSessionRepository;
         this.vaultMasterRepository = vaultMasterRepository;
-        this.vaultTransferRepository = vaultTransferRepository;
         this.cashDenominationTxnRepository = cashDenominationTxnRepository;
         this.cashDifferenceLogRepository = cashDifferenceLogRepository;
         this.tenantService = tenantService;
@@ -91,12 +87,17 @@ public class TellerReportService {
         return rows;
     }
 
-    /** Vault Position: current balance and holding limit for all vaults in the tenant. */
+    /**
+     * Vault Position: current balance and holding limit for all vaults in the current tenant. Uses
+     * findAll() with in-memory tenant filter because VaultMasterRepository does not have a
+     * findByTenantId query. For production scale, add a tenant-scoped query to the repository.
+     */
     public List<Map<String, Object>> getVaultPositionReport() {
         Long tenantId = TenantContextHolder.getRequiredTenantId();
         List<VaultMaster> vaults = vaultMasterRepository.findAll();
         List<Map<String, Object>> rows = new ArrayList<>();
         for (VaultMaster v : vaults) {
+            // Tenant isolation: skip vaults not belonging to current tenant
             try {
                 if (v.getTenant() == null || !v.getTenant().getId().equals(tenantId)) {
                     continue;
@@ -168,8 +169,25 @@ public class TellerReportService {
 
     /**
      * Denomination Summary: aggregated denomination breakdown for all transactions in a session.
+     * Includes tenant isolation check to prevent IDOR (CWE-639).
      */
     public List<Map<String, Object>> getDenominationSummary(Long sessionId) {
+        // Tenant isolation: verify session belongs to current tenant before returning data
+        Long tenantId = TenantContextHolder.getRequiredTenantId();
+        TellerSession session =
+                tellerSessionRepository
+                        .findById(sessionId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                "NO_TELLER_SESSION",
+                                                "No teller session found: " + sessionId));
+        if (session.getTenant() == null || !session.getTenant().getId().equals(tenantId)) {
+            throw new BusinessException(
+                    "TENANT_MISMATCH",
+                    "Session does not belong to current tenant. sessionId=" + sessionId);
+        }
+
         List<CashDenominationTxn> txns = cashDenominationTxnRepository.findBySessionId(sessionId);
         Map<BigDecimal, int[]> denomMap = new HashMap<>();
         for (CashDenominationTxn t : txns) {

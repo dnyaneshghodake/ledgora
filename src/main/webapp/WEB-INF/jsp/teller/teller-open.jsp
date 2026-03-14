@@ -73,19 +73,17 @@
     denomInputs.forEach(function(inp){ inp.addEventListener('input', recalc); });
 
     form.addEventListener('submit', function(e){
-        // Build hidden denomination fields
+        // Build hidden denomination fields with correct sequential index
+        var idx = 0;
         denomInputs.forEach(function(inp){
             var cnt = parseInt(inp.value) || 0;
             if(cnt > 0){
                 var dv = inp.getAttribute('data-value');
-                var h1 = document.createElement('input'); h1.type='hidden'; h1.name='denominations['+document.querySelectorAll('input[name^="denominations"]').length/2+'].denominationValue'; h1.value=dv; form.appendChild(h1);
-                var h2 = document.createElement('input'); h2.type='hidden'; h2.name='denominations['+(document.querySelectorAll('input[name^="denominations"]').length-1)/2+'].count'; h2.value=cnt; form.appendChild(h2);
+                var h1 = document.createElement('input'); h1.type='hidden'; h1.name='denominations['+idx+'].denominationValue'; h1.value=dv; form.appendChild(h1);
+                var h2 = document.createElement('input'); h2.type='hidden'; h2.name='denominations['+idx+'].count'; h2.value=cnt; form.appendChild(h2);
+                idx++;
             }
         });
-        var total = parseFloat(openingBalEl.value) || 0;
-        if(total <= 0 && document.querySelectorAll('input[name^="denominations"]').length === 0){
-            // Allow zero opening balance (teller starts with no cash)
-        }
     });
 })();
 </script>
