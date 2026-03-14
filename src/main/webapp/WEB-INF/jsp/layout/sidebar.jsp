@@ -421,6 +421,49 @@
             </li>
             </c:if>
 
+            <%-- ═══ Regulatory Reporting (RBI / Basel III) ═══ --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isOperations || sessionScope.isRisk}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="regulatory">
+                    <i class="bi bi-bank2"></i>
+                    <span>Regulatory Reporting</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-regulatory">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/regulatory/dashboard" class="cbs-nav-link" data-page="regulatory/dashboard">
+                            <i class="bi bi-speedometer"></i>
+                            <span>Regulatory Dashboard</span>
+                        </a>
+                    </li>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isOperations}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/regulatory/trial-balance" class="cbs-nav-link" data-page="regulatory/trial-balance">
+                            <i class="bi bi-calculator"></i>
+                            <span>Trial Balance</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/regulatory/crar" class="cbs-nav-link" data-page="regulatory/crar">
+                            <i class="bi bi-shield-check"></i>
+                            <span>CRAR (Capital Adequacy)</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk || sessionScope.isOperations}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/regulatory/alm" class="cbs-nav-link" data-page="regulatory/alm">
+                            <i class="bi bi-bar-chart-steps"></i>
+                            <span>ALM Liquidity</span>
+                        </a>
+                    </li>
+                    </c:if>
+                </ul>
+            </li>
+            </c:if>
+
             <%-- ═══ Risk & Fraud Monitoring ═══ --%>
             <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isAuditor}">
             <li class="cbs-nav-group">
