@@ -302,8 +302,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
 
         // Verify ledger entries created and balanced
         List<LedgerEntry> entries =
-                ledgerEntryRepository.findByBusinessDateAndTenantId(
-                        bizDate, data.tenant.getId());
+                ledgerEntryRepository.findByBusinessDateAndTenantId(bizDate, data.tenant.getId());
         BigDecimal totalDebits =
                 entries.stream()
                         .filter(e -> e.getEntryType() == EntryType.DEBIT)
@@ -1218,8 +1217,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
                 "Unauthorized voucher for EOD test");
 
         // EOD should fail
-        List<String> errors =
-                eodValidationService.validateEod(data.tenant.getId(), bizDate);
+        List<String> errors = eodValidationService.validateEod(data.tenant.getId(), bizDate);
         assertFalse(errors.isEmpty(), "EOD must be blocked when unauthorized vouchers exist");
         assertTrue(
                 errors.stream().anyMatch(e -> e.contains("unauthorized")),
@@ -1256,8 +1254,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
         voucherService.authorizeVoucher(voucher.getId(), data.checker);
 
         // EOD should fail
-        List<String> errors =
-                eodValidationService.validateEod(data.tenant.getId(), bizDate);
+        List<String> errors = eodValidationService.validateEod(data.tenant.getId(), bizDate);
         assertFalse(errors.isEmpty(), "EOD must be blocked when unposted vouchers exist");
         assertTrue(
                 errors.stream().anyMatch(e -> e.contains("unposted")),
@@ -1282,8 +1279,7 @@ class LedgoraCbsPhase1To7IntegrationTest {
                         .build());
 
         List<String> errors =
-                eodValidationService.validateEod(
-                        tenant.getId(), tenant.getCurrentBusinessDate());
+                eodValidationService.validateEod(tenant.getId(), tenant.getCurrentBusinessDate());
         assertFalse(errors.isEmpty(), "EOD must be blocked when pending approvals exist");
         assertTrue(
                 errors.stream().anyMatch(e -> e.contains("pending approval")),

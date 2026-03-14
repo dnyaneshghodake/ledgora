@@ -309,9 +309,7 @@ public class AccountController {
                                                             tx.getId());
                                             for (LedgerEntry le : entries) {
                                                 if (le.getAccount() != null
-                                                        && le.getAccount()
-                                                                .getId()
-                                                                .equals(accountId)
+                                                        && le.getAccount().getId().equals(accountId)
                                                         && le.getBalanceAfter() != null) {
                                                     balAfter = le.getBalanceAfter().toPlainString();
                                                     break;

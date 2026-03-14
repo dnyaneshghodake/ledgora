@@ -73,8 +73,7 @@ public class CustomAuthenticationSuccessHandler
         session.setAttribute("isComplianceOfficer", roles.contains("ROLE_COMPLIANCE_OFFICER"));
 
         // Store user ID in session for maker-checker own-request detection in JSPs
-        User userEntity =
-                userRepository.findByUsername(userDetails.getUsername()).orElse(null);
+        User userEntity = userRepository.findByUsername(userDetails.getUsername()).orElse(null);
         if (userEntity != null) {
             session.setAttribute("userId", userEntity.getId());
         }

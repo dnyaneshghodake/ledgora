@@ -1151,12 +1151,12 @@ public class TransactionService {
 
     /**
      * Sync the AccountBalance cache after a transaction posts. Updates ALL balance fields to ensure
-     * the Balances tab, deposit form, and withdrawal validation all see the correct post-transaction
-     * balance.
+     * the Balances tab, deposit form, and withdrawal validation all see the correct
+     * post-transaction balance.
      *
      * <p>CBS rule: ledgerBalance, actualTotalBalance, actualClearedBalance, and availableBalance
-     * must all be consistent after every posting. The CbsBalanceEngine.updateActualBalance() handles
-     * the per-voucher-leg update, but the Account.balance field (the display cache) is the
+     * must all be consistent after every posting. The CbsBalanceEngine.updateActualBalance()
+     * handles the per-voucher-leg update, but the Account.balance field (the display cache) is the
      * authoritative source set here after both voucher legs are posted.
      */
     private void updateAccountBalanceCache(Account account, BigDecimal newLedgerBalance) {

@@ -1,7 +1,6 @@
 package com.ledgora.config.seeder;
 
 import com.ledgora.account.entity.Account;
-import com.ledgora.account.entity.AccountBalance;
 import com.ledgora.account.repository.AccountBalanceRepository;
 import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.auth.entity.User;
@@ -170,7 +169,8 @@ public class TransactionLedgerSeeder {
         // The seeder creates ledger entries with correct balanceAfter values, but the
         // Account.balance and AccountBalance records were set by CustomerAccountSeeder
         // BEFORE these transactions. We must sync them to the post-transaction state.
-        syncBalanceAfterSeed(rSav, new BigDecimal("10000.0000").subtract(new BigDecimal("5000.0000")));
+        syncBalanceAfterSeed(
+                rSav, new BigDecimal("10000.0000").subtract(new BigDecimal("5000.0000")));
         // rSav: +10000 (DEP-SEED-0001) -5000 (TRF-SEED-0001) = net +5000
         syncBalanceAfterSeed(pSav, new BigDecimal("15000.0000").add(new BigDecimal("5000.0000")));
         // pSav: +15000 (DEP-SEED-0002) +5000 (TRF-SEED-0001) = net +20000
@@ -197,8 +197,7 @@ public class TransactionLedgerSeeder {
                         .add(new BigDecimal("15000"))
                         .add(bulkDepositTotal)
                         .subtract(new BigDecimal("2000"));
-        Account glCash =
-                accountRepository.findByAccountNumber("GL-CASH-001").orElse(null);
+        Account glCash = accountRepository.findByAccountNumber("GL-CASH-001").orElse(null);
         if (glCash != null) {
             syncBalanceAfterSeed(glCash, cashGlDelta);
         }
@@ -208,8 +207,7 @@ public class TransactionLedgerSeeder {
         // Note: GL-DEP-001 maps to GL code 2100, not 2110. The savings deposits sub-GL
         // doesn't have a separate Account entity — only the parent 2100 does.
         // Customer Deposits GL 2100: net DR from withdrawal = -2000
-        Account glDep =
-                accountRepository.findByAccountNumber("GL-DEP-001").orElse(null);
+        Account glDep = accountRepository.findByAccountNumber("GL-DEP-001").orElse(null);
         if (glDep != null) {
             syncBalanceAfterSeed(glDep, new BigDecimal("-2000"));
         }
@@ -268,9 +266,7 @@ public class TransactionLedgerSeeder {
         BatchType batchType =
                 channel == TransactionChannel.TELLER
                         ? BatchType.BRANCH_CASH
-                        : channel == TransactionChannel.ATM
-                                ? BatchType.ATM
-                                : BatchType.ONLINE;
+                        : channel == TransactionChannel.ATM ? BatchType.ATM : BatchType.ONLINE;
         String batchCode = "SEED-" + batchType.name() + "-" + biz.toString().replace("-", "");
         TransactionBatch batch =
                 batchRepository
@@ -380,10 +376,18 @@ public class TransactionLedgerSeeder {
         Voucher drVoucher =
                 Voucher.builder()
                         .voucherNumber(
-                                tenantCode + "-" + branchCode + "-" + dateStr + "-"
+                                tenantCode
+                                        + "-"
+                                        + branchCode
+                                        + "-"
+                                        + dateStr
+                                        + "-"
                                         + String.format("%06d", scrollCounter))
                         .tenant(tenant)
-                        .branch(drAccount.getBranch() != null ? drAccount.getBranch() : dst.getBranch())
+                        .branch(
+                                drAccount.getBranch() != null
+                                        ? drAccount.getBranch()
+                                        : dst.getBranch())
                         .transaction(txn)
                         .batchCode(batchCode)
                         .setNo(1)
@@ -412,10 +416,18 @@ public class TransactionLedgerSeeder {
         Voucher crVoucher =
                 Voucher.builder()
                         .voucherNumber(
-                                tenantCode + "-" + branchCode + "-" + dateStr + "-"
+                                tenantCode
+                                        + "-"
+                                        + branchCode
+                                        + "-"
+                                        + dateStr
+                                        + "-"
                                         + String.format("%06d", scrollCounter))
                         .tenant(tenant)
-                        .branch(crAccount.getBranch() != null ? crAccount.getBranch() : src.getBranch())
+                        .branch(
+                                crAccount.getBranch() != null
+                                        ? crAccount.getBranch()
+                                        : src.getBranch())
                         .transaction(txn)
                         .batchCode(batchCode)
                         .setNo(1)
