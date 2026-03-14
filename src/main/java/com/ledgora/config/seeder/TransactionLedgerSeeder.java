@@ -1,6 +1,8 @@
 package com.ledgora.config.seeder;
 
 import com.ledgora.account.entity.Account;
+import com.ledgora.account.entity.AccountBalance;
+import com.ledgora.account.repository.AccountBalanceRepository;
 import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.auth.entity.User;
 import com.ledgora.common.enums.*;
@@ -30,6 +32,7 @@ public class TransactionLedgerSeeder {
     private static final Logger log = LoggerFactory.getLogger(TransactionLedgerSeeder.class);
     private final TransactionRepository transactionRepository;
     private final AccountRepository accountRepository;
+    private final AccountBalanceRepository accountBalanceRepository;
     private final GeneralLedgerRepository glRepository;
     private final LedgerJournalRepository journalRepository;
     private final LedgerEntryRepository entryRepository;
@@ -37,11 +40,13 @@ public class TransactionLedgerSeeder {
     public TransactionLedgerSeeder(
             TransactionRepository transactionRepository,
             AccountRepository accountRepository,
+            AccountBalanceRepository accountBalanceRepository,
             GeneralLedgerRepository glRepository,
             LedgerJournalRepository journalRepository,
             LedgerEntryRepository entryRepository) {
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
+        this.accountBalanceRepository = accountBalanceRepository;
         this.glRepository = glRepository;
         this.journalRepository = journalRepository;
         this.entryRepository = entryRepository;
@@ -150,7 +155,50 @@ public class TransactionLedgerSeeder {
                     balAfter);
         }
 
+        // ── Sync Account.balance and AccountBalance to reflect seeded transactions ──
+        // The seeder creates ledger entries with correct balanceAfter values, but the
+        // Account.balance and AccountBalance records were set by CustomerAccountSeeder
+        // BEFORE these transactions. We must sync them to the post-transaction state.
+        syncBalanceAfterSeed(rSav, new BigDecimal("10000.0000").subtract(new BigDecimal("5000.0000")));
+        // rSav: +10000 (DEP-SEED-0001) -5000 (TRF-SEED-0001) = net +5000
+        syncBalanceAfterSeed(pSav, new BigDecimal("15000.0000").add(new BigDecimal("5000.0000")));
+        // pSav: +15000 (DEP-SEED-0002) +5000 (TRF-SEED-0001) = net +20000
+        syncBalanceAfterSeed(rCur, new BigDecimal("2000.0000").negate());
+        // rCur: -2000 (WDR-SEED-0001) = net -2000
+
+        // Bulk accounts: each got a deposit of (i * 1000)
+        for (int i = 5; i <= 30; i++) {
+            String savNum = String.format("SAV-%04d-0001", i);
+            Account bulkAcct = accountRepository.findByAccountNumber(savNum).orElse(null);
+            if (bulkAcct != null) {
+                syncBalanceAfterSeed(bulkAcct, new BigDecimal((i * 1000) + ".0000"));
+            }
+        }
+
         log.info("  [Transactions] 30 sample transactions with balanced ledger journals created");
+        log.info("  [Balances] Account balances synced to post-transaction state");
+    }
+
+    /**
+     * Sync Account.balance and AccountBalance after seeded transactions. Adds the net transaction
+     * delta to the existing balance (which was set by CustomerAccountSeeder).
+     */
+    private void syncBalanceAfterSeed(Account account, BigDecimal netDelta) {
+        BigDecimal newBalance = account.getBalance().add(netDelta);
+        account.setBalance(newBalance);
+        accountRepository.save(account);
+
+        // Also sync AccountBalance to match
+        accountBalanceRepository
+                .findByAccountId(account.getId())
+                .ifPresent(
+                        ab -> {
+                            ab.setLedgerBalance(newBalance);
+                            ab.setActualTotalBalance(newBalance);
+                            ab.setActualClearedBalance(newBalance);
+                            ab.setAvailableBalance(newBalance);
+                            accountBalanceRepository.save(ab);
+                        });
     }
 
     private void txnAndJournal(
