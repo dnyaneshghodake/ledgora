@@ -266,8 +266,7 @@ public class TransactionLedgerSeeder {
             final long bId = branchId;
             ScrollSequence seq =
                     scrollSequenceRepository
-                            .findByTenantIdAndBranchIdAndPostingDateWithLock(
-                                    tenantId, bId, biz)
+                            .findByTenantIdAndBranchIdAndPostingDateWithLock(tenantId, bId, biz)
                             .orElseGet(
                                     () ->
                                             ScrollSequence.builder()
