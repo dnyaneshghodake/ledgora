@@ -38,6 +38,38 @@
                 <input type="text" class="form-control" id="regulatoryCode" name="regulatoryCode" maxlength="50"
                        placeholder="e.g. RBI/2024/BANK/001" pattern="^RBI/[0-9]{4}/[A-Z]+/[0-9]{3,}$">
             </div>
+            <div class="col-md-3">
+                <label for="baseCurrency" class="form-label">Base Currency</label>
+                <select class="form-select" id="baseCurrency" name="baseCurrency">
+                    <option value="INR" selected>INR</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="country" class="form-label">Country</label>
+                <input type="text" class="form-control" id="country" name="country" value="IN" maxlength="5" placeholder="e.g. IN">
+            </div>
+            <div class="col-md-3">
+                <label for="timezone" class="form-label">Timezone</label>
+                <input type="text" class="form-control" id="timezone" name="timezone" value="Asia/Kolkata" maxlength="50">
+            </div>
+            <div class="col-md-2">
+                <label for="effectiveFrom" class="form-label">Effective From</label>
+                <input type="date" class="form-control" id="effectiveFrom" name="effectiveFrom">
+            </div>
+            <div class="col-md-2">
+                <label for="multiBranchEnabled" class="form-label">Multi-Branch</label>
+                <select class="form-select" id="multiBranchEnabled" name="multiBranchEnabled">
+                    <option value="false" selected>No</option>
+                    <option value="true">Yes</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="remarks" class="form-label">Remarks</label>
+                <input type="text" class="form-control" id="remarks" name="remarks" maxlength="500" placeholder="Onboarding notes">
+            </div>
             <div class="col-md-3 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary w-100" onclick="return confirm('Create new tenant? This action will be audited.')">
                     <i class="bi bi-plus-circle"></i> Create Tenant

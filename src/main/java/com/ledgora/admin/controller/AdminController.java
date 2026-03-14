@@ -98,6 +98,125 @@ public class AdminController {
         return "admin/tenants";
     }
 
+    /** Create a new tenant. Maps all entity attributes from the onboarding form. */
+    @PostMapping("/tenants/create")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
+    public String createTenant(
+            @RequestParam String tenantCode,
+            @RequestParam String tenantName,
+            @RequestParam(required = false) String regulatoryCode,
+            @RequestParam(required = false, defaultValue = "INR") String baseCurrency,
+            @RequestParam(required = false, defaultValue = "IN") String country,
+            @RequestParam(required = false, defaultValue = "Asia/Kolkata") String timezone,
+            @RequestParam(required = false) String effectiveFrom,
+            @RequestParam(required = false, defaultValue = "false") Boolean multiBranchEnabled,
+            @RequestParam(required = false) String remarks,
+            RedirectAttributes redirectAttributes) {
+        try {
+            java.time.LocalDate bizDate =
+                    com.ledgora.config.seeder.SeederDateUtil.nextWeekday();
+            Tenant tenant = tenantService.createTenant(tenantCode, tenantName, bizDate);
+            // Set additional RBI/CBS fields not covered by the base createTenant method
+            tenant.setRegulatoryCode(regulatoryCode);
+            tenant.setBaseCurrency(baseCurrency);
+            tenant.setCountry(country);
+            tenant.setTimezone(timezone);
+            tenant.setMultiBranchEnabled(multiBranchEnabled);
+            tenant.setRemarks(remarks);
+            if (effectiveFrom != null && !effectiveFrom.isBlank()) {
+                tenant.setEffectiveFrom(java.time.LocalDate.parse(effectiveFrom));
+            }
+            tenantRepository.save(tenant);
+            redirectAttributes.addFlashAttribute(
+                    "message",
+                    "Tenant created: " + tenant.getTenantCode() + " — " + tenant.getTenantName());
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/admin/tenants";
+    }
+
+    /** Create a new branch. Maps all entity attributes from the branch form. */
+    @PostMapping("/branches/create")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TENANT_ADMIN', 'SUPER_ADMIN')")
+    public String createBranch(
+            @RequestParam String branchCode,
+            @RequestParam String name,
+            @RequestParam(required = false) String address,
+            @RequestParam(required = false) String city,
+            @RequestParam(required = false) String state,
+            @RequestParam(required = false) String pincode,
+            @RequestParam(required = false) String ifscCode,
+            @RequestParam(required = false) String micrCode,
+            @RequestParam(required = false, defaultValue = "BRANCH") String branchType,
+            @RequestParam(required = false) String contactPhone,
+            RedirectAttributes redirectAttributes) {
+        try {
+            if (branchRepository.existsByBranchCode(branchCode)) {
+                throw new RuntimeException("Branch code already exists: " + branchCode);
+            }
+            // Resolve tenant from current session context
+            Long tenantId = com.ledgora.tenant.context.TenantContextHolder.getTenantId();
+            Tenant tenant = tenantId != null ? tenantService.getTenantById(tenantId) : null;
+            Branch branch =
+                    Branch.builder()
+                            .branchCode(branchCode)
+                            .branchName(name)
+                            .name(name)
+                            .address(address)
+                            .city(city)
+                            .state(state)
+                            .pincode(pincode)
+                            .ifscCode(ifscCode)
+                            .micrCode(micrCode)
+                            .branchType(branchType)
+                            .contactPhone(contactPhone)
+                            .tenant(tenant)
+                            .isActive(true)
+                            .build();
+            branchRepository.save(branch);
+            redirectAttributes.addFlashAttribute(
+                    "message", "Branch created: " + branchCode + " — " + name);
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/admin/branches";
+    }
+
+    /** Activate a branch. */
+    @PostMapping("/branches/{id}/activate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TENANT_ADMIN', 'SUPER_ADMIN')")
+    public String activateBranch(
+            @PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            Branch branch =
+                    branchRepository.findById(id).orElseThrow(() -> new RuntimeException("Branch not found"));
+            branch.setIsActive(true);
+            branchRepository.save(branch);
+            redirectAttributes.addFlashAttribute("message", "Branch activated: " + branch.getBranchCode());
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/admin/branches";
+    }
+
+    /** Deactivate a branch. */
+    @PostMapping("/branches/{id}/deactivate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'TENANT_ADMIN', 'SUPER_ADMIN')")
+    public String deactivateBranch(
+            @PathVariable Long id, RedirectAttributes redirectAttributes) {
+        try {
+            Branch branch =
+                    branchRepository.findById(id).orElseThrow(() -> new RuntimeException("Branch not found"));
+            branch.setIsActive(false);
+            branchRepository.save(branch);
+            redirectAttributes.addFlashAttribute("message", "Branch deactivated: " + branch.getBranchCode());
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/admin/branches";
+    }
+
     /** Activate a tenant (INITIALIZING/INACTIVE → ACTIVE). */
     @PostMapping("/tenants/{id}/activate")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")

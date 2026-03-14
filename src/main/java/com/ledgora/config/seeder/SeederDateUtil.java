@@ -6,7 +6,7 @@ import java.time.LocalDate;
  * Shared date utility for CBS seeders. Centralises the weekday-business-date rule so every seeder
  * module uses the same logic and avoids copy-paste duplication.
  */
-final class SeederDateUtil {
+public final class SeederDateUtil {
 
     private SeederDateUtil() {}
 
@@ -15,7 +15,7 @@ final class SeederDateUtil {
      * Monday. CBS operations require a working-day business date; seeding on a weekend must not
      * produce a weekend business date.
      */
-    static LocalDate nextWeekday() {
+    public static LocalDate nextWeekday() {
         LocalDate d = LocalDate.now();
         while (d.getDayOfWeek().getValue() > 5) {
             d = d.plusDays(1);
