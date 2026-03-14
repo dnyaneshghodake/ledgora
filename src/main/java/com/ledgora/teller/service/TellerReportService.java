@@ -75,9 +75,7 @@ public class TellerReportService {
                         s.getTeller() != null && s.getTeller().getUser() != null
                                 ? s.getTeller().getUser().getFullName()
                                 : "--");
-                row.put(
-                        "branchCode",
-                        s.getBranch() != null ? s.getBranch().getBranchCode() : "--");
+                row.put("branchCode", s.getBranch() != null ? s.getBranch().getBranchCode() : "--");
             } catch (Exception e) {
                 row.put("tellerName", "--");
                 row.put("branchCode", "--");
@@ -87,36 +85,20 @@ public class TellerReportService {
         return rows;
     }
 
-    /**
-     * Vault Position: current balance and holding limit for all vaults in the current tenant. Uses
-     * findAll() with in-memory tenant filter because VaultMasterRepository does not have a
-     * findByTenantId query. For production scale, add a tenant-scoped query to the repository.
-     */
+    /** Vault Position: current balance and holding limit for all vaults in the current tenant. */
     public List<Map<String, Object>> getVaultPositionReport() {
         Long tenantId = TenantContextHolder.getRequiredTenantId();
-        List<VaultMaster> vaults = vaultMasterRepository.findAll();
+        List<VaultMaster> vaults = vaultMasterRepository.findByTenantId(tenantId);
         List<Map<String, Object>> rows = new ArrayList<>();
         for (VaultMaster v : vaults) {
-            // Tenant isolation: skip vaults not belonging to current tenant
-            try {
-                if (v.getTenant() == null || !v.getTenant().getId().equals(tenantId)) {
-                    continue;
-                }
-            } catch (Exception e) {
-                continue;
-            }
             Map<String, Object> row = new HashMap<>();
             row.put("vaultId", v.getId());
             row.put("currentBalance", v.getCurrentBalance());
             row.put("holdingLimit", v.getHoldingLimit());
             row.put("dualCustody", v.getDualCustodyFlag());
             try {
-                row.put(
-                        "branchCode",
-                        v.getBranch() != null ? v.getBranch().getBranchCode() : "--");
-                row.put(
-                        "branchName",
-                        v.getBranch() != null ? v.getBranch().getName() : "--");
+                row.put("branchCode", v.getBranch() != null ? v.getBranch().getBranchCode() : "--");
+                row.put("branchName", v.getBranch() != null ? v.getBranch().getName() : "--");
             } catch (Exception e) {
                 row.put("branchCode", "--");
                 row.put("branchName", "--");
@@ -150,10 +132,26 @@ public class TellerReportService {
         BigDecimal totalCurrent = BigDecimal.ZERO;
         int sessionCount = 0;
         for (TellerSession s : sessions) {
-            totalCredits = totalCredits.add(s.getTotalCreditToday());
-            totalDebits = totalDebits.add(s.getTotalDebitToday());
-            totalOpening = totalOpening.add(s.getOpeningBalance());
-            totalCurrent = totalCurrent.add(s.getCurrentBalance());
+            totalCredits =
+                    totalCredits.add(
+                            s.getTotalCreditToday() != null
+                                    ? s.getTotalCreditToday()
+                                    : BigDecimal.ZERO);
+            totalDebits =
+                    totalDebits.add(
+                            s.getTotalDebitToday() != null
+                                    ? s.getTotalDebitToday()
+                                    : BigDecimal.ZERO);
+            totalOpening =
+                    totalOpening.add(
+                            s.getOpeningBalance() != null
+                                    ? s.getOpeningBalance()
+                                    : BigDecimal.ZERO);
+            totalCurrent =
+                    totalCurrent.add(
+                            s.getCurrentBalance() != null
+                                    ? s.getCurrentBalance()
+                                    : BigDecimal.ZERO);
             sessionCount++;
         }
         Map<String, Object> report = new HashMap<>();
@@ -191,9 +189,8 @@ public class TellerReportService {
         List<CashDenominationTxn> txns = cashDenominationTxnRepository.findBySessionId(sessionId);
         Map<BigDecimal, int[]> denomMap = new HashMap<>();
         for (CashDenominationTxn t : txns) {
-            denomMap
-                    .computeIfAbsent(t.getDenominationValue(), k -> new int[] {0})
-                    [0] += (t.getCount() != null ? t.getCount() : 0);
+            denomMap.computeIfAbsent(t.getDenominationValue(), k -> new int[] {0})[0] +=
+                    (t.getCount() != null ? t.getCount() : 0);
         }
         List<Map<String, Object>> rows = new ArrayList<>();
         denomMap.entrySet().stream()
@@ -219,8 +216,7 @@ public class TellerReportService {
                 tellerSessionRepository.findByTenantIdAndBusinessDate(tenantId, businessDate);
         List<Map<String, Object>> rows = new ArrayList<>();
         for (TellerSession s : sessions) {
-            List<CashDifferenceLog> diffs =
-                    cashDifferenceLogRepository.findBySessionId(s.getId());
+            List<CashDifferenceLog> diffs = cashDifferenceLogRepository.findBySessionId(s.getId());
             for (CashDifferenceLog d : diffs) {
                 Map<String, Object> row = new HashMap<>();
                 row.put("sessionId", s.getId());

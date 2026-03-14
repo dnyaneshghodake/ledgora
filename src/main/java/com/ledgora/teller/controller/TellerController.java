@@ -312,8 +312,7 @@ public class TellerController {
 
     @GetMapping("/reports/denomination-summary")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'TELLER')")
-    public String denominationSummary(
-            @RequestParam("sessionId") Long sessionId, Model model) {
+    public String denominationSummary(@RequestParam("sessionId") Long sessionId, Model model) {
         model.addAttribute("sessionId", sessionId);
         model.addAttribute("rows", tellerReportService.getDenominationSummary(sessionId));
         return "teller/report-denomination-summary";
