@@ -58,6 +58,7 @@ public class UserDataSeeder {
         Role branchMgrRole = role(RoleName.ROLE_BRANCH_MANAGER);
         Role systemRole = role(RoleName.ROLE_SYSTEM);
         Role complianceRole = role(RoleName.ROLE_COMPLIANCE_OFFICER);
+        Role riskRole = role(RoleName.ROLE_RISK);
 
         User adminUser =
                 create(
@@ -232,6 +233,18 @@ public class UserDataSeeder {
                 defaultTenant,
                 TenantScope.SINGLE);
 
+        // Risk Officer — RBI Basel III / ICAAP: view fraud flags, velocity alerts, risk dashboards
+        create(
+                "risk1",
+                "risk123",
+                "Risk Officer",
+                "risk1@ledgora.com",
+                "+91-9000000015",
+                hqBranch,
+                Set.of(riskRole),
+                defaultTenant,
+                TenantScope.SINGLE);
+
         // ATM System user — channel-level system identity for ATM transactions
         Role atmRole = role(RoleName.ROLE_ATM_SYSTEM);
         create(
@@ -267,7 +280,7 @@ public class UserDataSeeder {
                 defaultTenant,
                 TenantScope.MULTI);
 
-        log.info("  [Users] 19 users ready");
+        log.info("  [Users] 20 users ready");
         return new User[] {adminUser, managerUser, teller1User};
     }
 
