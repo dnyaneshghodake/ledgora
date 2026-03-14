@@ -16,7 +16,9 @@ import com.ledgora.ledger.repository.LedgerJournalRepository;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.transaction.entity.Transaction;
 import com.ledgora.transaction.repository.TransactionRepository;
+import com.ledgora.voucher.entity.ScrollSequence;
 import com.ledgora.voucher.entity.Voucher;
+import com.ledgora.voucher.repository.ScrollSequenceRepository;
 import com.ledgora.voucher.repository.VoucherRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -42,6 +44,7 @@ public class TransactionLedgerSeeder {
     private final LedgerEntryRepository entryRepository;
     private final TransactionBatchRepository batchRepository;
     private final VoucherRepository voucherRepository;
+    private final ScrollSequenceRepository scrollSequenceRepository;
 
     public TransactionLedgerSeeder(
             TransactionRepository transactionRepository,
@@ -51,7 +54,8 @@ public class TransactionLedgerSeeder {
             LedgerJournalRepository journalRepository,
             LedgerEntryRepository entryRepository,
             TransactionBatchRepository batchRepository,
-            VoucherRepository voucherRepository) {
+            VoucherRepository voucherRepository,
+            ScrollSequenceRepository scrollSequenceRepository) {
         this.transactionRepository = transactionRepository;
         this.accountRepository = accountRepository;
         this.accountBalanceRepository = accountBalanceRepository;
@@ -60,6 +64,7 @@ public class TransactionLedgerSeeder {
         this.entryRepository = entryRepository;
         this.batchRepository = batchRepository;
         this.voucherRepository = voucherRepository;
+        this.scrollSequenceRepository = scrollSequenceRepository;
     }
 
     public void seed(Tenant tenant, User teller) {
@@ -212,8 +217,14 @@ public class TransactionLedgerSeeder {
             syncBalanceAfterSeed(glDep, new BigDecimal("-2000"));
         }
 
+        // ── Sync ScrollSequence table so live voucher numbering starts after seeded scrolls ──
+        // Without this, VoucherService.getNextScrollNo() would return 1 and collide with
+        // seeded voucher numbers (duplicate key on idx_voucher_number).
+        syncScrollSequences(tenant, biz);
+
         log.info("  [Transactions] 30 sample transactions with balanced ledger journals created");
         log.info("  [Balances] Account + GL balances synced to post-transaction state");
+        log.info("  [ScrollSeq] Scroll sequences synced (lastScrollNo={})", scrollCounter);
     }
 
     /**
@@ -240,6 +251,37 @@ public class TransactionLedgerSeeder {
 
     /** Scroll counter for voucher numbering within this seeder run. */
     private long scrollCounter = 0;
+
+    /**
+     * Sync the ScrollSequence table after seeding vouchers. Creates or updates entries for each
+     * branch so that VoucherService.getNextScrollNo() starts AFTER the last seeded scroll number.
+     */
+    private void syncScrollSequences(Tenant tenant, LocalDate biz) {
+        // All seeded vouchers share the same tenant + business date.
+        // We need to set lastScrollNo for each branch that has seeded vouchers.
+        // Since scrollCounter is global across all branches in this run, we set it
+        // for all 3 branches to be safe (covers HQ001, BR001, BR002).
+        Long tenantId = tenant.getId();
+        for (long branchId = 1; branchId <= 3; branchId++) {
+            final long bId = branchId;
+            ScrollSequence seq =
+                    scrollSequenceRepository
+                            .findByTenantIdAndBranchIdAndPostingDateWithLock(
+                                    tenantId, bId, biz)
+                            .orElseGet(
+                                    () ->
+                                            ScrollSequence.builder()
+                                                    .tenantId(tenantId)
+                                                    .branchId(bId)
+                                                    .postingDate(biz)
+                                                    .lastScrollNo(0L)
+                                                    .build());
+            if (seq.getLastScrollNo() < scrollCounter) {
+                seq.setLastScrollNo(scrollCounter);
+                scrollSequenceRepository.save(seq);
+            }
+        }
+    }
 
     /**
      * Create a complete production-grade transaction chain: Transaction → Batch → Voucher(DR+CR) →
