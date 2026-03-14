@@ -155,7 +155,7 @@ SET IDENTITY_INSERT general_ledgers OFF;
 SET IDENTITY_INSERT accounts ON;
 INSERT INTO accounts (id, tenant_id, account_number, account_name, account_type, status, balance, currency, branch_code, branch_id, customer_name, gl_account_code, freeze_level, npa_flag, approval_status, created_at, version, updated_at) VALUES
 -- ── Tenant 1: Internal / GL Accounts ──
-(1,  1, 'T1-CASH-BR001',     'Cash Account BR001',            'INTERNAL_ACCOUNT', 'ACTIVE', 5000000.0000, 'INR', 'BR001', 1, NULL,                'GL-T1-CASH',    'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(1,  1, 'T1-CASH-BR001',     'Cash Account BR001',            'INTERNAL_ACCOUNT', 'ACTIVE', 5140000.0000, 'INR', 'BR001', 1, NULL,                'GL-T1-CASH',    'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 (2,  1, 'T1-CASH-BR002',     'Cash Account BR002',            'INTERNAL_ACCOUNT', 'ACTIVE', 3000000.0000, 'INR', 'BR002', 2, NULL,                'GL-T1-CASH',    'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 (3,  1, 'T1-CLR-OUT-BR001',  'IBC Outward Clearing BR001',    'CLEARING_ACCOUNT', 'ACTIVE', 0.0000,       'INR', 'BR001', 1, NULL,                'GL-T1-CLR-OUT', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 (4,  1, 'T1-CLR-IN-BR001',   'IBC Inward Clearing BR001',     'CLEARING_ACCOUNT', 'ACTIVE', 0.0000,       'INR', 'BR001', 1, NULL,                'GL-T1-CLR-IN',  'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
@@ -163,12 +163,12 @@ INSERT INTO accounts (id, tenant_id, account_number, account_name, account_type,
 (6,  1, 'T1-CLR-IN-BR002',   'IBC Inward Clearing BR002',     'CLEARING_ACCOUNT', 'ACTIVE', 0.0000,       'INR', 'BR002', 2, NULL,                'GL-T1-CLR-IN',  'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 (7,  1, 'T1-SUSPENSE',       'Suspense Account',              'SUSPENSE_ACCOUNT', 'ACTIVE', 0.0000,       'INR', 'BR001', 1, NULL,                'GL-T1-SUSPENSE','NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 -- ── Tenant 1: Savings Accounts (10) ──
-(8,  1, 'T1-SAV-0001', 'Arun Joshi Savings',        'SAVINGS', 'ACTIVE',  125000.0000, 'INR', 'BR001', 1, 'Arun Joshi',        'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(9,  1, 'T1-SAV-0002', 'Meena Kapoor Savings',      'SAVINGS', 'ACTIVE',   87500.0000, 'INR', 'BR001', 1, 'Meena Kapoor',      'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(10, 1, 'T1-SAV-0003', 'Ravi Shankar Savings',      'SAVINGS', 'ACTIVE',  250000.0000, 'INR', 'BR001', 1, 'Ravi Shankar',      'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(11, 1, 'T1-SAV-0004', 'Sunita Devi Savings',       'SAVINGS', 'ACTIVE',   45000.0000, 'INR', 'BR001', 1, 'Sunita Devi',       'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(8,  1, 'T1-SAV-0001', 'Arun Joshi Savings',        'SAVINGS', 'ACTIVE',  135000.0000, 'INR', 'BR001', 1, 'Arun Joshi',        'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(9,  1, 'T1-SAV-0002', 'Meena Kapoor Savings',      'SAVINGS', 'ACTIVE',  102500.0000, 'INR', 'BR001', 1, 'Meena Kapoor',      'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(10, 1, 'T1-SAV-0003', 'Ravi Shankar Savings',      'SAVINGS', 'ACTIVE',  230000.0000, 'INR', 'BR001', 1, 'Ravi Shankar',      'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(11, 1, 'T1-SAV-0004', 'Sunita Devi Savings',       'SAVINGS', 'ACTIVE',   55000.0000, 'INR', 'BR001', 1, 'Sunita Devi',       'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 (12, 1, 'T1-SAV-0005', 'Kiran Bhat Savings',        'SAVINGS', 'ACTIVE',  175000.0000, 'INR', 'BR001', 1, 'Kiran Bhat',        'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
-(13, 1, 'T1-SAV-0006', 'Ajay Mishra Savings',       'SAVINGS', 'ACTIVE',   62000.0000, 'INR', 'BR002', 2, 'Ajay Mishra',       'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
+(13, 1, 'T1-SAV-0006', 'Ajay Mishra Savings',       'SAVINGS', 'ACTIVE',   87000.0000, 'INR', 'BR002', 2, 'Ajay Mishra',       'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 (14, 1, 'T1-SAV-0007', 'Geeta Rao Savings',         'SAVINGS', 'ACTIVE',  310000.0000, 'INR', 'BR002', 2, 'Geeta Rao',         'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 (15, 1, 'T1-SAV-0008', 'Prakash Iyer Savings',      'SAVINGS', 'ACTIVE',   98000.0000, 'INR', 'BR002', 2, 'Prakash Iyer',      'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
 (16, 1, 'T1-SAV-0009', 'Lakshmi Nair Savings',      'SAVINGS', 'ACTIVE',  145000.0000, 'INR', 'BR002', 2, 'Lakshmi Nair',      'GL-T1-SAVINGS', 'NONE', 0, 'APPROVED', SYSUTCDATETIME(), 0, SYSUTCDATETIME()),
@@ -223,10 +223,15 @@ SET IDENTITY_INSERT accounts OFF;
 -- TRANSACTION BATCHES
 -- ============================================================================
 SET IDENTITY_INSERT transaction_batches ON;
+-- Batch 1 (T1 TELLER): TXN 1-7 all use this batch. Posted voucher DR total:
+--   V1(50k)+V3(20k)+V5(15k)+V7(25k)+V8(0)+V9(25k)+V11(100k)+V13(10k)+V15(10k) = 255,000
+--   V2(0)+V4(0)+V6(0)+V8(25k)+V10(0)+V12(0)+V14(0)+V16(0) ... symmetric = 255,000
+-- 7 COMPLETED transactions (TXN 1-7) + 2 FAILED (TXN 8,9) = 9 txns total in batch
 INSERT INTO transaction_batches (id, tenant_id, batch_type, batch_code, business_date, version, status, total_debit, total_credit, transaction_count, created_at) VALUES
-(1, 1, 'TELLER',  'BATCH-T1-TEL-20260314', '2026-03-14', 0, 'OPEN', 0.0000, 0.0000, 0, SYSUTCDATETIME()),
+(1, 1, 'TELLER',  'BATCH-T1-TEL-20260314', '2026-03-14', 0, 'OPEN', 255000.0000, 255000.0000, 9, SYSUTCDATETIME()),
 (2, 1, 'ONLINE',  'BATCH-T1-ONL-20260314', '2026-03-14', 0, 'OPEN', 0.0000, 0.0000, 0, SYSUTCDATETIME()),
-(3, 2, 'TELLER',  'BATCH-T2-TEL-20260314', '2026-03-14', 0, 'OPEN', 0.0000, 0.0000, 0, SYSUTCDATETIME()),
+-- Batch 3 (T2 TELLER): TXN 10-12. DR total = 75k+30k+40k+40k = 185,000
+(3, 2, 'TELLER',  'BATCH-T2-TEL-20260314', '2026-03-14', 0, 'OPEN', 185000.0000, 185000.0000, 3, SYSUTCDATETIME()),
 (4, 2, 'ONLINE',  'BATCH-T2-ONL-20260314', '2026-03-14', 0, 'OPEN', 0.0000, 0.0000, 0, SYSUTCDATETIME());
 SET IDENTITY_INSERT transaction_batches OFF;
 
@@ -400,6 +405,34 @@ INSERT INTO ledger_entries (id, tenant_id, journal_id, transaction_id, account_i
 SET IDENTITY_INSERT ledger_entries OFF;
 
 -- ============================================================================
+-- ACCOUNT BALANCES (CBS Balance Engine cache — synced with ledger entries)
+-- Every account touched by a transaction needs a balance row.
+-- ledger_balance = account.balance after all txns (matches last balance_after)
+-- available_balance = ledger_balance - lien - holds (no liens/holds seeded = same)
+-- actual_total_balance = ledger_balance (no shadow/clearing effects in seed)
+-- actual_cleared_balance = actual_total_balance (no uncleared instruments)
+-- ============================================================================
+INSERT INTO account_balances (account_id, ledger_balance, available_balance, hold_amount, actual_total_balance, actual_cleared_balance, shadow_total_balance, shadow_clearing_balance, inward_clearing_balance, uncleared_effect_balance, lien_balance, charge_hold_balance, od_permitted, version, last_updated) VALUES
+-- T1 accounts with ledger activity
+(1,  5140000.0000, 5140000.0000, 0.0000, 5140000.0000, 5140000.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- Cash BR001: 5M +50k -20k +100k +10k
+(3,    25000.0000,   25000.0000, 0.0000,   25000.0000,   25000.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- CLR-OUT-BR001: CR 25k
+(6,    25000.0000,   25000.0000, 0.0000,   25000.0000,   25000.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- CLR-IN-BR002: DR 25k
+(7,        0.0000,       0.0000, 0.0000,       0.0000,       0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- Suspense: CR 10k then DR 10k = 0
+(8,   135000.0000,  135000.0000, 0.0000,  135000.0000,  135000.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- SAV-0001: 125k +50k -15k -25k
+(9,   102500.0000,  102500.0000, 0.0000,  102500.0000,  102500.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- SAV-0002: 87.5k +15k
+(10,  230000.0000,  230000.0000, 0.0000,  230000.0000,  230000.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- SAV-0003: 250k -20k
+(11,   55000.0000,   55000.0000, 0.0000,   55000.0000,   55000.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- SAV-0004: 45k +10k (suspense resolution)
+(13,   87000.0000,   87000.0000, 0.0000,   87000.0000,   87000.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- SAV-0006: 62k +25k (IBT credit)
+(18,  950000.0000,  950000.0000, 0.0000,  950000.0000,  950000.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- CUR-0001: 850k +100k
+-- T2 accounts with ledger activity
+(28, 4045000.0000, 4045000.0000, 0.0000, 4045000.0000, 4045000.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- Cash BR003: 4M +75k -30k
+(30,   40000.0000,   40000.0000, 0.0000,   40000.0000,   40000.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- CLR-OUT-BR003: CR 40k
+(33,   40000.0000,   40000.0000, 0.0000,   40000.0000,   40000.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- CLR-IN-BR004: DR 40k
+(35,  145000.0000,  145000.0000, 0.0000,  145000.0000,  145000.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- SAV-0001: 110k +75k -40k
+(40,  112000.0000,  112000.0000, 0.0000,  112000.0000,  112000.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME()),  -- SAV-0006: 72k +40k (IBT credit)
+(45,  750000.0000,  750000.0000, 0.0000,  750000.0000,  750000.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0.0000, 0, 0, SYSUTCDATETIME());  -- CUR-0001: 780k -30k
+
+-- ============================================================================
 -- INTER-BRANCH TRANSFERS
 -- ============================================================================
 SET IDENTITY_INSERT inter_branch_transfers ON;
@@ -448,8 +481,8 @@ SET IDENTITY_INSERT audit_logs OFF;
 -- VALIDATION QUERIES (run after insert to verify invariants)
 -- ============================================================================
 -- Verify SUM(DR) = SUM(CR) for Tenant 1
--- Expected: Both should equal 295,000.0000
--- (50000 + 20000 + 15000 + 25000*2 + 100000 + 10000 + 10000 = 255000 debits for T1)
+-- Expected: Both should equal 255,000.0000
+-- (50000 + 20000 + 15000 + 25000*2 + 100000 + 10000 + 10000 = 255000 for T1)
 -- SELECT
 --     SUM(CASE WHEN entry_type = 'DEBIT'  THEN amount ELSE 0 END) AS total_debits,
 --     SUM(CASE WHEN entry_type = 'CREDIT' THEN amount ELSE 0 END) AS total_credits
