@@ -421,6 +421,64 @@
             </li>
             </c:if>
 
+            <%-- ═══ Loan Management (Finacle Loan Module) ═══ --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk || sessionScope.isOperations}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="loan">
+                    <i class="bi bi-cash-coin"></i>
+                    <span>Loan Management</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-loan">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/dashboard" class="cbs-nav-link" data-page="loan/dashboard">
+                            <i class="bi bi-speedometer"></i>
+                            <span>Loan Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/list" class="cbs-nav-link" data-page="loan/list">
+                            <i class="bi bi-list-ul"></i>
+                            <span>Loan Portfolio</span>
+                        </a>
+                    </li>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/npa-monitor" class="cbs-nav-link" data-page="loan/npa-monitor">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <span>NPA Monitor</span>
+                        </a>
+                    </li>
+                    </c:if>
+                </ul>
+            </li>
+            </c:if>
+
+            <%-- ═══ Financial Statements (RBI Schedule 5/14) ═══ --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isOperations}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="financial">
+                    <i class="bi bi-file-earmark-spreadsheet"></i>
+                    <span>Financial Statements</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-financial">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/financial/pl" class="cbs-nav-link" data-page="financial/pl">
+                            <i class="bi bi-graph-up-arrow"></i>
+                            <span>Profit & Loss</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/financial/balance-sheet" class="cbs-nav-link" data-page="financial/balance-sheet">
+                            <i class="bi bi-clipboard2-data"></i>
+                            <span>Balance Sheet</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            </c:if>
+
             <%-- ═══ Regulatory Reporting (RBI / Basel III) ═══ --%>
             <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isOperations || sessionScope.isRisk}">
             <li class="cbs-nav-group">
