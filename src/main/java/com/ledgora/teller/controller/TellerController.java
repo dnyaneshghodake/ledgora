@@ -7,11 +7,15 @@ import com.ledgora.teller.dto.TellerOpenRequest;
 import com.ledgora.teller.entity.TellerSession;
 import com.ledgora.teller.entity.VaultTransfer;
 import com.ledgora.teller.service.CashEngineService;
+import com.ledgora.teller.service.TellerReportService;
 import com.ledgora.teller.service.TellerSessionService;
 import com.ledgora.teller.service.VaultTransferService;
+import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.tenant.service.TenantService;
 import com.ledgora.transaction.entity.Transaction;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -32,14 +36,20 @@ public class TellerController {
     private final TellerSessionService tellerSessionService;
     private final CashEngineService cashEngineService;
     private final VaultTransferService vaultTransferService;
+    private final TellerReportService tellerReportService;
+    private final TenantService tenantService;
 
     public TellerController(
             TellerSessionService tellerSessionService,
             CashEngineService cashEngineService,
-            VaultTransferService vaultTransferService) {
+            VaultTransferService vaultTransferService,
+            TellerReportService tellerReportService,
+            TenantService tenantService) {
         this.tellerSessionService = tellerSessionService;
         this.cashEngineService = cashEngineService;
         this.vaultTransferService = vaultTransferService;
+        this.tellerReportService = tellerReportService;
+        this.tenantService = tenantService;
     }
 
     // ── Teller Session Open ─────────────────────────────────────────────────
@@ -263,5 +273,72 @@ public class TellerController {
     public String inquiry(Model model) {
         // Phase 4 will populate this with session/vault position details.
         return "teller/teller-inquiry";
+    }
+
+    // ── Reports ─────────────────────────────────────────────────────────────
+
+    @GetMapping("/reports")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
+    public String reportsIndex(Model model) {
+        return "teller/teller-reports";
+    }
+
+    @GetMapping("/reports/cash-position")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'TELLER')")
+    public String cashPositionReport(
+            @RequestParam(value = "date", required = false) String dateStr, Model model) {
+        LocalDate bizDate = resolveReportDate(dateStr);
+        model.addAttribute("reportDate", bizDate);
+        model.addAttribute("rows", tellerReportService.getTellerCashPositionReport(bizDate));
+        return "teller/report-cash-position";
+    }
+
+    @GetMapping("/reports/vault-position")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
+    public String vaultPositionReport(Model model) {
+        model.addAttribute("rows", tellerReportService.getVaultPositionReport());
+        return "teller/report-vault-position";
+    }
+
+    @GetMapping("/reports/daily-movement")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
+    public String dailyMovementReport(
+            @RequestParam(value = "date", required = false) String dateStr, Model model) {
+        LocalDate bizDate = resolveReportDate(dateStr);
+        model.addAttribute("reportDate", bizDate);
+        model.addAttribute("report", tellerReportService.getDailyCashMovementReport(bizDate));
+        return "teller/report-daily-movement";
+    }
+
+    @GetMapping("/reports/denomination-summary")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR', 'TELLER')")
+    public String denominationSummary(
+            @RequestParam("sessionId") Long sessionId, Model model) {
+        model.addAttribute("sessionId", sessionId);
+        model.addAttribute("rows", tellerReportService.getDenominationSummary(sessionId));
+        return "teller/report-denomination-summary";
+    }
+
+    @GetMapping("/reports/short-excess")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'OPERATIONS', 'AUDITOR')")
+    public String shortExcessReport(
+            @RequestParam(value = "date", required = false) String dateStr, Model model) {
+        LocalDate bizDate = resolveReportDate(dateStr);
+        model.addAttribute("reportDate", bizDate);
+        model.addAttribute("rows", tellerReportService.getCashShortExcessReport(bizDate));
+        return "teller/report-short-excess";
+    }
+
+    /** Resolve report date from request param or fall back to current business date. */
+    private LocalDate resolveReportDate(String dateStr) {
+        if (dateStr != null && !dateStr.isBlank()) {
+            try {
+                return LocalDate.parse(dateStr);
+            } catch (Exception ignored) {
+                // Fall through to business date
+            }
+        }
+        Long tenantId = TenantContextHolder.getRequiredTenantId();
+        return tenantService.getCurrentBusinessDate(tenantId);
     }
 }
