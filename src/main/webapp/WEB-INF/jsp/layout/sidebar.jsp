@@ -347,6 +347,14 @@
                             <span>Teller Inquiry</span>
                         </a>
                     </li>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isAuditor}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/teller/reports" class="cbs-nav-link" data-page="teller/reports">
+                            <i class="bi bi-file-earmark-bar-graph"></i>
+                            <span>Cash Reports</span>
+                        </a>
+                    </li>
+                    </c:if>
                 </ul>
             </li>
             </c:if>
