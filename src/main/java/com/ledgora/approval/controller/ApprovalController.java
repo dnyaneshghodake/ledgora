@@ -7,7 +7,6 @@ import com.ledgora.customer.service.CustomerService;
 import com.ledgora.transaction.service.TransactionService;
 import java.util.List;
 import org.springframework.stereotype.Controller;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -76,11 +75,11 @@ public class ApprovalController {
     }
 
     /**
-     * Approve a pending request (checker step). @Transactional ensures atomicity: if
-     * entity-specific approval fails, the ApprovalRequest status change is also rolled back.
+     * Approve a pending request (checker step). Each service call has its own @Transactional
+     * boundary. If entity-specific approval fails, the error is reported to the user and the
+     * ApprovalRequest remains in its updated state (service-level rollback handles its own scope).
      */
     @PostMapping("/{id}/approve")
-    @Transactional
     public String approve(
             @PathVariable Long id,
             @RequestParam(required = false) String remarks,
@@ -103,11 +102,10 @@ public class ApprovalController {
     }
 
     /**
-     * Reject a pending request (checker step). @Transactional ensures atomicity: if entity-specific
-     * rejection fails, the ApprovalRequest status change is also rolled back.
+     * Reject a pending request (checker step). Each service call has its own @Transactional
+     * boundary.
      */
     @PostMapping("/{id}/reject")
-    @Transactional
     public String reject(
             @PathVariable Long id,
             @RequestParam(required = false) String remarks,
