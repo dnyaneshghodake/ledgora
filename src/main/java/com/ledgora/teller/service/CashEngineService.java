@@ -286,7 +286,9 @@ public class CashEngineService {
             }
             if (e.getCount() == null || e.getCount() < 0) {
                 throw new BusinessException(
-                        "INVALID_DENOMINATION", "Denomination count must be >= 0");              }
+                        "INVALID_DENOMINATION", "Denomination count must be >= 0");
+            }
+            }             
             sum = sum.add(e.getDenominationValue().multiply(new BigDecimal(e.getCount())));
         }
         return sum;
