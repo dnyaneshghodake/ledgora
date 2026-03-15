@@ -483,6 +483,22 @@
                         </a>
                     </li>
                     </c:if>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/npa" class="cbs-nav-link" data-page="loan/npa">
+                            <i class="bi bi-shield-exclamation"></i>
+                            <span>NPA Operations</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/rates" class="cbs-nav-link" data-page="loan/rates">
+                            <i class="bi bi-percent"></i>
+                            <span>Rate Management</span>
+                        </a>
+                    </li>
+                    </c:if>
                 </ul>
             </li>
             </c:if>
