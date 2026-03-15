@@ -123,6 +123,29 @@ public class LoanAccount {
     @Builder.Default
     private BigDecimal provisionAmount = BigDecimal.ZERO;
 
+    /** Penal interest accrued but not yet collected. */
+    @Column(name = "penal_interest", precision = 19, scale = 4, nullable = false)
+    @Builder.Default
+    private BigDecimal penalInterest = BigDecimal.ZERO;
+
+    /** Interest reversed on NPA classification (DR Interest Income, CR Interest Suspense). */
+    @Column(name = "interest_reversed", precision = 19, scale = 4, nullable = false)
+    @Builder.Default
+    private BigDecimal interestReversed = BigDecimal.ZERO;
+
+    /** Whether this loan has been restructured per RBI guidelines. */
+    @Column(name = "restructure_flag", nullable = false)
+    @Builder.Default
+    private Boolean restructureFlag = false;
+
+    /** Moratorium end date — EMI starts after this date. Null if no moratorium. */
+    @Column(name = "moratorium_end_date")
+    private LocalDate moratoriumEndDate;
+
+    /** Sanction date (when checker approved). Null if not yet sanctioned. */
+    @Column(name = "sanction_date")
+    private LocalDate sanctionDate;
+
     /** Last business date on which interest was accrued — prevents double-accrual on EOD retry. */
     @Column(name = "last_accrual_date")
     private LocalDate lastAccrualDate;

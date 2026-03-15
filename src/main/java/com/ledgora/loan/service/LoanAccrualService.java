@@ -100,6 +100,14 @@ public class LoanAccrualService {
                 continue; // fully repaid
             }
 
+            // Moratorium: skip accrual during moratorium period (interest not recognized)
+            // Note: During moratorium, interest may still accrue but is capitalized separately.
+            // This implementation skips accrual entirely during moratorium per product config.
+            if (loan.getMoratoriumEndDate() != null
+                    && businessDate.isBefore(loan.getMoratoriumEndDate())) {
+                continue; // moratorium active — skip accrual
+            }
+
             // Idempotency: skip if already accrued for this business date
             if (businessDate.equals(loan.getLastAccrualDate())) {
                 skippedAlreadyAccrued++;

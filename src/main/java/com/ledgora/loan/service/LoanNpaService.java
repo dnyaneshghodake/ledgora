@@ -12,6 +12,7 @@ import com.ledgora.loan.repository.LoanAccountRepository;
 import com.ledgora.loan.repository.LoanScheduleRepository;
 import com.ledgora.loan.validation.NpaClassifier;
 import com.ledgora.tenant.service.TenantService;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -144,6 +145,20 @@ public class LoanNpaService {
                 loan.setStatus(LoanStatus.NPA);
                 loan.setNpaDate(businessDate);
                 loan.setSmaCategory(SmaCategory.NONE); // SMA no longer applicable
+
+                // ── RBI IRAC: INTEREST REVERSAL on NPA classification ──
+                // Accrued but unrealized interest must be reversed from income.
+                // GL: DR Interest Income, CR Interest Suspense
+                // The accrued interest is moved to interestReversed tracking field.
+                BigDecimal accruedToReverse = loan.getAccruedInterest();
+                if (accruedToReverse.compareTo(BigDecimal.ZERO) > 0) {
+                    loan.setInterestReversed(accruedToReverse);
+                    loan.setAccruedInterest(BigDecimal.ZERO);
+                    log.info(
+                            "Interest reversed on NPA: loan={} reversed={}",
+                            loan.getLoanAccountNumber(),
+                            accruedToReverse);
+                }
 
                 loanAccountRepository.save(loan);
                 newNpaCount++;

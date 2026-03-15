@@ -133,7 +133,9 @@ public class LoanEmiPaymentService {
 
         // Validate: EMI cannot exceed outstanding
         BigDecimal totalPayment = principalComponent.add(interestComponent);
-        BigDecimal maxPayable = loan.getOutstandingPrincipal().add(loan.getAccruedInterest());
+        BigDecimal maxPayable = loan.getOutstandingPrincipal()
+                .add(loan.getAccruedInterest())
+                .add(loan.getPenalInterest());
         if (totalPayment.compareTo(maxPayable) > 0) {
             throw new BusinessException(
                     "EMI_EXCEEDS_OUTSTANDING",
@@ -145,12 +147,29 @@ public class LoanEmiPaymentService {
                             + loan.getLoanAccountNumber());
         }
 
-        // Apply interest component
-        BigDecimal newAccrued = loan.getAccruedInterest().subtract(interestComponent);
-        loan.setAccruedInterest(newAccrued);
+        // ── CBS REPAYMENT ALLOCATION ORDER: Penal → Interest → Principal ──
+        // Per RBI Fair Practices Code, penal charges are recovered first,
+        // then accrued interest, then principal reduction.
+        BigDecimal remaining = totalPayment;
 
-        // Apply principal component
-        BigDecimal newOutstanding = loan.getOutstandingPrincipal().subtract(principalComponent);
+        // Step 1: Apply to penal interest first
+        BigDecimal penalApplied = BigDecimal.ZERO;
+        if (loan.getPenalInterest().compareTo(BigDecimal.ZERO) > 0
+                && remaining.compareTo(BigDecimal.ZERO) > 0) {
+            penalApplied = remaining.min(loan.getPenalInterest());
+            loan.setPenalInterest(loan.getPenalInterest().subtract(penalApplied));
+            remaining = remaining.subtract(penalApplied);
+        }
+
+        // Step 2: Apply to accrued interest
+        BigDecimal interestApplied = remaining.min(loan.getAccruedInterest());
+        BigDecimal newAccrued = loan.getAccruedInterest().subtract(interestApplied);
+        loan.setAccruedInterest(newAccrued);
+        remaining = remaining.subtract(interestApplied);
+
+        // Step 3: Apply remainder to principal
+        BigDecimal principalApplied = remaining.min(loan.getOutstandingPrincipal());
+        BigDecimal newOutstanding = loan.getOutstandingPrincipal().subtract(principalApplied);
         loan.setOutstandingPrincipal(newOutstanding);
 
         // Finacle LACHST: match payment to oldest pending/overdue installment (FIFO)
@@ -197,18 +216,19 @@ public class LoanEmiPaymentService {
         // ── VOUCHER ENGINE: Post repayment vouchers ──
         postRepaymentVouchers(loan, principalComponent, interestComponent, paymentDate);
 
-        // Auto-close if fully repaid
+        // Auto-close if fully repaid (principal + interest + penal all zero)
         if (newOutstanding.compareTo(BigDecimal.ZERO) == 0
-                && newAccrued.compareTo(BigDecimal.ZERO) == 0) {
+                && newAccrued.compareTo(BigDecimal.ZERO) == 0
+                && loan.getPenalInterest().compareTo(BigDecimal.ZERO) == 0) {
             loan.setStatus(LoanStatus.CLOSED);
             log.info("Loan {} fully repaid — status set to CLOSED", loan.getLoanAccountNumber());
-        } else if (newOutstanding.compareTo(BigDecimal.ZERO) == 0
-                && newAccrued.compareTo(BigDecimal.ZERO) > 0) {
-            // Cannot close: accrued interest remains
+        } else if (newOutstanding.compareTo(BigDecimal.ZERO) == 0) {
+            // Cannot close: accrued interest or penal remains
             log.warn(
-                    "Loan {} principal cleared but accrued interest {} remains",
+                    "Loan {} principal cleared but interest={} penal={} remains",
                     loan.getLoanAccountNumber(),
-                    newAccrued);
+                    newAccrued,
+                    loan.getPenalInterest());
         }
 
         loan = loanAccountRepository.save(loan);
