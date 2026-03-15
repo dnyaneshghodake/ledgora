@@ -87,6 +87,27 @@ public class LoanDisbursementService {
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenant.getId());
         LocalDate maturityDate = businessDate.plusMonths(product.getTenureMonths());
 
+        // Compute EMI for storage (Finacle LACSMNT — stored at disbursement for quick inquiry)
+        BigDecimal monthlyRate =
+                product.getInterestRate()
+                        .divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP)
+                        .divide(new BigDecimal("12"), 10, RoundingMode.HALF_UP);
+        BigDecimal onePlusR = BigDecimal.ONE.add(monthlyRate);
+        BigDecimal onePlusRPowerN = onePlusR.pow(product.getTenureMonths(), MathContext.DECIMAL128);
+        BigDecimal emiAmount =
+                principalAmount
+                        .multiply(monthlyRate, MathContext.DECIMAL128)
+                        .multiply(onePlusRPowerN, MathContext.DECIMAL128)
+                        .divide(
+                                onePlusRPowerN.subtract(BigDecimal.ONE),
+                                4,
+                                RoundingMode.HALF_UP);
+
+        // Denormalize borrower name from linked account for quick search/display
+        String borrowerName = customerAccount.getCustomerName() != null
+                ? customerAccount.getCustomerName()
+                : customerAccount.getAccountName();
+
         LoanAccount loan =
                 LoanAccount.builder()
                         .tenant(tenant)
@@ -96,6 +117,11 @@ public class LoanDisbursementService {
                         .principalAmount(principalAmount)
                         .outstandingPrincipal(principalAmount)
                         .accruedInterest(BigDecimal.ZERO)
+                        .emiAmount(emiAmount)
+                        .interestRate(product.getInterestRate())
+                        .currency(customerAccount.getCurrency() != null
+                                ? customerAccount.getCurrency() : "INR")
+                        .borrowerName(borrowerName)
                         .dpd(0)
                         .status(LoanStatus.ACTIVE)
                         .npaClassification(NpaClassification.STANDARD)

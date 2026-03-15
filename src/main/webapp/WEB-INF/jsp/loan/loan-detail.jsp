@@ -19,8 +19,8 @@
     <div class="card-body">
         <div class="row">
             <div class="col-md-3"><small class="text-muted d-block">Loan Account</small><strong><c:out value="${loan.loanAccountNumber}"/></strong></div>
+            <div class="col-md-3"><small class="text-muted d-block">Borrower</small><strong><c:out value="${loan.borrowerName}"/></strong></div>
             <div class="col-md-3"><small class="text-muted d-block">Linked Account</small><strong><c:out value="${loan.linkedAccount.accountNumber}"/></strong></div>
-            <div class="col-md-3"><small class="text-muted d-block">Principal Amount</small><strong><fmt:formatNumber value="${loan.principalAmount}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></strong></div>
             <div class="col-md-3"><small class="text-muted d-block">Status</small>
                 <c:choose>
                     <c:when test="${loan.status == 'ACTIVE'}"><span class="badge bg-success fs-6">ACTIVE</span></c:when>
@@ -32,9 +32,15 @@
         </div>
         <div class="row mt-3">
             <div class="col-md-3"><small class="text-muted d-block">Product</small><c:out value="${loan.loanProduct.productName}"/> (<c:out value="${loan.loanProduct.productCode}"/>)</div>
-            <div class="col-md-3"><small class="text-muted d-block">Interest Rate</small><c:out value="${loan.loanProduct.interestRate}"/>% p.a. (<c:out value="${loan.loanProduct.interestType}"/>)</div>
+            <div class="col-md-3"><small class="text-muted d-block">Interest Rate</small><c:out value="${loan.interestRate != null ? loan.interestRate : loan.loanProduct.interestRate}"/>% p.a. (<c:out value="${loan.loanProduct.interestType}"/>)</div>
             <div class="col-md-3"><small class="text-muted d-block">Tenure</small><c:out value="${loan.loanProduct.tenureMonths}"/> months</div>
+            <div class="col-md-3"><small class="text-muted d-block">EMI Amount</small><strong><c:if test="${loan.emiAmount != null}"><fmt:formatNumber value="${loan.emiAmount}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></c:if><c:if test="${loan.emiAmount == null}">N/A</c:if></strong></div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-3"><small class="text-muted d-block">Principal Amount</small><strong><fmt:formatNumber value="${loan.principalAmount}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></strong></div>
             <div class="col-md-3"><small class="text-muted d-block">Outstanding Principal</small><strong class="${loan.outstandingPrincipal.compareTo(loan.principalAmount) < 0 ? 'text-success' : ''}"><fmt:formatNumber value="${loan.outstandingPrincipal}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></strong></div>
+            <div class="col-md-3"><small class="text-muted d-block">Currency</small><c:out value="${loan.currency}"/></div>
+            <div class="col-md-3"><small class="text-muted d-block">Repaid</small><strong class="text-success"><fmt:formatNumber value="${loan.principalAmount - loan.outstandingPrincipal}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></strong></div>
         </div>
         <div class="row mt-3">
             <div class="col-md-3"><small class="text-muted d-block">Disbursement Date</small><c:out value="${loan.disbursementDate}"/></div>

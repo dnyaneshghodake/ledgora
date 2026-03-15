@@ -43,15 +43,16 @@
         <div class="table-responsive">
             <table class="table table-sm table-hover reg-table">
                 <thead class="table-light">
-                    <tr><th>Loan #</th><th>Principal</th><th class="text-end">Outstanding</th><th class="text-end">Accrued Int.</th><th>DPD</th><th>Status</th><th>NPA Category</th><th>Provision</th><th></th></tr>
+                    <tr><th>Loan #</th><th>Borrower</th><th class="text-end">Principal</th><th class="text-end">Outstanding</th><th class="text-end">EMI</th><th>DPD</th><th>Status</th><th>NPA Category</th><th></th></tr>
                 </thead>
                 <tbody>
                     <c:forEach var="loan" items="${loans}">
                     <tr>
                         <td><code><a href="${pageContext.request.contextPath}/loan/${loan.id}"><c:out value="${loan.loanAccountNumber}"/></a></code></td>
+                        <td><c:out value="${loan.borrowerName}"/></td>
                         <td class="text-end"><fmt:formatNumber value="${loan.principalAmount}" maxFractionDigits="0"/></td>
                         <td class="text-end"><fmt:formatNumber value="${loan.outstandingPrincipal}" maxFractionDigits="0"/></td>
-                        <td class="text-end"><fmt:formatNumber value="${loan.accruedInterest}" maxFractionDigits="2"/></td>
+                        <td class="text-end"><c:if test="${loan.emiAmount != null}"><fmt:formatNumber value="${loan.emiAmount}" maxFractionDigits="0"/></c:if></td>
                         <td class="${loan.dpd > 90 ? 'text-danger fw-bold' : loan.dpd > 0 ? 'text-warning' : ''}"><c:out value="${loan.dpd}"/></td>
                         <td><c:choose>
                             <c:when test="${loan.status == 'ACTIVE'}"><span class="badge bg-success">ACTIVE</span></c:when>
@@ -65,7 +66,6 @@
                             <c:when test="${loan.npaClassification == 'DOUBTFUL'}"><span class="badge bg-danger">Doubtful</span></c:when>
                             <c:when test="${loan.npaClassification == 'LOSS'}"><span class="badge" style="background-color:#8b0000;color:#fff;">Loss</span></c:when>
                         </c:choose></td>
-                        <td class="text-end"><fmt:formatNumber value="${loan.provisionAmount}" maxFractionDigits="0"/></td>
                         <td><a href="${pageContext.request.contextPath}/loan/${loan.id}" class="btn btn-sm btn-outline-primary">View</a></td>
                     </tr>
                     </c:forEach>

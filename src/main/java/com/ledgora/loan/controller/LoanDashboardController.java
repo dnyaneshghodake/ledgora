@@ -225,14 +225,21 @@ public class LoanDashboardController {
         try {
             Tenant tenant = tenantRepository.findById(tenantId)
                     .orElseThrow(() -> new RuntimeException("Tenant not found"));
-            LoanProduct product = loanProductRepository.findById(productId)
-                    .orElseThrow(() -> new RuntimeException("Product not found"));
-            Account linkedAccount = accountRepository.findById(linkedAccountId)
-                    .orElseThrow(() -> new RuntimeException("Linked account not found"));
 
-            // Generate loan account number: LN-<tenantCode>-<timestamp>
-            String loanNumber = "LN-" + tenant.getTenantCode() + "-"
-                    + System.currentTimeMillis() % 1000000;
+            // CBS Tier-1: tenant-scoped product lookup — prevent cross-tenant reference
+            LoanProduct product = loanProductRepository.findById(productId)
+                    .filter(p -> p.getTenant().getId().equals(tenantId))
+                    .orElseThrow(() -> new RuntimeException("Loan product not found for this tenant"));
+
+            // CBS Tier-1: tenant-scoped account lookup — prevent cross-tenant reference
+            Account linkedAccount = accountRepository.findByIdAndTenantId(linkedAccountId, tenantId)
+                    .orElseThrow(() -> new RuntimeException("Linked account not found for this tenant"));
+
+            // CBS-grade loan number: LN-<tenantCode>-<YYYYMMDD>-<sequence>
+            String datePart = tenant.getCurrentBusinessDate().toString().replace("-", "");
+            long seq = loanAccountRepository.findActiveAndNpaByTenantId(tenantId).size() + 1;
+            String loanNumber = "LN-" + tenant.getTenantCode() + "-" + datePart + "-"
+                    + String.format("%04d", seq);
 
             LoanAccount loan = disbursementService.disburse(
                     tenant, product, linkedAccount, loanNumber, principalAmount);

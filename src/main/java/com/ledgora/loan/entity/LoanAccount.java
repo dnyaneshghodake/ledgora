@@ -59,6 +59,7 @@ public class LoanAccount {
     @Column(name = "loan_account_number", length = 30, nullable = false, unique = true)
     private String loanAccountNumber;
 
+    /** Sanctioned/disbursed principal amount (immutable after disbursement). */
     @Column(name = "principal_amount", precision = 19, scale = 4, nullable = false)
     private BigDecimal principalAmount;
 
@@ -68,6 +69,23 @@ public class LoanAccount {
     @Column(name = "accrued_interest", precision = 19, scale = 4, nullable = false)
     @Builder.Default
     private BigDecimal accruedInterest = BigDecimal.ZERO;
+
+    /** EMI amount — stored at disbursement for quick inquiry (Finacle LACSMNT equivalent). */
+    @Column(name = "emi_amount", precision = 19, scale = 4)
+    private BigDecimal emiAmount;
+
+    /** Account-level interest rate — defaults from product, can be overridden per RBI FPC. */
+    @Column(name = "interest_rate", precision = 7, scale = 4)
+    private BigDecimal interestRate;
+
+    /** Loan currency — defaults to INR per RBI. */
+    @Column(name = "currency", length = 3, nullable = false)
+    @Builder.Default
+    private String currency = "INR";
+
+    /** Borrower name — denormalized from linked account for quick search/display. */
+    @Column(name = "borrower_name", length = 100)
+    private String borrowerName;
 
     /** Days Past Due — updated daily at EOD by LoanDpdService. */
     @Column(name = "dpd", nullable = false)
