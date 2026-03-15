@@ -92,7 +92,12 @@ public class LoanProvisionService {
             BigDecimal existing = loan.getProvisionAmount();
             BigDecimal incremental = required.subtract(existing);
 
-            if (incremental.compareTo(BigDecimal.ZERO) > 0) {
+            // CBS/RBI IRAC: Provision must be adjusted BOTH upward AND downward.
+            // Upward: NPA tier progression (STANDARD→SUBSTANDARD) increases provision.
+            // Downward: NPA upgrade (SUBSTANDARD→STANDARD after full clearance) or
+            // principal repayment reduces the required provision. Excess provision
+            // must be released to avoid overstating the provision expense.
+            if (incremental.compareTo(BigDecimal.ZERO) != 0) {
                 loan.setProvisionAmount(required);
                 loanAccountRepository.save(loan);
 
@@ -114,8 +119,9 @@ public class LoanProvisionService {
                 updated++;
 
                 log.debug(
-                        "Provision updated: loan={} classification={} rate={}% "
-                                + "required={} existing={} incremental={}",
+                        "Provision {}: loan={} classification={} rate={}% "
+                                + "required={} existing={} change={}",
+                        incremental.compareTo(BigDecimal.ZERO) > 0 ? "increased" : "released",
                         loan.getLoanAccountNumber(),
                         classification,
                         rate,

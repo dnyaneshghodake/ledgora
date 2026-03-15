@@ -44,4 +44,14 @@ public interface LoanAccountRepository extends JpaRepository<LoanAccount, Long> 
                     + "JOIN FETCH la.linkedAccount "
                     + "WHERE la.id = :id")
     Optional<LoanAccount> findByIdWithProductAndAccount(@Param("id") Long id);
+
+    /**
+     * Count remaining (unpaid) installments for a loan — used by floating rate EMI recalculation to
+     * determine the correct remaining tenure instead of using the product's full tenure.
+     */
+    @Query(
+            "SELECT COUNT(ls) FROM LoanSchedule ls "
+                    + "WHERE ls.loanAccount.id = :loanId "
+                    + "AND ls.status NOT IN ('PAID')")
+    long countRemainingInstallments(@Param("loanId") Long loanId);
 }

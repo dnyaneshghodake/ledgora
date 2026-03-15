@@ -8,6 +8,8 @@ import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.common.enums.InstallmentStatus;
 import com.ledgora.common.exception.BusinessException;
+import com.ledgora.gl.entity.GeneralLedger;
+import com.ledgora.gl.repository.GeneralLedgerRepository;
 import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.entity.LoanProduct;
 import com.ledgora.loan.entity.LoanSchedule;
@@ -72,6 +74,7 @@ public class LoanEmiPaymentService {
     private final VoucherService voucherService;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
+    private final GeneralLedgerRepository glRepository;
     private final TenantService tenantService;
     private final AuditService auditService;
 
@@ -82,6 +85,7 @@ public class LoanEmiPaymentService {
             VoucherService voucherService,
             BranchRepository branchRepository,
             UserRepository userRepository,
+            GeneralLedgerRepository glRepository,
             TenantService tenantService,
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
@@ -90,6 +94,7 @@ public class LoanEmiPaymentService {
         this.voucherService = voucherService;
         this.branchRepository = branchRepository;
         this.userRepository = userRepository;
+        this.glRepository = glRepository;
         this.tenantService = tenantService;
         this.auditService = auditService;
     }
@@ -217,8 +222,11 @@ public class LoanEmiPaymentService {
             loan.setDpd(dpdDays > 0 ? (int) dpdDays : 0);
         }
 
-        // ── VOUCHER ENGINE: Post repayment vouchers ──
-        postRepaymentVouchers(loan, principalComponent, interestComponent, paymentDate);
+        // ── VOUCHER ENGINE: Post repayment vouchers with CBS-allocated amounts ──
+        // CRITICAL: Use the actual allocated amounts (principalApplied, interestApplied)
+        // after Penal→Interest→Principal reallocation, NOT the original caller parameters.
+        // This ensures GL postings match the actual balance mutations.
+        postRepaymentVouchers(loan, principalApplied, interestApplied, paymentDate);
 
         // Auto-close if fully repaid (principal + interest + penal all zero)
         if (newOutstanding.compareTo(BigDecimal.ZERO) == 0
@@ -237,20 +245,32 @@ public class LoanEmiPaymentService {
 
         loan = loanAccountRepository.save(loan);
 
-        // ── CBS AUDIT: Record immutable RepaymentTransaction ──
+        // ── CBS AUDIT: Record immutable RepaymentTransaction with actual allocated amounts ──
+        // CRITICAL: Use CBS-allocated amounts for the audit record, not the original caller
+        // parameters. When penal interest exists, the actual principal/interest split differs
+        // from the caller's requested split. The audit record must reflect reality.
         repaymentTransactionRepository.save(
                 RepaymentTransaction.builder()
                         .tenant(loan.getTenant())
                         .loanAccount(loan)
                         .totalAmount(totalPayment)
-                        .principalComponent(principalComponent)
-                        .interestComponent(interestComponent)
+                        .principalComponent(principalApplied)
+                        .interestComponent(interestApplied)
                         .outstandingAfter(newOutstanding)
                         .accruedInterestAfter(newAccrued)
                         .paymentDate(paymentDate)
                         .paymentType("EMI")
                         .initiatedBy(TenantContextHolder.getUsername())
-                        .remarks("EMI payment: P=" + principalComponent + " I=" + interestComponent)
+                        .remarks(
+                                "EMI payment: P="
+                                        + principalApplied
+                                        + " I="
+                                        + interestApplied
+                                        + " Penal="
+                                        + penalApplied
+                                        + " (total="
+                                        + totalPayment
+                                        + ")")
                         .build());
 
         auditService.logEvent(
@@ -260,10 +280,12 @@ public class LoanEmiPaymentService {
                 loan.getId(),
                 "EMI received for "
                         + loan.getLoanAccountNumber()
-                        + ": principal="
-                        + principalComponent
-                        + " interest="
-                        + interestComponent
+                        + ": principalApplied="
+                        + principalApplied
+                        + " interestApplied="
+                        + interestApplied
+                        + " penalApplied="
+                        + penalApplied
                         + " remaining_principal="
                         + newOutstanding
                         + " remaining_interest="
@@ -368,9 +390,13 @@ public class LoanEmiPaymentService {
      * <p>CBS-grade double-entry per component:
      *
      * <pre>
-     *   Principal: DR Customer Account, CR Loan Asset GL
-     *   Interest:  DR Customer Account, CR Interest Receivable GL
+     *   Principal: DR Customer Account GL, CR Loan Asset GL
+     *   Interest:  DR Customer Account GL, CR Interest Receivable GL
      * </pre>
+     *
+     * <p>CRITICAL: The DR leg uses the customer's deposit GL (resolved from account.glAccountCode)
+     * and the CR leg uses the product's specific GL. Using the same GL for both legs would net to
+     * zero GL impact.
      */
     private void postRepaymentVouchers(
             LoanAccount loan,
@@ -403,7 +429,10 @@ public class LoanEmiPaymentService {
                                                     "SYSTEM_USER_MISSING",
                                                     "SYSTEM_AUTO user not configured. Repayment voucher posting blocked."));
 
-            // Principal component voucher pair: DR Customer, CR Loan Asset GL
+            // Resolve customer account's deposit GL for the DR leg
+            GeneralLedger customerGl = resolveCustomerAccountGl(customerAccount);
+
+            // Principal component voucher pair: DR Customer GL, CR Loan Asset GL
             if (principalComponent.compareTo(BigDecimal.ZERO) > 0) {
                 String batchCode = "LOAN-REPAY-P-" + loan.getLoanAccountNumber();
                 Voucher[] pair =
@@ -411,10 +440,10 @@ public class LoanEmiPaymentService {
                                 tenant,
                                 branch,
                                 customerAccount,
-                                product.getGlLoanAsset(),
+                                customerGl, // DR leg — Customer's deposit GL
                                 branch,
                                 customerAccount,
-                                product.getGlLoanAsset(),
+                                product.getGlLoanAsset(), // CR leg — Loan Asset GL
                                 principalComponent,
                                 loan.getCurrency(),
                                 businessDate,
@@ -428,7 +457,7 @@ public class LoanEmiPaymentService {
                 voucherService.postVoucher(pair[1].getId());
             }
 
-            // Interest component voucher pair: DR Customer, CR Interest Receivable GL
+            // Interest component voucher pair: DR Customer GL, CR Interest Receivable GL
             if (interestComponent.compareTo(BigDecimal.ZERO) > 0) {
                 String batchCode = "LOAN-REPAY-I-" + loan.getLoanAccountNumber();
                 Voucher[] pair =
@@ -436,10 +465,10 @@ public class LoanEmiPaymentService {
                                 tenant,
                                 branch,
                                 customerAccount,
-                                product.getGlInterestReceivable(),
+                                customerGl, // DR leg — Customer's deposit GL
                                 branch,
                                 customerAccount,
-                                product.getGlInterestReceivable(),
+                                product.getGlInterestReceivable(), // CR leg — Interest Receivable
                                 interestComponent,
                                 loan.getCurrency(),
                                 businessDate,
@@ -474,5 +503,31 @@ public class LoanEmiPaymentService {
                             + ": "
                             + e.getMessage());
         }
+    }
+
+    /**
+     * Resolve the GL account for a customer account from its glAccountCode.
+     *
+     * @throws BusinessException if GL code is missing or GL account not found
+     */
+    private GeneralLedger resolveCustomerAccountGl(Account account) {
+        String glCode = account.getGlAccountCode();
+        if (glCode == null || glCode.isBlank()) {
+            throw new BusinessException(
+                    "GL_MAPPING_MISSING",
+                    "Customer account "
+                            + account.getAccountNumber()
+                            + " has no GL account code. CBS requires valid GL mapping.");
+        }
+        return glRepository
+                .findByGlCode(glCode)
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        "GL_ACCOUNT_NOT_FOUND",
+                                        "GL account "
+                                                + glCode
+                                                + " not found for account "
+                                                + account.getAccountNumber()));
     }
 }

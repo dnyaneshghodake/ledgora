@@ -7,6 +7,8 @@ import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.common.exception.BusinessException;
+import com.ledgora.gl.entity.GeneralLedger;
+import com.ledgora.gl.repository.GeneralLedgerRepository;
 import com.ledgora.loan.dto.LoanSchedulePreviewDTO;
 import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.entity.LoanDisbursement;
@@ -63,6 +65,7 @@ public class LoanDisbursementService {
     private final VoucherService voucherService;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
+    private final GeneralLedgerRepository glRepository;
     private final TenantService tenantService;
     private final AuditService auditService;
 
@@ -73,6 +76,7 @@ public class LoanDisbursementService {
             VoucherService voucherService,
             BranchRepository branchRepository,
             UserRepository userRepository,
+            GeneralLedgerRepository glRepository,
             TenantService tenantService,
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
@@ -81,6 +85,7 @@ public class LoanDisbursementService {
         this.voucherService = voucherService;
         this.branchRepository = branchRepository;
         this.userRepository = userRepository;
+        this.glRepository = glRepository;
         this.tenantService = tenantService;
         this.auditService = auditService;
     }
@@ -312,6 +317,36 @@ public class LoanDisbursementService {
                     "NO_BRANCH", "No branch configured for tenant " + tenant.getTenantCode());
         }
         return branches.get(0);
+    }
+
+    /**
+     * Resolve the GL account for a customer account from its glAccountCode.
+     *
+     * <p>CBS rule: every customer account MUST have a valid GL mapping. The GL code on the account
+     * identifies the deposit liability GL (e.g., Savings GL, Current GL) used as the contra leg
+     * for loan disbursement, repayment, and other operations.
+     *
+     * @throws BusinessException if GL code is missing or GL account not found
+     */
+    private GeneralLedger resolveCustomerAccountGl(Account account) {
+        String glCode = account.getGlAccountCode();
+        if (glCode == null || glCode.isBlank()) {
+            throw new BusinessException(
+                    "GL_MAPPING_MISSING",
+                    "Customer account "
+                            + account.getAccountNumber()
+                            + " has no GL account code. CBS requires valid GL mapping for all postings.");
+        }
+        return glRepository
+                .findByGlCode(glCode)
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        "GL_ACCOUNT_NOT_FOUND",
+                                        "GL account "
+                                                + glCode
+                                                + " not found for account "
+                                                + account.getAccountNumber()));
     }
 
     /**

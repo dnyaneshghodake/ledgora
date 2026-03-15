@@ -280,11 +280,21 @@ public class LoanRateService {
             BigDecimal oldEmi = loan.getEmiAmount();
 
             loan.setInterestRate(rate.getEffectiveRate());
+            // CBS: Compute remaining tenure from unpaid schedule installments.
+            // Using the product's full tenure would produce incorrect EMI for
+            // partially repaid loans — the EMI must be based on the remaining
+            // number of installments, not the original tenure.
+            long remainingInstallments =
+                    loanAccountRepository.countRemainingInstallments(loan.getId());
+            int remainingMonths =
+                    remainingInstallments > 0
+                            ? (int) remainingInstallments
+                            : loan.getLoanProduct().getTenureMonths();
             loan.setEmiAmount(
                     EmiCalculator.computeEmi(
                             loan.getOutstandingPrincipal(),
                             rate.getEffectiveRate(),
-                            loan.getLoanProduct().getTenureMonths()));
+                            remainingMonths));
             loanAccountRepository.save(loan);
 
             historyRepository.save(
