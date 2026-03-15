@@ -558,4 +558,47 @@ public class LoanEmiPaymentService {
                                                 + " not found for account "
                                                 + account.getAccountNumber()));
     }
+
+    /**
+     * Resolve or auto-create an internal account for a given GL code.
+     *
+     * <p>CBS/Finacle pattern: Each GL-level voucher leg needs a dedicated internal account (like
+     * the Cash GL account used by TransactionService). If the internal account doesn't exist for
+     * this tenant + GL code, it's auto-created as INTERNAL_ACCOUNT type.
+     *
+     * @param tenant the tenant
+     * @param glCode the GL code to map
+     * @param branch the branch for the account
+     * @param accountNumber the account number for auto-creation
+     * @param accountName the account name for auto-creation
+     * @return the resolved or created internal account
+     */
+    private Account resolveInternalAccount(
+            Tenant tenant, String glCode, Branch branch, String accountNumber, String accountName) {
+        return accountRepository
+                .findFirstByTenantIdAndGlAccountCode(tenant.getId(), glCode)
+                .orElseGet(
+                        () -> {
+                            Account internalAccount =
+                                    Account.builder()
+                                            .tenant(tenant)
+                                            .accountNumber(accountNumber)
+                                            .accountName(accountName)
+                                            .accountType(AccountType.INTERNAL_ACCOUNT)
+                                            .status(AccountStatus.ACTIVE)
+                                            .approvalStatus(MakerCheckerStatus.APPROVED)
+                                            .balance(BigDecimal.ZERO)
+                                            .currency("INR")
+                                            .glAccountCode(glCode)
+                                            .branch(branch)
+                                            .homeBranch(branch)
+                                            .build();
+                            internalAccount = accountRepository.save(internalAccount);
+                            log.info(
+                                    "Auto-created internal account: {} GL={}",
+                                    internalAccount.getAccountNumber(),
+                                    glCode);
+                            return internalAccount;
+                        });
+    }
 }

@@ -1,11 +1,15 @@
 package com.ledgora.loan.service;
 
 import com.ledgora.account.entity.Account;
+import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.audit.service.AuditService;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
+import com.ledgora.common.enums.AccountStatus;
+import com.ledgora.common.enums.AccountType;
+import com.ledgora.common.enums.MakerCheckerStatus;
 import com.ledgora.common.exception.BusinessException;
 import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.entity.LoanProduct;
@@ -52,6 +56,7 @@ public class LoanAccrualService {
     private static final BigDecimal DAYS_IN_YEAR = new BigDecimal("365");
 
     private final LoanAccountRepository loanAccountRepository;
+    private final AccountRepository accountRepository;
     private final VoucherService voucherService;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
@@ -60,12 +65,14 @@ public class LoanAccrualService {
 
     public LoanAccrualService(
             LoanAccountRepository loanAccountRepository,
+            AccountRepository accountRepository,
             VoucherService voucherService,
             BranchRepository branchRepository,
             UserRepository userRepository,
             TenantRepository tenantRepository,
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
+        this.accountRepository = accountRepository;
         this.voucherService = voucherService;
         this.branchRepository = branchRepository;
         this.userRepository = userRepository;
@@ -343,14 +350,32 @@ public class LoanAccrualService {
                             + "-"
                             + businessDate.toString().replace("-", "");
 
+            // CBS/Finacle: Accrual is a GL-to-GL entry — must NOT affect customer balance.
+            // DR leg targets internal Interest Receivable account
+            // CR leg targets internal Interest Income account
+            Account intReceivableAccount =
+                    resolveInternalAccount(
+                            tenant,
+                            product.getGlInterestReceivable().getGlCode(),
+                            branch,
+                            "INT-INTRECV-" + tenant.getTenantCode(),
+                            "Interest Receivable Internal Account");
+            Account intIncomeAccount =
+                    resolveInternalAccount(
+                            tenant,
+                            product.getGlInterestIncome().getGlCode(),
+                            branch,
+                            "INT-INTINC-" + tenant.getTenantCode(),
+                            "Interest Income Internal Account");
+
             Voucher[] pair =
                     voucherService.createVoucherPair(
                             tenant,
                             branch,
-                            customerAccount,
+                            intReceivableAccount,
                             product.getGlInterestReceivable(),
                             branch,
-                            customerAccount,
+                            intIncomeAccount,
                             product.getGlInterestIncome(),
                             dailyInterest,
                             loan.getCurrency(),
@@ -386,5 +411,41 @@ public class LoanAccrualService {
                             + ": "
                             + e.getMessage());
         }
+    }
+
+    /**
+     * Resolve or auto-create an internal account for a given GL code.
+     *
+     * <p>CBS/Finacle pattern: GL-level voucher legs need dedicated internal accounts so the
+     * VoucherService updates the correct account balance per leg. If the internal account doesn't
+     * exist for this tenant + GL code, it's auto-created as INTERNAL_ACCOUNT type.
+     */
+    private Account resolveInternalAccount(
+            Tenant tenant, String glCode, Branch branch, String accountNumber, String accountName) {
+        return accountRepository
+                .findFirstByTenantIdAndGlAccountCode(tenant.getId(), glCode)
+                .orElseGet(
+                        () -> {
+                            Account internalAccount =
+                                    Account.builder()
+                                            .tenant(tenant)
+                                            .accountNumber(accountNumber)
+                                            .accountName(accountName)
+                                            .accountType(AccountType.INTERNAL_ACCOUNT)
+                                            .status(AccountStatus.ACTIVE)
+                                            .approvalStatus(MakerCheckerStatus.APPROVED)
+                                            .balance(BigDecimal.ZERO)
+                                            .currency("INR")
+                                            .glAccountCode(glCode)
+                                            .branch(branch)
+                                            .homeBranch(branch)
+                                            .build();
+                            internalAccount = accountRepository.save(internalAccount);
+                            log.info(
+                                    "Auto-created internal account: {} GL={}",
+                                    internalAccount.getAccountNumber(),
+                                    glCode);
+                            return internalAccount;
+                        });
     }
 }
