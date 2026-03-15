@@ -207,8 +207,15 @@ public class LoanDisbursementService {
     /**
      * Post disbursement voucher pair via the voucher engine.
      *
-     * <p>CBS-grade double-entry: DR Loan Asset GL, CR Customer Account. Vouchers are
+     * <p>CBS-grade double-entry: DR Loan Asset GL, CR Customer Account GL. Vouchers are
      * system-auto-authorized and posted atomically.
+     *
+     * <p>Accounting entry:
+     *
+     * <pre>
+     *   DR Loan Asset GL        (bank's asset increases — money lent out)
+     *   CR Customer Account GL  (customer's deposit liability — funds credited)
+     * </pre>
      */
     private void postDisbursementVouchers(
             Tenant tenant,
@@ -231,18 +238,23 @@ public class LoanDisbursementService {
                                                     "SYSTEM_USER_MISSING",
                                                     "SYSTEM_AUTO user not configured. Loan voucher posting blocked."));
 
+            // Resolve customer account's GL for the CR leg (deposit liability GL)
+            GeneralLedger customerGl = resolveCustomerAccountGl(customerAccount);
+
             String batchCode = "LOAN-DISB-" + loan.getLoanAccountNumber();
 
             // Create DR/CR voucher pair atomically
+            // DR leg: Loan Asset GL (asset increases)
+            // CR leg: Customer Account GL (liability — funds credited to borrower)
             Voucher[] pair =
                     voucherService.createVoucherPair(
                             tenant,
                             branch,
                             customerAccount,
-                            product.getGlLoanAsset(), // DR leg
+                            product.getGlLoanAsset(), // DR leg — Loan Asset GL
                             branch,
                             customerAccount,
-                            product.getGlLoanAsset(), // CR leg (GL for credit)
+                            customerGl, // CR leg — Customer's deposit GL
                             amount,
                             loan.getCurrency(),
                             businessDate,
