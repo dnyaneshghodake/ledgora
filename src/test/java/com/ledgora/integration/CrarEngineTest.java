@@ -51,9 +51,10 @@ class CrarEngineTest {
         CrarReport report = crarEngine.compute(tenant.getId(), bizDate);
 
         assertNotNull(report);
-        assertEquals(0,
-                report.getTotalCapital().compareTo(
-                        report.getTier1Capital().add(report.getTier2Capital())),
+        assertEquals(
+                0,
+                report.getTotalCapital()
+                        .compareTo(report.getTier1Capital().add(report.getTier2Capital())),
                 "Total Capital must equal Tier1 + Tier2");
     }
 
@@ -65,15 +66,17 @@ class CrarEngineTest {
         TenantContextHolder.setTenantId(tenant.getId());
         CrarReport report = crarEngine.compute(tenant.getId(), tenant.getCurrentBusinessDate());
 
-        assertTrue(report.getTotalRwa().compareTo(BigDecimal.ZERO) >= 0,
-                "RWA must be non-negative");
+        assertTrue(
+                report.getTotalRwa().compareTo(BigDecimal.ZERO) >= 0, "RWA must be non-negative");
 
         // Each RWA line must have non-negative values
         if (report.getRwaBreakdown() != null) {
             for (CrarReport.RwaLine line : report.getRwaBreakdown()) {
-                assertTrue(line.getRiskWeight().compareTo(BigDecimal.ZERO) >= 0,
+                assertTrue(
+                        line.getRiskWeight().compareTo(BigDecimal.ZERO) >= 0,
                         "Risk weight must be non-negative for " + line.getGlCode());
-                assertTrue(line.getRwa().compareTo(BigDecimal.ZERO) >= 0,
+                assertTrue(
+                        line.getRwa().compareTo(BigDecimal.ZERO) >= 0,
                         "RWA must be non-negative for " + line.getGlCode());
             }
         }
@@ -87,10 +90,8 @@ class CrarEngineTest {
         TenantContextHolder.setTenantId(tenant.getId());
         CrarReport report = crarEngine.compute(tenant.getId(), tenant.getCurrentBusinessDate());
 
-        assertNotNull(report.getComplianceStatus(),
-                "Compliance status must be populated");
-        assertNotNull(report.getCrarPercent(),
-                "CRAR percentage must be computed");
+        assertNotNull(report.getComplianceStatus(), "Compliance status must be populated");
+        assertNotNull(report.getCrarPercent(), "CRAR percentage must be computed");
     }
 
     @Test

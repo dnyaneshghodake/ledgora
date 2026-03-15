@@ -40,8 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DepositPrematureClosureService {
 
-    private static final Logger log =
-            LoggerFactory.getLogger(DepositPrematureClosureService.class);
+    private static final Logger log = LoggerFactory.getLogger(DepositPrematureClosureService.class);
 
     private final DepositAccountRepository depositAccountRepository;
     private final TenantService tenantService;
@@ -75,22 +74,20 @@ public class DepositPrematureClosureService {
         // Tenant isolation: verify deposit belongs to current tenant
         Long tenantId = TenantContextHolder.getTenantId();
         if (tenantId != null
-                && (deposit.getTenant() == null
-                        || !deposit.getTenant().getId().equals(tenantId))) {
+                && (deposit.getTenant() == null || !deposit.getTenant().getId().equals(tenantId))) {
             throw new BusinessException(
-                    "DEPOSIT_NOT_FOUND",
-                    "Deposit account not found: " + depositAccountId);
+                    "DEPOSIT_NOT_FOUND", "Deposit account not found: " + depositAccountId);
         }
 
         // CBS Tier-1: validate business day is OPEN before financial operations
-        Long effectiveTenantId =
-                tenantId != null ? tenantId : deposit.getTenant().getId();
+        Long effectiveTenantId = tenantId != null ? tenantId : deposit.getTenant().getId();
         tenantService.validateBusinessDayOpen(effectiveTenantId);
 
         if (deposit.getStatus() != DepositAccountStatus.ACTIVE) {
             throw new BusinessException(
                     "DEPOSIT_NOT_ACTIVE",
-                    "Only active deposits can be prematurely closed. Status: " + deposit.getStatus());
+                    "Only active deposits can be prematurely closed. Status: "
+                            + deposit.getStatus());
         }
 
         DepositProduct product = deposit.getDepositProduct();

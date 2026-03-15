@@ -63,9 +63,9 @@ public class LoanDisbursementService {
     /**
      * Disburse a loan — creates LoanAccount + amortization schedule.
      *
-     * <p>NOTE: The actual GL posting (DR Loan Asset GL, CR Customer Account) should be done via
-     * the voucher engine. This service creates the loan record and schedule; the caller is
-     * responsible for triggering the voucher posting.
+     * <p>NOTE: The actual GL posting (DR Loan Asset GL, CR Customer Account) should be done via the
+     * voucher engine. This service creates the loan record and schedule; the caller is responsible
+     * for triggering the voucher posting.
      *
      * @return the created LoanAccount with generated schedule
      */
@@ -78,8 +78,7 @@ public class LoanDisbursementService {
             BigDecimal principalAmount) {
 
         if (principalAmount == null || principalAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BusinessException(
-                    "INVALID_LOAN_AMOUNT", "Loan principal must be positive");
+            throw new BusinessException("INVALID_LOAN_AMOUNT", "Loan principal must be positive");
         }
 
         // CBS Tier-1: validate business day is OPEN before financial operations
@@ -99,15 +98,13 @@ public class LoanDisbursementService {
                 principalAmount
                         .multiply(monthlyRate, MathContext.DECIMAL128)
                         .multiply(onePlusRPowerN, MathContext.DECIMAL128)
-                        .divide(
-                                onePlusRPowerN.subtract(BigDecimal.ONE),
-                                4,
-                                RoundingMode.HALF_UP);
+                        .divide(onePlusRPowerN.subtract(BigDecimal.ONE), 4, RoundingMode.HALF_UP);
 
         // Denormalize borrower name from linked account for quick search/display
-        String borrowerName = customerAccount.getCustomerName() != null
-                ? customerAccount.getCustomerName()
-                : customerAccount.getAccountName();
+        String borrowerName =
+                customerAccount.getCustomerName() != null
+                        ? customerAccount.getCustomerName()
+                        : customerAccount.getAccountName();
 
         LoanAccount loan =
                 LoanAccount.builder()
@@ -120,8 +117,10 @@ public class LoanDisbursementService {
                         .accruedInterest(BigDecimal.ZERO)
                         .emiAmount(emiAmount)
                         .interestRate(product.getInterestRate())
-                        .currency(customerAccount.getCurrency() != null
-                                ? customerAccount.getCurrency() : "INR")
+                        .currency(
+                                customerAccount.getCurrency() != null
+                                        ? customerAccount.getCurrency()
+                                        : "INR")
                         .borrowerName(borrowerName)
                         .dpd(0)
                         .status(LoanStatus.ACTIVE)
@@ -133,8 +132,7 @@ public class LoanDisbursementService {
         loan = loanAccountRepository.save(loan);
 
         // Generate amortization schedule
-        List<LoanSchedule> schedule =
-                generateAmortizationSchedule(loan, product, businessDate);
+        List<LoanSchedule> schedule = generateAmortizationSchedule(loan, product, businessDate);
 
         auditService.logEvent(
                 null,
@@ -168,8 +166,8 @@ public class LoanDisbursementService {
     /**
      * Generate reducing balance EMI amortization schedule.
      *
-     * <p>EMI formula: EMI = P × r × (1+r)^n / ((1+r)^n - 1) where P = principal, r = monthly
-     * rate, n = tenure months.
+     * <p>EMI formula: EMI = P × r × (1+r)^n / ((1+r)^n - 1) where P = principal, r = monthly rate,
+     * n = tenure months.
      */
     private List<LoanSchedule> generateAmortizationSchedule(
             LoanAccount loan, LoanProduct product, LocalDate startDate) {
@@ -189,17 +187,15 @@ public class LoanDisbursementService {
                 principal
                         .multiply(monthlyRate, MathContext.DECIMAL128)
                         .multiply(onePlusRPowerN, MathContext.DECIMAL128)
-                        .divide(
-                                onePlusRPowerN.subtract(BigDecimal.ONE),
-                                4,
-                                RoundingMode.HALF_UP);
+                        .divide(onePlusRPowerN.subtract(BigDecimal.ONE), 4, RoundingMode.HALF_UP);
 
         List<LoanSchedule> schedule = new ArrayList<>();
         BigDecimal remaining = principal;
 
         for (int i = 1; i <= tenureMonths; i++) {
             BigDecimal interestComponent =
-                    remaining.multiply(monthlyRate, MathContext.DECIMAL128)
+                    remaining
+                            .multiply(monthlyRate, MathContext.DECIMAL128)
                             .setScale(4, RoundingMode.HALF_UP);
             BigDecimal principalComponent = emi.subtract(interestComponent);
 
@@ -250,8 +246,7 @@ public class LoanDisbursementService {
             LoanProduct product, BigDecimal principalAmount, LocalDate startDate) {
 
         if (principalAmount == null || principalAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BusinessException(
-                    "INVALID_LOAN_AMOUNT", "Loan principal must be positive");
+            throw new BusinessException("INVALID_LOAN_AMOUNT", "Loan principal must be positive");
         }
 
         int tenureMonths = product.getTenureMonths();
@@ -268,10 +263,7 @@ public class LoanDisbursementService {
                 principalAmount
                         .multiply(monthlyRate, MathContext.DECIMAL128)
                         .multiply(onePlusRPowerN, MathContext.DECIMAL128)
-                        .divide(
-                                onePlusRPowerN.subtract(BigDecimal.ONE),
-                                4,
-                                RoundingMode.HALF_UP);
+                        .divide(onePlusRPowerN.subtract(BigDecimal.ONE), 4, RoundingMode.HALF_UP);
 
         List<LoanSchedulePreviewDTO.Installment> installments = new ArrayList<>();
         BigDecimal remaining = principalAmount;
@@ -279,7 +271,8 @@ public class LoanDisbursementService {
 
         for (int i = 1; i <= tenureMonths; i++) {
             BigDecimal interestComponent =
-                    remaining.multiply(monthlyRate, MathContext.DECIMAL128)
+                    remaining
+                            .multiply(monthlyRate, MathContext.DECIMAL128)
                             .setScale(4, RoundingMode.HALF_UP);
             BigDecimal principalComponent = emi.subtract(interestComponent);
 

@@ -13,13 +13,17 @@ public interface FinancialStatementSnapshotRepository
         extends JpaRepository<FinancialStatementSnapshot, Long> {
 
     Optional<FinancialStatementSnapshot> findByTenantIdAndBusinessDateAndStatementTypeAndStatus(
-            Long tenantId, LocalDate businessDate, StatementType statementType,
+            Long tenantId,
+            LocalDate businessDate,
+            StatementType statementType,
             SnapshotStatus status);
 
     Optional<FinancialStatementSnapshot> findByTenantIdAndBusinessDateAndStatementType(
             Long tenantId, LocalDate businessDate, StatementType statementType);
 
     boolean existsByTenantIdAndBusinessDateAndStatementTypeAndStatus(
-            Long tenantId, LocalDate businessDate, StatementType statementType,
+            Long tenantId,
+            LocalDate businessDate,
+            StatementType statementType,
             SnapshotStatus status);
 }

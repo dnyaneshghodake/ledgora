@@ -50,9 +50,15 @@ class TrialBalanceIntegrityTest {
         TrialBalanceReport tb = trialBalanceEngine.generate(tenant.getId(), bizDate);
 
         assertNotNull(tb);
-        assertTrue(tb.isBalanced(), "Trial Balance must balance: DR=" + tb.getTotalDebits()
-                + " CR=" + tb.getTotalCredits());
-        assertEquals(0, tb.getTotalDebits().compareTo(tb.getTotalCredits()),
+        assertTrue(
+                tb.isBalanced(),
+                "Trial Balance must balance: DR="
+                        + tb.getTotalDebits()
+                        + " CR="
+                        + tb.getTotalCredits());
+        assertEquals(
+                0,
+                tb.getTotalDebits().compareTo(tb.getTotalCredits()),
                 "SUM(debit balances) must equal SUM(credit balances)");
     }
 
@@ -67,7 +73,9 @@ class TrialBalanceIntegrityTest {
 
         // Net of all debit and credit closing balances must be zero
         BigDecimal netBalance = tb.getTotalDebits().subtract(tb.getTotalCredits());
-        assertEquals(0, netBalance.compareTo(BigDecimal.ZERO),
+        assertEquals(
+                0,
+                netBalance.compareTo(BigDecimal.ZERO),
                 "Net closing balance must be zero, got " + netBalance);
     }
 

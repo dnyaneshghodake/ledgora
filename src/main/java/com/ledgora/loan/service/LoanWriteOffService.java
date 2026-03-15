@@ -80,24 +80,20 @@ public class LoanWriteOffService {
         // Tenant isolation: verify loan belongs to current tenant
         Long tenantId = TenantContextHolder.getTenantId();
         if (tenantId != null
-                && (loan.getTenant() == null
-                        || !loan.getTenant().getId().equals(tenantId))) {
+                && (loan.getTenant() == null || !loan.getTenant().getId().equals(tenantId))) {
             throw new BusinessException(
-                    "LOAN_NOT_FOUND",
-                    "Loan account not found: " + loanAccountId);
+                    "LOAN_NOT_FOUND", "Loan account not found: " + loanAccountId);
         }
 
         // CBS Tier-1: validate business day is OPEN before financial operations
-        Long effectiveTenantId =
-                tenantId != null ? tenantId : loan.getTenant().getId();
+        Long effectiveTenantId = tenantId != null ? tenantId : loan.getTenant().getId();
         tenantService.validateBusinessDayOpen(effectiveTenantId);
 
         if (loan.getStatus() == LoanStatus.CLOSED) {
             throw new BusinessException("LOAN_CLOSED", "Cannot write off a closed loan");
         }
         if (loan.getStatus() == LoanStatus.WRITTEN_OFF) {
-            throw new BusinessException(
-                    "LOAN_ALREADY_WRITTEN_OFF", "Loan is already written off");
+            throw new BusinessException("LOAN_ALREADY_WRITTEN_OFF", "Loan is already written off");
         }
         if (loan.getStatus() != LoanStatus.NPA) {
             throw new BusinessException(

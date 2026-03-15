@@ -41,8 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class DepositInterestAccrualService {
 
-    private static final Logger log =
-            LoggerFactory.getLogger(DepositInterestAccrualService.class);
+    private static final Logger log = LoggerFactory.getLogger(DepositInterestAccrualService.class);
     private static final BigDecimal DAYS_IN_YEAR = new BigDecimal("365");
 
     private final DepositAccountRepository depositAccountRepository;
@@ -68,8 +67,7 @@ public class DepositInterestAccrualService {
         Tenant tenant =
                 tenantRepository
                         .findById(tenantId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Tenant not found: " + tenantId));
+                        .orElseThrow(() -> new RuntimeException("Tenant not found: " + tenantId));
         LocalDate businessDate = tenant.getCurrentBusinessDate();
 
         var activeDeposits = depositAccountRepository.findActiveByTenantId(tenantId);
@@ -119,8 +117,11 @@ public class DepositInterestAccrualService {
                     "DEPOSIT_INTEREST_ACCRUAL",
                     "DEPOSIT_BATCH",
                     null,
-                    "Daily interest accrued for " + accrued
-                            + " deposit accounts (tenant " + tenantId + ")",
+                    "Daily interest accrued for "
+                            + accrued
+                            + " deposit accounts (tenant "
+                            + tenantId
+                            + ")",
                     null);
             log.info("Deposit interest accrued: {} accounts for tenant {}", accrued, tenantId);
         }

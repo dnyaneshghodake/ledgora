@@ -31,8 +31,8 @@ public interface LoanAccountRepository extends JpaRepository<LoanAccount, Long> 
     List<LoanAccount> findByLinkedAccountId(Long linkedAccountId);
 
     /**
-     * Loan detail with eager-fetched product and linked account — used by UI detail view
-     * to avoid LazyInitializationException when open-in-view=false.
+     * Loan detail with eager-fetched product and linked account — used by UI detail view to avoid
+     * LazyInitializationException when open-in-view=false.
      */
     @Query(
             "SELECT la FROM LoanAccount la "

@@ -8,13 +8,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface RegulatorySnapshotRepository
-        extends JpaRepository<RegulatorySnapshot, Long> {
+public interface RegulatorySnapshotRepository extends JpaRepository<RegulatorySnapshot, Long> {
 
     Optional<RegulatorySnapshot> findByTenantIdAndBusinessDateAndReportType(
             Long tenantId, LocalDate businessDate, String reportType);
 
     boolean existsByTenantIdAndBusinessDateAndReportTypeAndStatus(
-            Long tenantId, LocalDate businessDate, String reportType,
-            SnapshotStatus status);
+            Long tenantId, LocalDate businessDate, String reportType, SnapshotStatus status);
 }

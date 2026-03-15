@@ -11,8 +11,8 @@ import lombok.*;
 /**
  * Maps a General Ledger account to a specific line on a financial statement.
  *
- * <p>RBI Schedule 5 (Balance Sheet) / Schedule 14 (P&L) — each GL must map to exactly one
- * statement line. This mapping drives the Finacle-grade GL-to-statement aggregation engine.
+ * <p>RBI Schedule 5 (Balance Sheet) / Schedule 14 (P&L) — each GL must map to exactly one statement
+ * line. This mapping drives the Finacle-grade GL-to-statement aggregation engine.
  *
  * <p>Architecture: LedgerEntry → GeneralLedger → StatementLineMapping → Statement output. The
  * AccountBalance table is NEVER used as an accounting source of truth.
@@ -30,9 +30,7 @@ import lombok.*;
 @Table(
         name = "statement_line_mappings",
         indexes = {
-            @Index(
-                    name = "idx_slm_tenant_type",
-                    columnList = "tenant_id, statement_type"),
+            @Index(name = "idx_slm_tenant_type", columnList = "tenant_id, statement_type"),
             @Index(name = "idx_slm_gl", columnList = "gl_id")
         },
         uniqueConstraints = {

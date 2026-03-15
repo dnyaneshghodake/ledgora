@@ -72,23 +72,19 @@ public class LoanEmiPaymentService {
      */
     @Transactional
     public LoanAccount processEmiPayment(
-            Long loanAccountId,
-            BigDecimal principalComponent,
-            BigDecimal interestComponent) {
+            Long loanAccountId, BigDecimal principalComponent, BigDecimal interestComponent) {
 
         // Null validation
         if (principalComponent == null || interestComponent == null) {
             throw new BusinessException(
-                    "INVALID_EMI_PARAMS",
-                    "Principal and interest components must not be null");
+                    "INVALID_EMI_PARAMS", "Principal and interest components must not be null");
         }
 
         // Negative amount validation
         if (principalComponent.compareTo(BigDecimal.ZERO) < 0
                 || interestComponent.compareTo(BigDecimal.ZERO) < 0) {
             throw new BusinessException(
-                    "INVALID_EMI_PARAMS",
-                    "Principal and interest components must not be negative");
+                    "INVALID_EMI_PARAMS", "Principal and interest components must not be negative");
         }
 
         LoanAccount loan =
@@ -103,16 +99,13 @@ public class LoanEmiPaymentService {
         // Tenant isolation: verify loan belongs to current tenant
         Long tenantId = TenantContextHolder.getTenantId();
         if (tenantId != null
-                && (loan.getTenant() == null
-                        || !loan.getTenant().getId().equals(tenantId))) {
+                && (loan.getTenant() == null || !loan.getTenant().getId().equals(tenantId))) {
             throw new BusinessException(
-                    "LOAN_NOT_FOUND",
-                    "Loan account not found: " + loanAccountId);
+                    "LOAN_NOT_FOUND", "Loan account not found: " + loanAccountId);
         }
 
         // CBS Tier-1: validate business day is OPEN before financial operations
-        Long effectiveTenantId =
-                tenantId != null ? tenantId : loan.getTenant().getId();
+        Long effectiveTenantId = tenantId != null ? tenantId : loan.getTenant().getId();
         tenantService.validateBusinessDayOpen(effectiveTenantId);
 
         if (loan.getStatus() == LoanStatus.CLOSED) {
@@ -149,8 +142,7 @@ public class LoanEmiPaymentService {
 
         // Validate: EMI cannot exceed outstanding
         BigDecimal totalPayment = principalComponent.add(interestComponent);
-        BigDecimal maxPayable =
-                loan.getOutstandingPrincipal().add(loan.getAccruedInterest());
+        BigDecimal maxPayable = loan.getOutstandingPrincipal().add(loan.getAccruedInterest());
         if (totalPayment.compareTo(maxPayable) > 0) {
             throw new BusinessException(
                     "EMI_EXCEEDS_OUTSTANDING",
@@ -167,8 +159,7 @@ public class LoanEmiPaymentService {
         loan.setAccruedInterest(newAccrued);
 
         // Apply principal component
-        BigDecimal newOutstanding =
-                loan.getOutstandingPrincipal().subtract(principalComponent);
+        BigDecimal newOutstanding = loan.getOutstandingPrincipal().subtract(principalComponent);
         loan.setOutstandingPrincipal(newOutstanding);
 
         // Reset DPD on payment (simplified — full implementation would check schedule)

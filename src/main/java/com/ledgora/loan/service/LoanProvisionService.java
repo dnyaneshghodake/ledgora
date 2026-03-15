@@ -45,8 +45,7 @@ public class LoanProvisionService {
     private final AuditService auditService;
 
     public LoanProvisionService(
-            LoanAccountRepository loanAccountRepository,
-            AuditService auditService) {
+            LoanAccountRepository loanAccountRepository, AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
         this.auditService = auditService;
     }

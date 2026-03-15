@@ -265,8 +265,7 @@ public class EodStateMachineService {
 
         try {
             com.ledgora.loan.service.LoanProvisionService provisionService =
-                    applicationContext.getBean(
-                            com.ledgora.loan.service.LoanProvisionService.class);
+                    applicationContext.getBean(com.ledgora.loan.service.LoanProvisionService.class);
             provisionService.calculateProvisions(tenantId);
         } catch (org.springframework.beans.factory.NoSuchBeanDefinitionException ignored) {
         }

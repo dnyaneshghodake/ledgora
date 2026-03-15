@@ -93,8 +93,7 @@ public class AlmEngine {
     private final LedgerEntryRepository ledgerEntryRepository;
 
     public AlmEngine(
-            GeneralLedgerRepository glRepository,
-            LedgerEntryRepository ledgerEntryRepository) {
+            GeneralLedgerRepository glRepository, LedgerEntryRepository ledgerEntryRepository) {
         this.glRepository = glRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
     }
@@ -173,9 +172,7 @@ public class AlmEngine {
 
             BigDecimal gapRatio = BigDecimal.ZERO;
             if (totalLiabilities.compareTo(BigDecimal.ZERO) > 0) {
-                gapRatio =
-                        gap.multiply(HUNDRED)
-                                .divide(totalLiabilities, 2, RoundingMode.HALF_UP);
+                gapRatio = gap.multiply(HUNDRED).divide(totalLiabilities, 2, RoundingMode.HALF_UP);
             }
 
             // Flag risk if cumulative gap ratio < -15% in short-term buckets (first 3)

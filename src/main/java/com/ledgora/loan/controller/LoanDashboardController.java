@@ -28,10 +28,11 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 /**
  * Finacle-grade Loan Module UI Controller.
  *
- * <p>Loan balances derive from LedgerEntry-based aggregates via LoanAccount entity. All
- * repayments flow through the voucher engine. Tenant-scoped, RBAC-enforced.
+ * <p>Loan balances derive from LedgerEntry-based aggregates via LoanAccount entity. All repayments
+ * flow through the voucher engine. Tenant-scoped, RBAC-enforced.
  *
  * <p>Endpoints:
+ *
  * <ul>
  *   <li>GET /loan/dashboard — portfolio summary with NPA distribution
  *   <li>GET /loan/list — paginated loan list with filters
@@ -100,19 +101,34 @@ public class LoanDashboardController {
             totalOutstanding = totalOutstanding.add(loan.getOutstandingPrincipal());
 
             switch (loan.getNpaClassification()) {
-                case STANDARD -> { standardCount++; standardAmt = standardAmt.add(loan.getOutstandingPrincipal()); }
-                case SUBSTANDARD -> { substandardCount++; substandardAmt = substandardAmt.add(loan.getOutstandingPrincipal()); }
-                case DOUBTFUL -> { doubtfulCount++; doubtfulAmt = doubtfulAmt.add(loan.getOutstandingPrincipal()); }
-                case LOSS -> { lossCount++; lossAmt = lossAmt.add(loan.getOutstandingPrincipal()); }
+                case STANDARD -> {
+                    standardCount++;
+                    standardAmt = standardAmt.add(loan.getOutstandingPrincipal());
+                }
+                case SUBSTANDARD -> {
+                    substandardCount++;
+                    substandardAmt = substandardAmt.add(loan.getOutstandingPrincipal());
+                }
+                case DOUBTFUL -> {
+                    doubtfulCount++;
+                    doubtfulAmt = doubtfulAmt.add(loan.getOutstandingPrincipal());
+                }
+                case LOSS -> {
+                    lossCount++;
+                    lossAmt = lossAmt.add(loan.getOutstandingPrincipal());
+                }
             }
             if (loan.getStatus() == LoanStatus.NPA) npaCount++;
         }
 
-        BigDecimal npaPercent = totalOutstanding.compareTo(BigDecimal.ZERO) > 0
-                ? substandardAmt.add(doubtfulAmt).add(lossAmt)
-                        .multiply(new BigDecimal("100"))
-                        .divide(totalOutstanding, 2, java.math.RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
+        BigDecimal npaPercent =
+                totalOutstanding.compareTo(BigDecimal.ZERO) > 0
+                        ? substandardAmt
+                                .add(doubtfulAmt)
+                                .add(lossAmt)
+                                .multiply(new BigDecimal("100"))
+                                .divide(totalOutstanding, 2, java.math.RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
 
         model.addAttribute("tenantName", tenant.getTenantName());
         model.addAttribute("totalPortfolio", totalPortfolio);
@@ -137,13 +153,15 @@ public class LoanDashboardController {
     public String list(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String npaCategory,
-            Model model, HttpSession session) {
+            Model model,
+            HttpSession session) {
         Long tenantId = resolveTenantId(session);
 
         List<LoanAccount> loans;
         if (status != null && !status.isEmpty()) {
-            loans = loanAccountRepository.findByTenantIdAndStatus(
-                    tenantId, LoanStatus.valueOf(status));
+            loans =
+                    loanAccountRepository.findByTenantIdAndStatus(
+                            tenantId, LoanStatus.valueOf(status));
         } else {
             loans = loanAccountRepository.findActiveAndNpaByTenantId(tenantId);
         }
@@ -151,9 +169,7 @@ public class LoanDashboardController {
         // Filter by NPA category if specified
         if (npaCategory != null && !npaCategory.isEmpty()) {
             NpaClassification filter = NpaClassification.valueOf(npaCategory);
-            loans = loans.stream()
-                    .filter(l -> l.getNpaClassification() == filter)
-                    .toList();
+            loans = loans.stream().filter(l -> l.getNpaClassification() == filter).toList();
         }
 
         model.addAttribute("loans", loans);
@@ -185,13 +201,13 @@ public class LoanDashboardController {
         Long tenantId = resolveTenantId(session);
         List<LoanAccount> npaLoans =
                 loanAccountRepository.findByTenantIdAndStatus(tenantId, LoanStatus.NPA);
-        List<LoanAccount> allLoans =
-                loanAccountRepository.findActiveAndNpaByTenantId(tenantId);
+        List<LoanAccount> allLoans = loanAccountRepository.findActiveAndNpaByTenantId(tenantId);
 
         // Include active loans with DPD > 0 (approaching NPA)
-        List<LoanAccount> atRisk = allLoans.stream()
-                .filter(l -> l.getStatus() == LoanStatus.ACTIVE && l.getDpd() > 0)
-                .toList();
+        List<LoanAccount> atRisk =
+                allLoans.stream()
+                        .filter(l -> l.getStatus() == LoanStatus.ACTIVE && l.getDpd() > 0)
+                        .toList();
 
         model.addAttribute("npaLoans", npaLoans);
         model.addAttribute("atRiskLoans", atRisk);
@@ -203,8 +219,7 @@ public class LoanDashboardController {
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public String createForm(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
-        List<LoanProduct> products =
-                loanProductRepository.findByTenantIdAndIsActiveTrue(tenantId);
+        List<LoanProduct> products = loanProductRepository.findByTenantIdAndIsActiveTrue(tenantId);
         List<Account> accounts =
                 accountRepository.findByTenantIdAndStatus(
                         tenantId, com.ledgora.common.enums.AccountStatus.ACTIVE);
@@ -223,16 +238,29 @@ public class LoanDashboardController {
             @RequestParam Long productId,
             @RequestParam Long linkedAccountId,
             @RequestParam BigDecimal principalAmount,
-            Model model, HttpSession session) {
+            Model model,
+            HttpSession session) {
         Long tenantId = resolveTenantId(session);
         try {
-            Tenant tenant = tenantRepository.findById(tenantId)
-                    .orElseThrow(() -> new RuntimeException("Tenant not found"));
-            LoanProduct product = loanProductRepository.findById(productId)
-                    .filter(p -> p.getTenant().getId().equals(tenantId))
-                    .orElseThrow(() -> new RuntimeException("Loan product not found for this tenant"));
-            Account linkedAccount = accountRepository.findByIdAndTenantId(linkedAccountId, tenantId)
-                    .orElseThrow(() -> new RuntimeException("Linked account not found for this tenant"));
+            Tenant tenant =
+                    tenantRepository
+                            .findById(tenantId)
+                            .orElseThrow(() -> new RuntimeException("Tenant not found"));
+            LoanProduct product =
+                    loanProductRepository
+                            .findById(productId)
+                            .filter(p -> p.getTenant().getId().equals(tenantId))
+                            .orElseThrow(
+                                    () ->
+                                            new RuntimeException(
+                                                    "Loan product not found for this tenant"));
+            Account linkedAccount =
+                    accountRepository
+                            .findByIdAndTenantId(linkedAccountId, tenantId)
+                            .orElseThrow(
+                                    () ->
+                                            new RuntimeException(
+                                                    "Linked account not found for this tenant"));
 
             java.time.LocalDate businessDate = tenant.getCurrentBusinessDate();
             LoanSchedulePreviewDTO preview =
@@ -243,7 +271,8 @@ public class LoanDashboardController {
             model.addAttribute("selectedProductId", productId);
             model.addAttribute("selectedAccountId", linkedAccountId);
             model.addAttribute("selectedAccountNumber", linkedAccount.getAccountNumber());
-            model.addAttribute("selectedAccountName",
+            model.addAttribute(
+                    "selectedAccountName",
                     linkedAccount.getCustomerName() != null
                             ? linkedAccount.getCustomerName()
                             : linkedAccount.getAccountName());
@@ -251,18 +280,20 @@ public class LoanDashboardController {
             model.addAttribute("businessDate", businessDate);
 
             // Also pass products/accounts for the form (in case user wants to go back)
-            model.addAttribute("products",
-                    loanProductRepository.findByTenantIdAndIsActiveTrue(tenantId));
-            model.addAttribute("accounts",
+            model.addAttribute(
+                    "products", loanProductRepository.findByTenantIdAndIsActiveTrue(tenantId));
+            model.addAttribute(
+                    "accounts",
                     accountRepository.findByTenantIdAndStatus(
                             tenantId, com.ledgora.common.enums.AccountStatus.ACTIVE));
 
             return "loan/loan-create";
         } catch (Exception e) {
             model.addAttribute("error", "Preview failed: " + e.getMessage());
-            model.addAttribute("products",
-                    loanProductRepository.findByTenantIdAndIsActiveTrue(tenantId));
-            model.addAttribute("accounts",
+            model.addAttribute(
+                    "products", loanProductRepository.findByTenantIdAndIsActiveTrue(tenantId));
+            model.addAttribute(
+                    "accounts",
                     accountRepository.findByTenantIdAndStatus(
                             tenantId, com.ledgora.common.enums.AccountStatus.ACTIVE));
             return "loan/loan-create";
@@ -280,34 +311,54 @@ public class LoanDashboardController {
             RedirectAttributes redirectAttributes) {
         Long tenantId = resolveTenantId(session);
         try {
-            Tenant tenant = tenantRepository.findById(tenantId)
-                    .orElseThrow(() -> new RuntimeException("Tenant not found"));
+            Tenant tenant =
+                    tenantRepository
+                            .findById(tenantId)
+                            .orElseThrow(() -> new RuntimeException("Tenant not found"));
 
             // CBS Tier-1: tenant-scoped product lookup — prevent cross-tenant reference
-            LoanProduct product = loanProductRepository.findById(productId)
-                    .filter(p -> p.getTenant().getId().equals(tenantId))
-                    .orElseThrow(() -> new RuntimeException("Loan product not found for this tenant"));
+            LoanProduct product =
+                    loanProductRepository
+                            .findById(productId)
+                            .filter(p -> p.getTenant().getId().equals(tenantId))
+                            .orElseThrow(
+                                    () ->
+                                            new RuntimeException(
+                                                    "Loan product not found for this tenant"));
 
             // CBS Tier-1: tenant-scoped account lookup — prevent cross-tenant reference
-            Account linkedAccount = accountRepository.findByIdAndTenantId(linkedAccountId, tenantId)
-                    .orElseThrow(() -> new RuntimeException("Linked account not found for this tenant"));
+            Account linkedAccount =
+                    accountRepository
+                            .findByIdAndTenantId(linkedAccountId, tenantId)
+                            .orElseThrow(
+                                    () ->
+                                            new RuntimeException(
+                                                    "Linked account not found for this tenant"));
 
             // CBS-grade loan number: LN-<tenantCode>-<YYYYMMDD>-<sequence>
             String datePart = tenant.getCurrentBusinessDate().toString().replace("-", "");
             long seq = loanAccountRepository.findActiveAndNpaByTenantId(tenantId).size() + 1;
-            String loanNumber = "LN-" + tenant.getTenantCode() + "-" + datePart + "-"
-                    + String.format("%04d", seq);
+            String loanNumber =
+                    "LN-"
+                            + tenant.getTenantCode()
+                            + "-"
+                            + datePart
+                            + "-"
+                            + String.format("%04d", seq);
 
-            LoanAccount loan = disbursementService.disburse(
-                    tenant, product, linkedAccount, loanNumber, principalAmount);
+            LoanAccount loan =
+                    disbursementService.disburse(
+                            tenant, product, linkedAccount, loanNumber, principalAmount);
 
-            redirectAttributes.addFlashAttribute("message",
-                    "Loan " + loan.getLoanAccountNumber() + " disbursed successfully. Principal: "
+            redirectAttributes.addFlashAttribute(
+                    "message",
+                    "Loan "
+                            + loan.getLoanAccountNumber()
+                            + " disbursed successfully. Principal: "
                             + principalAmount);
             return "redirect:/loan/" + loan.getId();
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Disbursement failed: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "Disbursement failed: " + e.getMessage());
             return "redirect:/loan/create";
         }
     }
@@ -326,17 +377,14 @@ public class LoanDashboardController {
         if (loan == null
                 || loan.getTenant() == null
                 || !loan.getTenant().getId().equals(tenantId)) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Loan not found or access denied");
+            redirectAttributes.addFlashAttribute("error", "Loan not found or access denied");
             return "redirect:/loan/list";
         }
         try {
             emiPaymentService.processEmiPayment(id, principalAmount, interestAmount);
-            redirectAttributes.addFlashAttribute("message",
-                    "EMI payment processed successfully");
+            redirectAttributes.addFlashAttribute("message", "EMI payment processed successfully");
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Payment failed: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "Payment failed: " + e.getMessage());
         }
         return "redirect:/loan/" + id;
     }
@@ -346,7 +394,8 @@ public class LoanDashboardController {
         if (tenantId == null) {
             Object sessionTenantId = session.getAttribute("tenantId");
             if (sessionTenantId instanceof Number n) tenantId = n.longValue();
-            else if (sessionTenantId instanceof String s && !s.isBlank()) tenantId = Long.valueOf(s);
+            else if (sessionTenantId instanceof String s && !s.isBlank())
+                tenantId = Long.valueOf(s);
         }
         if (tenantId == null) throw new IllegalStateException("Tenant context not set");
         return tenantId;

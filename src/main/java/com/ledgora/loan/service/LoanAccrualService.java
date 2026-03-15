@@ -67,8 +67,7 @@ public class LoanAccrualService {
         Tenant tenant =
                 tenantRepository
                         .findById(tenantId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Tenant not found: " + tenantId));
+                        .orElseThrow(() -> new RuntimeException("Tenant not found: " + tenantId));
         LocalDate businessDate = tenant.getCurrentBusinessDate();
 
         var activeLoans = loanAccountRepository.findActiveByTenantId(tenantId);
@@ -140,8 +139,12 @@ public class LoanAccrualService {
                     "LOAN_INTEREST_ACCRUAL",
                     "LOAN_BATCH",
                     null,
-                    "Daily interest accrued for " + accrued + " loans (tenant " + tenantId
-                            + ") date " + businessDate,
+                    "Daily interest accrued for "
+                            + accrued
+                            + " loans (tenant "
+                            + tenantId
+                            + ") date "
+                            + businessDate,
                     null);
             log.info("Loan interest accrued: {} loans for tenant {}", accrued, tenantId);
         }

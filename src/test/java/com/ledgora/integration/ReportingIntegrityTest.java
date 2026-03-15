@@ -61,8 +61,8 @@ class ReportingIntegrityTest {
         LocalDate bizDate = tenant.getCurrentBusinessDate();
 
         // Seed minimal statement mappings if none exist
-        if (mappingRepository.findWithGlByTenantAndType(
-                        tenant.getId(), StatementType.BALANCE_SHEET)
+        if (mappingRepository
+                .findWithGlByTenantAndType(tenant.getId(), StatementType.BALANCE_SHEET)
                 .isEmpty()) {
             seedMinimalMappings(tenant);
         }
@@ -97,7 +97,8 @@ class ReportingIntegrityTest {
         TenantContextHolder.setTenantId(tenant.getId());
         LocalDate bizDate = tenant.getCurrentBusinessDate();
 
-        if (mappingRepository.findWithGlByTenantAndType(tenant.getId(), StatementType.PNL)
+        if (mappingRepository
+                .findWithGlByTenantAndType(tenant.getId(), StatementType.PNL)
                 .isEmpty()) {
             seedMinimalMappings(tenant);
         }
@@ -123,8 +124,8 @@ class ReportingIntegrityTest {
         TenantContextHolder.setTenantId(tenant.getId());
         LocalDate bizDate = tenant.getCurrentBusinessDate();
 
-        if (mappingRepository.findWithGlByTenantAndType(
-                        tenant.getId(), StatementType.BALANCE_SHEET)
+        if (mappingRepository
+                .findWithGlByTenantAndType(tenant.getId(), StatementType.BALANCE_SHEET)
                 .isEmpty()) {
             seedMinimalMappings(tenant);
         }
