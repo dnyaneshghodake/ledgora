@@ -1,11 +1,15 @@
 package com.ledgora.loan.service;
 
 import com.ledgora.account.entity.Account;
+import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.audit.service.AuditService;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
+import com.ledgora.common.enums.AccountStatus;
+import com.ledgora.common.enums.AccountType;
+import com.ledgora.common.enums.MakerCheckerStatus;
 import com.ledgora.common.exception.BusinessException;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
@@ -54,6 +58,7 @@ public class LoanWriteOffService {
     private static final Logger log = LoggerFactory.getLogger(LoanWriteOffService.class);
 
     private final LoanAccountRepository loanAccountRepository;
+    private final AccountRepository accountRepository;
     private final VoucherService voucherService;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
@@ -63,6 +68,7 @@ public class LoanWriteOffService {
 
     public LoanWriteOffService(
             LoanAccountRepository loanAccountRepository,
+            AccountRepository accountRepository,
             VoucherService voucherService,
             BranchRepository branchRepository,
             UserRepository userRepository,
@@ -70,6 +76,7 @@ public class LoanWriteOffService {
             TenantService tenantService,
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
+        this.accountRepository = accountRepository;
         this.voucherService = voucherService;
         this.branchRepository = branchRepository;
         this.userRepository = userRepository;
@@ -268,15 +275,28 @@ public class LoanWriteOffService {
                             tenant.getId());
             String batchCode = "LOAN-WOFF-" + loan.getLoanAccountNumber();
 
-            // DR Provision GL (use up provision), CR Loan Asset GL (remove from asset book)
+            // CBS/Finacle: Write-off is a GL-to-GL entry — must NOT affect customer balance.
+            // DR leg targets internal Provision account, CR leg targets internal NPA Loan Asset
+            Account provisionAccount =
+                    resolveInternalAccount(
+                            tenant, product.getGlProvision().getGlCode(), branch,
+                            "INT-PROV-" + tenant.getTenantCode(),
+                            "Loan Provision Internal Account");
+            Account npaLoanAssetAccount =
+                    resolveInternalAccount(
+                            tenant, product.getGlNpaLoanAsset().getGlCode(), branch,
+                            "INT-NPA-" + tenant.getTenantCode(),
+                            "NPA Loan Asset Internal Account");
+
+            // DR Provision GL (use up provision), CR NPA Loan Asset GL (remove from asset book)
             Voucher[] pair =
                     voucherService.createVoucherPair(
                             tenant,
                             branch,
-                            customerAccount,
+                            provisionAccount,
                             product.getGlProvision(), // DR — Provision GL
                             branch,
-                            customerAccount,
+                            npaLoanAssetAccount,
                             product.getGlNpaLoanAsset(), // CR — NPA Loan Asset GL
                             amount,
                             loan.getCurrency(),
@@ -344,17 +364,23 @@ public class LoanWriteOffService {
                             tenant.getId());
             String batchCode = "LOAN-RECV-" + loan.getLoanAccountNumber();
 
-            // DR Customer Account GL (cash received), CR Interest Income GL (recovery income)
+            // CBS/Finacle: Recovery DR targets customer account (receives cash),
+            // CR targets internal income account (income recognized).
             GeneralLedger customerGl = resolveCustomerAccountGl(customerAccount);
+            Account incomeAccount =
+                    resolveInternalAccount(
+                            tenant, product.getGlInterestIncome().getGlCode(), branch,
+                            "INT-INTINC-" + tenant.getTenantCode(),
+                            "Interest Income Internal Account");
 
             Voucher[] pair =
                     voucherService.createVoucherPair(
                             tenant,
                             branch,
                             customerAccount,
-                            customerGl, // DR — Customer Account GL
+                            customerGl, // DR — Customer Account GL (cash received)
                             branch,
-                            customerAccount,
+                            incomeAccount,
                             product.getGlInterestIncome(), // CR — Recovery Income GL
                             amount,
                             loan.getCurrency(),
@@ -384,6 +410,38 @@ public class LoanWriteOffService {
                     "VOUCHER_POSTING_FAILED",
                     "Recovery voucher posting failed: " + e.getMessage());
         }
+    }
+
+    /**
+     * Resolve or auto-create an internal account for a given GL code.
+     */
+    private Account resolveInternalAccount(
+            Tenant tenant, String glCode, Branch branch, String accountNumber, String accountName) {
+        return accountRepository
+                .findFirstByTenantIdAndGlAccountCode(tenant.getId(), glCode)
+                .orElseGet(
+                        () -> {
+                            Account internalAccount =
+                                    Account.builder()
+                                            .tenant(tenant)
+                                            .accountNumber(accountNumber)
+                                            .accountName(accountName)
+                                            .accountType(AccountType.INTERNAL_ACCOUNT)
+                                            .status(AccountStatus.ACTIVE)
+                                            .approvalStatus(MakerCheckerStatus.APPROVED)
+                                            .balance(BigDecimal.ZERO)
+                                            .currency("INR")
+                                            .glAccountCode(glCode)
+                                            .branch(branch)
+                                            .homeBranch(branch)
+                                            .build();
+                            internalAccount = accountRepository.save(internalAccount);
+                            log.info(
+                                    "Auto-created internal account: {} GL={}",
+                                    internalAccount.getAccountNumber(),
+                                    glCode);
+                            return internalAccount;
+                        });
     }
 
     private GeneralLedger resolveCustomerAccountGl(Account account) {
