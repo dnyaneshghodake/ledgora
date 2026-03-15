@@ -1,13 +1,18 @@
 package com.ledgora.loan.service;
 
 import com.ledgora.audit.service.AuditService;
+import com.ledgora.common.enums.InstallmentStatus;
 import com.ledgora.common.exception.BusinessException;
 import com.ledgora.loan.entity.LoanAccount;
+import com.ledgora.loan.entity.LoanSchedule;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.repository.LoanAccountRepository;
+import com.ledgora.loan.repository.LoanScheduleRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.service.TenantService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -47,14 +52,17 @@ public class LoanEmiPaymentService {
     private static final Logger log = LoggerFactory.getLogger(LoanEmiPaymentService.class);
 
     private final LoanAccountRepository loanAccountRepository;
+    private final LoanScheduleRepository loanScheduleRepository;
     private final TenantService tenantService;
     private final AuditService auditService;
 
     public LoanEmiPaymentService(
             LoanAccountRepository loanAccountRepository,
+            LoanScheduleRepository loanScheduleRepository,
             TenantService tenantService,
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
+        this.loanScheduleRepository = loanScheduleRepository;
         this.tenantService = tenantService;
         this.auditService = auditService;
     }
@@ -162,8 +170,46 @@ public class LoanEmiPaymentService {
         BigDecimal newOutstanding = loan.getOutstandingPrincipal().subtract(principalComponent);
         loan.setOutstandingPrincipal(newOutstanding);
 
-        // Reset DPD on payment (simplified — full implementation would check schedule)
-        loan.setDpd(0);
+        // Finacle LACHST: match payment to oldest pending/overdue installment (FIFO)
+        LocalDate paymentDate = tenantService.getCurrentBusinessDate(effectiveTenantId);
+        BigDecimal remainingPayment = totalPayment;
+        List<LoanSchedule> pendingInstallments =
+                loanScheduleRepository.findPendingByLoanAccountIdOrderByInstallmentAsc(
+                        loan.getId());
+
+        for (LoanSchedule inst : pendingInstallments) {
+            if (remainingPayment.compareTo(BigDecimal.ZERO) <= 0) break;
+
+            BigDecimal installmentDue = inst.getEmiAmount().subtract(inst.getPaidAmount());
+            if (installmentDue.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            if (remainingPayment.compareTo(installmentDue) >= 0) {
+                // Full installment payment
+                inst.setPaidAmount(inst.getEmiAmount());
+                inst.setPaidDate(paymentDate);
+                inst.setStatus(InstallmentStatus.PAID);
+                inst.setDpdDays(0);
+                remainingPayment = remainingPayment.subtract(installmentDue);
+            } else {
+                // Partial payment
+                inst.setPaidAmount(inst.getPaidAmount().add(remainingPayment));
+                inst.setStatus(InstallmentStatus.PARTIALLY_PAID);
+                remainingPayment = BigDecimal.ZERO;
+            }
+            loanScheduleRepository.save(inst);
+        }
+
+        // Recompute DPD from remaining overdue installments after payment
+        List<LoanSchedule> overdueAfterPayment =
+                loanScheduleRepository.findOverdueByLoanAccountIdOrderByDueDateAsc(loan.getId());
+        if (overdueAfterPayment.isEmpty()) {
+            loan.setDpd(0);
+        } else {
+            long dpdDays =
+                    java.time.temporal.ChronoUnit.DAYS.between(
+                            overdueAfterPayment.get(0).getDueDate(), paymentDate);
+            loan.setDpd(dpdDays > 0 ? (int) dpdDays : 0);
+        }
 
         // Auto-close if fully repaid
         if (newOutstanding.compareTo(BigDecimal.ZERO) == 0
