@@ -3,6 +3,7 @@ package com.ledgora.loan.service;
 import com.ledgora.account.entity.Account;
 import com.ledgora.audit.service.AuditService;
 import com.ledgora.common.exception.BusinessException;
+import com.ledgora.loan.dto.LoanSchedulePreviewDTO;
 import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.entity.LoanProduct;
 import com.ledgora.loan.entity.LoanSchedule;
@@ -231,5 +232,93 @@ public class LoanDisbursementService {
         // not LoanAccount-based FK. The schedule is returned for the caller to persist.
 
         return schedule;
+    }
+
+    /**
+     * Preview amortization schedule without persisting — Finacle LACSMNT pre-disbursement view.
+     *
+     * <p>Called by the controller's preview step so the maker can review the full repayment
+     * schedule (EMI, principal/interest split per installment, total interest payable) before
+     * confirming disbursement. No database writes occur.
+     *
+     * @param product the selected loan product
+     * @param principalAmount the proposed principal
+     * @param startDate the business date (disbursement date)
+     * @return DTO with full schedule and summary KPIs
+     */
+    public LoanSchedulePreviewDTO previewSchedule(
+            LoanProduct product, BigDecimal principalAmount, LocalDate startDate) {
+
+        if (principalAmount == null || principalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(
+                    "INVALID_LOAN_AMOUNT", "Loan principal must be positive");
+        }
+
+        int tenureMonths = product.getTenureMonths();
+        BigDecimal annualRate = product.getInterestRate();
+
+        BigDecimal monthlyRate =
+                annualRate
+                        .divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP)
+                        .divide(new BigDecimal("12"), 10, RoundingMode.HALF_UP);
+
+        BigDecimal onePlusR = BigDecimal.ONE.add(monthlyRate);
+        BigDecimal onePlusRPowerN = onePlusR.pow(tenureMonths, MathContext.DECIMAL128);
+        BigDecimal emi =
+                principalAmount
+                        .multiply(monthlyRate, MathContext.DECIMAL128)
+                        .multiply(onePlusRPowerN, MathContext.DECIMAL128)
+                        .divide(
+                                onePlusRPowerN.subtract(BigDecimal.ONE),
+                                4,
+                                RoundingMode.HALF_UP);
+
+        List<LoanSchedulePreviewDTO.Installment> installments = new ArrayList<>();
+        BigDecimal remaining = principalAmount;
+        BigDecimal totalInterest = BigDecimal.ZERO;
+
+        for (int i = 1; i <= tenureMonths; i++) {
+            BigDecimal interestComponent =
+                    remaining.multiply(monthlyRate, MathContext.DECIMAL128)
+                            .setScale(4, RoundingMode.HALF_UP);
+            BigDecimal principalComponent = emi.subtract(interestComponent);
+
+            if (i == tenureMonths) {
+                principalComponent = remaining;
+            }
+
+            remaining = remaining.subtract(principalComponent);
+            if (remaining.compareTo(BigDecimal.ZERO) < 0) {
+                remaining = BigDecimal.ZERO;
+            }
+            totalInterest = totalInterest.add(interestComponent);
+
+            BigDecimal installmentEmi = principalComponent.add(interestComponent);
+
+            installments.add(
+                    LoanSchedulePreviewDTO.Installment.builder()
+                            .number(i)
+                            .dueDate(startDate.plusMonths(i))
+                            .emiAmount(installmentEmi)
+                            .principalComponent(principalComponent)
+                            .interestComponent(interestComponent)
+                            .outstandingAfter(remaining)
+                            .build());
+        }
+
+        return LoanSchedulePreviewDTO.builder()
+                .productCode(product.getProductCode())
+                .productName(product.getProductName())
+                .interestRate(annualRate)
+                .interestType(product.getInterestType().name())
+                .tenureMonths(tenureMonths)
+                .principalAmount(principalAmount)
+                .emiAmount(emi)
+                .totalInterestPayable(totalInterest)
+                .totalAmountPayable(principalAmount.add(totalInterest))
+                .firstEmiDate(startDate.plusMonths(1))
+                .lastEmiDate(startDate.plusMonths(tenureMonths))
+                .installments(installments)
+                .build();
     }
 }

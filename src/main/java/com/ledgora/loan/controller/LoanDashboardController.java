@@ -2,6 +2,7 @@ package com.ledgora.loan.controller;
 
 import com.ledgora.account.entity.Account;
 import com.ledgora.account.repository.AccountRepository;
+import com.ledgora.loan.dto.LoanSchedulePreviewDTO;
 import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.entity.LoanProduct;
 import com.ledgora.loan.enums.LoanStatus;
@@ -210,6 +211,62 @@ public class LoanDashboardController {
         model.addAttribute("products", products);
         model.addAttribute("accounts", accounts);
         return "loan/loan-create";
+    }
+
+    /**
+     * Schedule preview — computes EMI amortization without persisting (Finacle LACSMNT preview).
+     * The maker reviews the full repayment schedule before confirming disbursement.
+     */
+    @PostMapping("/preview")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public String previewSchedule(
+            @RequestParam Long productId,
+            @RequestParam Long linkedAccountId,
+            @RequestParam BigDecimal principalAmount,
+            Model model, HttpSession session) {
+        Long tenantId = resolveTenantId(session);
+        try {
+            Tenant tenant = tenantRepository.findById(tenantId)
+                    .orElseThrow(() -> new RuntimeException("Tenant not found"));
+            LoanProduct product = loanProductRepository.findById(productId)
+                    .filter(p -> p.getTenant().getId().equals(tenantId))
+                    .orElseThrow(() -> new RuntimeException("Loan product not found for this tenant"));
+            Account linkedAccount = accountRepository.findByIdAndTenantId(linkedAccountId, tenantId)
+                    .orElseThrow(() -> new RuntimeException("Linked account not found for this tenant"));
+
+            java.time.LocalDate businessDate = tenant.getCurrentBusinessDate();
+            LoanSchedulePreviewDTO preview =
+                    disbursementService.previewSchedule(product, principalAmount, businessDate);
+
+            // Pass preview + original form values back for the confirm step
+            model.addAttribute("preview", preview);
+            model.addAttribute("selectedProductId", productId);
+            model.addAttribute("selectedAccountId", linkedAccountId);
+            model.addAttribute("selectedAccountNumber", linkedAccount.getAccountNumber());
+            model.addAttribute("selectedAccountName",
+                    linkedAccount.getCustomerName() != null
+                            ? linkedAccount.getCustomerName()
+                            : linkedAccount.getAccountName());
+            model.addAttribute("principalAmount", principalAmount);
+            model.addAttribute("businessDate", businessDate);
+
+            // Also pass products/accounts for the form (in case user wants to go back)
+            model.addAttribute("products",
+                    loanProductRepository.findByTenantIdAndIsActiveTrue(tenantId));
+            model.addAttribute("accounts",
+                    accountRepository.findByTenantIdAndStatus(
+                            tenantId, com.ledgora.common.enums.AccountStatus.ACTIVE));
+
+            return "loan/loan-create";
+        } catch (Exception e) {
+            model.addAttribute("error", "Preview failed: " + e.getMessage());
+            model.addAttribute("products",
+                    loanProductRepository.findByTenantIdAndIsActiveTrue(tenantId));
+            model.addAttribute("accounts",
+                    accountRepository.findByTenantIdAndStatus(
+                            tenantId, com.ledgora.common.enums.AccountStatus.ACTIVE));
+            return "loan/loan-create";
+        }
     }
 
     /** Loan disbursement — creates LoanAccount + schedule. CBS Tier-1: maker-initiated. */
