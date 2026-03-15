@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>Crash-recovery safe — DRAFT snapshots regenerated on resume
  * </ul>
  *
- * <p>Called by EOD after DATE_ADVANCED phase via {@link #generateDailySnapshots(Long)}.
+ * <p>Called by EOD after DATE_ADVANCED phase via {@link #generateDailySnapshots(Long, LocalDate)}.
  *
  * <p>Architecture: LedgerEntry → GeneralLedger → StatementLineMapping → Snapshot. AccountBalance
  * is NEVER used as accounting source of truth.
