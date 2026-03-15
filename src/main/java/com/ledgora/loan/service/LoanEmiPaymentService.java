@@ -243,6 +243,7 @@ public class LoanEmiPaymentService {
                         .totalAmount(totalPayment)
                         .principalComponent(principalApplied)
                         .interestComponent(interestApplied)
+                        .penalComponent(penalApplied)
                         .outstandingAfter(newOutstanding)
                         .accruedInterestAfter(newAccrued)
                         .paymentDate(paymentDate)

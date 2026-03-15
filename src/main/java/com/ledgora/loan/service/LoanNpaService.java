@@ -1,7 +1,13 @@
 package com.ledgora.loan.service;
 
+import com.ledgora.account.entity.Account;
 import com.ledgora.audit.service.AuditService;
+import com.ledgora.auth.entity.User;
+import com.ledgora.auth.repository.UserRepository;
+import com.ledgora.branch.entity.Branch;
+import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.common.enums.InstallmentStatus;
+import com.ledgora.common.exception.BusinessException;
 import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.entity.LoanProduct;
 import com.ledgora.loan.entity.LoanSchedule;
@@ -11,7 +17,10 @@ import com.ledgora.loan.enums.SmaCategory;
 import com.ledgora.loan.repository.LoanAccountRepository;
 import com.ledgora.loan.repository.LoanScheduleRepository;
 import com.ledgora.loan.validation.NpaClassifier;
+import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
+import com.ledgora.voucher.entity.Voucher;
+import com.ledgora.voucher.service.VoucherService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -51,16 +60,25 @@ public class LoanNpaService {
 
     private final LoanAccountRepository loanAccountRepository;
     private final LoanScheduleRepository loanScheduleRepository;
+    private final VoucherService voucherService;
+    private final BranchRepository branchRepository;
+    private final UserRepository userRepository;
     private final TenantService tenantService;
     private final AuditService auditService;
 
     public LoanNpaService(
             LoanAccountRepository loanAccountRepository,
             LoanScheduleRepository loanScheduleRepository,
+            VoucherService voucherService,
+            BranchRepository branchRepository,
+            UserRepository userRepository,
             TenantService tenantService,
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
         this.loanScheduleRepository = loanScheduleRepository;
+        this.voucherService = voucherService;
+        this.branchRepository = branchRepository;
+        this.userRepository = userRepository;
         this.tenantService = tenantService;
         this.auditService = auditService;
     }
@@ -145,12 +163,24 @@ public class LoanNpaService {
 
                 // ── RBI IRAC: INTEREST REVERSAL on NPA classification ──
                 // Accrued but unrealized interest must be reversed from income.
-                // GL: DR Interest Income, CR Interest Suspense
-                // The accrued interest is moved to interestReversed tracking field.
+                // GL: DR Interest Income, CR Interest Receivable (reversal of accrual)
                 BigDecimal accruedToReverse = loan.getAccruedInterest();
                 if (accruedToReverse.compareTo(BigDecimal.ZERO) > 0) {
                     loan.setInterestReversed(accruedToReverse);
                     loan.setAccruedInterest(BigDecimal.ZERO);
+
+                    // Post interest reversal vouchers via voucher engine
+                    try {
+                        postInterestReversalVouchers(
+                                loan, accruedToReverse, businessDate);
+                    } catch (Exception e) {
+                        log.warn(
+                                "NPA interest reversal voucher failed for loan {} "
+                                        + "(entity updated): {}",
+                                loan.getLoanAccountNumber(),
+                                e.getMessage());
+                    }
+
                     log.info(
                             "Interest reversed on NPA: loan={} reversed={}",
                             loan.getLoanAccountNumber(),
@@ -195,9 +225,20 @@ public class LoanNpaService {
                 // Reverse interest suspense → income
                 BigDecimal suspenseToReverse = loan.getInterestReversed();
                 if (suspenseToReverse.compareTo(BigDecimal.ZERO) > 0) {
-                    // GL: DR Interest Suspense, CR Interest Income
+                    // GL: DR Interest Receivable, CR Interest Income (reverse the reversal)
                     loan.setAccruedInterest(loan.getAccruedInterest().add(suspenseToReverse));
                     loan.setInterestReversed(BigDecimal.ZERO);
+
+                    // Post NPA upgrade vouchers via voucher engine
+                    try {
+                        postNpaUpgradeVouchers(loan, suspenseToReverse, businessDate);
+                    } catch (Exception e) {
+                        log.warn(
+                                "NPA upgrade voucher failed for loan {} (entity updated): {}",
+                                loan.getLoanAccountNumber(),
+                                e.getMessage());
+                    }
+
                     log.info(
                             "NPA upgrade — suspense reversed to income: loan={} reversed={}",
                             loan.getLoanAccountNumber(),
@@ -244,5 +285,132 @@ public class LoanNpaService {
         }
 
         return newNpaCount;
+    }
+
+    /**
+     * Post interest reversal vouchers on NPA classification.
+     *
+     * <p>RBI IRAC: Accrued interest reversed from income on NPA classification.
+     *
+     * <pre>
+     *   DR Interest Income GL (revenue reversal)
+     *   CR Interest Receivable GL (asset reversal)
+     * </pre>
+     */
+    private void postInterestReversalVouchers(
+            LoanAccount loan, BigDecimal amount, LocalDate businessDate) {
+        Tenant tenant = loan.getTenant();
+        LoanProduct product = loan.getLoanProduct();
+        Account customerAccount = loan.getLinkedAccount();
+
+        Branch branch = resolveBranch(customerAccount, tenant);
+        User systemUser = resolveSystemUser();
+
+        String batchCode = "LOAN-NPA-REV-" + loan.getLoanAccountNumber();
+
+        // DR Interest Income (reverse income), CR Interest Receivable (reverse asset)
+        Voucher[] pair =
+                voucherService.createVoucherPair(
+                        tenant,
+                        branch,
+                        customerAccount,
+                        product.getGlInterestIncome(), // DR — Interest Income (reversal)
+                        branch,
+                        customerAccount,
+                        product.getGlInterestReceivable(), // CR — Interest Receivable (reversal)
+                        amount,
+                        loan.getCurrency(),
+                        businessDate,
+                        batchCode,
+                        systemUser,
+                        "NPA interest reversal DR: "
+                                + loan.getLoanAccountNumber()
+                                + " income_reversed="
+                                + amount,
+                        "NPA interest reversal CR: "
+                                + loan.getLoanAccountNumber()
+                                + " receivable_reversed="
+                                + amount);
+
+        voucherService.systemAuthorizeVoucher(pair[0].getId(), systemUser);
+        voucherService.systemAuthorizeVoucher(pair[1].getId(), systemUser);
+        voucherService.postVoucher(pair[0].getId());
+        voucherService.postVoucher(pair[1].getId());
+    }
+
+    /**
+     * Post NPA upgrade vouchers — reverse the interest reversal back to income.
+     *
+     * <p>RBI IRAC: When all overdue is cleared and DPD returns to 0, suspense interest is reversed
+     * back to income.
+     *
+     * <pre>
+     *   DR Interest Receivable GL (asset restored)
+     *   CR Interest Income GL (income recognized)
+     * </pre>
+     */
+    private void postNpaUpgradeVouchers(
+            LoanAccount loan, BigDecimal amount, LocalDate businessDate) {
+        Tenant tenant = loan.getTenant();
+        LoanProduct product = loan.getLoanProduct();
+        Account customerAccount = loan.getLinkedAccount();
+
+        Branch branch = resolveBranch(customerAccount, tenant);
+        User systemUser = resolveSystemUser();
+
+        String batchCode = "LOAN-NPA-UPG-" + loan.getLoanAccountNumber();
+
+        // DR Interest Receivable (restore asset), CR Interest Income (recognize income)
+        Voucher[] pair =
+                voucherService.createVoucherPair(
+                        tenant,
+                        branch,
+                        customerAccount,
+                        product.getGlInterestReceivable(), // DR — Interest Receivable (restored)
+                        branch,
+                        customerAccount,
+                        product.getGlInterestIncome(), // CR — Interest Income (recognized)
+                        amount,
+                        loan.getCurrency(),
+                        businessDate,
+                        batchCode,
+                        systemUser,
+                        "NPA upgrade DR: "
+                                + loan.getLoanAccountNumber()
+                                + " receivable_restored="
+                                + amount,
+                        "NPA upgrade CR: "
+                                + loan.getLoanAccountNumber()
+                                + " income_recognized="
+                                + amount);
+
+        voucherService.systemAuthorizeVoucher(pair[0].getId(), systemUser);
+        voucherService.systemAuthorizeVoucher(pair[1].getId(), systemUser);
+        voucherService.postVoucher(pair[0].getId());
+        voucherService.postVoucher(pair[1].getId());
+    }
+
+    private Branch resolveBranch(Account account, Tenant tenant) {
+        if (account.getBranch() != null) {
+            return account.getBranch();
+        }
+        return branchRepository.findByTenantId(tenant.getId()).stream()
+                .findFirst()
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        "NO_BRANCH",
+                                        "No branch configured for tenant "
+                                                + tenant.getTenantCode()));
+    }
+
+    private User resolveSystemUser() {
+        return userRepository
+                .findByUsername("SYSTEM_AUTO")
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        "SYSTEM_USER_MISSING",
+                                        "SYSTEM_AUTO user not configured."));
     }
 }
