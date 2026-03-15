@@ -8,6 +8,7 @@ import com.ledgora.deposit.enums.DepositAccountStatus;
 import com.ledgora.deposit.enums.DepositType;
 import com.ledgora.deposit.repository.DepositAccountRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.tenant.service.TenantService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -43,12 +44,15 @@ public class DepositPrematureClosureService {
             LoggerFactory.getLogger(DepositPrematureClosureService.class);
 
     private final DepositAccountRepository depositAccountRepository;
+    private final TenantService tenantService;
     private final AuditService auditService;
 
     public DepositPrematureClosureService(
             DepositAccountRepository depositAccountRepository,
+            TenantService tenantService,
             AuditService auditService) {
         this.depositAccountRepository = depositAccountRepository;
+        this.tenantService = tenantService;
         this.auditService = auditService;
     }
 
@@ -77,6 +81,11 @@ public class DepositPrematureClosureService {
                     "DEPOSIT_NOT_FOUND",
                     "Deposit account not found: " + depositAccountId);
         }
+
+        // CBS Tier-1: validate business day is OPEN before financial operations
+        Long effectiveTenantId =
+                tenantId != null ? tenantId : deposit.getTenant().getId();
+        tenantService.validateBusinessDayOpen(effectiveTenantId);
 
         if (deposit.getStatus() != DepositAccountStatus.ACTIVE) {
             throw new BusinessException(
@@ -108,8 +117,11 @@ public class DepositPrematureClosureService {
         //   CR Customer Account (net payout)
         //   DR Interest Adjustment GL (penalty)
 
+        // CBS Tier-1: use tenant business date, never system clock
+        LocalDate businessDate = tenantService.getCurrentBusinessDate(effectiveTenantId);
+
         deposit.setStatus(DepositAccountStatus.PREMATURED);
-        deposit.setClosureDate(LocalDate.now());
+        deposit.setClosureDate(businessDate);
         deposit.setInterestAccrued(adjustedInterest);
         deposit = depositAccountRepository.save(deposit);
 

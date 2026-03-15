@@ -6,6 +6,7 @@ import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.repository.LoanAccountRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.tenant.service.TenantService;
 import java.math.BigDecimal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,12 +47,15 @@ public class LoanEmiPaymentService {
     private static final Logger log = LoggerFactory.getLogger(LoanEmiPaymentService.class);
 
     private final LoanAccountRepository loanAccountRepository;
+    private final TenantService tenantService;
     private final AuditService auditService;
 
     public LoanEmiPaymentService(
             LoanAccountRepository loanAccountRepository,
+            TenantService tenantService,
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
+        this.tenantService = tenantService;
         this.auditService = auditService;
     }
 
@@ -105,6 +109,11 @@ public class LoanEmiPaymentService {
                     "LOAN_NOT_FOUND",
                     "Loan account not found: " + loanAccountId);
         }
+
+        // CBS Tier-1: validate business day is OPEN before financial operations
+        Long effectiveTenantId =
+                tenantId != null ? tenantId : loan.getTenant().getId();
+        tenantService.validateBusinessDayOpen(effectiveTenantId);
 
         if (loan.getStatus() == LoanStatus.CLOSED) {
             throw new BusinessException("LOAN_CLOSED", "Loan is already closed");
