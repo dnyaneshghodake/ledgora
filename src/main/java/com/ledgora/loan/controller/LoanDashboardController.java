@@ -1,18 +1,11 @@
 package com.ledgora.loan.controller;
 
-import com.ledgora.account.entity.Account;
-import com.ledgora.account.repository.AccountRepository;
-import com.ledgora.loan.dto.LoanSchedulePreviewDTO;
 import com.ledgora.loan.entity.LoanAccount;
-import com.ledgora.loan.entity.LoanProduct;
 import com.ledgora.loan.entity.LoanSchedule;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.enums.NpaClassification;
 import com.ledgora.loan.repository.LoanAccountRepository;
-import com.ledgora.loan.repository.LoanProductRepository;
 import com.ledgora.loan.repository.LoanScheduleRepository;
-import com.ledgora.loan.service.LoanDisbursementService;
-import com.ledgora.loan.service.LoanEmiPaymentService;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
@@ -25,7 +18,6 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
  * Finacle-grade Loan Module UI Controller.
@@ -40,10 +32,10 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
  *   <li>GET /loan/list — paginated loan list with filters
  *   <li>GET /loan/{id} — detailed loan view with product, schedule + ledger
  *   <li>GET /loan/npa-monitor — NPA classification monitor
- *   <li>GET /loan/create — loan onboarding form (product + account selection)
- *   <li>POST /loan/create — loan disbursement (creates LoanAccount + schedule)
- *   <li>POST /loan/{id}/repay — EMI payment (maker-checker)
  * </ul>
+ *
+ * <p>Disbursement and repayment endpoints are in dedicated controllers:
+ * {@link LoanDisbursementController}, {@link LoanRepaymentController}.
  */
 @Controller
 @RequestMapping("/loan")
@@ -52,27 +44,15 @@ public class LoanDashboardController {
     private static final Logger log = LoggerFactory.getLogger(LoanDashboardController.class);
 
     private final LoanAccountRepository loanAccountRepository;
-    private final LoanProductRepository loanProductRepository;
     private final LoanScheduleRepository loanScheduleRepository;
-    private final AccountRepository accountRepository;
-    private final LoanDisbursementService disbursementService;
-    private final LoanEmiPaymentService emiPaymentService;
     private final TenantRepository tenantRepository;
 
     public LoanDashboardController(
             LoanAccountRepository loanAccountRepository,
-            LoanProductRepository loanProductRepository,
             LoanScheduleRepository loanScheduleRepository,
-            AccountRepository accountRepository,
-            LoanDisbursementService disbursementService,
-            LoanEmiPaymentService emiPaymentService,
             TenantRepository tenantRepository) {
         this.loanAccountRepository = loanAccountRepository;
-        this.loanProductRepository = loanProductRepository;
         this.loanScheduleRepository = loanScheduleRepository;
-        this.accountRepository = accountRepository;
-        this.disbursementService = disbursementService;
-        this.emiPaymentService = emiPaymentService;
         this.tenantRepository = tenantRepository;
     }
 
@@ -225,182 +205,8 @@ public class LoanDashboardController {
         return "loan/loan-npa-monitor";
     }
 
-    /** Loan onboarding form — select product, linked account, enter principal. */
-    @GetMapping("/create")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    public String createForm(Model model, HttpSession session) {
-        Long tenantId = resolveTenantId(session);
-        List<LoanProduct> products = loanProductRepository.findByTenantIdAndIsActiveTrue(tenantId);
-        List<Account> accounts =
-                accountRepository.findByTenantIdAndStatus(
-                        tenantId, com.ledgora.common.enums.AccountStatus.ACTIVE);
-        model.addAttribute("products", products);
-        model.addAttribute("accounts", accounts);
-        return "loan/loan-create";
-    }
-
-    /**
-     * Schedule preview — computes EMI amortization without persisting (Finacle LACSMNT preview).
-     * The maker reviews the full repayment schedule before confirming disbursement.
-     */
-    @PostMapping("/preview")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    public String previewSchedule(
-            @RequestParam Long productId,
-            @RequestParam Long linkedAccountId,
-            @RequestParam BigDecimal principalAmount,
-            Model model,
-            HttpSession session) {
-        Long tenantId = resolveTenantId(session);
-        try {
-            Tenant tenant =
-                    tenantRepository
-                            .findById(tenantId)
-                            .orElseThrow(() -> new RuntimeException("Tenant not found"));
-            LoanProduct product =
-                    loanProductRepository
-                            .findById(productId)
-                            .filter(p -> p.getTenant().getId().equals(tenantId))
-                            .orElseThrow(
-                                    () ->
-                                            new RuntimeException(
-                                                    "Loan product not found for this tenant"));
-            Account linkedAccount =
-                    accountRepository
-                            .findByIdAndTenantId(linkedAccountId, tenantId)
-                            .orElseThrow(
-                                    () ->
-                                            new RuntimeException(
-                                                    "Linked account not found for this tenant"));
-
-            java.time.LocalDate businessDate = tenant.getCurrentBusinessDate();
-            LoanSchedulePreviewDTO preview =
-                    disbursementService.previewSchedule(product, principalAmount, businessDate);
-
-            // Pass preview + original form values back for the confirm step
-            model.addAttribute("preview", preview);
-            model.addAttribute("selectedProductId", productId);
-            model.addAttribute("selectedAccountId", linkedAccountId);
-            model.addAttribute("selectedAccountNumber", linkedAccount.getAccountNumber());
-            model.addAttribute(
-                    "selectedAccountName",
-                    linkedAccount.getCustomerName() != null
-                            ? linkedAccount.getCustomerName()
-                            : linkedAccount.getAccountName());
-            model.addAttribute("principalAmount", principalAmount);
-            model.addAttribute("businessDate", businessDate);
-
-            // Also pass products/accounts for the form (in case user wants to go back)
-            model.addAttribute(
-                    "products", loanProductRepository.findByTenantIdAndIsActiveTrue(tenantId));
-            model.addAttribute(
-                    "accounts",
-                    accountRepository.findByTenantIdAndStatus(
-                            tenantId, com.ledgora.common.enums.AccountStatus.ACTIVE));
-
-            return "loan/loan-create";
-        } catch (Exception e) {
-            model.addAttribute("error", "Preview failed: " + e.getMessage());
-            model.addAttribute(
-                    "products", loanProductRepository.findByTenantIdAndIsActiveTrue(tenantId));
-            model.addAttribute(
-                    "accounts",
-                    accountRepository.findByTenantIdAndStatus(
-                            tenantId, com.ledgora.common.enums.AccountStatus.ACTIVE));
-            return "loan/loan-create";
-        }
-    }
-
-    /** Loan disbursement — creates LoanAccount + schedule. CBS Tier-1: maker-initiated. */
-    @PostMapping("/create")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    public String disburse(
-            @RequestParam Long productId,
-            @RequestParam Long linkedAccountId,
-            @RequestParam BigDecimal principalAmount,
-            HttpSession session,
-            RedirectAttributes redirectAttributes) {
-        Long tenantId = resolveTenantId(session);
-        try {
-            Tenant tenant =
-                    tenantRepository
-                            .findById(tenantId)
-                            .orElseThrow(() -> new RuntimeException("Tenant not found"));
-
-            // CBS Tier-1: tenant-scoped product lookup — prevent cross-tenant reference
-            LoanProduct product =
-                    loanProductRepository
-                            .findById(productId)
-                            .filter(p -> p.getTenant().getId().equals(tenantId))
-                            .orElseThrow(
-                                    () ->
-                                            new RuntimeException(
-                                                    "Loan product not found for this tenant"));
-
-            // CBS Tier-1: tenant-scoped account lookup — prevent cross-tenant reference
-            Account linkedAccount =
-                    accountRepository
-                            .findByIdAndTenantId(linkedAccountId, tenantId)
-                            .orElseThrow(
-                                    () ->
-                                            new RuntimeException(
-                                                    "Linked account not found for this tenant"));
-
-            // CBS-grade loan number: LN-<tenantCode>-<YYYYMMDD>-<sequence>
-            // Uses total loan count (all statuses) to avoid duplicate numbers when
-            // loans are CLOSED or WRITTEN_OFF.
-            String datePart = tenant.getCurrentBusinessDate().toString().replace("-", "");
-            long seq = loanAccountRepository.countByTenantId(tenantId) + 1;
-            String loanNumber =
-                    "LN-"
-                            + tenant.getTenantCode()
-                            + "-"
-                            + datePart
-                            + "-"
-                            + String.format("%04d", seq);
-
-            LoanAccount loan =
-                    disbursementService.disburse(
-                            tenant, product, linkedAccount, loanNumber, principalAmount);
-
-            redirectAttributes.addFlashAttribute(
-                    "message",
-                    "Loan "
-                            + loan.getLoanAccountNumber()
-                            + " disbursed successfully. Principal: "
-                            + principalAmount);
-            return "redirect:/loan/" + loan.getId();
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Disbursement failed: " + e.getMessage());
-            return "redirect:/loan/create";
-        }
-    }
-
-    @PostMapping("/{id}/repay")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    public String repay(
-            @PathVariable Long id,
-            @RequestParam BigDecimal principalAmount,
-            @RequestParam BigDecimal interestAmount,
-            HttpSession session,
-            RedirectAttributes redirectAttributes) {
-        Long tenantId = resolveTenantId(session);
-        // Tenant isolation: verify loan belongs to current tenant before payment
-        LoanAccount loan = loanAccountRepository.findById(id).orElse(null);
-        if (loan == null
-                || loan.getTenant() == null
-                || !loan.getTenant().getId().equals(tenantId)) {
-            redirectAttributes.addFlashAttribute("error", "Loan not found or access denied");
-            return "redirect:/loan/list";
-        }
-        try {
-            emiPaymentService.processEmiPayment(id, principalAmount, interestAmount);
-            redirectAttributes.addFlashAttribute("message", "EMI payment processed successfully");
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Payment failed: " + e.getMessage());
-        }
-        return "redirect:/loan/" + id;
-    }
+    // ── Disbursement (GET/POST /loan/create, POST /loan/preview) moved to LoanDisbursementController
+    // ── Repayment (POST /loan/{id}/repay) moved to LoanRepaymentController
 
     private Long resolveTenantId(HttpSession session) {
         Long tenantId = TenantContextHolder.getTenantId();
