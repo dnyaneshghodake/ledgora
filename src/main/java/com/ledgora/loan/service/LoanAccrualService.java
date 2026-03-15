@@ -74,9 +74,14 @@ public class LoanAccrualService {
     }
 
     /**
-     * Accrue daily interest for all performing loans of a tenant.
+     * Accrue daily interest for all performing and NPA loans of a tenant.
      *
-     * <p>RBI IRAC: Only ACTIVE loans accrue interest. NPA/WRITTEN_OFF/CLOSED are skipped.
+     * <p>RBI IRAC dual-track accrual:
+     *
+     * <ul>
+     *   <li>ACTIVE loans: DR Interest Receivable, CR Interest Income (recognized)
+     *   <li>NPA loans: DR Accrued Interest, CR Interest Suspense (NOT recognized as income)
+     * </ul>
      *
      * @return number of loans accrued
      */
@@ -88,24 +93,25 @@ public class LoanAccrualService {
                         .orElseThrow(() -> new RuntimeException("Tenant not found: " + tenantId));
         LocalDate businessDate = tenant.getCurrentBusinessDate();
 
-        var activeLoans = loanAccountRepository.findActiveByTenantId(tenantId);
+        // Process ACTIVE + NPA loans (NPA loans accrue to suspense per RBI IRAC)
+        var allLoans = loanAccountRepository.findActiveAndNpaByTenantId(tenantId);
         int accrued = 0;
+        int npaSuspenseAccrued = 0;
         int skippedAlreadyAccrued = 0;
 
-        for (LoanAccount loan : activeLoans) {
-            if (loan.getStatus() != LoanStatus.ACTIVE) {
-                continue; // defensive — query should only return ACTIVE
+        for (LoanAccount loan : allLoans) {
+            if (loan.getStatus() != LoanStatus.ACTIVE
+                    && loan.getStatus() != LoanStatus.NPA) {
+                continue;
             }
             if (loan.getOutstandingPrincipal().compareTo(BigDecimal.ZERO) <= 0) {
                 continue; // fully repaid
             }
 
-            // Moratorium: skip accrual during moratorium period (interest not recognized)
-            // Note: During moratorium, interest may still accrue but is capitalized separately.
-            // This implementation skips accrual entirely during moratorium per product config.
+            // Moratorium: skip accrual during moratorium period
             if (loan.getMoratoriumEndDate() != null
                     && businessDate.isBefore(loan.getMoratoriumEndDate())) {
-                continue; // moratorium active — skip accrual
+                continue;
             }
 
             // Idempotency: skip if already accrued for this business date
@@ -129,22 +135,40 @@ public class LoanAccrualService {
                 continue;
             }
 
-            // Update accrued interest tracking on the loan account
-            loan.setAccruedInterest(loan.getAccruedInterest().add(dailyInterest));
-            loan.setLastAccrualDate(businessDate);
-            loanAccountRepository.save(loan);
+            if (loan.getStatus() == LoanStatus.NPA) {
+                // ── NPA SUSPENSE ACCRUAL ──
+                // RBI IRAC: Interest on NPA loans accrued to suspense, NOT income.
+                // GL: DR Accrued Interest, CR Interest Suspense
+                // Track in interestReversed (suspense accumulator)
+                loan.setInterestReversed(loan.getInterestReversed().add(dailyInterest));
+                loan.setLastAccrualDate(businessDate);
+                loanAccountRepository.save(loan);
+                npaSuspenseAccrued++;
 
-            // ── VOUCHER ENGINE: Post accrual (DR Interest Receivable, CR Interest Income) ──
-            postAccrualVouchers(tenant, loan, product, dailyInterest, businessDate);
+                log.debug(
+                        "NPA suspense accrual: loan={} daily={} totalSuspense={}",
+                        loan.getLoanAccountNumber(),
+                        dailyInterest,
+                        loan.getInterestReversed());
+            } else {
+                // ── STANDARD ACCRUAL (ACTIVE loans) ──
+                // GL: DR Interest Receivable, CR Interest Income
+                loan.setAccruedInterest(loan.getAccruedInterest().add(dailyInterest));
+                loan.setLastAccrualDate(businessDate);
+                loanAccountRepository.save(loan);
 
-            accrued++;
-            log.debug(
-                    "Interest accrued: loan={} principal={} rate={}% daily={} total_accrued={}",
-                    loan.getLoanAccountNumber(),
-                    loan.getOutstandingPrincipal(),
-                    product.getInterestRate(),
-                    dailyInterest,
-                    loan.getAccruedInterest());
+                // ── VOUCHER ENGINE: Post accrual ──
+                postAccrualVouchers(tenant, loan, product, dailyInterest, businessDate);
+
+                accrued++;
+                log.debug(
+                        "Interest accrued: loan={} principal={} rate={}% daily={} total_accrued={}",
+                        loan.getLoanAccountNumber(),
+                        loan.getOutstandingPrincipal(),
+                        effectiveRate,
+                        dailyInterest,
+                        loan.getAccruedInterest());
+            }
         }
 
         if (skippedAlreadyAccrued > 0) {
@@ -155,7 +179,7 @@ public class LoanAccrualService {
                     tenantId);
         }
 
-        if (accrued > 0) {
+        if (accrued > 0 || npaSuspenseAccrued > 0) {
             auditService.logEvent(
                     null,
                     "LOAN_INTEREST_ACCRUAL",
@@ -163,15 +187,21 @@ public class LoanAccrualService {
                     null,
                     "Daily interest accrued for "
                             + accrued
-                            + " loans (tenant "
+                            + " performing + "
+                            + npaSuspenseAccrued
+                            + " NPA suspense loans (tenant "
                             + tenantId
                             + ") date "
                             + businessDate,
                     null);
-            log.info("Loan interest accrued: {} loans for tenant {}", accrued, tenantId);
+            log.info(
+                    "Loan interest accrued: {} performing + {} NPA suspense for tenant {}",
+                    accrued,
+                    npaSuspenseAccrued,
+                    tenantId);
         }
 
-        return accrued;
+        return accrued + npaSuspenseAccrued;
     }
 
     /**

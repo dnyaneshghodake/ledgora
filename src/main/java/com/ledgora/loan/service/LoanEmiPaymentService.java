@@ -270,6 +270,95 @@ public class LoanEmiPaymentService {
     }
 
     /**
+     * Calculate penal interest for overdue loans. Called during EOD after DPD calculation.
+     *
+     * <p>Penal interest = outstandingPrincipal × penalRate / 365 × overdueDays
+     * GL: DR Penal Interest Receivable, CR Penal Interest Income
+     *
+     * @return number of loans with penal interest accrued
+     */
+    @Transactional
+    public int accruePenalInterest(Long tenantId) {
+        var loans = loanAccountRepository.findActiveAndNpaByTenantId(tenantId);
+        int penalized = 0;
+
+        for (LoanAccount loan : loans) {
+            if (loan.getDpd() <= 0) continue;
+            LoanProduct product = loan.getLoanProduct();
+
+            // Grace period: no penal within grace days
+            if (loan.getDpd() <= product.getGraceDays()) continue;
+
+            BigDecimal penalRate = product.getPenaltyRate();
+            if (penalRate == null || penalRate.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            BigDecimal dailyPenal = EmiCalculator.dailyRate(penalRate);
+            BigDecimal penalAmount =
+                    loan.getOutstandingPrincipal()
+                            .multiply(dailyPenal, MathContext.DECIMAL128)
+                            .setScale(4, RoundingMode.HALF_UP);
+
+            if (penalAmount.compareTo(BigDecimal.ZERO) <= 0) continue;
+
+            loan.setPenalInterest(loan.getPenalInterest().add(penalAmount));
+            loanAccountRepository.save(loan);
+            penalized++;
+
+            log.debug(
+                    "Penal interest accrued: loan={} dpd={} penal={} totalPenal={}",
+                    loan.getLoanAccountNumber(),
+                    loan.getDpd(),
+                    penalAmount,
+                    loan.getPenalInterest());
+        }
+
+        if (penalized > 0) {
+            log.info("Penal interest accrued for {} loans (tenant {})", penalized, tenantId);
+        }
+        return penalized;
+    }
+
+    /**
+     * Calculate foreclosure amount for a loan.
+     *
+     * <p>Foreclosure = Outstanding Principal + Accrued Interest + Penal Interest
+     * Prepayment charges may be added per product policy.
+     *
+     * @return foreclosure amount breakdown
+     */
+    public java.util.Map<String, BigDecimal> calculateForeclosureAmount(Long loanAccountId) {
+        LoanAccount loan =
+                loanAccountRepository
+                        .findById(loanAccountId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                "LOAN_NOT_FOUND",
+                                                "Loan account not found: " + loanAccountId));
+
+        BigDecimal principal = loan.getOutstandingPrincipal();
+        BigDecimal interest = loan.getAccruedInterest();
+        BigDecimal penal = loan.getPenalInterest();
+        BigDecimal total = principal.add(interest).add(penal);
+
+        java.util.Map<String, BigDecimal> breakdown = new java.util.LinkedHashMap<>();
+        breakdown.put("outstandingPrincipal", principal);
+        breakdown.put("accruedInterest", interest);
+        breakdown.put("penalInterest", penal);
+        breakdown.put("totalForeclosureAmount", total);
+
+        log.info(
+                "Foreclosure calculated: loan={} principal={} interest={} penal={} total={}",
+                loan.getLoanAccountNumber(),
+                principal,
+                interest,
+                penal,
+                total);
+
+        return breakdown;
+    }
+
+    /**
      * Post repayment voucher pairs via the voucher engine.
      *
      * <p>CBS-grade double-entry per component:

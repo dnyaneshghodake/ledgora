@@ -1,5 +1,6 @@
 package com.ledgora.loan.scheduler;
 
+import com.ledgora.loan.service.LoanEmiPaymentService;
 import com.ledgora.loan.service.LoanNpaService;
 import com.ledgora.loan.service.LoanProvisionService;
 import com.ledgora.tenant.entity.Tenant;
@@ -17,8 +18,9 @@ import org.springframework.stereotype.Component;
  *
  * <ol>
  *   <li>Interest Accrual (LoanAccrualScheduler)
- *   <li><strong>NPA classification</strong> (this scheduler — step 1)
- *   <li><strong>Provision update</strong> (this scheduler — step 2)
+ *   <li><strong>DPD + NPA classification</strong> (this scheduler — step 1)
+ *   <li><strong>Penal interest accrual</strong> (this scheduler — step 2)
+ *   <li><strong>Provision update</strong> (this scheduler — step 3)
  *   <li>Trial Balance / CRAR (reporting engine)
  * </ol>
  *
@@ -37,14 +39,17 @@ public class LoanNpaScheduler {
     private static final Logger log = LoggerFactory.getLogger(LoanNpaScheduler.class);
 
     private final LoanNpaService loanNpaService;
+    private final LoanEmiPaymentService loanEmiPaymentService;
     private final LoanProvisionService loanProvisionService;
     private final TenantRepository tenantRepository;
 
     public LoanNpaScheduler(
             LoanNpaService loanNpaService,
+            LoanEmiPaymentService loanEmiPaymentService,
             LoanProvisionService loanProvisionService,
             TenantRepository tenantRepository) {
         this.loanNpaService = loanNpaService;
+        this.loanEmiPaymentService = loanEmiPaymentService;
         this.loanProvisionService = loanProvisionService;
         this.tenantRepository = tenantRepository;
     }
@@ -59,11 +64,15 @@ public class LoanNpaScheduler {
     public void runForTenant(Long tenantId) {
         log.info("Loan NPA scheduler started for tenant {}", tenantId);
         try {
-            // Step 1: DPD update + NPA classification
+            // Step 1: DPD update + SMA/NPA classification + interest reversal + NPA upgrade
             int newNpaCount = loanNpaService.evaluateNpaAndUpdateDpd(tenantId);
             log.info("NPA evaluation: tenant={} newNpaClassifications={}", tenantId, newNpaCount);
 
-            // Step 2: Provision recalculation (must run AFTER NPA classification)
+            // Step 2: Penal interest accrual (after DPD is computed, respects grace days)
+            int penalized = loanEmiPaymentService.accruePenalInterest(tenantId);
+            log.info("Penal accrual: tenant={} loansWithPenal={}", tenantId, penalized);
+
+            // Step 3: Provision recalculation (must run AFTER NPA classification)
             BigDecimal incremental = loanProvisionService.calculateProvisions(tenantId);
             log.info(
                     "Provision update: tenant={} incrementalProvision={}",

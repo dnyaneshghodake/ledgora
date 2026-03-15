@@ -186,6 +186,43 @@ public class LoanNpaService {
                         classification,
                         loan.getDpd(),
                         threshold);
+            } else if (loan.getStatus() == LoanStatus.NPA && computedDpd == 0) {
+                // ── NPA UPGRADE — all overdue cleared, DPD back to 0 ──
+                // RBI IRAC: Upgrade from NPA to Standard only after ALL overdue cleared.
+                // Reverse interest suspense back to income.
+                loan.setStatus(LoanStatus.ACTIVE);
+                loan.setNpaDate(null);
+                loan.setNpaClassification(NpaClassification.STANDARD);
+                loan.setSmaCategory(SmaCategory.NONE);
+
+                // Reverse interest suspense → income
+                BigDecimal suspenseToReverse = loan.getInterestReversed();
+                if (suspenseToReverse.compareTo(BigDecimal.ZERO) > 0) {
+                    // GL: DR Interest Suspense, CR Interest Income
+                    loan.setAccruedInterest(
+                            loan.getAccruedInterest().add(suspenseToReverse));
+                    loan.setInterestReversed(BigDecimal.ZERO);
+                    log.info(
+                            "NPA upgrade — suspense reversed to income: loan={} reversed={}",
+                            loan.getLoanAccountNumber(),
+                            suspenseToReverse);
+                }
+
+                loanAccountRepository.save(loan);
+
+                auditService.logEvent(
+                        null,
+                        "LOAN_NPA_UPGRADED",
+                        "LOAN_ACCOUNT",
+                        loan.getId(),
+                        "Loan "
+                                + loan.getLoanAccountNumber()
+                                + " upgraded from NPA to STANDARD. All overdue cleared.",
+                        null);
+
+                log.info(
+                        "LOAN NPA UPGRADE: {} upgraded to STANDARD (all overdue cleared)",
+                        loan.getLoanAccountNumber());
             } else if (loan.getStatus() == LoanStatus.NPA) {
                 // ── EXISTING NPA — update DPD + tier progression ──
                 // RBI IRAC: classification must progress daily

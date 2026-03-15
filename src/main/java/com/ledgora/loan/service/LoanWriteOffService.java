@@ -144,4 +144,65 @@ public class LoanWriteOffService {
 
         return loan;
     }
+
+    /**
+     * Record recovery on a written-off loan.
+     *
+     * <p>RBI: Recovery after write-off is posted as income (not principal reduction).
+     * The loan remains WRITTEN_OFF — recovery is a separate income event.
+     *
+     * <p>GL: DR Cash/Customer Account, CR Recovery Income
+     *
+     * @param loanAccountId the written-off loan
+     * @param recoveryAmount amount recovered
+     * @return the loan account (status unchanged — still WRITTEN_OFF)
+     */
+    @Transactional
+    public LoanAccount recordRecovery(Long loanAccountId, BigDecimal recoveryAmount) {
+        if (recoveryAmount == null || recoveryAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(
+                    "INVALID_RECOVERY", "Recovery amount must be positive");
+        }
+
+        LoanAccount loan =
+                loanAccountRepository
+                        .findById(loanAccountId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                "LOAN_NOT_FOUND",
+                                                "Loan account not found: " + loanAccountId));
+
+        Long tenantId = TenantContextHolder.getTenantId();
+        LoanBusinessValidator.validateTenantOwnership(loan, tenantId);
+
+        if (loan.getStatus() != LoanStatus.WRITTEN_OFF) {
+            throw new BusinessException(
+                    "NOT_WRITTEN_OFF",
+                    "Recovery can only be recorded on written-off loans. Current status: "
+                            + loan.getStatus());
+        }
+
+        // Recovery is posted as income — loan status remains WRITTEN_OFF
+        // GL: DR Cash, CR Recovery Income (handled by voucher engine at controller level)
+
+        auditService.logEvent(
+                null,
+                "LOAN_RECOVERY_POST_WRITEOFF",
+                "LOAN_ACCOUNT",
+                loan.getId(),
+                "Recovery recorded on written-off loan "
+                        + loan.getLoanAccountNumber()
+                        + ": amount="
+                        + recoveryAmount
+                        + " (posted as recovery income)",
+                null);
+
+        log.info(
+                "LOAN RECOVERY: {} amount={} (post write-off recovery income)",
+                loan.getLoanAccountNumber(),
+                recoveryAmount);
+
+        return loan;
+    }
 }
