@@ -88,19 +88,26 @@ public class DataInitializer implements CommandLineRunner {
         log.info("  Ledgora DataInitializer — seeding reference data ...");
         log.info("═══════════════════════════════════════════════════════════");
 
-        // 0. Tenants
+        // 0. Tenants (5 realistic Indian financial institutions)
         Tenant defaultTenant = tenantSeeder.seedDefaultTenant();
         Tenant secondTenant = tenantSeeder.seedSecondTenant();
-        log.info("  [Tenants] Default tenant (TENANT-001) and secondary tenant (TENANT-002) ready");
+        Tenant ucbTenant = tenantSeeder.seedCooperativeBank();
+        Tenant rrbTenant = tenantSeeder.seedRuralBank();
+        Tenant nbfcTenant = tenantSeeder.seedNbfc();
+        log.info("  [Tenants] 5 tenants ready (Main Bank, Partner Bank, UCB, RRB, NBFC)");
 
         // 1. Roles
         roleSeeder.seed();
 
-        // 2. Branches
+        // 2. Branches (per tenant — realistic branch networks)
         Branch[] branches = branchSeeder.seed(defaultTenant);
         Branch hq = branches[0];
         Branch br1 = branches[1];
         Branch br2 = branches[2];
+        branchSeeder.seedForTenant2(secondTenant);
+        branchSeeder.seedForTenant3(ucbTenant);
+        branchSeeder.seedForTenant4(rrbTenant);
+        branchSeeder.seedForTenant5(nbfcTenant);
 
         // 3. Users
         User[] users = userSeeder.seed(defaultTenant, secondTenant, hq, br1, br2);
