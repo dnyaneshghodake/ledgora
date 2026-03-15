@@ -19,6 +19,7 @@
                     <option value="">All</option>
                     <option value="ACTIVE" ${selectedStatus == 'ACTIVE' ? 'selected' : ''}>Active</option>
                     <option value="NPA" ${selectedStatus == 'NPA' ? 'selected' : ''}>NPA</option>
+                    <option value="WRITTEN_OFF" ${selectedStatus == 'WRITTEN_OFF' ? 'selected' : ''}>Written Off</option>
                     <option value="CLOSED" ${selectedStatus == 'CLOSED' ? 'selected' : ''}>Closed</option>
                 </select>
             </div>

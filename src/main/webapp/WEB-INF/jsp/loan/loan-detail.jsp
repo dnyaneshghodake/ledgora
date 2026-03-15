@@ -13,14 +13,14 @@
 <c:if test="${not empty error}"><div class="alert alert-danger alert-dismissible fade show"><c:out value="${error}"/><button type="button" class="btn-close" data-bs-dismiss="alert"></button></div></c:if>
 
 <c:if test="${loan != null}">
-<%-- Sanction Details --%>
+<%-- Product & Sanction Details (Finacle Loan Inquiry) --%>
 <div class="card shadow mb-4 reg-card">
-    <div class="card-header bg-white"><h5 class="mb-0">Sanction Details</h5></div>
+    <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-file-earmark-text"></i> Sanction & Product Details</h5></div>
     <div class="card-body">
         <div class="row">
             <div class="col-md-3"><small class="text-muted d-block">Loan Account</small><strong><c:out value="${loan.loanAccountNumber}"/></strong></div>
+            <div class="col-md-3"><small class="text-muted d-block">Linked Account</small><strong><c:out value="${loan.linkedAccount.accountNumber}"/></strong></div>
             <div class="col-md-3"><small class="text-muted d-block">Principal Amount</small><strong><fmt:formatNumber value="${loan.principalAmount}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></strong></div>
-            <div class="col-md-3"><small class="text-muted d-block">Outstanding Principal</small><strong><fmt:formatNumber value="${loan.outstandingPrincipal}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></strong></div>
             <div class="col-md-3"><small class="text-muted d-block">Status</small>
                 <c:choose>
                     <c:when test="${loan.status == 'ACTIVE'}"><span class="badge bg-success fs-6">ACTIVE</span></c:when>
@@ -31,9 +31,15 @@
             </div>
         </div>
         <div class="row mt-3">
+            <div class="col-md-3"><small class="text-muted d-block">Product</small><c:out value="${loan.loanProduct.productName}"/> (<c:out value="${loan.loanProduct.productCode}"/>)</div>
+            <div class="col-md-3"><small class="text-muted d-block">Interest Rate</small><c:out value="${loan.loanProduct.interestRate}"/>% p.a. (<c:out value="${loan.loanProduct.interestType}"/>)</div>
+            <div class="col-md-3"><small class="text-muted d-block">Tenure</small><c:out value="${loan.loanProduct.tenureMonths}"/> months</div>
+            <div class="col-md-3"><small class="text-muted d-block">Outstanding Principal</small><strong class="${loan.outstandingPrincipal.compareTo(loan.principalAmount) < 0 ? 'text-success' : ''}"><fmt:formatNumber value="${loan.outstandingPrincipal}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></strong></div>
+        </div>
+        <div class="row mt-3">
             <div class="col-md-3"><small class="text-muted d-block">Disbursement Date</small><c:out value="${loan.disbursementDate}"/></div>
             <div class="col-md-3"><small class="text-muted d-block">Maturity Date</small><c:out value="${loan.maturityDate}"/></div>
-            <div class="col-md-3"><small class="text-muted d-block">DPD</small><span class="${loan.dpd > 90 ? 'text-danger fw-bold' : ''}"><c:out value="${loan.dpd}"/> days</span></div>
+            <div class="col-md-3"><small class="text-muted d-block">DPD</small><span class="${loan.dpd > 90 ? 'text-danger fw-bold' : loan.dpd > 0 ? 'text-warning fw-bold' : ''}"><c:out value="${loan.dpd}"/> days</span></div>
             <div class="col-md-3"><small class="text-muted d-block">NPA Classification</small>
                 <c:choose>
                     <c:when test="${loan.npaClassification == 'STANDARD'}"><span class="badge bg-success">Standard</span></c:when>
@@ -64,15 +70,17 @@
 <div class="card shadow mb-4 border-primary">
     <div class="card-header bg-primary bg-opacity-10"><h5 class="mb-0"><i class="bi bi-credit-card"></i> Process EMI Payment</h5></div>
     <div class="card-body">
-        <form method="post" action="${pageContext.request.contextPath}/loan/${loan.id}/repay" onsubmit="return confirm('Confirm EMI payment? This will be posted to the voucher engine.');">
+        <form method="post" action="${pageContext.request.contextPath}/loan/${loan.id}/repay" onsubmit="return confirm('Confirm EMI payment of ₹' + (parseFloat(this.principalAmount.value) + parseFloat(this.interestAmount.value)).toFixed(2) + '? This will be posted to the voucher engine.');">
             <div class="row g-3">
                 <div class="col-md-4">
                     <label class="form-label">Principal Component</label>
-                    <input type="number" name="principalAmount" step="0.01" min="0" class="form-control" required/>
+                    <input type="number" name="principalAmount" step="0.01" min="0" max="${loan.outstandingPrincipal}" class="form-control" required/>
+                    <small class="text-muted">Max: <fmt:formatNumber value="${loan.outstandingPrincipal}" maxFractionDigits="2"/></small>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">Interest Component</label>
-                    <input type="number" name="interestAmount" step="0.01" min="0" class="form-control" required/>
+                    <input type="number" name="interestAmount" step="0.01" min="0" max="${loan.accruedInterest}" class="form-control" required/>
+                    <small class="text-muted">Max: <fmt:formatNumber value="${loan.accruedInterest}" maxFractionDigits="2"/></small>
                 </div>
                 <div class="col-md-4 d-flex align-items-end">
                     <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
