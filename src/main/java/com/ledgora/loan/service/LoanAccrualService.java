@@ -1,6 +1,12 @@
 package com.ledgora.loan.service;
 
+import com.ledgora.account.entity.Account;
 import com.ledgora.audit.service.AuditService;
+import com.ledgora.auth.entity.User;
+import com.ledgora.auth.repository.UserRepository;
+import com.ledgora.branch.entity.Branch;
+import com.ledgora.branch.repository.BranchRepository;
+import com.ledgora.common.exception.BusinessException;
 import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.entity.LoanProduct;
 import com.ledgora.loan.enums.LoanStatus;
@@ -8,6 +14,8 @@ import com.ledgora.loan.repository.LoanAccountRepository;
 import com.ledgora.loan.validation.EmiCalculator;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
+import com.ledgora.voucher.entity.Voucher;
+import com.ledgora.voucher.service.VoucherService;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
@@ -44,14 +52,23 @@ public class LoanAccrualService {
     private static final BigDecimal DAYS_IN_YEAR = new BigDecimal("365");
 
     private final LoanAccountRepository loanAccountRepository;
+    private final VoucherService voucherService;
+    private final BranchRepository branchRepository;
+    private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
     private final AuditService auditService;
 
     public LoanAccrualService(
             LoanAccountRepository loanAccountRepository,
+            VoucherService voucherService,
+            BranchRepository branchRepository,
+            UserRepository userRepository,
             TenantRepository tenantRepository,
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
+        this.voucherService = voucherService;
+        this.branchRepository = branchRepository;
+        this.userRepository = userRepository;
         this.tenantRepository = tenantRepository;
         this.auditService = auditService;
     }
@@ -104,17 +121,13 @@ public class LoanAccrualService {
                 continue;
             }
 
-            // Update accrued interest on the loan account
-            // NOTE: The actual GL posting (DR Interest Receivable, CR Interest Income)
-            // should be done via the voucher engine in a production implementation.
-            // Here we update the tracking field; the voucher posting would be:
-            //   VoucherService.createVoucherPair(
-            //       product.getGlInterestReceivable(), // DR
-            //       product.getGlInterestIncome(),     // CR
-            //       dailyInterest, ...)
+            // Update accrued interest tracking on the loan account
             loan.setAccruedInterest(loan.getAccruedInterest().add(dailyInterest));
             loan.setLastAccrualDate(businessDate);
             loanAccountRepository.save(loan);
+
+            // ── VOUCHER ENGINE: Post accrual (DR Interest Receivable, CR Interest Income) ──
+            postAccrualVouchers(tenant, loan, product, dailyInterest, businessDate);
 
             accrued++;
             log.debug(
@@ -151,5 +164,66 @@ public class LoanAccrualService {
         }
 
         return accrued;
+    }
+
+    /**
+     * Post accrual voucher pair via the voucher engine.
+     *
+     * <p>CBS-grade double-entry per RBI IRAC:
+     *
+     * <pre>
+     *   DR Interest Receivable GL (Asset — accrued but unrealized)
+     *   CR Interest Income GL (Revenue — recognized on accrual basis)
+     * </pre>
+     */
+    private void postAccrualVouchers(
+            Tenant tenant, LoanAccount loan, LoanProduct product,
+            BigDecimal dailyInterest, LocalDate businessDate) {
+        try {
+            Account customerAccount = loan.getLinkedAccount();
+            Branch branch = customerAccount.getBranch() != null
+                    ? customerAccount.getBranch()
+                    : branchRepository.findByTenantId(tenant.getId()).stream()
+                            .findFirst()
+                            .orElseThrow(() -> new BusinessException("NO_BRANCH",
+                                    "No branch configured for tenant " + tenant.getTenantCode()));
+
+            User systemUser = userRepository.findByUsername("SYSTEM_AUTO")
+                    .orElseThrow(() -> new BusinessException(
+                            "SYSTEM_USER_MISSING",
+                            "SYSTEM_AUTO user not configured. Accrual voucher posting blocked."));
+
+            String batchCode = "LOAN-ACCR-" + loan.getLoanAccountNumber()
+                    + "-" + businessDate.toString().replace("-", "");
+
+            Voucher[] pair = voucherService.createVoucherPair(
+                    tenant,
+                    branch, customerAccount, product.getGlInterestReceivable(),
+                    branch, customerAccount, product.getGlInterestIncome(),
+                    dailyInterest,
+                    loan.getCurrency(),
+                    businessDate,
+                    batchCode,
+                    systemUser,
+                    "Loan accrual DR: " + loan.getLoanAccountNumber()
+                            + " interest=" + dailyInterest,
+                    "Loan accrual CR: " + loan.getLoanAccountNumber()
+                            + " interest income=" + dailyInterest);
+
+            voucherService.systemAuthorizeVoucher(pair[0].getId(), systemUser);
+            voucherService.systemAuthorizeVoucher(pair[1].getId(), systemUser);
+            voucherService.postVoucher(pair[0].getId());
+            voucherService.postVoucher(pair[1].getId());
+
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Accrual voucher posting failed for loan {}: {}",
+                    loan.getLoanAccountNumber(), e.getMessage(), e);
+            throw new BusinessException(
+                    "VOUCHER_POSTING_FAILED",
+                    "Accrual voucher posting failed for loan "
+                            + loan.getLoanAccountNumber() + ": " + e.getMessage());
+        }
     }
 }
