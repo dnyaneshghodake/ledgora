@@ -5,12 +5,12 @@ import com.ledgora.stress.dto.DeadlockSimulationResult;
 import com.ledgora.stress.dto.EodPerformanceResult;
 import com.ledgora.stress.dto.LoadGeneratorResult;
 import com.ledgora.stress.dto.LockContentionResult;
-import com.ledgora.stress.service.ChaosEodTester;
-import com.ledgora.stress.service.DeadlockSimulator;
+import com.ledgora.stress.service.ChaosEodTestService;
+import com.ledgora.stress.service.DeadlockSimulationService;
 import com.ledgora.stress.service.EodLoadGeneratorService;
-import com.ledgora.stress.service.EodPerformanceRunner;
-import com.ledgora.stress.service.LockContentionSimulator;
-import com.ledgora.stress.service.ProductionLoadGenerator;
+import com.ledgora.stress.service.EodPerformanceService;
+import com.ledgora.stress.service.LockContentionService;
+import com.ledgora.stress.service.ProductionLoadService;
 import com.ledgora.tenant.context.TenantContextHolder;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -48,19 +48,19 @@ public class StressTestController {
     private static final Logger log = LoggerFactory.getLogger(StressTestController.class);
 
     private final EodLoadGeneratorService loadGenerator;
-    private final EodPerformanceRunner performanceRunner;
-    private final LockContentionSimulator lockContentionSimulator;
-    private final DeadlockSimulator deadlockSimulator;
-    private final ProductionLoadGenerator productionLoadGenerator;
-    private final ChaosEodTester chaosEodTester;
+    private final EodPerformanceService performanceRunner;
+    private final LockContentionService lockContentionSimulator;
+    private final DeadlockSimulationService deadlockSimulator;
+    private final ProductionLoadService productionLoadGenerator;
+    private final ChaosEodTestService chaosEodTester;
 
     public StressTestController(
             EodLoadGeneratorService loadGenerator,
-            EodPerformanceRunner performanceRunner,
-            LockContentionSimulator lockContentionSimulator,
-            DeadlockSimulator deadlockSimulator,
-            ProductionLoadGenerator productionLoadGenerator,
-            ChaosEodTester chaosEodTester) {
+            EodPerformanceService performanceRunner,
+            LockContentionService lockContentionSimulator,
+            DeadlockSimulationService deadlockSimulator,
+            ProductionLoadService productionLoadGenerator,
+            ChaosEodTestService chaosEodTester) {
         this.loadGenerator = loadGenerator;
         this.performanceRunner = performanceRunner;
         this.lockContentionSimulator = lockContentionSimulator;

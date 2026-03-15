@@ -2,9 +2,14 @@ package com.ledgora.loan.service;
 
 import com.ledgora.account.entity.Account;
 import com.ledgora.common.enums.InstallmentStatus;
+import com.ledgora.common.exception.BusinessException;
+import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.entity.LoanSchedule;
+import com.ledgora.loan.repository.LoanAccountRepository;
 import com.ledgora.loan.repository.LoanScheduleRepository;
+import com.ledgora.loan.validation.EmiCalculator;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -15,20 +20,32 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * CBS-grade Loan Schedule Service. Generates amortization schedule on loan disbursement using
- * reducing-balance EMI formula. Updates DPD counters during EOD.
+ * CBS-grade Loan Schedule Service — Finacle LACHST equivalent.
  *
- * <p>EMI Formula (reducing balance): EMI = P × r × (1+r)^n / ((1+r)^n - 1) where P = principal, r =
- * monthly rate, n = tenure in months
+ * <p>Schedule operations:
+ *
+ * <ul>
+ *   <li>Generate amortization schedule on loan disbursement
+ *   <li>Regenerate schedule after rate change (EMI restructuring)
+ *   <li>Regenerate schedule after part-prepayment (tenure/EMI reduction)
+ *   <li>Update DPD counters during EOD
+ * </ul>
+ *
+ * <p>EMI Formula (reducing balance): EMI = P × r × (1+r)^n / ((1+r)^n - 1) via centralized {@link
+ * EmiCalculator}.
  */
 @Service
 public class LoanScheduleService {
 
     private static final Logger log = LoggerFactory.getLogger(LoanScheduleService.class);
     private final LoanScheduleRepository scheduleRepository;
+    private final LoanAccountRepository loanAccountRepository;
 
-    public LoanScheduleService(LoanScheduleRepository scheduleRepository) {
+    public LoanScheduleService(
+            LoanScheduleRepository scheduleRepository,
+            LoanAccountRepository loanAccountRepository) {
         this.scheduleRepository = scheduleRepository;
+        this.loanAccountRepository = loanAccountRepository;
     }
 
     /**
@@ -149,22 +166,99 @@ public class LoanScheduleService {
         return scheduleRepository.countByAccountIdAndDpdGreaterThan(accountId, 90) > 0;
     }
 
-    /** Reducing-balance EMI formula: EMI = P × r × (1+r)^n / ((1+r)^n - 1) */
+    /** Reducing-balance EMI formula — delegates to centralized EmiCalculator. */
     private BigDecimal calculateEmi(BigDecimal principal, BigDecimal monthlyRate, int months) {
-        if (monthlyRate.compareTo(BigDecimal.ZERO) == 0) {
-            // Zero interest — flat division
-            return principal.divide(new BigDecimal(months), 4, RoundingMode.HALF_UP);
+        // Convert monthlyRate back to annual % for EmiCalculator
+        BigDecimal annualRate =
+                monthlyRate.multiply(new BigDecimal("12")).multiply(new BigDecimal("100"));
+        return EmiCalculator.computeEmi(principal, annualRate, months);
+    }
+
+    /**
+     * Regenerate remaining schedule after a rate change or prepayment.
+     *
+     * <p>Only unpaid installments (SCHEDULED, DUE, OVERDUE, PARTIALLY_PAID) are replaced. PAID
+     * installments are immutable — they represent historical fact.
+     *
+     * @param loanAccountId the loan to restructure
+     * @param newRate new annual interest rate (null = use current loan rate)
+     * @return number of installments regenerated
+     */
+    @Transactional
+    public int regenerateSchedule(Long loanAccountId, BigDecimal newRate) {
+        LoanAccount loan =
+                loanAccountRepository
+                        .findById(loanAccountId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                "LOAN_NOT_FOUND",
+                                                "Loan account not found: " + loanAccountId));
+
+        BigDecimal effectiveRate = newRate != null ? newRate : loan.getInterestRate();
+        BigDecimal outstanding = loan.getOutstandingPrincipal();
+
+        if (outstanding.compareTo(BigDecimal.ZERO) <= 0) {
+            return 0;
         }
-        // (1 + r)^n
-        BigDecimal onePlusR = BigDecimal.ONE.add(monthlyRate);
-        BigDecimal power = onePlusR.pow(months);
 
-        // P × r × (1+r)^n
-        BigDecimal numerator = principal.multiply(monthlyRate).multiply(power);
+        List<LoanSchedule> pending =
+                scheduleRepository.findPendingByLoanAccountIdOrderByInstallmentAsc(loanAccountId);
+        if (pending.isEmpty()) {
+            return 0;
+        }
 
-        // (1+r)^n - 1
-        BigDecimal denominator = power.subtract(BigDecimal.ONE);
+        int remainingTenure = pending.size();
+        LocalDate nextDueDate = pending.get(0).getDueDate();
+        int startInstallmentNumber = pending.get(0).getInstallmentNumber();
 
-        return numerator.divide(denominator, 4, RoundingMode.HALF_UP);
+        scheduleRepository.deleteAll(pending);
+
+        BigDecimal monthlyRate = EmiCalculator.monthlyRate(effectiveRate);
+        BigDecimal emi = EmiCalculator.computeEmi(outstanding, effectiveRate, remainingTenure);
+
+        List<LoanSchedule> newSchedule = new ArrayList<>();
+        BigDecimal remaining = outstanding;
+
+        for (int i = 0; i < remainingTenure; i++) {
+            BigDecimal interestComponent =
+                    remaining
+                            .multiply(monthlyRate, MathContext.DECIMAL128)
+                            .setScale(4, RoundingMode.HALF_UP);
+            BigDecimal principalComponent = emi.subtract(interestComponent);
+
+            if (i == remainingTenure - 1) {
+                principalComponent = remaining;
+                emi = principalComponent.add(interestComponent);
+            }
+
+            remaining = remaining.subtract(principalComponent);
+
+            newSchedule.add(
+                    LoanSchedule.builder()
+                            .loanAccount(loan)
+                            .account(loan.getLinkedAccount())
+                            .installmentNumber(startInstallmentNumber + i)
+                            .dueDate(nextDueDate.plusMonths(i))
+                            .principalComponent(principalComponent)
+                            .interestComponent(interestComponent)
+                            .emiAmount(emi)
+                            .outstandingPrincipal(
+                                    remaining.compareTo(BigDecimal.ZERO) < 0
+                                            ? BigDecimal.ZERO
+                                            : remaining)
+                            .build());
+        }
+
+        scheduleRepository.saveAll(newSchedule);
+
+        loan.setEmiAmount(EmiCalculator.computeEmi(outstanding, effectiveRate, remainingTenure));
+        loanAccountRepository.save(loan);
+
+        log.info(
+                "Schedule regenerated: loan={} installments={} newEmi={} rate={}%",
+                loan.getLoanAccountNumber(), remainingTenure, loan.getEmiAmount(), effectiveRate);
+
+        return remainingTenure;
     }
 }

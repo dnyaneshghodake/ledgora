@@ -20,5 +20,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByBranchCode(String branchCode);
 
+    /** All users for a tenant — tenant-scoped user management. */
+    List<User> findByTenantId(Long tenantId);
+
+    /** Active users for a tenant. */
+    List<User> findByTenantIdAndIsActive(Long tenantId, Boolean isActive);
+
     long countByRolesContaining(com.ledgora.auth.entity.Role role);
 }

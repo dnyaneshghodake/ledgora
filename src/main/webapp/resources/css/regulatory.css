@@ -1,0 +1,94 @@
+/* ═══════════════════════════════════════════════════════════════
+   Ledgora CBS — Regulatory Dashboard Stylesheet
+   Banking blue/grey theme. Enterprise CBS console styling.
+   Desktop-first, conservative, no animated effects.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Summary KPI Cards ── */
+.reg-kpi-card {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 1rem;
+}
+.reg-kpi-card h2,
+.reg-kpi-card h4 {
+    font-weight: 600;
+}
+
+/* ── Card styling ── */
+.reg-card .card-header {
+    border-bottom: 2px solid #1f3c88;
+}
+.reg-card .card-header h5 {
+    color: #1f3c88;
+    font-weight: 600;
+}
+
+/* ── Tables ── */
+.reg-table thead th {
+    background: #f0f2f5;
+    color: #2c3e50;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    border-bottom: 2px solid #dee2e6;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+.reg-table tbody td {
+    font-size: 0.9rem;
+    vertical-align: middle;
+}
+.reg-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+/* ── Risk Badges ── */
+.badge.bg-danger {
+    background-color: #c0392b !important;
+}
+.badge.bg-success {
+    background-color: #27ae60 !important;
+}
+.badge.bg-warning {
+    background-color: #f39c12 !important;
+}
+
+/* ── Audit Disclaimer Footer ── */
+.audit-disclaimer {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 0.75rem 1rem;
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+.audit-disclaimer i {
+    color: #1f3c88;
+    margin-right: 0.5rem;
+}
+
+/* ── EOD Verified Badge ── */
+.eod-verified {
+    display: inline-flex;
+    align-items: center;
+    background: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    border-radius: 4px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8rem;
+    color: #2e7d32;
+    font-weight: 500;
+}
+.eod-verified i {
+    margin-right: 0.35rem;
+}
+
+/* ── Responsive table wrapper ── */
+.table-responsive {
+    max-height: 500px;
+    overflow-y: auto;
+}

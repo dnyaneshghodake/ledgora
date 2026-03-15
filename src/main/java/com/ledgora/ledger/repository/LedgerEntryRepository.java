@@ -205,4 +205,61 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     // PART 6: Count orphan entries (entries without valid transaction)
     @Query("SELECT COUNT(le) FROM LedgerEntry le WHERE le.transaction IS NULL")
     long countOrphanEntries();
+
+    // ── Financial Statement Engine queries (Balance Sheet + P&L) ──
+
+    /**
+     * Balance Sheet: cumulative DEBIT total for a GL code up to and including businessDate. Used by
+     * BalanceSheetEngine to compute closing balance per GL.
+     */
+    @Query(
+            "SELECT COALESCE(SUM(CASE WHEN le.entryType = 'DEBIT' THEN le.amount ELSE 0 END), 0) "
+                    + "FROM LedgerEntry le "
+                    + "WHERE le.glAccountCode = :glCode AND le.tenant.id = :tenantId "
+                    + "AND le.businessDate <= :asOfDate")
+    BigDecimal sumDebitsByGlCodeAndDateRange(
+            @Param("glCode") String glCode,
+            @Param("tenantId") Long tenantId,
+            @Param("asOfDate") LocalDate asOfDate);
+
+    /** Balance Sheet: cumulative CREDIT total for a GL code up to and including businessDate. */
+    @Query(
+            "SELECT COALESCE(SUM(CASE WHEN le.entryType = 'CREDIT' THEN le.amount ELSE 0 END), 0) "
+                    + "FROM LedgerEntry le "
+                    + "WHERE le.glAccountCode = :glCode AND le.tenant.id = :tenantId "
+                    + "AND le.businessDate <= :asOfDate")
+    BigDecimal sumCreditsByGlCodeAndDateRange(
+            @Param("glCode") String glCode,
+            @Param("tenantId") Long tenantId,
+            @Param("asOfDate") LocalDate asOfDate);
+
+    /**
+     * P&L: DEBIT total for a GL code within a date range (inclusive). Used by PnlEngine for
+     * period-based expense computation.
+     */
+    @Query(
+            "SELECT COALESCE(SUM(CASE WHEN le.entryType = 'DEBIT' THEN le.amount ELSE 0 END), 0) "
+                    + "FROM LedgerEntry le "
+                    + "WHERE le.glAccountCode = :glCode AND le.tenant.id = :tenantId "
+                    + "AND le.businessDate >= :startDate AND le.businessDate <= :endDate")
+    BigDecimal sumDebitsByGlCodeAndTenantAndDateRange(
+            @Param("glCode") String glCode,
+            @Param("tenantId") Long tenantId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
+
+    /**
+     * P&L: CREDIT total for a GL code within a date range (inclusive). Used by PnlEngine for
+     * period-based revenue computation.
+     */
+    @Query(
+            "SELECT COALESCE(SUM(CASE WHEN le.entryType = 'CREDIT' THEN le.amount ELSE 0 END), 0) "
+                    + "FROM LedgerEntry le "
+                    + "WHERE le.glAccountCode = :glCode AND le.tenant.id = :tenantId "
+                    + "AND le.businessDate >= :startDate AND le.businessDate <= :endDate")
+    BigDecimal sumCreditsByGlCodeAndTenantAndDateRange(
+            @Param("glCode") String glCode,
+            @Param("tenantId") Long tenantId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate);
 }

@@ -10,7 +10,7 @@ import com.ledgora.approval.entity.ApprovalRequest;
 import com.ledgora.approval.repository.ApprovalRequestRepository;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
-import com.ledgora.balance.service.CbsBalanceEngine;
+import com.ledgora.balance.service.CbsBalanceService;
 import com.ledgora.batch.entity.TransactionBatch;
 import com.ledgora.batch.repository.TransactionBatchRepository;
 import com.ledgora.branch.entity.Branch;
@@ -52,7 +52,7 @@ class LedgoraEodValidationTest {
     @Autowired private VoucherService voucherService;
     @Autowired private ApprovalRequestRepository approvalRequestRepository;
     @Autowired private TransactionBatchRepository transactionBatchRepository;
-    @Autowired private CbsBalanceEngine cbsBalanceEngine;
+    @Autowired private CbsBalanceService cbsBalanceEngine;
     @Autowired private AccountBalanceRepository accountBalanceRepository;
     @Autowired private AccountRepository accountRepository;
     @Autowired private TenantRepository tenantRepository;

@@ -3,7 +3,7 @@
   CBS Sidebar Navigation - Domain-Aligned Collapsible Menu Structure
   Role flags set by CustomAuthenticationSuccessHandler:
     sessionScope.isAdmin, sessionScope.isManager, sessionScope.isTeller, sessionScope.isCustomer,
-    sessionScope.isOperations, sessionScope.isMaker, sessionScope.isChecker,
+    sessionScope.isOperations, sessionScope.isMaker, sessionScope.isChecker, sessionScope.isRisk,
     sessionScope.isBranchManager, sessionScope.isTenantAdmin, sessionScope.isSuperAdmin, sessionScope.isAuditor
 
   CBS Role Mapping:
@@ -421,8 +421,158 @@
             </li>
             </c:if>
 
+            <%-- ═══ Deposit Management (CASA + FD + RD) ═══ --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk || sessionScope.isOperations}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="deposit">
+                    <i class="bi bi-piggy-bank"></i>
+                    <span>Deposit Management</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-deposit">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/deposit/dashboard" class="cbs-nav-link" data-page="deposit/dashboard">
+                            <i class="bi bi-speedometer"></i>
+                            <span>Deposit Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/deposit/list" class="cbs-nav-link" data-page="deposit/list">
+                            <i class="bi bi-list-ul"></i>
+                            <span>Deposit Portfolio</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            </c:if>
+
+            <%-- ═══ Loan Management (Finacle Loan Module) ═══ --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk || sessionScope.isOperations}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="loan">
+                    <i class="bi bi-cash-coin"></i>
+                    <span>Loan Management</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-loan">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/dashboard" class="cbs-nav-link" data-page="loan/dashboard">
+                            <i class="bi bi-speedometer"></i>
+                            <span>Loan Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/list" class="cbs-nav-link" data-page="loan/list">
+                            <i class="bi bi-list-ul"></i>
+                            <span>Loan Portfolio</span>
+                        </a>
+                    </li>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/create" class="cbs-nav-link cbs-lockable" data-page="loan/create">
+                            <i class="bi bi-plus-circle"></i>
+                            <span>New Loan</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/npa-monitor" class="cbs-nav-link" data-page="loan/npa-monitor">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <span>NPA Monitor</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/npa" class="cbs-nav-link" data-page="loan/npa">
+                            <i class="bi bi-shield-exclamation"></i>
+                            <span>NPA Operations</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/rates" class="cbs-nav-link" data-page="loan/rates">
+                            <i class="bi bi-percent"></i>
+                            <span>Rate Management</span>
+                        </a>
+                    </li>
+                    </c:if>
+                </ul>
+            </li>
+            </c:if>
+
+            <%-- ═══ Financial Statements (RBI Schedule 5/14) ═══ --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isOperations}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="financial">
+                    <i class="bi bi-file-earmark-spreadsheet"></i>
+                    <span>Financial Statements</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-financial">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/financial/pl" class="cbs-nav-link" data-page="financial/pl">
+                            <i class="bi bi-graph-up-arrow"></i>
+                            <span>Profit & Loss</span>
+                        </a>
+                    </li>
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/financial/balance-sheet" class="cbs-nav-link" data-page="financial/balance-sheet">
+                            <i class="bi bi-clipboard2-data"></i>
+                            <span>Balance Sheet</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+            </c:if>
+
+            <%-- ═══ Regulatory Reporting (RBI / Basel III) ═══ --%>
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isOperations || sessionScope.isRisk}">
+            <li class="cbs-nav-group">
+                <a href="#" class="cbs-nav-group-toggle" data-group="regulatory">
+                    <i class="bi bi-bank2"></i>
+                    <span>Regulatory Reporting</span>
+                    <i class="bi bi-chevron-down cbs-nav-arrow"></i>
+                </a>
+                <ul class="cbs-nav-submenu" id="group-regulatory">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/regulatory/dashboard" class="cbs-nav-link" data-page="regulatory/dashboard">
+                            <i class="bi bi-speedometer"></i>
+                            <span>Regulatory Dashboard</span>
+                        </a>
+                    </li>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isOperations}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/regulatory/trial-balance" class="cbs-nav-link" data-page="regulatory/trial-balance">
+                            <i class="bi bi-calculator"></i>
+                            <span>Trial Balance</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/regulatory/crar" class="cbs-nav-link" data-page="regulatory/crar">
+                            <i class="bi bi-shield-check"></i>
+                            <span>CRAR (Capital Adequacy)</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk || sessionScope.isOperations}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/regulatory/alm" class="cbs-nav-link" data-page="regulatory/alm">
+                            <i class="bi bi-bar-chart-steps"></i>
+                            <span>ALM Liquidity</span>
+                        </a>
+                    </li>
+                    </c:if>
+                </ul>
+            </li>
+            </c:if>
+
             <%-- ═══ Risk & Fraud Monitoring ═══ --%>
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isAuditor}">
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isAuditor || sessionScope.isRisk}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="risk">
                     <i class="bi bi-shield-exclamation"></i>
