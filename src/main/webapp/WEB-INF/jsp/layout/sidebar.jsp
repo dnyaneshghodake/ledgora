@@ -467,6 +467,14 @@
                             <span>Loan Portfolio</span>
                         </a>
                     </li>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/create" class="cbs-nav-link cbs-lockable" data-page="loan/create">
+                            <i class="bi bi-plus-circle"></i>
+                            <span>New Loan</span>
+                        </a>
+                    </li>
+                    </c:if>
                     <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk}">
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/loan/npa-monitor" class="cbs-nav-link" data-page="loan/npa-monitor">
