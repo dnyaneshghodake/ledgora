@@ -81,11 +81,17 @@ public class LoanDisbursementService {
     }
 
     /**
-     * Disburse a loan — creates LoanAccount + amortization schedule.
+     * Disburse a loan — creates LoanAccount, generates amortization schedule, and posts
+     * disbursement voucher pair via the voucher engine.
      *
-     * <p>NOTE: The actual GL posting (DR Loan Asset GL, CR Customer Account) should be done via the
-     * voucher engine. This service creates the loan record and schedule; the caller is responsible
-     * for triggering the voucher posting.
+     * <p>Accounting entry (CBS-grade, voucher-driven):
+     *
+     * <pre>
+     *   DR Loan Asset GL        (product.glLoanAsset — asset increases)
+     *   CR Customer Account     (customerAccount — funds credited to borrower)
+     * </pre>
+     *
+     * <p>Voucher lifecycle: create → system-authorize → post → LedgerEntry (immutable).
      *
      * @return the created LoanAccount with generated schedule
      */
@@ -107,31 +113,9 @@ public class LoanDisbursementService {
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenant.getId());
         LocalDate maturityDate = businessDate.plusMonths(product.getTenureMonths());
 
-        // Compute EMI for storage (Finacle LACSMNT — stored at disbursement for quick inquiry)
-        BigDecimal emiAmount;
-        BigDecimal monthlyRate =
-                product.getInterestRate()
-                        .divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP)
-                        .divide(new BigDecimal("12"), 10, RoundingMode.HALF_UP);
-
-        if (monthlyRate.compareTo(BigDecimal.ZERO) == 0) {
-            // Zero-interest loan: EMI = principal / tenure
-            emiAmount =
-                    principalAmount.divide(
-                            new BigDecimal(product.getTenureMonths()), 4, RoundingMode.HALF_UP);
-        } else {
-            BigDecimal onePlusR = BigDecimal.ONE.add(monthlyRate);
-            BigDecimal onePlusRPowerN =
-                    onePlusR.pow(product.getTenureMonths(), MathContext.DECIMAL128);
-            emiAmount =
-                    principalAmount
-                            .multiply(monthlyRate, MathContext.DECIMAL128)
-                            .multiply(onePlusRPowerN, MathContext.DECIMAL128)
-                            .divide(
-                                    onePlusRPowerN.subtract(BigDecimal.ONE),
-                                    4,
-                                    RoundingMode.HALF_UP);
-        }
+        // Compute EMI via centralized calculator (eliminates 3x duplication)
+        BigDecimal emiAmount = EmiCalculator.computeEmi(
+                principalAmount, product.getInterestRate(), product.getTenureMonths());
 
         // Denormalize borrower name from linked account for quick search/display
         String borrowerName =
@@ -168,6 +152,10 @@ public class LoanDisbursementService {
         List<LoanSchedule> schedule = generateAmortizationSchedule(loan, product, businessDate);
         loanScheduleRepository.saveAll(schedule);
 
+        // ── VOUCHER ENGINE: Post disbursement (DR Loan Asset GL, CR Customer Account) ──
+        postDisbursementVouchers(tenant, product, customerAccount, loan, principalAmount,
+                businessDate);
+
         auditService.logEvent(
                 null,
                 "LOAN_DISBURSED",
@@ -198,6 +186,80 @@ public class LoanDisbursementService {
     }
 
     /**
+     * Post disbursement voucher pair via the voucher engine.
+     *
+     * <p>CBS-grade double-entry: DR Loan Asset GL, CR Customer Account.
+     * Vouchers are system-auto-authorized and posted atomically.
+     */
+    private void postDisbursementVouchers(
+            Tenant tenant, LoanProduct product, Account customerAccount,
+            LoanAccount loan, BigDecimal amount, LocalDate businessDate) {
+        try {
+            // Resolve branch from customer account (or default to first tenant branch)
+            Branch branch = resolveBranch(customerAccount, tenant);
+
+            // Resolve system maker user for automated voucher creation
+            User systemUser = userRepository.findByUsername("SYSTEM_AUTO")
+                    .orElseThrow(() -> new BusinessException(
+                            "SYSTEM_USER_MISSING",
+                            "SYSTEM_AUTO user not configured. Loan voucher posting blocked."));
+
+            String batchCode = "LOAN-DISB-" + loan.getLoanAccountNumber();
+
+            // Create DR/CR voucher pair atomically
+            Voucher[] pair = voucherService.createVoucherPair(
+                    tenant,
+                    branch, customerAccount, product.getGlLoanAsset(),   // DR leg
+                    branch, customerAccount, product.getGlLoanAsset(),   // CR leg (GL for credit)
+                    amount,
+                    loan.getCurrency(),
+                    businessDate,
+                    batchCode,
+                    systemUser,
+                    "Loan disbursement DR: " + loan.getLoanAccountNumber()
+                            + " principal=" + amount,
+                    "Loan disbursement CR: " + loan.getLoanAccountNumber()
+                            + " credit to " + customerAccount.getAccountNumber());
+
+            // System-authorize both vouchers
+            voucherService.systemAuthorizeVoucher(pair[0].getId(), systemUser);
+            voucherService.systemAuthorizeVoucher(pair[1].getId(), systemUser);
+
+            // Post both vouchers (creates immutable LedgerEntry records)
+            voucherService.postVoucher(pair[0].getId());
+            voucherService.postVoucher(pair[1].getId());
+
+            log.info("Disbursement vouchers posted: DR={} CR={} for loan {}",
+                    pair[0].getVoucherNumber(), pair[1].getVoucherNumber(),
+                    loan.getLoanAccountNumber());
+
+        } catch (BusinessException e) {
+            throw e; // re-throw business exceptions
+        } catch (Exception e) {
+            log.error("Disbursement voucher posting failed for loan {}: {}",
+                    loan.getLoanAccountNumber(), e.getMessage(), e);
+            // Voucher posting failure should not silently succeed — fail the disbursement
+            throw new BusinessException(
+                    "VOUCHER_POSTING_FAILED",
+                    "Disbursement voucher posting failed for loan "
+                            + loan.getLoanAccountNumber() + ": " + e.getMessage());
+        }
+    }
+
+    /** Resolve branch for voucher posting — uses account's branch or first tenant branch. */
+    private Branch resolveBranch(Account account, Tenant tenant) {
+        if (account.getBranch() != null) {
+            return account.getBranch();
+        }
+        List<Branch> branches = branchRepository.findByTenantId(tenant.getId());
+        if (branches.isEmpty()) {
+            throw new BusinessException("NO_BRANCH",
+                    "No branch configured for tenant " + tenant.getTenantCode());
+        }
+        return branches.get(0);
+    }
+
+    /**
      * Generate reducing balance EMI amortization schedule.
      *
      * <p>EMI formula: EMI = P × r × (1+r)^n / ((1+r)^n - 1) where P = principal, r = monthly rate,
@@ -209,27 +271,8 @@ public class LoanDisbursementService {
         BigDecimal annualRate = product.getInterestRate();
         int tenureMonths = product.getTenureMonths();
 
-        BigDecimal monthlyRate =
-                annualRate
-                        .divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP)
-                        .divide(new BigDecimal("12"), 10, RoundingMode.HALF_UP);
-
-        // EMI = P × r × (1+r)^n / ((1+r)^n - 1); for zero-rate: EMI = P / n
-        BigDecimal emi;
-        if (monthlyRate.compareTo(BigDecimal.ZERO) == 0) {
-            emi = principal.divide(new BigDecimal(tenureMonths), 4, RoundingMode.HALF_UP);
-        } else {
-            BigDecimal onePlusR = BigDecimal.ONE.add(monthlyRate);
-            BigDecimal onePlusRPowerN = onePlusR.pow(tenureMonths, MathContext.DECIMAL128);
-            emi =
-                    principal
-                            .multiply(monthlyRate, MathContext.DECIMAL128)
-                            .multiply(onePlusRPowerN, MathContext.DECIMAL128)
-                            .divide(
-                                    onePlusRPowerN.subtract(BigDecimal.ONE),
-                                    4,
-                                    RoundingMode.HALF_UP);
-        }
+        BigDecimal monthlyRate = EmiCalculator.monthlyRate(annualRate);
+        BigDecimal emi = EmiCalculator.computeEmi(principal, annualRate, tenureMonths);
 
         List<LoanSchedule> schedule = new ArrayList<>();
         BigDecimal remaining = principal;
@@ -291,27 +334,8 @@ public class LoanDisbursementService {
         int tenureMonths = product.getTenureMonths();
         BigDecimal annualRate = product.getInterestRate();
 
-        BigDecimal monthlyRate =
-                annualRate
-                        .divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP)
-                        .divide(new BigDecimal("12"), 10, RoundingMode.HALF_UP);
-
-        // Zero-rate guard: EMI = P / n when interest rate is zero
-        BigDecimal emi;
-        if (monthlyRate.compareTo(BigDecimal.ZERO) == 0) {
-            emi = principalAmount.divide(new BigDecimal(tenureMonths), 4, RoundingMode.HALF_UP);
-        } else {
-            BigDecimal onePlusR = BigDecimal.ONE.add(monthlyRate);
-            BigDecimal onePlusRPowerN = onePlusR.pow(tenureMonths, MathContext.DECIMAL128);
-            emi =
-                    principalAmount
-                            .multiply(monthlyRate, MathContext.DECIMAL128)
-                            .multiply(onePlusRPowerN, MathContext.DECIMAL128)
-                            .divide(
-                                    onePlusRPowerN.subtract(BigDecimal.ONE),
-                                    4,
-                                    RoundingMode.HALF_UP);
-        }
+        BigDecimal monthlyRate = EmiCalculator.monthlyRate(annualRate);
+        BigDecimal emi = EmiCalculator.computeEmi(principalAmount, annualRate, tenureMonths);
 
         List<LoanSchedulePreviewDTO.Installment> installments = new ArrayList<>();
         BigDecimal remaining = principalAmount;

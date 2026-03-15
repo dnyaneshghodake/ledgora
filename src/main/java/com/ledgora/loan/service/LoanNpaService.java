@@ -9,6 +9,7 @@ import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.enums.NpaClassification;
 import com.ledgora.loan.repository.LoanAccountRepository;
 import com.ledgora.loan.repository.LoanScheduleRepository;
+import com.ledgora.loan.validation.NpaClassifier;
 import com.ledgora.tenant.service.TenantService;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -118,18 +119,15 @@ public class LoanNpaService {
             LoanProduct product = loan.getLoanProduct();
             int threshold = product.getNpaDaysThreshold();
 
-            if (computedDpd > threshold && loan.getStatus() == LoanStatus.ACTIVE) {
-                // ── NPA CLASSIFICATION ──
+            // RBI IRAC: classify based on DPD tiers (STANDARD/SUBSTANDARD/DOUBTFUL/LOSS)
+            NpaClassification classification = NpaClassifier.classify(computedDpd, threshold);
+            loan.setNpaClassification(classification);
+
+            if (NpaClassifier.isNpa(computedDpd, threshold)
+                    && loan.getStatus() == LoanStatus.ACTIVE) {
+                // ── NPA CLASSIFICATION — status transition ──
                 loan.setStatus(LoanStatus.NPA);
                 loan.setNpaDate(businessDate);
-                loan.setNpaClassification(NpaClassification.SUBSTANDARD);
-
-                // NOTE: The GL reclassification (DR NPA GL, CR Standard GL)
-                // should be done via voucher engine in production:
-                //   VoucherService.createVoucherPair(
-                //       product.getGlNpaLoanAsset(),  // DR
-                //       product.getGlLoanAsset(),     // CR
-                //       loan.getOutstandingPrincipal(), ...)
 
                 loanAccountRepository.save(loan);
                 newNpaCount++;

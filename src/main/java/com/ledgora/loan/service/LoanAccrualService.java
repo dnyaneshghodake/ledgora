@@ -5,6 +5,7 @@ import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.entity.LoanProduct;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.repository.LoanAccountRepository;
+import com.ledgora.loan.validation.EmiCalculator;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
 import java.math.BigDecimal;
@@ -88,11 +89,11 @@ public class LoanAccrualService {
                 continue;
             }
 
+            // Use loan-level rate (overridable per RBI FPC), fallback to product rate
             LoanProduct product = loan.getLoanProduct();
-            BigDecimal dailyRate =
-                    product.getInterestRate()
-                            .divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP)
-                            .divide(DAYS_IN_YEAR, 10, RoundingMode.HALF_UP);
+            BigDecimal effectiveRate = loan.getInterestRate() != null
+                    ? loan.getInterestRate() : product.getInterestRate();
+            BigDecimal dailyRate = EmiCalculator.dailyRate(effectiveRate);
 
             BigDecimal dailyInterest =
                     loan.getOutstandingPrincipal()
