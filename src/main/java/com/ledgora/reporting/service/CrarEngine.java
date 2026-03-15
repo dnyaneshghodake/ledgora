@@ -76,7 +76,7 @@ public class CrarEngine {
      */
     @Transactional(readOnly = true)
     public CrarReport compute(Long tenantId, LocalDate asOfDate) {
-        List<GeneralLedger> allGl = glRepository.findAll();
+        List<GeneralLedger> allGl = glRepository.findByTenantIdOrShared(tenantId);
 
         BigDecimal equityCapital = BigDecimal.ZERO;
         BigDecimal retainedEarnings = BigDecimal.ZERO;
@@ -85,10 +85,6 @@ public class CrarEngine {
         List<CrarReport.RwaLine> rwaBreakdown = new ArrayList<>();
 
         for (GeneralLedger gl : allGl) {
-            if (gl.getTenant() != null && !gl.getTenant().getId().equals(tenantId)) {
-                continue;
-            }
-
             BigDecimal debits =
                     ledgerEntryRepository.sumDebitsByGlCodeAndDateRange(
                             gl.getGlCode(), tenantId, asOfDate);

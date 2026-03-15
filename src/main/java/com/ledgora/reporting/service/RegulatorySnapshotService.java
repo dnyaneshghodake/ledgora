@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -74,7 +75,7 @@ public class RegulatorySnapshotService {
      *
      * <p>Order: Trial Balance → CRAR → ALM (CRAR depends on TB being valid).
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void generateAllSnapshots(Long tenantId) {
         Tenant tenant =
                 tenantRepository

@@ -93,6 +93,10 @@ public class LoanAccount {
     @Builder.Default
     private BigDecimal provisionAmount = BigDecimal.ZERO;
 
+    /** Last business date on which interest was accrued — prevents double-accrual on EOD retry. */
+    @Column(name = "last_accrual_date")
+    private LocalDate lastAccrualDate;
+
     @Column(name = "disbursement_date")
     private LocalDate disbursementDate;
 

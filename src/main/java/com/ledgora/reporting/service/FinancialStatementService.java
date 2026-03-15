@@ -16,6 +16,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -68,7 +69,7 @@ public class FinancialStatementService {
      *
      * <p>Uses the PREVIOUS business date (EOD has already advanced the date).
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void generateDailySnapshots(Long tenantId) {
         Tenant tenant =
                 tenantRepository

@@ -106,7 +106,7 @@ public class AlmEngine {
      */
     @Transactional(readOnly = true)
     public AlmReport generate(Long tenantId, LocalDate asOfDate) {
-        List<GeneralLedger> allGl = glRepository.findAll();
+        List<GeneralLedger> allGl = glRepository.findByTenantIdOrShared(tenantId);
 
         BigDecimal[] assetBuckets = new BigDecimal[8];
         BigDecimal[] liabilityBuckets = new BigDecimal[8];
@@ -119,10 +119,6 @@ public class AlmEngine {
         BigDecimal totalLiabilities = BigDecimal.ZERO;
 
         for (GeneralLedger gl : allGl) {
-            if (gl.getTenant() != null && !gl.getTenant().getId().equals(tenantId)) {
-                continue;
-            }
-
             BigDecimal debits =
                     ledgerEntryRepository.sumDebitsByGlCodeAndDateRange(
                             gl.getGlCode(), tenantId, asOfDate);

@@ -60,16 +60,12 @@ public class TrialBalanceEngine {
      */
     @Transactional(readOnly = true)
     public TrialBalanceReport generate(Long tenantId, LocalDate asOfDate) {
-        List<GeneralLedger> allGl = glRepository.findAll();
+        List<GeneralLedger> allGl = glRepository.findByTenantIdOrShared(tenantId);
         List<TrialBalanceReport.TrialBalanceLine> lines = new ArrayList<>();
         BigDecimal totalDebits = BigDecimal.ZERO;
         BigDecimal totalCredits = BigDecimal.ZERO;
 
         for (GeneralLedger gl : allGl) {
-            if (gl.getTenant() != null && !gl.getTenant().getId().equals(tenantId)) {
-                continue; // skip GLs belonging to other tenants
-            }
-
             BigDecimal debits =
                     ledgerEntryRepository.sumDebitsByGlCodeAndDateRange(
                             gl.getGlCode(), tenantId, asOfDate);
