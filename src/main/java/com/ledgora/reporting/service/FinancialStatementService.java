@@ -179,8 +179,6 @@ public class FinancialStatementService {
                     hash);
 
             return snapshot;
-        } catch (com.ledgora.common.exception.AccountingException ae) {
-            throw ae; // re-throw accounting violations without wrapping
         } catch (Exception e) {
             throw new RuntimeException(
                     "Failed to generate " + type + " snapshot: " + e.getMessage(), e);
