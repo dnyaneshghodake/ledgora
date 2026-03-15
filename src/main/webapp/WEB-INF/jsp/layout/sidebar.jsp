@@ -3,7 +3,7 @@
   CBS Sidebar Navigation - Domain-Aligned Collapsible Menu Structure
   Role flags set by CustomAuthenticationSuccessHandler:
     sessionScope.isAdmin, sessionScope.isManager, sessionScope.isTeller, sessionScope.isCustomer,
-    sessionScope.isOperations, sessionScope.isMaker, sessionScope.isChecker,
+    sessionScope.isOperations, sessionScope.isMaker, sessionScope.isChecker, sessionScope.isRisk,
     sessionScope.isBranchManager, sessionScope.isTenantAdmin, sessionScope.isSuperAdmin, sessionScope.isAuditor
 
   CBS Role Mapping:
@@ -548,7 +548,7 @@
             </c:if>
 
             <%-- ═══ Risk & Fraud Monitoring ═══ --%>
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isAuditor}">
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isAuditor || sessionScope.isRisk}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="risk">
                     <i class="bi bi-shield-exclamation"></i>
