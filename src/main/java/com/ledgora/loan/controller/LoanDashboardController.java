@@ -60,6 +60,11 @@ public class LoanDashboardController {
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
         if (tenant == null) {
             model.addAttribute("error", "Tenant not found");
+            model.addAttribute("totalPortfolio", BigDecimal.ZERO);
+            model.addAttribute("totalOutstanding", BigDecimal.ZERO);
+            model.addAttribute("totalLoans", 0);
+            model.addAttribute("npaCount", 0L);
+            model.addAttribute("npaPercent", BigDecimal.ZERO);
             return "loan/loan-dashboard";
         }
 

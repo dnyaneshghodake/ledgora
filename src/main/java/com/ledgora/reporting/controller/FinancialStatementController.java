@@ -56,7 +56,11 @@ public class FinancialStatementController {
     public String profitLoss(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
-        if (tenant == null) return "financial/profit-loss";
+        if (tenant == null) {
+            model.addAttribute("error", "Tenant not found");
+            model.addAttribute("pnlAvailable", false);
+            return "financial/profit-loss";
+        }
 
         LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
         model.addAttribute("businessDate", bizDate);
@@ -71,7 +75,11 @@ public class FinancialStatementController {
     public String balanceSheet(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
-        if (tenant == null) return "financial/balance-sheet";
+        if (tenant == null) {
+            model.addAttribute("error", "Tenant not found");
+            model.addAttribute("bsAvailable", false);
+            return "financial/balance-sheet";
+        }
 
         LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
         model.addAttribute("businessDate", bizDate);

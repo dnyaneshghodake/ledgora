@@ -45,7 +45,16 @@ public class DepositDashboardController {
     public String dashboard(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
-        if (tenant == null) return "deposit/deposit-dashboard";
+        if (tenant == null) {
+            model.addAttribute("error", "Tenant not found");
+            model.addAttribute("totalPortfolio", BigDecimal.ZERO);
+            model.addAttribute("casaBalance", BigDecimal.ZERO);
+            model.addAttribute("fdBalance", BigDecimal.ZERO);
+            model.addAttribute("rdBalance", BigDecimal.ZERO);
+            model.addAttribute("interestPayable", BigDecimal.ZERO);
+            model.addAttribute("maturingCount", 0);
+            return "deposit/deposit-dashboard";
+        }
 
         BigDecimal casaBalance = depositAccountRepository.sumCasaBalanceByTenantId(tenantId);
         BigDecimal fdBalance = depositAccountRepository.sumFdBalanceByTenantId(tenantId);
