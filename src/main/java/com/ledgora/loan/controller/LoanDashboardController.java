@@ -1,9 +1,14 @@
 package com.ledgora.loan.controller;
 
+import com.ledgora.account.entity.Account;
+import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.loan.entity.LoanAccount;
+import com.ledgora.loan.entity.LoanProduct;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.enums.NpaClassification;
 import com.ledgora.loan.repository.LoanAccountRepository;
+import com.ledgora.loan.repository.LoanProductRepository;
+import com.ledgora.loan.service.LoanDisbursementService;
 import com.ledgora.loan.service.LoanEmiPaymentService;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
@@ -41,14 +46,23 @@ public class LoanDashboardController {
     private static final Logger log = LoggerFactory.getLogger(LoanDashboardController.class);
 
     private final LoanAccountRepository loanAccountRepository;
+    private final LoanProductRepository loanProductRepository;
+    private final AccountRepository accountRepository;
+    private final LoanDisbursementService disbursementService;
     private final LoanEmiPaymentService emiPaymentService;
     private final TenantRepository tenantRepository;
 
     public LoanDashboardController(
             LoanAccountRepository loanAccountRepository,
+            LoanProductRepository loanProductRepository,
+            AccountRepository accountRepository,
+            LoanDisbursementService disbursementService,
             LoanEmiPaymentService emiPaymentService,
             TenantRepository tenantRepository) {
         this.loanAccountRepository = loanAccountRepository;
+        this.loanProductRepository = loanProductRepository;
+        this.accountRepository = accountRepository;
+        this.disbursementService = disbursementService;
         this.emiPaymentService = emiPaymentService;
         this.tenantRepository = tenantRepository;
     }
@@ -149,7 +163,8 @@ public class LoanDashboardController {
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'AUDITOR', 'RISK', 'OPERATIONS')")
     public String detail(@PathVariable Long id, Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
-        LoanAccount loan = loanAccountRepository.findById(id).orElse(null);
+        // Eager-fetch product + linked account to avoid LazyInitializationException in JSP
+        LoanAccount loan = loanAccountRepository.findByIdWithProductAndAccount(id).orElse(null);
         // Tenant isolation: verify loan belongs to current tenant
         if (loan == null
                 || loan.getTenant() == null
@@ -178,6 +193,57 @@ public class LoanDashboardController {
         model.addAttribute("npaLoans", npaLoans);
         model.addAttribute("atRiskLoans", atRisk);
         return "loan/loan-npa-monitor";
+    }
+
+    /** Loan onboarding form — select product, linked account, enter principal. */
+    @GetMapping("/create")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public String createForm(Model model, HttpSession session) {
+        Long tenantId = resolveTenantId(session);
+        List<LoanProduct> products =
+                loanProductRepository.findByTenantIdAndIsActiveTrue(tenantId);
+        List<Account> accounts =
+                accountRepository.findByTenantIdAndStatus(
+                        tenantId, com.ledgora.common.enums.AccountStatus.ACTIVE);
+        model.addAttribute("products", products);
+        model.addAttribute("accounts", accounts);
+        return "loan/loan-create";
+    }
+
+    /** Loan disbursement — creates LoanAccount + schedule. CBS Tier-1: maker-initiated. */
+    @PostMapping("/create")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    public String disburse(
+            @RequestParam Long productId,
+            @RequestParam Long linkedAccountId,
+            @RequestParam BigDecimal principalAmount,
+            HttpSession session,
+            RedirectAttributes redirectAttributes) {
+        Long tenantId = resolveTenantId(session);
+        try {
+            Tenant tenant = tenantRepository.findById(tenantId)
+                    .orElseThrow(() -> new RuntimeException("Tenant not found"));
+            LoanProduct product = loanProductRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("Product not found"));
+            Account linkedAccount = accountRepository.findById(linkedAccountId)
+                    .orElseThrow(() -> new RuntimeException("Linked account not found"));
+
+            // Generate loan account number: LN-<tenantCode>-<timestamp>
+            String loanNumber = "LN-" + tenant.getTenantCode() + "-"
+                    + System.currentTimeMillis() % 1000000;
+
+            LoanAccount loan = disbursementService.disburse(
+                    tenant, product, linkedAccount, loanNumber, principalAmount);
+
+            redirectAttributes.addFlashAttribute("message",
+                    "Loan " + loan.getLoanAccountNumber() + " disbursed successfully. Principal: "
+                            + principalAmount);
+            return "redirect:/loan/" + loan.getId();
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Disbursement failed: " + e.getMessage());
+            return "redirect:/loan/create";
+        }
     }
 
     @PostMapping("/{id}/repay")

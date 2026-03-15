@@ -6,6 +6,9 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h3><i class="bi bi-cash-coin"></i> Loan Portfolio Dashboard</h3>
     <div>
+        <c:if test="${sessionScope.isAdmin || sessionScope.isManager}">
+        <a href="${pageContext.request.contextPath}/loan/create" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle"></i> New Loan</a>
+        </c:if>
         <a href="${pageContext.request.contextPath}/loan/list" class="btn btn-sm btn-outline-primary"><i class="bi bi-list-ul"></i> Full Portfolio</a>
         <a href="${pageContext.request.contextPath}/loan/npa-monitor" class="btn btn-sm btn-outline-danger"><i class="bi bi-exclamation-triangle"></i> NPA Monitor</a>
     </div>
