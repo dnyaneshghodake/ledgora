@@ -74,15 +74,17 @@ public class RegulatorySnapshotService {
      * Generate all regulatory snapshots for a tenant. Called during EOD after financial statements.
      *
      * <p>Order: Trial Balance → CRAR → ALM (CRAR depends on TB being valid).
+     *
+     * @param tenantId tenant isolation
+     * @param businessDate the completed business date (passed from EodProcess, not derived)
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void generateAllSnapshots(Long tenantId) {
+    public void generateAllSnapshots(Long tenantId, LocalDate businessDate) {
         Tenant tenant =
                 tenantRepository
                         .findById(tenantId)
                         .orElseThrow(
                                 () -> new RuntimeException("Tenant not found: " + tenantId));
-        LocalDate businessDate = tenant.getCurrentBusinessDate().minusDays(1);
 
         generateTrialBalanceSnapshot(tenant, businessDate);
         generateCrarSnapshot(tenant, businessDate);

@@ -67,16 +67,16 @@ public class FinancialStatementService {
     /**
      * Generate daily Balance Sheet + P&L snapshots. Called during EOD after DATE_ADVANCED.
      *
-     * <p>Uses the PREVIOUS business date (EOD has already advanced the date).
+     * @param tenantId tenant isolation
+     * @param businessDate the completed business date (passed from EodProcess, not derived)
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void generateDailySnapshots(Long tenantId) {
+    public void generateDailySnapshots(Long tenantId, LocalDate businessDate) {
         Tenant tenant =
                 tenantRepository
                         .findById(tenantId)
                         .orElseThrow(
                                 () -> new RuntimeException("Tenant not found: " + tenantId));
-        LocalDate businessDate = tenant.getCurrentBusinessDate().minusDays(1);
 
         generateBalanceSheetSnapshot(tenant, businessDate);
         generatePnlSnapshot(tenant, businessDate);

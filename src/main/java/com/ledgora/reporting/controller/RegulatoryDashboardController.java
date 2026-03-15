@@ -153,7 +153,11 @@ public class RegulatoryDashboardController {
             RedirectAttributes redirectAttributes) {
         Long tenantId = resolveTenantId(session);
         try {
-            snapshotService.generateAllSnapshots(tenantId);
+            Tenant tenant = tenantRepository.findById(tenantId)
+                    .orElseThrow(() -> new RuntimeException("Tenant not found"));
+            // Use previous business date (current date is the next open day)
+            LocalDate snapshotDate = tenant.getCurrentBusinessDate().minusDays(1);
+            snapshotService.generateAllSnapshots(tenantId, snapshotDate);
             redirectAttributes.addFlashAttribute("message",
                     "Regulatory snapshots regenerated successfully");
         } catch (Exception e) {
