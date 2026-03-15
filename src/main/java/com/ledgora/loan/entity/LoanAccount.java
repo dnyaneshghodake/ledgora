@@ -3,6 +3,7 @@ package com.ledgora.loan.entity;
 import com.ledgora.account.entity.Account;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.enums.NpaClassification;
+import com.ledgora.loan.enums.SmaCategory;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
@@ -59,6 +60,7 @@ public class LoanAccount {
     @Column(name = "loan_account_number", length = 30, nullable = false, unique = true)
     private String loanAccountNumber;
 
+    /** Sanctioned/disbursed principal amount (immutable after disbursement). */
     @Column(name = "principal_amount", precision = 19, scale = 4, nullable = false)
     private BigDecimal principalAmount;
 
@@ -68,6 +70,23 @@ public class LoanAccount {
     @Column(name = "accrued_interest", precision = 19, scale = 4, nullable = false)
     @Builder.Default
     private BigDecimal accruedInterest = BigDecimal.ZERO;
+
+    /** EMI amount — stored at disbursement for quick inquiry (Finacle LACSMNT equivalent). */
+    @Column(name = "emi_amount", precision = 19, scale = 4)
+    private BigDecimal emiAmount;
+
+    /** Account-level interest rate — defaults from product, can be overridden per RBI FPC. */
+    @Column(name = "interest_rate", precision = 7, scale = 4)
+    private BigDecimal interestRate;
+
+    /** Loan currency — defaults to INR per RBI. */
+    @Column(name = "currency", length = 3, nullable = false)
+    @Builder.Default
+    private String currency = "INR";
+
+    /** Borrower name — denormalized from linked account for quick search/display. */
+    @Column(name = "borrower_name", length = 100)
+    private String borrowerName;
 
     /** Days Past Due — updated daily at EOD by LoanDpdService. */
     @Column(name = "dpd", nullable = false)
@@ -84,14 +103,52 @@ public class LoanAccount {
     @Builder.Default
     private NpaClassification npaClassification = NpaClassification.STANDARD;
 
+    /** SMA category per RBI Early Warning Framework (SMA-0/1/2). Null for NPA loans. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sma_category", length = 10)
+    @Builder.Default
+    private SmaCategory smaCategory = SmaCategory.NONE;
+
     /** Date when loan was classified as NPA. Null if still performing. */
     @Column(name = "npa_date")
     private LocalDate npaDate;
+
+    /** Credit limit under which this loan was sanctioned (Phase 1 — Limit Engine). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "credit_limit_id")
+    private CreditLimit creditLimit;
 
     /** Current provision amount per RBI IRAC provisioning norms. */
     @Column(name = "provision_amount", precision = 19, scale = 4, nullable = false)
     @Builder.Default
     private BigDecimal provisionAmount = BigDecimal.ZERO;
+
+    /** Penal interest accrued but not yet collected. */
+    @Column(name = "penal_interest", precision = 19, scale = 4, nullable = false)
+    @Builder.Default
+    private BigDecimal penalInterest = BigDecimal.ZERO;
+
+    /** Interest reversed on NPA classification (DR Interest Income, CR Interest Suspense). */
+    @Column(name = "interest_reversed", precision = 19, scale = 4, nullable = false)
+    @Builder.Default
+    private BigDecimal interestReversed = BigDecimal.ZERO;
+
+    /** Whether this loan has been restructured per RBI guidelines. */
+    @Column(name = "restructure_flag", nullable = false)
+    @Builder.Default
+    private Boolean restructureFlag = false;
+
+    /** Moratorium end date — EMI starts after this date. Null if no moratorium. */
+    @Column(name = "moratorium_end_date")
+    private LocalDate moratoriumEndDate;
+
+    /** Sanction date (when checker approved). Null if not yet sanctioned. */
+    @Column(name = "sanction_date")
+    private LocalDate sanctionDate;
+
+    /** Last business date on which interest was accrued — prevents double-accrual on EOD retry. */
+    @Column(name = "last_accrual_date")
+    private LocalDate lastAccrualDate;
 
     @Column(name = "disbursement_date")
     private LocalDate disbursementDate;

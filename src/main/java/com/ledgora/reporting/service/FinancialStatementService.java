@@ -1,5 +1,6 @@
 package com.ledgora.reporting.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ledgora.audit.service.AuditService;
 import com.ledgora.reporting.entity.FinancialStatementSnapshot;
 import com.ledgora.reporting.enums.SnapshotStatus;
@@ -7,7 +8,6 @@ import com.ledgora.reporting.enums.StatementType;
 import com.ledgora.reporting.repository.FinancialStatementSnapshotRepository;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDate;
@@ -16,6 +16,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -31,10 +32,10 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>Crash-recovery safe — DRAFT snapshots regenerated on resume
  * </ul>
  *
- * <p>Called by EOD after DATE_ADVANCED phase via {@link #generateDailySnapshots(Long)}.
+ * <p>Called by EOD after DATE_ADVANCED phase via {@link #generateDailySnapshots(Long, LocalDate)}.
  *
- * <p>Architecture: LedgerEntry → GeneralLedger → StatementLineMapping → Snapshot. AccountBalance
- * is NEVER used as accounting source of truth.
+ * <p>Architecture: LedgerEntry → GeneralLedger → StatementLineMapping → Snapshot. AccountBalance is
+ * NEVER used as accounting source of truth.
  */
 @Service
 public class FinancialStatementService {
@@ -66,16 +67,15 @@ public class FinancialStatementService {
     /**
      * Generate daily Balance Sheet + P&L snapshots. Called during EOD after DATE_ADVANCED.
      *
-     * <p>Uses the PREVIOUS business date (EOD has already advanced the date).
+     * @param tenantId tenant isolation
+     * @param businessDate the completed business date (passed from EodProcess, not derived)
      */
-    @Transactional
-    public void generateDailySnapshots(Long tenantId) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void generateDailySnapshots(Long tenantId, LocalDate businessDate) {
         Tenant tenant =
                 tenantRepository
                         .findById(tenantId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Tenant not found: " + tenantId));
-        LocalDate businessDate = tenant.getCurrentBusinessDate().minusDays(1);
+                        .orElseThrow(() -> new RuntimeException("Tenant not found: " + tenantId));
 
         generateBalanceSheetSnapshot(tenant, businessDate);
         generatePnlSnapshot(tenant, businessDate);
@@ -100,7 +100,9 @@ public class FinancialStatementService {
                     businessDate);
             return snapshotRepository
                     .findByTenantIdAndBusinessDateAndStatementTypeAndStatus(
-                            tenantId, businessDate, StatementType.BALANCE_SHEET,
+                            tenantId,
+                            businessDate,
+                            StatementType.BALANCE_SHEET,
                             SnapshotStatus.FINAL)
                     .orElse(null);
         }
@@ -113,16 +115,12 @@ public class FinancialStatementService {
 
     /** Generate and persist a daily P&L snapshot. */
     @Transactional
-    public FinancialStatementSnapshot generatePnlSnapshot(
-            Tenant tenant, LocalDate businessDate) {
+    public FinancialStatementSnapshot generatePnlSnapshot(Tenant tenant, LocalDate businessDate) {
         Long tenantId = tenant.getId();
 
         if (snapshotRepository.existsByTenantIdAndBusinessDateAndStatementTypeAndStatus(
                 tenantId, businessDate, StatementType.PNL, SnapshotStatus.FINAL)) {
-            log.info(
-                    "P&L already FINAL for tenant {} date {} — skipping",
-                    tenantId,
-                    businessDate);
+            log.info("P&L already FINAL for tenant {} date {} — skipping", tenantId, businessDate);
             return snapshotRepository
                     .findByTenantIdAndBusinessDateAndStatementTypeAndStatus(
                             tenantId, businessDate, StatementType.PNL, SnapshotStatus.FINAL)
@@ -178,8 +176,6 @@ public class FinancialStatementService {
                     hash);
 
             return snapshot;
-        } catch (com.ledgora.common.exception.AccountingException ae) {
-            throw ae; // re-throw accounting violations without wrapping
         } catch (Exception e) {
             throw new RuntimeException(
                     "Failed to generate " + type + " snapshot: " + e.getMessage(), e);

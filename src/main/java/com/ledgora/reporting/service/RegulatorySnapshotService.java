@@ -1,5 +1,6 @@
 package com.ledgora.reporting.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ledgora.audit.service.AuditService;
 import com.ledgora.reporting.dto.AlmReport;
 import com.ledgora.reporting.dto.CrarReport;
@@ -9,7 +10,6 @@ import com.ledgora.reporting.enums.SnapshotStatus;
 import com.ledgora.reporting.repository.RegulatorySnapshotRepository;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDate;
@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -73,40 +74,36 @@ public class RegulatorySnapshotService {
      * Generate all regulatory snapshots for a tenant. Called during EOD after financial statements.
      *
      * <p>Order: Trial Balance → CRAR → ALM (CRAR depends on TB being valid).
+     *
+     * @param tenantId tenant isolation
+     * @param businessDate the completed business date (passed from EodProcess, not derived)
      */
-    @Transactional
-    public void generateAllSnapshots(Long tenantId) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void generateAllSnapshots(Long tenantId, LocalDate businessDate) {
         Tenant tenant =
                 tenantRepository
                         .findById(tenantId)
-                        .orElseThrow(
-                                () -> new RuntimeException("Tenant not found: " + tenantId));
-        LocalDate businessDate = tenant.getCurrentBusinessDate().minusDays(1);
+                        .orElseThrow(() -> new RuntimeException("Tenant not found: " + tenantId));
 
         generateTrialBalanceSnapshot(tenant, businessDate);
         generateCrarSnapshot(tenant, businessDate);
         generateAlmSnapshot(tenant, businessDate);
 
         log.info(
-                "All regulatory snapshots generated for tenant {} date {}",
-                tenantId,
-                businessDate);
+                "All regulatory snapshots generated for tenant {} date {}", tenantId, businessDate);
     }
 
     @Transactional
-    public RegulatorySnapshot generateTrialBalanceSnapshot(
-            Tenant tenant, LocalDate businessDate) {
+    public RegulatorySnapshot generateTrialBalanceSnapshot(Tenant tenant, LocalDate businessDate) {
         if (alreadyFinal(tenant.getId(), businessDate, TYPE_TRIAL_BALANCE)) {
             return null;
         }
-        TrialBalanceReport report =
-                trialBalanceEngine.generate(tenant.getId(), businessDate);
+        TrialBalanceReport report = trialBalanceEngine.generate(tenant.getId(), businessDate);
         return persist(tenant, businessDate, TYPE_TRIAL_BALANCE, report);
     }
 
     @Transactional
-    public RegulatorySnapshot generateCrarSnapshot(
-            Tenant tenant, LocalDate businessDate) {
+    public RegulatorySnapshot generateCrarSnapshot(Tenant tenant, LocalDate businessDate) {
         if (alreadyFinal(tenant.getId(), businessDate, TYPE_CRAR)) {
             return null;
         }
@@ -115,8 +112,7 @@ public class RegulatorySnapshotService {
     }
 
     @Transactional
-    public RegulatorySnapshot generateAlmSnapshot(
-            Tenant tenant, LocalDate businessDate) {
+    public RegulatorySnapshot generateAlmSnapshot(Tenant tenant, LocalDate businessDate) {
         if (alreadyFinal(tenant.getId(), businessDate, TYPE_ALM)) {
             return null;
         }
@@ -129,8 +125,11 @@ public class RegulatorySnapshotService {
                 snapshotRepository.existsByTenantIdAndBusinessDateAndReportTypeAndStatus(
                         tenantId, date, type, SnapshotStatus.FINAL);
         if (exists) {
-            log.info("{} snapshot already FINAL for tenant {} date {} — skipping", type,
-                    tenantId, date);
+            log.info(
+                    "{} snapshot already FINAL for tenant {} date {} — skipping",
+                    type,
+                    tenantId,
+                    date);
         }
         return exists;
     }
@@ -159,12 +158,21 @@ public class RegulatorySnapshotService {
                     "REGULATORY_SNAPSHOT_GENERATED",
                     "REGULATORY_SNAPSHOT",
                     snapshot.getId(),
-                    type + " snapshot for tenant " + tenant.getId()
-                            + " date " + businessDate + " hash=" + hash,
+                    type
+                            + " snapshot for tenant "
+                            + tenant.getId()
+                            + " date "
+                            + businessDate
+                            + " hash="
+                            + hash,
                     null);
 
-            log.info("{} snapshot FINAL: tenant={} date={} hash={}",
-                    type, tenant.getId(), businessDate, hash);
+            log.info(
+                    "{} snapshot FINAL: tenant={} date={} hash={}",
+                    type,
+                    tenant.getId(),
+                    businessDate,
+                    hash);
             return snapshot;
         } catch (Exception e) {
             throw new RuntimeException(

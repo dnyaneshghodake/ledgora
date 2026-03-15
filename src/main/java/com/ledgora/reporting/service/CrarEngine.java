@@ -63,8 +63,7 @@ public class CrarEngine {
     private final LedgerEntryRepository ledgerEntryRepository;
 
     public CrarEngine(
-            GeneralLedgerRepository glRepository,
-            LedgerEntryRepository ledgerEntryRepository) {
+            GeneralLedgerRepository glRepository, LedgerEntryRepository ledgerEntryRepository) {
         this.glRepository = glRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
     }
@@ -76,7 +75,7 @@ public class CrarEngine {
      */
     @Transactional(readOnly = true)
     public CrarReport compute(Long tenantId, LocalDate asOfDate) {
-        List<GeneralLedger> allGl = glRepository.findAll();
+        List<GeneralLedger> allGl = glRepository.findByTenantIdOrShared(tenantId);
 
         BigDecimal equityCapital = BigDecimal.ZERO;
         BigDecimal retainedEarnings = BigDecimal.ZERO;
@@ -85,10 +84,6 @@ public class CrarEngine {
         List<CrarReport.RwaLine> rwaBreakdown = new ArrayList<>();
 
         for (GeneralLedger gl : allGl) {
-            if (gl.getTenant() != null && !gl.getTenant().getId().equals(tenantId)) {
-                continue;
-            }
-
             BigDecimal debits =
                     ledgerEntryRepository.sumDebitsByGlCodeAndDateRange(
                             gl.getGlCode(), tenantId, asOfDate);
@@ -129,8 +124,7 @@ public class CrarEngine {
                 String glName = gl.getGlName().toUpperCase();
                 BigDecimal riskWeight = determineRiskWeight(glName, gl.getGlCode());
                 BigDecimal rwa =
-                        balance.multiply(riskWeight)
-                                .divide(HUNDRED, 4, RoundingMode.HALF_UP);
+                        balance.multiply(riskWeight).divide(HUNDRED, 4, RoundingMode.HALF_UP);
 
                 totalRwa = totalRwa.add(rwa);
 
@@ -150,8 +144,7 @@ public class CrarEngine {
         BigDecimal tier1 = equityCapital.add(retainedEarnings);
         // Tier 2: general provisions capped at 1.25% of RWA
         BigDecimal tier2Cap =
-                totalRwa.multiply(new BigDecimal("1.25"))
-                        .divide(HUNDRED, 4, RoundingMode.HALF_UP);
+                totalRwa.multiply(new BigDecimal("1.25")).divide(HUNDRED, 4, RoundingMode.HALF_UP);
         BigDecimal tier2 = generalProvisions.min(tier2Cap);
         BigDecimal totalCapital = tier1.add(tier2);
 
@@ -159,13 +152,8 @@ public class CrarEngine {
         BigDecimal crarPercent = BigDecimal.ZERO;
         BigDecimal tier1Percent = BigDecimal.ZERO;
         if (totalRwa.compareTo(BigDecimal.ZERO) > 0) {
-            crarPercent =
-                    totalCapital
-                            .multiply(HUNDRED)
-                            .divide(totalRwa, 2, RoundingMode.HALF_UP);
-            tier1Percent =
-                    tier1.multiply(HUNDRED)
-                            .divide(totalRwa, 2, RoundingMode.HALF_UP);
+            crarPercent = totalCapital.multiply(HUNDRED).divide(totalRwa, 2, RoundingMode.HALF_UP);
+            tier1Percent = tier1.multiply(HUNDRED).divide(totalRwa, 2, RoundingMode.HALF_UP);
         }
 
         boolean meetsCrar = crarPercent.compareTo(MIN_CRAR) >= 0;
@@ -181,20 +169,12 @@ public class CrarEngine {
                             + "% below RBI minimum 9%. "
                             + "Prompt Corrective Action (PCA) framework may apply.";
         } else {
-            compliance =
-                    "NON-COMPLIANT — Tier 1 ratio "
-                            + tier1Percent
-                            + "% below RBI minimum 7%.";
+            compliance = "NON-COMPLIANT — Tier 1 ratio " + tier1Percent + "% below RBI minimum 7%.";
         }
 
         log.info(
                 "CRAR computed for tenant {} date {}: CRAR={}% Tier1={}% RWA={} Capital={}",
-                tenantId,
-                asOfDate,
-                crarPercent,
-                tier1Percent,
-                totalRwa,
-                totalCapital);
+                tenantId, asOfDate, crarPercent, tier1Percent, totalRwa, totalCapital);
 
         return CrarReport.builder()
                 .reportDate(asOfDate)

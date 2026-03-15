@@ -29,8 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>Any imbalance indicates a double-entry violation — must be investigated before EOD
  * </ul>
  *
- * <p>Finacle convention: Trial Balance is point-in-time (as-of date), not period-based. All
- * ledger entries with businessDate <= asOfDate are included.
+ * <p>Finacle convention: Trial Balance is point-in-time (as-of date), not period-based. All ledger
+ * entries with businessDate <= asOfDate are included.
  */
 @Service
 public class TrialBalanceEngine {
@@ -41,8 +41,7 @@ public class TrialBalanceEngine {
     private final LedgerEntryRepository ledgerEntryRepository;
 
     public TrialBalanceEngine(
-            GeneralLedgerRepository glRepository,
-            LedgerEntryRepository ledgerEntryRepository) {
+            GeneralLedgerRepository glRepository, LedgerEntryRepository ledgerEntryRepository) {
         this.glRepository = glRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
     }
@@ -50,9 +49,9 @@ public class TrialBalanceEngine {
     /**
      * Generate a trial balance as-of a specific business date for a tenant.
      *
-     * <p>Uses GL-level aggregation queries (COALESCE-protected, no null returns). Each GL's
-     * closing balance is computed as cumulative DR - CR (or CR - DR for credit-normal GLs) for
-     * all ledger entries with businessDate <= asOfDate.
+     * <p>Uses GL-level aggregation queries (COALESCE-protected, no null returns). Each GL's closing
+     * balance is computed as cumulative DR - CR (or CR - DR for credit-normal GLs) for all ledger
+     * entries with businessDate <= asOfDate.
      *
      * @param tenantId tenant isolation
      * @param asOfDate point-in-time date (inclusive)
@@ -60,16 +59,12 @@ public class TrialBalanceEngine {
      */
     @Transactional(readOnly = true)
     public TrialBalanceReport generate(Long tenantId, LocalDate asOfDate) {
-        List<GeneralLedger> allGl = glRepository.findAll();
+        List<GeneralLedger> allGl = glRepository.findByTenantIdOrShared(tenantId);
         List<TrialBalanceReport.TrialBalanceLine> lines = new ArrayList<>();
         BigDecimal totalDebits = BigDecimal.ZERO;
         BigDecimal totalCredits = BigDecimal.ZERO;
 
         for (GeneralLedger gl : allGl) {
-            if (gl.getTenant() != null && !gl.getTenant().getId().equals(tenantId)) {
-                continue; // skip GLs belonging to other tenants
-            }
-
             BigDecimal debits =
                     ledgerEntryRepository.sumDebitsByGlCodeAndDateRange(
                             gl.getGlCode(), tenantId, asOfDate);
@@ -78,8 +73,7 @@ public class TrialBalanceEngine {
                             gl.getGlCode(), tenantId, asOfDate);
 
             // Skip GLs with no activity
-            if (debits.compareTo(BigDecimal.ZERO) == 0
-                    && credits.compareTo(BigDecimal.ZERO) == 0) {
+            if (debits.compareTo(BigDecimal.ZERO) == 0 && credits.compareTo(BigDecimal.ZERO) == 0) {
                 continue;
             }
 

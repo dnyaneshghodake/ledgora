@@ -47,8 +47,7 @@ public class PnlEngine {
      * @return map with keys: "sections", "totalRevenue", "totalExpense", "netProfit"
      */
     @Transactional(readOnly = true)
-    public Map<String, Object> generate(
-            Long tenantId, LocalDate startDate, LocalDate endDate) {
+    public Map<String, Object> generate(Long tenantId, LocalDate startDate, LocalDate endDate) {
         List<StatementLineMapping> mappings =
                 mappingRepository.findWithGlByTenantAndType(tenantId, StatementType.PNL);
 
@@ -134,9 +133,10 @@ public class PnlEngine {
     /** Financial year P&L — April 1 to March 31 per RBI convention. */
     @Transactional(readOnly = true)
     public Map<String, Object> generateFinancialYear(Long tenantId, LocalDate businessDate) {
-        int fyStartYear = businessDate.getMonthValue() >= 4
-                ? businessDate.getYear()
-                : businessDate.getYear() - 1;
+        int fyStartYear =
+                businessDate.getMonthValue() >= 4
+                        ? businessDate.getYear()
+                        : businessDate.getYear() - 1;
         LocalDate start = LocalDate.of(fyStartYear, 4, 1);
         LocalDate end = LocalDate.of(fyStartYear + 1, 3, 31);
         return generate(tenantId, start, end);

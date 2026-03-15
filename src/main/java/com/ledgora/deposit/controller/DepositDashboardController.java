@@ -45,12 +45,22 @@ public class DepositDashboardController {
     public String dashboard(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
-        if (tenant == null) return "deposit/deposit-dashboard";
+        if (tenant == null) {
+            model.addAttribute("error", "Tenant not found");
+            model.addAttribute("totalPortfolio", BigDecimal.ZERO);
+            model.addAttribute("casaBalance", BigDecimal.ZERO);
+            model.addAttribute("fdBalance", BigDecimal.ZERO);
+            model.addAttribute("rdBalance", BigDecimal.ZERO);
+            model.addAttribute("interestPayable", BigDecimal.ZERO);
+            model.addAttribute("maturingCount", 0);
+            return "deposit/deposit-dashboard";
+        }
 
         BigDecimal casaBalance = depositAccountRepository.sumCasaBalanceByTenantId(tenantId);
         BigDecimal fdBalance = depositAccountRepository.sumFdBalanceByTenantId(tenantId);
         BigDecimal rdBalance = depositAccountRepository.sumRdBalanceByTenantId(tenantId);
-        BigDecimal interestPayable = depositAccountRepository.sumInterestPayableByTenantId(tenantId);
+        BigDecimal interestPayable =
+                depositAccountRepository.sumInterestPayableByTenantId(tenantId);
 
         List<DepositAccount> maturingThisMonth =
                 depositAccountRepository.findMaturingByDate(
@@ -69,13 +79,13 @@ public class DepositDashboardController {
     @GetMapping("/list")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'AUDITOR', 'RISK', 'OPERATIONS')")
     public String list(
-            @RequestParam(required = false) String status,
-            Model model, HttpSession session) {
+            @RequestParam(required = false) String status, Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         List<DepositAccount> deposits;
         if (status != null && !status.isEmpty()) {
-            deposits = depositAccountRepository.findByTenantIdAndStatus(
-                    tenantId, DepositAccountStatus.valueOf(status));
+            deposits =
+                    depositAccountRepository.findByTenantIdAndStatus(
+                            tenantId, DepositAccountStatus.valueOf(status));
         } else {
             deposits = depositAccountRepository.findActiveAndMaturedByTenantId(tenantId);
         }
@@ -104,25 +114,24 @@ public class DepositDashboardController {
     @PostMapping("/{id}/premature-close")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     public String prematureClose(
-            @PathVariable Long id, HttpSession session,
-            RedirectAttributes redirectAttributes) {
+            @PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
         Long tenantId = resolveTenantId(session);
         // Tenant isolation: verify deposit belongs to current tenant before closure
         DepositAccount deposit = depositAccountRepository.findById(id).orElse(null);
         if (deposit == null
                 || deposit.getTenant() == null
                 || !deposit.getTenant().getId().equals(tenantId)) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Deposit account not found or access denied");
+            redirectAttributes.addFlashAttribute(
+                    "error", "Deposit account not found or access denied");
             return "redirect:/deposit/list";
         }
         try {
             prematureClosureService.prematureClose(id);
-            redirectAttributes.addFlashAttribute("message",
-                    "Deposit prematurely closed successfully");
+            redirectAttributes.addFlashAttribute(
+                    "message", "Deposit prematurely closed successfully");
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Premature closure failed: " + e.getMessage());
+            redirectAttributes.addFlashAttribute(
+                    "error", "Premature closure failed: " + e.getMessage());
         }
         return "redirect:/deposit/" + id;
     }
@@ -132,7 +141,8 @@ public class DepositDashboardController {
         if (tenantId == null) {
             Object sessionTenantId = session.getAttribute("tenantId");
             if (sessionTenantId instanceof Number n) tenantId = n.longValue();
-            else if (sessionTenantId instanceof String s && !s.isBlank()) tenantId = Long.valueOf(s);
+            else if (sessionTenantId instanceof String s && !s.isBlank())
+                tenantId = Long.valueOf(s);
         }
         if (tenantId == null) throw new IllegalStateException("Tenant context not set");
         return tenantId;

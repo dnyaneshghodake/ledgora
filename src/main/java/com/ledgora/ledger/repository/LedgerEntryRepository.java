@@ -209,8 +209,8 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     // ── Financial Statement Engine queries (Balance Sheet + P&L) ──
 
     /**
-     * Balance Sheet: cumulative DEBIT total for a GL code up to and including businessDate.
-     * Used by BalanceSheetEngine to compute closing balance per GL.
+     * Balance Sheet: cumulative DEBIT total for a GL code up to and including businessDate. Used by
+     * BalanceSheetEngine to compute closing balance per GL.
      */
     @Query(
             "SELECT COALESCE(SUM(CASE WHEN le.entryType = 'DEBIT' THEN le.amount ELSE 0 END), 0) "
@@ -222,9 +222,7 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
             @Param("tenantId") Long tenantId,
             @Param("asOfDate") LocalDate asOfDate);
 
-    /**
-     * Balance Sheet: cumulative CREDIT total for a GL code up to and including businessDate.
-     */
+    /** Balance Sheet: cumulative CREDIT total for a GL code up to and including businessDate. */
     @Query(
             "SELECT COALESCE(SUM(CASE WHEN le.entryType = 'CREDIT' THEN le.amount ELSE 0 END), 0) "
                     + "FROM LedgerEntry le "
@@ -236,8 +234,8 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
             @Param("asOfDate") LocalDate asOfDate);
 
     /**
-     * P&L: DEBIT total for a GL code within a date range (inclusive).
-     * Used by PnlEngine for period-based expense computation.
+     * P&L: DEBIT total for a GL code within a date range (inclusive). Used by PnlEngine for
+     * period-based expense computation.
      */
     @Query(
             "SELECT COALESCE(SUM(CASE WHEN le.entryType = 'DEBIT' THEN le.amount ELSE 0 END), 0) "
@@ -251,8 +249,8 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
             @Param("endDate") LocalDate endDate);
 
     /**
-     * P&L: CREDIT total for a GL code within a date range (inclusive).
-     * Used by PnlEngine for period-based revenue computation.
+     * P&L: CREDIT total for a GL code within a date range (inclusive). Used by PnlEngine for
+     * period-based revenue computation.
      */
     @Query(
             "SELECT COALESCE(SUM(CASE WHEN le.entryType = 'CREDIT' THEN le.amount ELSE 0 END), 0) "

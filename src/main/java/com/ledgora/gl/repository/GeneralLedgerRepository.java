@@ -30,6 +30,10 @@ public interface GeneralLedgerRepository extends JpaRepository<GeneralLedger, Lo
     Optional<GeneralLedger> findByIdAndTenantId(
             @Param("id") Long id, @Param("tenantId") Long tenantId);
 
+    /** Tenant-scoped GL list — returns GLs owned by the tenant or shared (null tenant). */
+    @Query("SELECT gl FROM GeneralLedger gl WHERE gl.tenant.id = :tenantId OR gl.tenant IS NULL")
+    List<GeneralLedger> findByTenantIdOrShared(@Param("tenantId") Long tenantId);
+
     @Query(
             "SELECT gl FROM GeneralLedger gl WHERE gl.parent IS NULL AND gl.isActive = true ORDER BY gl.glCode")
     List<GeneralLedger> findRootAccounts();

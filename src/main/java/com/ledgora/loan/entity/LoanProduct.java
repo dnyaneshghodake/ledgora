@@ -70,6 +70,25 @@ public class LoanProduct {
     @Builder.Default
     private BigDecimal penaltyRate = new BigDecimal("2.0000");
 
+    /** Grace days after due date before marking overdue (CBS standard: 0–5 days). */
+    @Column(name = "grace_days", nullable = false)
+    @Builder.Default
+    private Integer graceDays = 0;
+
+    /** Whether moratorium (EMI holiday) is allowed for this product. */
+    @Column(name = "moratorium_allowed", nullable = false)
+    @Builder.Default
+    private Boolean moratoriumAllowed = false;
+
+    /** Repayment type: REDUCING_BALANCE, FLAT, BULLET. */
+    @Column(name = "repayment_type", length = 20, nullable = false)
+    @Builder.Default
+    private String repaymentType = "REDUCING_BALANCE";
+
+    /** Provisioning policy code (for configurable provision matrix). */
+    @Column(name = "provisioning_policy_code", length = 20)
+    private String provisioningPolicyCode;
+
     /** Days past due threshold for NPA classification (RBI default: 90). */
     @Column(name = "npa_days_threshold", nullable = false)
     @Builder.Default

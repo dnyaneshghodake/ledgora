@@ -105,7 +105,9 @@ public class BalanceSheetEngine {
                 case ASSET -> totalAssets = totalAssets.add(balance);
                 case LIABILITY -> totalLiabilities = totalLiabilities.add(balance);
                 case EQUITY -> totalEquity = totalEquity.add(balance);
-                default -> { /* ignore INCOME/EXPENSE in balance sheet */ }
+                default -> {
+                    /* ignore INCOME/EXPENSE in balance sheet */
+                }
             }
         }
 
@@ -124,8 +126,7 @@ public class BalanceSheetEngine {
         }
 
         // Validate accounting equation: A = L + E
-        boolean balanced =
-                totalAssets.compareTo(totalLiabilities.add(totalEquity)) == 0;
+        boolean balanced = totalAssets.compareTo(totalLiabilities.add(totalEquity)) == 0;
 
         if (!balanced) {
             log.error(

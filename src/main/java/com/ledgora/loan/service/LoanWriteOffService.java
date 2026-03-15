@@ -6,6 +6,9 @@ import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.enums.NpaClassification;
 import com.ledgora.loan.repository.LoanAccountRepository;
+import com.ledgora.loan.validation.LoanBusinessValidator;
+import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.tenant.service.TenantService;
 import java.math.BigDecimal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,12 +42,15 @@ public class LoanWriteOffService {
     private static final Logger log = LoggerFactory.getLogger(LoanWriteOffService.class);
 
     private final LoanAccountRepository loanAccountRepository;
+    private final TenantService tenantService;
     private final AuditService auditService;
 
     public LoanWriteOffService(
             LoanAccountRepository loanAccountRepository,
+            TenantService tenantService,
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
+        this.tenantService = tenantService;
         this.auditService = auditService;
     }
 
@@ -72,12 +78,19 @@ public class LoanWriteOffService {
                                                 "LOAN_NOT_FOUND",
                                                 "Loan account not found: " + loanAccountId));
 
+        // Centralized validation via LoanBusinessValidator
+        Long tenantId = TenantContextHolder.getTenantId();
+        LoanBusinessValidator.validateTenantOwnership(loan, tenantId);
+
+        // CBS Tier-1: validate business day is OPEN before financial operations
+        Long effectiveTenantId = tenantId != null ? tenantId : loan.getTenant().getId();
+        tenantService.validateBusinessDayOpen(effectiveTenantId);
+
         if (loan.getStatus() == LoanStatus.CLOSED) {
             throw new BusinessException("LOAN_CLOSED", "Cannot write off a closed loan");
         }
         if (loan.getStatus() == LoanStatus.WRITTEN_OFF) {
-            throw new BusinessException(
-                    "LOAN_ALREADY_WRITTEN_OFF", "Loan is already written off");
+            throw new BusinessException("LOAN_ALREADY_WRITTEN_OFF", "Loan is already written off");
         }
         if (loan.getStatus() != LoanStatus.NPA) {
             throw new BusinessException(
@@ -128,6 +141,67 @@ public class LoanWriteOffService {
                 "LOAN WRITE-OFF: {} amount={} (removed from asset book)",
                 loan.getLoanAccountNumber(),
                 writtenOffAmount);
+
+        return loan;
+    }
+
+    /**
+     * Record recovery on a written-off loan.
+     *
+     * <p>RBI: Recovery after write-off is posted as income (not principal reduction).
+     * The loan remains WRITTEN_OFF — recovery is a separate income event.
+     *
+     * <p>GL: DR Cash/Customer Account, CR Recovery Income
+     *
+     * @param loanAccountId the written-off loan
+     * @param recoveryAmount amount recovered
+     * @return the loan account (status unchanged — still WRITTEN_OFF)
+     */
+    @Transactional
+    public LoanAccount recordRecovery(Long loanAccountId, BigDecimal recoveryAmount) {
+        if (recoveryAmount == null || recoveryAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(
+                    "INVALID_RECOVERY", "Recovery amount must be positive");
+        }
+
+        LoanAccount loan =
+                loanAccountRepository
+                        .findById(loanAccountId)
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                "LOAN_NOT_FOUND",
+                                                "Loan account not found: " + loanAccountId));
+
+        Long tenantId = TenantContextHolder.getTenantId();
+        LoanBusinessValidator.validateTenantOwnership(loan, tenantId);
+
+        if (loan.getStatus() != LoanStatus.WRITTEN_OFF) {
+            throw new BusinessException(
+                    "NOT_WRITTEN_OFF",
+                    "Recovery can only be recorded on written-off loans. Current status: "
+                            + loan.getStatus());
+        }
+
+        // Recovery is posted as income — loan status remains WRITTEN_OFF
+        // GL: DR Cash, CR Recovery Income (handled by voucher engine at controller level)
+
+        auditService.logEvent(
+                null,
+                "LOAN_RECOVERY_POST_WRITEOFF",
+                "LOAN_ACCOUNT",
+                loan.getId(),
+                "Recovery recorded on written-off loan "
+                        + loan.getLoanAccountNumber()
+                        + ": amount="
+                        + recoveryAmount
+                        + " (posted as recovery income)",
+                null);
+
+        log.info(
+                "LOAN RECOVERY: {} amount={} (post write-off recovery income)",
+                loan.getLoanAccountNumber(),
+                recoveryAmount);
 
         return loan;
     }

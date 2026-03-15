@@ -1,10 +1,11 @@
 package com.ledgora.loan.controller;
 
 import com.ledgora.loan.entity.LoanAccount;
+import com.ledgora.loan.entity.LoanSchedule;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.enums.NpaClassification;
 import com.ledgora.loan.repository.LoanAccountRepository;
-import com.ledgora.loan.service.LoanEmiPaymentService;
+import com.ledgora.loan.repository.LoanScheduleRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
@@ -17,22 +18,24 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
  * Finacle-grade Loan Module UI Controller.
  *
- * <p>Loan balances derive from LedgerEntry-based aggregates via LoanAccount entity. All
- * repayments flow through the voucher engine. Tenant-scoped, RBAC-enforced.
+ * <p>Loan balances derive from LedgerEntry-based aggregates via LoanAccount entity. All repayments
+ * flow through the voucher engine. Tenant-scoped, RBAC-enforced.
  *
  * <p>Endpoints:
+ *
  * <ul>
  *   <li>GET /loan/dashboard — portfolio summary with NPA distribution
  *   <li>GET /loan/list — paginated loan list with filters
- *   <li>GET /loan/{id} — detailed loan view with schedule + ledger
+ *   <li>GET /loan/{id} — detailed loan view with product, schedule + ledger
  *   <li>GET /loan/npa-monitor — NPA classification monitor
- *   <li>POST /loan/{id}/repay — EMI payment (maker-checker)
  * </ul>
+ *
+ * <p>Disbursement and repayment endpoints are in dedicated controllers:
+ * {@link LoanDisbursementController}, {@link LoanRepaymentController}.
  */
 @Controller
 @RequestMapping("/loan")
@@ -41,15 +44,15 @@ public class LoanDashboardController {
     private static final Logger log = LoggerFactory.getLogger(LoanDashboardController.class);
 
     private final LoanAccountRepository loanAccountRepository;
-    private final LoanEmiPaymentService emiPaymentService;
+    private final LoanScheduleRepository loanScheduleRepository;
     private final TenantRepository tenantRepository;
 
     public LoanDashboardController(
             LoanAccountRepository loanAccountRepository,
-            LoanEmiPaymentService emiPaymentService,
+            LoanScheduleRepository loanScheduleRepository,
             TenantRepository tenantRepository) {
         this.loanAccountRepository = loanAccountRepository;
-        this.emiPaymentService = emiPaymentService;
+        this.loanScheduleRepository = loanScheduleRepository;
         this.tenantRepository = tenantRepository;
     }
 
@@ -60,6 +63,11 @@ public class LoanDashboardController {
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
         if (tenant == null) {
             model.addAttribute("error", "Tenant not found");
+            model.addAttribute("totalPortfolio", BigDecimal.ZERO);
+            model.addAttribute("totalOutstanding", BigDecimal.ZERO);
+            model.addAttribute("totalLoans", 0);
+            model.addAttribute("npaCount", 0L);
+            model.addAttribute("npaPercent", BigDecimal.ZERO);
             return "loan/loan-dashboard";
         }
 
@@ -78,19 +86,34 @@ public class LoanDashboardController {
             totalOutstanding = totalOutstanding.add(loan.getOutstandingPrincipal());
 
             switch (loan.getNpaClassification()) {
-                case STANDARD -> { standardCount++; standardAmt = standardAmt.add(loan.getOutstandingPrincipal()); }
-                case SUBSTANDARD -> { substandardCount++; substandardAmt = substandardAmt.add(loan.getOutstandingPrincipal()); }
-                case DOUBTFUL -> { doubtfulCount++; doubtfulAmt = doubtfulAmt.add(loan.getOutstandingPrincipal()); }
-                case LOSS -> { lossCount++; lossAmt = lossAmt.add(loan.getOutstandingPrincipal()); }
+                case STANDARD -> {
+                    standardCount++;
+                    standardAmt = standardAmt.add(loan.getOutstandingPrincipal());
+                }
+                case SUBSTANDARD -> {
+                    substandardCount++;
+                    substandardAmt = substandardAmt.add(loan.getOutstandingPrincipal());
+                }
+                case DOUBTFUL -> {
+                    doubtfulCount++;
+                    doubtfulAmt = doubtfulAmt.add(loan.getOutstandingPrincipal());
+                }
+                case LOSS -> {
+                    lossCount++;
+                    lossAmt = lossAmt.add(loan.getOutstandingPrincipal());
+                }
             }
             if (loan.getStatus() == LoanStatus.NPA) npaCount++;
         }
 
-        BigDecimal npaPercent = totalOutstanding.compareTo(BigDecimal.ZERO) > 0
-                ? substandardAmt.add(doubtfulAmt).add(lossAmt)
-                        .multiply(new BigDecimal("100"))
-                        .divide(totalOutstanding, 2, java.math.RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
+        BigDecimal npaPercent =
+                totalOutstanding.compareTo(BigDecimal.ZERO) > 0
+                        ? substandardAmt
+                                .add(doubtfulAmt)
+                                .add(lossAmt)
+                                .multiply(new BigDecimal("100"))
+                                .divide(totalOutstanding, 2, java.math.RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
 
         model.addAttribute("tenantName", tenant.getTenantName());
         model.addAttribute("totalPortfolio", totalPortfolio);
@@ -115,13 +138,15 @@ public class LoanDashboardController {
     public String list(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String npaCategory,
-            Model model, HttpSession session) {
+            Model model,
+            HttpSession session) {
         Long tenantId = resolveTenantId(session);
 
         List<LoanAccount> loans;
         if (status != null && !status.isEmpty()) {
-            loans = loanAccountRepository.findByTenantIdAndStatus(
-                    tenantId, LoanStatus.valueOf(status));
+            loans =
+                    loanAccountRepository.findByTenantIdAndStatus(
+                            tenantId, LoanStatus.valueOf(status));
         } else {
             loans = loanAccountRepository.findActiveAndNpaByTenantId(tenantId);
         }
@@ -129,9 +154,7 @@ public class LoanDashboardController {
         // Filter by NPA category if specified
         if (npaCategory != null && !npaCategory.isEmpty()) {
             NpaClassification filter = NpaClassification.valueOf(npaCategory);
-            loans = loans.stream()
-                    .filter(l -> l.getNpaClassification() == filter)
-                    .toList();
+            loans = loans.stream().filter(l -> l.getNpaClassification() == filter).toList();
         }
 
         model.addAttribute("loans", loans);
@@ -144,7 +167,8 @@ public class LoanDashboardController {
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'AUDITOR', 'RISK', 'OPERATIONS')")
     public String detail(@PathVariable Long id, Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
-        LoanAccount loan = loanAccountRepository.findById(id).orElse(null);
+        // Eager-fetch product + linked account to avoid LazyInitializationException in JSP
+        LoanAccount loan = loanAccountRepository.findByIdWithProductAndAccount(id).orElse(null);
         // Tenant isolation: verify loan belongs to current tenant
         if (loan == null
                 || loan.getTenant() == null
@@ -153,6 +177,12 @@ public class LoanDashboardController {
             return "loan/loan-detail";
         }
         model.addAttribute("loan", loan);
+
+        // Finacle LACHST — load repayment schedule for detail view
+        List<LoanSchedule> schedule =
+                loanScheduleRepository.findByLoanAccountIdOrderByInstallmentNumberAsc(loan.getId());
+        model.addAttribute("schedule", schedule);
+
         return "loan/loan-detail";
     }
 
@@ -162,43 +192,29 @@ public class LoanDashboardController {
         Long tenantId = resolveTenantId(session);
         List<LoanAccount> npaLoans =
                 loanAccountRepository.findByTenantIdAndStatus(tenantId, LoanStatus.NPA);
-        List<LoanAccount> allLoans =
-                loanAccountRepository.findActiveAndNpaByTenantId(tenantId);
+        List<LoanAccount> allLoans = loanAccountRepository.findActiveAndNpaByTenantId(tenantId);
 
         // Include active loans with DPD > 0 (approaching NPA)
-        List<LoanAccount> atRisk = allLoans.stream()
-                .filter(l -> l.getStatus() == LoanStatus.ACTIVE && l.getDpd() > 0)
-                .toList();
+        List<LoanAccount> atRisk =
+                allLoans.stream()
+                        .filter(l -> l.getStatus() == LoanStatus.ACTIVE && l.getDpd() > 0)
+                        .toList();
 
         model.addAttribute("npaLoans", npaLoans);
         model.addAttribute("atRiskLoans", atRisk);
         return "loan/loan-npa-monitor";
     }
 
-    @PostMapping("/{id}/repay")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    public String repay(
-            @PathVariable Long id,
-            @RequestParam BigDecimal principalAmount,
-            @RequestParam BigDecimal interestAmount,
-            RedirectAttributes redirectAttributes) {
-        try {
-            emiPaymentService.processEmiPayment(id, principalAmount, interestAmount);
-            redirectAttributes.addFlashAttribute("message",
-                    "EMI payment processed successfully");
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Payment failed: " + e.getMessage());
-        }
-        return "redirect:/loan/" + id;
-    }
+    // ── Disbursement (GET/POST /loan/create, POST /loan/preview) moved to LoanDisbursementController
+    // ── Repayment (POST /loan/{id}/repay) moved to LoanRepaymentController
 
     private Long resolveTenantId(HttpSession session) {
         Long tenantId = TenantContextHolder.getTenantId();
         if (tenantId == null) {
             Object sessionTenantId = session.getAttribute("tenantId");
             if (sessionTenantId instanceof Number n) tenantId = n.longValue();
-            else if (sessionTenantId instanceof String s && !s.isBlank()) tenantId = Long.valueOf(s);
+            else if (sessionTenantId instanceof String s && !s.isBlank())
+                tenantId = Long.valueOf(s);
         }
         if (tenantId == null) throw new IllegalStateException("Tenant context not set");
         return tenantId;

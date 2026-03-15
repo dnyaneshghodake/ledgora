@@ -71,7 +71,8 @@ class LoanAccountingIntegrityTest {
 
         // Create loan GL accounts
         GeneralLedger glLoanAsset = seedGl("9100", "Loan Asset", GLAccountType.ASSET);
-        GeneralLedger glIntIncome = seedGl("9200", "Interest Income - Loans", GLAccountType.REVENUE);
+        GeneralLedger glIntIncome =
+                seedGl("9200", "Interest Income - Loans", GLAccountType.REVENUE);
         GeneralLedger glIntRecv = seedGl("9300", "Interest Receivable", GLAccountType.ASSET);
         GeneralLedger glNpaAsset = seedGl("9400", "NPA Loan Asset", GLAccountType.ASSET);
         GeneralLedger glProvision = seedGl("9500", "Loan Provision", GLAccountType.EXPENSE);
@@ -187,8 +188,7 @@ class LoanAccountingIntegrityTest {
                 createActiveLoan("LN-PROV-STD-001", new BigDecimal("1000000.0000"));
 
         // SUBSTANDARD loan: 15% provision
-        LoanAccount subLoan =
-                createActiveLoan("LN-PROV-SUB-001", new BigDecimal("500000.0000"));
+        LoanAccount subLoan = createActiveLoan("LN-PROV-SUB-001", new BigDecimal("500000.0000"));
         subLoan.setStatus(LoanStatus.NPA);
         subLoan.setNpaClassification(NpaClassification.SUBSTANDARD);
         loanAccountRepository.save(subLoan);

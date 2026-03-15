@@ -88,6 +88,10 @@ public class DepositAccount {
     @Column(name = "last_interest_posting_date")
     private LocalDate lastInterestPostingDate;
 
+    /** Last business date on which interest was accrued — prevents double-accrual on EOD retry. */
+    @Column(name = "last_accrual_date")
+    private LocalDate lastAccrualDate;
+
     @Column(name = "opening_date", nullable = false)
     private LocalDate openingDate;
 

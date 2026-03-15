@@ -9,8 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface StatementLineMappingRepository
-        extends JpaRepository<StatementLineMapping, Long> {
+public interface StatementLineMappingRepository extends JpaRepository<StatementLineMapping, Long> {
 
     List<StatementLineMapping> findByTenantIdAndStatementTypeOrderByDisplayOrder(
             Long tenantId, StatementType statementType);

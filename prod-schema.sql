@@ -443,7 +443,7 @@ CREATE TABLE ledger_entries (
     CONSTRAINT fk_le_account FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE NO ACTION,
     CONSTRAINT fk_le_gl FOREIGN KEY (gl_account_id) REFERENCES general_ledgers(id) ON DELETE NO ACTION,
     CONSTRAINT chk_le_entry_type CHECK (entry_type IN ('DEBIT','CREDIT')),
-    CONSTRAINT chk_le_amount CHECK (amount >= 0)
+    CONSTRAINT chk_le_amount CHECK (amount > 0)
 );
 -- Primary query path: account statement (account + date range)
 CREATE NONCLUSTERED INDEX idx_ledger_entry_account_created ON ledger_entries (account_id, created_at);

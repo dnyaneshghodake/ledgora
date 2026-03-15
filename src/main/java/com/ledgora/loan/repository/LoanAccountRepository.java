@@ -28,5 +28,20 @@ public interface LoanAccountRepository extends JpaRepository<LoanAccount, Long> 
                     + "WHERE la.tenant.id = :tenantId AND la.status IN ('ACTIVE', 'NPA')")
     List<LoanAccount> findActiveAndNpaByTenantId(@Param("tenantId") Long tenantId);
 
+    /** Total loan count for a tenant — used for unique loan number generation. */
+    @Query("SELECT COUNT(la) FROM LoanAccount la WHERE la.tenant.id = :tenantId")
+    long countByTenantId(@Param("tenantId") Long tenantId);
+
     List<LoanAccount> findByLinkedAccountId(Long linkedAccountId);
+
+    /**
+     * Loan detail with eager-fetched product and linked account — used by UI detail view to avoid
+     * LazyInitializationException when open-in-view=false.
+     */
+    @Query(
+            "SELECT la FROM LoanAccount la "
+                    + "JOIN FETCH la.loanProduct "
+                    + "JOIN FETCH la.linkedAccount "
+                    + "WHERE la.id = :id")
+    Optional<LoanAccount> findByIdWithProductAndAccount(@Param("id") Long id);
 }

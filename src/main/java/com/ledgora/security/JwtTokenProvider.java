@@ -2,9 +2,9 @@ package com.ledgora.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import java.security.Key;
 import java.util.Date;
 import java.util.Map;
+import javax.crypto.SecretKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -59,12 +59,12 @@ public class JwtTokenProvider {
     @Value("${app.jwt.expiration:86400000}")
     private long jwtExpiration;
 
-    private Key getSigningKey() {
+    private SecretKey getSigningKey() {
         byte[] keyBytes = jwtSecret.getBytes();
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    private Key getPreviousSigningKey() {
+    private SecretKey getPreviousSigningKey() {
         if (jwtPreviousSecret == null || jwtPreviousSecret.isBlank()) {
             return null;
         }
@@ -78,11 +78,13 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + jwtExpiration);
 
         return Jwts.builder()
-                .setHeaderParam("kid", CURRENT_KID)
-                .setSubject(userDetails.getUsername())
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .header()
+                .add("kid", CURRENT_KID)
+                .and()
+                .subject(userDetails.getUsername())
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey(), Jwts.SIG.HS256)
                 .compact();
     }
 
@@ -94,15 +96,19 @@ public class JwtTokenProvider {
         Date expiryDate = new Date(now.getTime() + jwtExpiration);
 
         return Jwts.builder()
-                .setHeaderParam("kid", CURRENT_KID)
-                .setSubject(userDetails.getUsername())
-                .addClaims(
+                .header()
+                .add("kid", CURRENT_KID)
+                .and()
+                .subject(userDetails.getUsername())
+                .claims()
+                .add(
                         Map.of(
                                 "tenant_id", tenantId,
                                 "tenant_scope", tenantScope))
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .and()
+                .issuedAt(now)
+                .expiration(expiryDate)
+                .signWith(getSigningKey(), Jwts.SIG.HS256)
                 .compact();
     }
 
@@ -133,22 +139,22 @@ public class JwtTokenProvider {
      */
     private Claims getClaims(String token) {
         try {
-            return Jwts.parserBuilder()
-                    .setSigningKey(getSigningKey())
+            return Jwts.parser()
+                    .verifyWith(getSigningKey())
                     .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+                    .parseSignedClaims(token)
+                    .getPayload();
         } catch (JwtException e) {
             // Try previous key if configured (rotation grace period)
-            Key previousKey = getPreviousSigningKey();
+            SecretKey previousKey = getPreviousSigningKey();
             if (previousKey != null) {
                 try {
                     Claims claims =
-                            Jwts.parserBuilder()
-                                    .setSigningKey(previousKey)
+                            Jwts.parser()
+                                    .verifyWith(previousKey)
                                     .build()
-                                    .parseClaimsJws(token)
-                                    .getBody();
+                                    .parseSignedClaims(token)
+                                    .getPayload();
                     log.info(
                             "JWT validated with PREVIOUS key (rotation grace period) for user: {}",
                             claims.getSubject());

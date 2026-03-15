@@ -265,8 +265,7 @@ public class EodStateMachineService {
 
         try {
             com.ledgora.loan.service.LoanProvisionService provisionService =
-                    applicationContext.getBean(
-                            com.ledgora.loan.service.LoanProvisionService.class);
+                    applicationContext.getBean(com.ledgora.loan.service.LoanProvisionService.class);
             provisionService.calculateProvisions(tenantId);
         } catch (org.springframework.beans.factory.NoSuchBeanDefinitionException ignored) {
         }
@@ -332,13 +331,18 @@ public class EodStateMachineService {
         process.setCompletedAt(LocalDateTime.now());
         eodProcessRepository.save(process);
 
+        // Use the EodProcess business date (the completed day) for snapshot generation.
+        // This is safer than tenant.getCurrentBusinessDate().minusDays(1) because
+        // it decouples from the date advancement logic (e.g., weekend/holiday skips).
+        LocalDate snapshotDate = process.getBusinessDate();
+
         // ── FINANCIAL STATEMENT ENGINE: Generate snapshots AFTER date advance ──
         // RBI Master Directions: Daily Balance Sheet + P&L snapshots with SHA-256 checksum
         try {
             com.ledgora.reporting.service.FinancialStatementService statementService =
                     applicationContext.getBean(
                             com.ledgora.reporting.service.FinancialStatementService.class);
-            statementService.generateDailySnapshots(tenantId);
+            statementService.generateDailySnapshots(tenantId, snapshotDate);
         } catch (org.springframework.beans.factory.NoSuchBeanDefinitionException ignored) {
             // Reporting module not deployed — skip
         } catch (Exception e) {
@@ -355,7 +359,7 @@ public class EodStateMachineService {
             com.ledgora.reporting.service.RegulatorySnapshotService regulatoryService =
                     applicationContext.getBean(
                             com.ledgora.reporting.service.RegulatorySnapshotService.class);
-            regulatoryService.generateAllSnapshots(tenantId);
+            regulatoryService.generateAllSnapshots(tenantId, snapshotDate);
         } catch (org.springframework.beans.factory.NoSuchBeanDefinitionException ignored) {
             // Regulatory reporting module not deployed — skip
         } catch (Exception e) {

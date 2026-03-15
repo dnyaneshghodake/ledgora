@@ -1,5 +1,6 @@
 package com.ledgora.reporting.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ledgora.reporting.entity.FinancialStatementSnapshot;
 import com.ledgora.reporting.enums.SnapshotStatus;
 import com.ledgora.reporting.enums.StatementType;
@@ -7,7 +8,6 @@ import com.ledgora.reporting.repository.FinancialStatementSnapshotRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpSession;
 import java.time.LocalDate;
 import java.util.Map;
@@ -26,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
  * recomputation in UI. Snapshot data includes section breakdowns, totals, and validation flags.
  *
  * <p>Endpoints:
+ *
  * <ul>
  *   <li>GET /financial/pl — Profit & Loss Statement
  *   <li>GET /financial/balance-sheet — Balance Sheet
@@ -35,8 +36,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @RequestMapping("/financial")
 public class FinancialStatementController {
 
-    private static final Logger log =
-            LoggerFactory.getLogger(FinancialStatementController.class);
+    private static final Logger log = LoggerFactory.getLogger(FinancialStatementController.class);
 
     private final FinancialStatementSnapshotRepository snapshotRepository;
     private final TenantRepository tenantRepository;
@@ -56,7 +56,11 @@ public class FinancialStatementController {
     public String profitLoss(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
-        if (tenant == null) return "financial/profit-loss";
+        if (tenant == null) {
+            model.addAttribute("error", "Tenant not found");
+            model.addAttribute("pnlAvailable", false);
+            return "financial/profit-loss";
+        }
 
         LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
         model.addAttribute("businessDate", bizDate);
@@ -71,7 +75,11 @@ public class FinancialStatementController {
     public String balanceSheet(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
-        if (tenant == null) return "financial/balance-sheet";
+        if (tenant == null) {
+            model.addAttribute("error", "Tenant not found");
+            model.addAttribute("bsAvailable", false);
+            return "financial/balance-sheet";
+        }
 
         LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
         model.addAttribute("businessDate", bizDate);
@@ -83,8 +91,7 @@ public class FinancialStatementController {
 
     @SuppressWarnings("unchecked")
     private void loadSnapshot(
-            Model model, Long tenantId, LocalDate bizDate,
-            StatementType type, String prefix) {
+            Model model, Long tenantId, LocalDate bizDate, StatementType type, String prefix) {
         try {
             FinancialStatementSnapshot snapshot =
                     snapshotRepository
@@ -112,7 +119,8 @@ public class FinancialStatementController {
         if (tenantId == null) {
             Object sessionTenantId = session.getAttribute("tenantId");
             if (sessionTenantId instanceof Number n) tenantId = n.longValue();
-            else if (sessionTenantId instanceof String s && !s.isBlank()) tenantId = Long.valueOf(s);
+            else if (sessionTenantId instanceof String s && !s.isBlank())
+                tenantId = Long.valueOf(s);
         }
         if (tenantId == null) throw new IllegalStateException("Tenant context not set");
         return tenantId;

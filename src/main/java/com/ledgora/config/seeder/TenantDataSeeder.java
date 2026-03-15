@@ -71,9 +71,93 @@ public class TenantDataSeeder {
                         });
     }
 
+    /** Tenant 3: Cooperative Bank — single-branch, rural banking. */
+    public Tenant seedCooperativeBank() {
+        return tenantRepository
+                .findByTenantCode("TENANT-003")
+                .orElseGet(
+                        () -> {
+                            Tenant t =
+                                    Tenant.builder()
+                                            .tenantCode("TENANT-003")
+                                            .tenantName("Sahyadri Urban Cooperative Bank")
+                                            .status("ACTIVE")
+                                            .currentBusinessDate(SeederDateUtil.nextWeekday())
+                                            .dayStatus(DayStatus.OPEN)
+                                            .country("IN")
+                                            .baseCurrency("INR")
+                                            .timezone("Asia/Kolkata")
+                                            .regulatoryCode("RBI/2024/UCB/003")
+                                            .multiBranchEnabled(false)
+                                            .eodStatus("NOT_STARTED")
+                                            .effectiveFrom(java.time.LocalDate.of(2023, 4, 1))
+                                            .remarks(
+                                                    "Urban cooperative bank — RBI Tier-II UCB")
+                                            .build();
+                            return tenantRepository.save(t);
+                        });
+    }
+
+    /** Tenant 4: Regional Rural Bank — government-sponsored, priority sector lending. */
+    public Tenant seedRuralBank() {
+        return tenantRepository
+                .findByTenantCode("TENANT-004")
+                .orElseGet(
+                        () -> {
+                            Tenant t =
+                                    Tenant.builder()
+                                            .tenantCode("TENANT-004")
+                                            .tenantName("Maharashtra Gramin Bank")
+                                            .status("ACTIVE")
+                                            .currentBusinessDate(SeederDateUtil.nextWeekday())
+                                            .dayStatus(DayStatus.OPEN)
+                                            .country("IN")
+                                            .baseCurrency("INR")
+                                            .timezone("Asia/Kolkata")
+                                            .regulatoryCode("RBI/2024/RRB/004")
+                                            .multiBranchEnabled(true)
+                                            .eodStatus("NOT_STARTED")
+                                            .effectiveFrom(java.time.LocalDate.of(2022, 1, 1))
+                                            .remarks(
+                                                    "Regional Rural Bank — priority sector lending, NABARD sponsored")
+                                            .build();
+                            return tenantRepository.save(t);
+                        });
+    }
+
+    /** Tenant 5: NBFC — non-banking financial company, lending-focused. */
+    public Tenant seedNbfc() {
+        return tenantRepository
+                .findByTenantCode("TENANT-005")
+                .orElseGet(
+                        () -> {
+                            Tenant t =
+                                    Tenant.builder()
+                                            .tenantCode("TENANT-005")
+                                            .tenantName("Finserv Capital NBFC")
+                                            .status("ACTIVE")
+                                            .currentBusinessDate(SeederDateUtil.nextWeekday())
+                                            .dayStatus(DayStatus.OPEN)
+                                            .country("IN")
+                                            .baseCurrency("INR")
+                                            .timezone("Asia/Kolkata")
+                                            .regulatoryCode("RBI/2024/NBFC/005")
+                                            .multiBranchEnabled(true)
+                                            .eodStatus("NOT_STARTED")
+                                            .effectiveFrom(java.time.LocalDate.of(2024, 10, 1))
+                                            .remarks(
+                                                    "NBFC — Scale-Based Regulation (SBR) Upper Layer")
+                                            .build();
+                            return tenantRepository.save(t);
+                        });
+    }
+
     public void seed() {
         seedDefaultTenant();
         seedSecondTenant();
-        log.info("  [Tenants] Default tenant (TENANT-001) and secondary tenant (TENANT-002) ready");
+        seedCooperativeBank();
+        seedRuralBank();
+        seedNbfc();
+        log.info("  [Tenants] 5 tenants ready (Main Bank, Partner Bank, UCB, RRB, NBFC)");
     }
 }

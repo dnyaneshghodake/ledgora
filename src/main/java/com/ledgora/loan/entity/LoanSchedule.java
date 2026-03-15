@@ -22,13 +22,14 @@ import lombok.*;
         name = "loan_schedules",
         indexes = {
             @Index(name = "idx_ls_account", columnList = "account_id"),
+            @Index(name = "idx_ls_loan_account", columnList = "loan_account_id"),
             @Index(name = "idx_ls_due_date", columnList = "due_date"),
             @Index(name = "idx_ls_status", columnList = "status")
         },
         uniqueConstraints = {
             @UniqueConstraint(
-                    name = "uk_ls_account_installment",
-                    columnNames = {"account_id", "installment_number"})
+                    name = "uk_ls_loan_installment",
+                    columnNames = {"loan_account_id", "installment_number"})
         })
 @Data
 @NoArgsConstructor
@@ -38,6 +39,11 @@ public class LoanSchedule {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /** The loan account this installment belongs to — Finacle LACHST FK. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "loan_account_id", nullable = false)
+    private LoanAccount loanAccount;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "account_id", nullable = false)

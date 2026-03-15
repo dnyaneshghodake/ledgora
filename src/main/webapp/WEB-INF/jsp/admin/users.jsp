@@ -75,8 +75,9 @@
                         </td>
                         <td>
                             <c:choose>
+                                <c:when test="${user.isLocked}"><span class="badge bg-danger">Locked</span></c:when>
                                 <c:when test="${user.isActive}"><span class="badge bg-success">Active</span></c:when>
-                                <c:otherwise><span class="badge bg-danger">Inactive</span></c:otherwise>
+                                <c:otherwise><span class="badge bg-secondary">Inactive</span></c:otherwise>
                             </c:choose>
                         </td>
                         <td>
@@ -101,13 +102,15 @@
                                         </c:choose>
                                     </button>
                                 </form>
-                                <form method="post" action="${pageContext.request.contextPath}/admin/users/${user.id}/delete" style="display:inline;">
+                                <c:if test="${user.isLocked}">
+                                <form method="post" action="${pageContext.request.contextPath}/admin/users/${user.id}/unlock" style="display:inline;"
+                                      onsubmit="return confirm('Unlock user ${fn:escapeXml(user.username)}?');">
                                     <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
-                                    <button type="submit" class="btn btn-outline-danger" title="Deactivate"
-                                            data-confirm="Deactivate user ${fn:escapeXml(user.username)}? The user will be unable to log in.">
-                                        <i class="bi bi-person-x"></i>
+                                    <button type="submit" class="btn btn-outline-info" title="Unlock">
+                                        <i class="bi bi-unlock"></i>
                                     </button>
                                 </form>
+                                </c:if>
                             </div>
                         </td>
                     </tr>
@@ -134,7 +137,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <c:forEach var="role" items="${roles}">
+                    <c:forEach var="role" items="${allRoles}">
                         <tr>
                             <td>${role.id}</td>
                             <td><span class="badge bg-primary"><c:out value="${role.name}"/></span></td>

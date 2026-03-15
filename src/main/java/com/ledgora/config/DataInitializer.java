@@ -2,6 +2,7 @@ package com.ledgora.config;
 
 import com.ledgora.auth.entity.User;
 import com.ledgora.branch.entity.Branch;
+import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.config.seeder.*;
 import com.ledgora.tenant.entity.Tenant;
 import org.slf4j.Logger;
@@ -46,6 +47,7 @@ public class DataInitializer implements CommandLineRunner {
     private final IdempotencyKeySeeder idempotencyKeySeeder;
     private final CbsCustomerSeeder cbsCustomerSeeder;
     private final TellerDataSeeder tellerDataSeeder;
+    private final BranchRepository branchRepository;
 
     public DataInitializer(
             TenantDataSeeder tenantSeeder,
@@ -59,7 +61,8 @@ public class DataInitializer implements CommandLineRunner {
             ExchangeRateSeeder exchangeRateSeeder,
             IdempotencyKeySeeder idempotencyKeySeeder,
             CbsCustomerSeeder cbsCustomerSeeder,
-            TellerDataSeeder tellerDataSeeder) {
+            TellerDataSeeder tellerDataSeeder,
+            BranchRepository branchRepository) {
         this.tenantSeeder = tenantSeeder;
         this.roleSeeder = roleSeeder;
         this.branchSeeder = branchSeeder;
@@ -72,6 +75,7 @@ public class DataInitializer implements CommandLineRunner {
         this.idempotencyKeySeeder = idempotencyKeySeeder;
         this.cbsCustomerSeeder = cbsCustomerSeeder;
         this.tellerDataSeeder = tellerDataSeeder;
+        this.branchRepository = branchRepository;
     }
 
     @Override
@@ -88,24 +92,35 @@ public class DataInitializer implements CommandLineRunner {
         log.info("  Ledgora DataInitializer — seeding reference data ...");
         log.info("═══════════════════════════════════════════════════════════");
 
-        // 0. Tenants
+        // 0. Tenants (5 realistic Indian financial institutions)
         Tenant defaultTenant = tenantSeeder.seedDefaultTenant();
         Tenant secondTenant = tenantSeeder.seedSecondTenant();
-        log.info("  [Tenants] Default tenant (TENANT-001) and secondary tenant (TENANT-002) ready");
+        Tenant ucbTenant = tenantSeeder.seedCooperativeBank();
+        Tenant rrbTenant = tenantSeeder.seedRuralBank();
+        Tenant nbfcTenant = tenantSeeder.seedNbfc();
+        log.info("  [Tenants] 5 tenants ready (Main Bank, Partner Bank, UCB, RRB, NBFC)");
 
         // 1. Roles
         roleSeeder.seed();
 
-        // 2. Branches
+        // 2. Branches (per tenant — realistic branch networks)
         Branch[] branches = branchSeeder.seed(defaultTenant);
         Branch hq = branches[0];
         Branch br1 = branches[1];
         Branch br2 = branches[2];
+        branchSeeder.seedForTenant2(secondTenant);
+        branchSeeder.seedForTenant3(ucbTenant);
+        branchSeeder.seedForTenant4(rrbTenant);
+        branchSeeder.seedForTenant5(nbfcTenant);
 
-        // 3. Users
+        // 3. Users (Tenant 1 + global users)
         User[] users = userSeeder.seed(defaultTenant, secondTenant, hq, br1, br2);
         User adminUser = users[0];
         User teller1User = users[2];
+
+        // 3b. Users for additional tenants (T2–T5)
+        userSeeder.seedForAdditionalTenants(
+                secondTenant, ucbTenant, rrbTenant, nbfcTenant, branchRepository);
 
         // 4. GL Chart of Accounts
         glSeeder.seed();
@@ -125,8 +140,10 @@ public class DataInitializer implements CommandLineRunner {
         // 9. Idempotency Keys
         idempotencyKeySeeder.seed();
 
-        // 10. CBS CustomerMaster + Tax Profiles
+        // 10. CBS CustomerMaster + Tax Profiles (all tenants)
         cbsCustomerSeeder.seed(defaultTenant);
+        cbsCustomerSeeder.seedForAdditionalTenants(
+                secondTenant, ucbTenant, rrbTenant, nbfcTenant);
 
         // 11. Teller Operations Master Data (denominations, vaults, teller masters)
         tellerDataSeeder.seed(defaultTenant, hq, br1, br2);

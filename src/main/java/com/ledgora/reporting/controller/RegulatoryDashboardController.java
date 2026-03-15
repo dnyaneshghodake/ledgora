@@ -1,5 +1,6 @@
 package com.ledgora.reporting.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ledgora.reporting.entity.RegulatorySnapshot;
 import com.ledgora.reporting.enums.SnapshotStatus;
 import com.ledgora.reporting.repository.RegulatorySnapshotRepository;
@@ -7,7 +8,6 @@ import com.ledgora.reporting.service.RegulatorySnapshotService;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpSession;
 import java.time.LocalDate;
 import java.util.Map;
@@ -42,8 +42,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 @RequestMapping("/regulatory")
 public class RegulatoryDashboardController {
 
-    private static final Logger log =
-            LoggerFactory.getLogger(RegulatoryDashboardController.class);
+    private static final Logger log = LoggerFactory.getLogger(RegulatoryDashboardController.class);
 
     private final RegulatorySnapshotRepository snapshotRepository;
     private final RegulatorySnapshotService snapshotService;
@@ -62,8 +61,7 @@ public class RegulatoryDashboardController {
     }
 
     @GetMapping("/dashboard")
-    @PreAuthorize(
-            "hasAnyRole('ADMIN', 'MANAGER', 'AUDITOR', 'OPERATIONS', 'RISK')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'AUDITOR', 'OPERATIONS', 'RISK')")
     public String dashboard(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
@@ -77,70 +75,73 @@ public class RegulatoryDashboardController {
         model.addAttribute("tenantName", tenant.getTenantName());
 
         // Load CRAR snapshot
-        loadSnapshot(model, tenantId, bizDate,
-                RegulatorySnapshotService.TYPE_CRAR, "crar");
+        loadSnapshot(model, tenantId, bizDate, RegulatorySnapshotService.TYPE_CRAR, "crar");
 
         // Load ALM snapshot
-        loadSnapshot(model, tenantId, bizDate,
-                RegulatorySnapshotService.TYPE_ALM, "alm");
+        loadSnapshot(model, tenantId, bizDate, RegulatorySnapshotService.TYPE_ALM, "alm");
 
         // Load Trial Balance snapshot
-        loadSnapshot(model, tenantId, bizDate,
-                RegulatorySnapshotService.TYPE_TRIAL_BALANCE, "tb");
+        loadSnapshot(model, tenantId, bizDate, RegulatorySnapshotService.TYPE_TRIAL_BALANCE, "tb");
 
         return "regulatory/dashboard";
     }
 
     @GetMapping("/trial-balance")
-    @PreAuthorize(
-            "hasAnyRole('ADMIN', 'MANAGER', 'AUDITOR', 'OPERATIONS')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'AUDITOR', 'OPERATIONS')")
     public String trialBalance(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
-        if (tenant == null) return "regulatory/trial-balance";
+        if (tenant == null) {
+            model.addAttribute("error", "Tenant not found");
+            model.addAttribute("tbAvailable", false);
+            return "regulatory/trial-balance";
+        }
 
         LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
         model.addAttribute("businessDate", bizDate);
         model.addAttribute("tenantName", tenant.getTenantName());
 
-        loadSnapshot(model, tenantId, bizDate,
-                RegulatorySnapshotService.TYPE_TRIAL_BALANCE, "tb");
+        loadSnapshot(model, tenantId, bizDate, RegulatorySnapshotService.TYPE_TRIAL_BALANCE, "tb");
 
         return "regulatory/trial-balance";
     }
 
     @GetMapping("/crar")
-    @PreAuthorize(
-            "hasAnyRole('ADMIN', 'MANAGER', 'AUDITOR', 'RISK')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'AUDITOR', 'RISK')")
     public String crar(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
-        if (tenant == null) return "regulatory/crar-report";
+        if (tenant == null) {
+            model.addAttribute("error", "Tenant not found");
+            model.addAttribute("crarAvailable", false);
+            return "regulatory/crar-report";
+        }
 
         LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
         model.addAttribute("businessDate", bizDate);
         model.addAttribute("tenantName", tenant.getTenantName());
 
-        loadSnapshot(model, tenantId, bizDate,
-                RegulatorySnapshotService.TYPE_CRAR, "crar");
+        loadSnapshot(model, tenantId, bizDate, RegulatorySnapshotService.TYPE_CRAR, "crar");
 
         return "regulatory/crar-report";
     }
 
     @GetMapping("/alm")
-    @PreAuthorize(
-            "hasAnyRole('ADMIN', 'MANAGER', 'AUDITOR', 'RISK', 'OPERATIONS')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'AUDITOR', 'RISK', 'OPERATIONS')")
     public String alm(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
-        if (tenant == null) return "regulatory/alm-report";
+        if (tenant == null) {
+            model.addAttribute("error", "Tenant not found");
+            model.addAttribute("almAvailable", false);
+            return "regulatory/alm-report";
+        }
 
         LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
         model.addAttribute("businessDate", bizDate);
         model.addAttribute("tenantName", tenant.getTenantName());
 
-        loadSnapshot(model, tenantId, bizDate,
-                RegulatorySnapshotService.TYPE_ALM, "alm");
+        loadSnapshot(model, tenantId, bizDate, RegulatorySnapshotService.TYPE_ALM, "alm");
 
         return "regulatory/alm-report";
     }
@@ -148,24 +149,25 @@ public class RegulatoryDashboardController {
     @PostMapping("/regenerate")
     @PreAuthorize("hasRole('ADMIN')")
     public String regenerate(
-            @RequestParam String type,
-            HttpSession session,
-            RedirectAttributes redirectAttributes) {
+            @RequestParam String type, HttpSession session, RedirectAttributes redirectAttributes) {
         Long tenantId = resolveTenantId(session);
         try {
-            snapshotService.generateAllSnapshots(tenantId);
-            redirectAttributes.addFlashAttribute("message",
-                    "Regulatory snapshots regenerated successfully");
+            Tenant tenant =
+                    tenantRepository
+                            .findById(tenantId)
+                            .orElseThrow(() -> new RuntimeException("Tenant not found"));
+            // Use previous business date (current date is the next open day)
+            LocalDate snapshotDate = tenant.getCurrentBusinessDate().minusDays(1);
+            snapshotService.generateAllSnapshots(tenantId, snapshotDate);
+            redirectAttributes.addFlashAttribute(
+                    "message", "Regulatory snapshots regenerated successfully");
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Regeneration failed: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "Regeneration failed: " + e.getMessage());
         }
         return "redirect:/regulatory/dashboard";
     }
 
-    /**
-     * Load a FINAL snapshot and parse its JSON into the model.
-     */
+    /** Load a FINAL snapshot and parse its JSON into the model. */
     @SuppressWarnings("unchecked")
     private void loadSnapshot(
             Model model, Long tenantId, LocalDate bizDate, String type, String prefix) {
@@ -185,8 +187,12 @@ public class RegulatoryDashboardController {
                 model.addAttribute(prefix + "Available", false);
             }
         } catch (Exception e) {
-            log.warn("Failed to load {} snapshot for tenant {} date {}: {}",
-                    type, tenantId, bizDate, e.getMessage());
+            log.warn(
+                    "Failed to load {} snapshot for tenant {} date {}: {}",
+                    type,
+                    tenantId,
+                    bizDate,
+                    e.getMessage());
             model.addAttribute(prefix + "Available", false);
         }
     }
@@ -202,8 +208,7 @@ public class RegulatoryDashboardController {
             }
         }
         if (tenantId == null) {
-            throw new IllegalStateException(
-                    "Tenant context not set for regulatory dashboard");
+            throw new IllegalStateException("Tenant context not set for regulatory dashboard");
         }
         return tenantId;
     }

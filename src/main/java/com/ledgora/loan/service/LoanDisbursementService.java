@@ -2,15 +2,26 @@ package com.ledgora.loan.service;
 
 import com.ledgora.account.entity.Account;
 import com.ledgora.audit.service.AuditService;
+import com.ledgora.auth.entity.User;
+import com.ledgora.auth.repository.UserRepository;
+import com.ledgora.branch.entity.Branch;
+import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.common.exception.BusinessException;
+import com.ledgora.loan.dto.LoanSchedulePreviewDTO;
 import com.ledgora.loan.entity.LoanAccount;
+import com.ledgora.loan.entity.LoanDisbursement;
 import com.ledgora.loan.entity.LoanProduct;
 import com.ledgora.loan.entity.LoanSchedule;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.enums.NpaClassification;
 import com.ledgora.loan.repository.LoanAccountRepository;
+import com.ledgora.loan.repository.LoanDisbursementRepository;
+import com.ledgora.loan.repository.LoanScheduleRepository;
+import com.ledgora.loan.validation.EmiCalculator;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
+import com.ledgora.voucher.entity.Voucher;
+import com.ledgora.voucher.service.VoucherService;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
@@ -47,24 +58,45 @@ public class LoanDisbursementService {
     private static final Logger log = LoggerFactory.getLogger(LoanDisbursementService.class);
 
     private final LoanAccountRepository loanAccountRepository;
+    private final LoanScheduleRepository loanScheduleRepository;
+    private final LoanDisbursementRepository loanDisbursementRepository;
+    private final VoucherService voucherService;
+    private final BranchRepository branchRepository;
+    private final UserRepository userRepository;
     private final TenantService tenantService;
     private final AuditService auditService;
 
     public LoanDisbursementService(
             LoanAccountRepository loanAccountRepository,
+            LoanScheduleRepository loanScheduleRepository,
+            LoanDisbursementRepository loanDisbursementRepository,
+            VoucherService voucherService,
+            BranchRepository branchRepository,
+            UserRepository userRepository,
             TenantService tenantService,
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
+        this.loanScheduleRepository = loanScheduleRepository;
+        this.loanDisbursementRepository = loanDisbursementRepository;
+        this.voucherService = voucherService;
+        this.branchRepository = branchRepository;
+        this.userRepository = userRepository;
         this.tenantService = tenantService;
         this.auditService = auditService;
     }
 
     /**
-     * Disburse a loan — creates LoanAccount + amortization schedule.
+     * Disburse a loan — creates LoanAccount, generates amortization schedule, and posts
+     * disbursement voucher pair via the voucher engine.
      *
-     * <p>NOTE: The actual GL posting (DR Loan Asset GL, CR Customer Account) should be done via
-     * the voucher engine. This service creates the loan record and schedule; the caller is
-     * responsible for triggering the voucher posting.
+     * <p>Accounting entry (CBS-grade, voucher-driven):
+     *
+     * <pre>
+     *   DR Loan Asset GL        (product.glLoanAsset — asset increases)
+     *   CR Customer Account     (customerAccount — funds credited to borrower)
+     * </pre>
+     *
+     * <p>Voucher lifecycle: create → system-authorize → post → LedgerEntry (immutable).
      *
      * @return the created LoanAccount with generated schedule
      */
@@ -77,12 +109,24 @@ public class LoanDisbursementService {
             BigDecimal principalAmount) {
 
         if (principalAmount == null || principalAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BusinessException(
-                    "INVALID_LOAN_AMOUNT", "Loan principal must be positive");
+            throw new BusinessException("INVALID_LOAN_AMOUNT", "Loan principal must be positive");
         }
+
+        // CBS Tier-1: validate business day is OPEN before financial operations
+        tenantService.validateBusinessDayOpen(tenant.getId());
 
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenant.getId());
         LocalDate maturityDate = businessDate.plusMonths(product.getTenureMonths());
+
+        // Compute EMI via centralized calculator (eliminates 3x duplication)
+        BigDecimal emiAmount = EmiCalculator.computeEmi(
+                principalAmount, product.getInterestRate(), product.getTenureMonths());
+
+        // Denormalize borrower name from linked account for quick search/display
+        String borrowerName =
+                customerAccount.getCustomerName() != null
+                        ? customerAccount.getCustomerName()
+                        : customerAccount.getAccountName();
 
         LoanAccount loan =
                 LoanAccount.builder()
@@ -93,6 +137,13 @@ public class LoanDisbursementService {
                         .principalAmount(principalAmount)
                         .outstandingPrincipal(principalAmount)
                         .accruedInterest(BigDecimal.ZERO)
+                        .emiAmount(emiAmount)
+                        .interestRate(product.getInterestRate())
+                        .currency(
+                                customerAccount.getCurrency() != null
+                                        ? customerAccount.getCurrency()
+                                        : "INR")
+                        .borrowerName(borrowerName)
                         .dpd(0)
                         .status(LoanStatus.ACTIVE)
                         .npaClassification(NpaClassification.STANDARD)
@@ -102,9 +153,27 @@ public class LoanDisbursementService {
                         .build();
         loan = loanAccountRepository.save(loan);
 
-        // Generate amortization schedule
-        List<LoanSchedule> schedule =
-                generateAmortizationSchedule(loan, product, businessDate);
+        // Generate and persist amortization schedule (Finacle LACSMNT — schedule at disbursement)
+        List<LoanSchedule> schedule = generateAmortizationSchedule(loan, product, businessDate);
+        loanScheduleRepository.saveAll(schedule);
+
+        // ── VOUCHER ENGINE: Post disbursement (DR Loan Asset GL, CR Customer Account) ──
+        postDisbursementVouchers(tenant, product, customerAccount, loan, principalAmount,
+                businessDate);
+
+        // ── CBS AUDIT: Record immutable LoanDisbursement tranche ──
+        loanDisbursementRepository.save(
+                LoanDisbursement.builder()
+                        .tenant(tenant)
+                        .loanAccount(loan)
+                        .trancheNumber(1)
+                        .disbursementAmount(principalAmount)
+                        .disbursementDate(businessDate)
+                        .status("DISBURSED")
+                        .disbursedBy(
+                                com.ledgora.tenant.context.TenantContextHolder.getUsername())
+                        .remarks("Initial disbursement: " + loanAccountNumber)
+                        .build());
 
         auditService.logEvent(
                 null,
@@ -136,10 +205,84 @@ public class LoanDisbursementService {
     }
 
     /**
+     * Post disbursement voucher pair via the voucher engine.
+     *
+     * <p>CBS-grade double-entry: DR Loan Asset GL, CR Customer Account.
+     * Vouchers are system-auto-authorized and posted atomically.
+     */
+    private void postDisbursementVouchers(
+            Tenant tenant, LoanProduct product, Account customerAccount,
+            LoanAccount loan, BigDecimal amount, LocalDate businessDate) {
+        try {
+            // Resolve branch from customer account (or default to first tenant branch)
+            Branch branch = resolveBranch(customerAccount, tenant);
+
+            // Resolve system maker user for automated voucher creation
+            User systemUser = userRepository.findByUsername("SYSTEM_AUTO")
+                    .orElseThrow(() -> new BusinessException(
+                            "SYSTEM_USER_MISSING",
+                            "SYSTEM_AUTO user not configured. Loan voucher posting blocked."));
+
+            String batchCode = "LOAN-DISB-" + loan.getLoanAccountNumber();
+
+            // Create DR/CR voucher pair atomically
+            Voucher[] pair = voucherService.createVoucherPair(
+                    tenant,
+                    branch, customerAccount, product.getGlLoanAsset(),   // DR leg
+                    branch, customerAccount, product.getGlLoanAsset(),   // CR leg (GL for credit)
+                    amount,
+                    loan.getCurrency(),
+                    businessDate,
+                    batchCode,
+                    systemUser,
+                    "Loan disbursement DR: " + loan.getLoanAccountNumber()
+                            + " principal=" + amount,
+                    "Loan disbursement CR: " + loan.getLoanAccountNumber()
+                            + " credit to " + customerAccount.getAccountNumber());
+
+            // System-authorize both vouchers
+            voucherService.systemAuthorizeVoucher(pair[0].getId(), systemUser);
+            voucherService.systemAuthorizeVoucher(pair[1].getId(), systemUser);
+
+            // Post both vouchers (creates immutable LedgerEntry records)
+            voucherService.postVoucher(pair[0].getId());
+            voucherService.postVoucher(pair[1].getId());
+
+            log.info("Disbursement vouchers posted: DR={} CR={} for loan {}",
+                    pair[0].getVoucherNumber(), pair[1].getVoucherNumber(),
+                    loan.getLoanAccountNumber());
+
+        } catch (BusinessException e) {
+            throw e; // re-throw business exceptions
+        } catch (Exception e) {
+            log.error("Disbursement voucher posting failed for loan {}: {}",
+                    loan.getLoanAccountNumber(), e.getMessage(), e);
+            // Voucher posting failure should not silently succeed — fail the disbursement
+            throw new BusinessException(
+                    "VOUCHER_POSTING_FAILED",
+                    "Disbursement voucher posting failed for loan "
+                            + loan.getLoanAccountNumber() + ": " + e.getMessage());
+        }
+    }
+
+    /** Resolve branch for voucher posting — uses account's branch or first tenant branch. */
+    private Branch resolveBranch(Account account, Tenant tenant) {
+        if (account.getBranch() != null) {
+            return account.getBranch();
+        }
+        List<Branch> branches = branchRepository.findByTenantId(tenant.getId());
+        if (branches.isEmpty()) {
+            throw new BusinessException("NO_BRANCH",
+                    "No branch configured for tenant " + tenant.getTenantCode());
+        }
+        return branches.get(0);
+    }
+
+    /**
      * Generate reducing balance EMI amortization schedule.
      *
-     * <p>EMI formula: EMI = P × r × (1+r)^n / ((1+r)^n - 1) where P = principal, r = monthly
-     * rate, n = tenure months.
+     * <p>EMI formula: EMI = P × r × (1+r)^n / ((1+r)^n - 1) where P = principal, r = monthly rate,
+     * n = tenure months.
      */
     private List<LoanSchedule> generateAmortizationSchedule(
             LoanAccount loan, LoanProduct product, LocalDate startDate) {
@@ -147,29 +290,16 @@ public class LoanDisbursementService {
         BigDecimal annualRate = product.getInterestRate();
         int tenureMonths = product.getTenureMonths();
 
-        BigDecimal monthlyRate =
-                annualRate
-                        .divide(new BigDecimal("100"), 10, RoundingMode.HALF_UP)
-                        .divide(new BigDecimal("12"), 10, RoundingMode.HALF_UP);
-
-        // EMI = P × r × (1+r)^n / ((1+r)^n - 1)
-        BigDecimal onePlusR = BigDecimal.ONE.add(monthlyRate);
-        BigDecimal onePlusRPowerN = onePlusR.pow(tenureMonths, MathContext.DECIMAL128);
-        BigDecimal emi =
-                principal
-                        .multiply(monthlyRate, MathContext.DECIMAL128)
-                        .multiply(onePlusRPowerN, MathContext.DECIMAL128)
-                        .divide(
-                                onePlusRPowerN.subtract(BigDecimal.ONE),
-                                4,
-                                RoundingMode.HALF_UP);
+        BigDecimal monthlyRate = EmiCalculator.monthlyRate(annualRate);
+        BigDecimal emi = EmiCalculator.computeEmi(principal, annualRate, tenureMonths);
 
         List<LoanSchedule> schedule = new ArrayList<>();
         BigDecimal remaining = principal;
 
         for (int i = 1; i <= tenureMonths; i++) {
             BigDecimal interestComponent =
-                    remaining.multiply(monthlyRate, MathContext.DECIMAL128)
+                    remaining
+                            .multiply(monthlyRate, MathContext.DECIMAL128)
                             .setScale(4, RoundingMode.HALF_UP);
             BigDecimal principalComponent = emi.subtract(interestComponent);
 
@@ -183,6 +313,7 @@ public class LoanDisbursementService {
 
             LoanSchedule installment =
                     LoanSchedule.builder()
+                            .loanAccount(loan)
                             .account(loan.getLinkedAccount())
                             .installmentNumber(i)
                             .dueDate(startDate.plusMonths(i))
@@ -197,10 +328,81 @@ public class LoanDisbursementService {
             schedule.add(installment);
         }
 
-        // NOTE: Schedule persistence would be via LoanScheduleRepository.saveAll(schedule)
-        // Omitted here as the existing LoanSchedule entity uses Account-based FK,
-        // not LoanAccount-based FK. The schedule is returned for the caller to persist.
-
         return schedule;
+    }
+
+    /**
+     * Preview amortization schedule without persisting — Finacle LACSMNT pre-disbursement view.
+     *
+     * <p>Called by the controller's preview step so the maker can review the full repayment
+     * schedule (EMI, principal/interest split per installment, total interest payable) before
+     * confirming disbursement. No database writes occur.
+     *
+     * @param product the selected loan product
+     * @param principalAmount the proposed principal
+     * @param startDate the business date (disbursement date)
+     * @return DTO with full schedule and summary KPIs
+     */
+    public LoanSchedulePreviewDTO previewSchedule(
+            LoanProduct product, BigDecimal principalAmount, LocalDate startDate) {
+
+        if (principalAmount == null || principalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("INVALID_LOAN_AMOUNT", "Loan principal must be positive");
+        }
+
+        int tenureMonths = product.getTenureMonths();
+        BigDecimal annualRate = product.getInterestRate();
+
+        BigDecimal monthlyRate = EmiCalculator.monthlyRate(annualRate);
+        BigDecimal emi = EmiCalculator.computeEmi(principalAmount, annualRate, tenureMonths);
+
+        List<LoanSchedulePreviewDTO.Installment> installments = new ArrayList<>();
+        BigDecimal remaining = principalAmount;
+        BigDecimal totalInterest = BigDecimal.ZERO;
+
+        for (int i = 1; i <= tenureMonths; i++) {
+            BigDecimal interestComponent =
+                    remaining
+                            .multiply(monthlyRate, MathContext.DECIMAL128)
+                            .setScale(4, RoundingMode.HALF_UP);
+            BigDecimal principalComponent = emi.subtract(interestComponent);
+
+            if (i == tenureMonths) {
+                principalComponent = remaining;
+            }
+
+            remaining = remaining.subtract(principalComponent);
+            if (remaining.compareTo(BigDecimal.ZERO) < 0) {
+                remaining = BigDecimal.ZERO;
+            }
+            totalInterest = totalInterest.add(interestComponent);
+
+            BigDecimal installmentEmi = principalComponent.add(interestComponent);
+
+            installments.add(
+                    LoanSchedulePreviewDTO.Installment.builder()
+                            .number(i)
+                            .dueDate(startDate.plusMonths(i))
+                            .emiAmount(installmentEmi)
+                            .principalComponent(principalComponent)
+                            .interestComponent(interestComponent)
+                            .outstandingAfter(remaining)
+                            .build());
+        }
+
+        return LoanSchedulePreviewDTO.builder()
+                .productCode(product.getProductCode())
+                .productName(product.getProductName())
+                .interestRate(annualRate)
+                .interestType(product.getInterestType().name())
+                .tenureMonths(tenureMonths)
+                .principalAmount(principalAmount)
+                .emiAmount(emi)
+                .totalInterestPayable(totalInterest)
+                .totalAmountPayable(principalAmount.add(totalInterest))
+                .firstEmiDate(startDate.plusMonths(1))
+                .lastEmiDate(startDate.plusMonths(tenureMonths))
+                .installments(installments)
+                .build();
     }
 }

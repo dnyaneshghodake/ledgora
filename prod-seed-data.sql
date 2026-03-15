@@ -23,8 +23,11 @@ BEGIN TRANSACTION;
 SET IDENTITY_INSERT tenants ON;
 INSERT INTO tenants (id, tenant_code, tenant_name, status, current_business_date, day_status, country, base_currency, timezone, regulatory_code, multi_branch_enabled, eod_status, effective_from, remarks, created_at, updated_at)
 VALUES
-(1, 'TENANT001', 'Ledgora National Bank',   'ACTIVE', '2026-03-14', 'OPEN', 'IN', 'INR', 'Asia/Kolkata', 'RBI/2026/BANK/001', 1, 'NOT_STARTED', '2025-01-01', 'Primary banking tenant', SYSUTCDATETIME(), SYSUTCDATETIME()),
-(2, 'TENANT002', 'Ledgora Cooperative Bank', 'ACTIVE', '2026-03-14', 'OPEN', 'IN', 'INR', 'Asia/Kolkata', 'RBI/2026/COOP/002', 1, 'NOT_STARTED', '2025-06-01', 'Cooperative banking tenant', SYSUTCDATETIME(), SYSUTCDATETIME());
+(1, 'TENANT001', 'Ledgora National Bank',          'ACTIVE', '2026-03-14', 'OPEN', 'IN', 'INR', 'Asia/Kolkata', 'RBI/2026/BANK/001', 1, 'NOT_STARTED', '2025-01-01', 'Primary banking tenant — scheduled commercial bank',        SYSUTCDATETIME(), SYSUTCDATETIME()),
+(2, 'TENANT002', 'Ledgora Cooperative Bank',        'ACTIVE', '2026-03-14', 'OPEN', 'IN', 'INR', 'Asia/Kolkata', 'RBI/2026/COOP/002', 1, 'NOT_STARTED', '2025-06-01', 'Cooperative banking tenant — multi-state cooperative',       SYSUTCDATETIME(), SYSUTCDATETIME()),
+(3, 'TENANT003', 'Sahyadri Urban Cooperative Bank', 'ACTIVE', '2026-03-14', 'OPEN', 'IN', 'INR', 'Asia/Kolkata', 'RBI/2026/UCB/003',  0, 'NOT_STARTED', '2023-04-01', 'Urban cooperative bank — RBI Tier-II UCB, single branch',   SYSUTCDATETIME(), SYSUTCDATETIME()),
+(4, 'TENANT004', 'Maharashtra Gramin Bank',         'ACTIVE', '2026-03-14', 'OPEN', 'IN', 'INR', 'Asia/Kolkata', 'RBI/2026/RRB/004',  1, 'NOT_STARTED', '2022-01-01', 'Regional Rural Bank — NABARD sponsored, priority sector',   SYSUTCDATETIME(), SYSUTCDATETIME()),
+(5, 'TENANT005', 'Finserv Capital NBFC',            'ACTIVE', '2026-03-14', 'OPEN', 'IN', 'INR', 'Asia/Kolkata', 'RBI/2026/NBFC/005', 1, 'NOT_STARTED', '2024-10-01', 'NBFC — Scale-Based Regulation (SBR) Upper Layer, lending',  SYSUTCDATETIME(), SYSUTCDATETIME());
 SET IDENTITY_INSERT tenants OFF;
 
 -- ============================================================================
@@ -46,22 +49,30 @@ SET IDENTITY_INSERT branches OFF;
 -- ============================================================================
 SET IDENTITY_INSERT roles ON;
 INSERT INTO roles (id, name, description) VALUES
-(1,  'ROLE_ADMIN',        'System Administrator'),
-(2,  'ROLE_MANAGER',      'Branch Manager'),
-(3,  'ROLE_TELLER',       'Branch Teller'),
-(4,  'ROLE_MAKER',        'Transaction Maker'),
-(5,  'ROLE_CHECKER',      'Transaction Checker/Authorizer'),
-(6,  'ROLE_AUDITOR',      'Internal Auditor'),
-(7,  'ROLE_SUPER_ADMIN',  'Super Administrator'),
-(8,  'ROLE_TENANT_ADMIN', 'Tenant Administrator'),
-(9,  'ROLE_OPERATIONS',   'Operations Team'),
-(10, 'ROLE_SYSTEM',       'System Process Account');
+(1,  'ROLE_ADMIN',               'System Administrator'),
+(2,  'ROLE_MANAGER',             'Branch Manager'),
+(3,  'ROLE_TELLER',              'Branch Teller'),
+(4,  'ROLE_MAKER',               'Transaction Maker'),
+(5,  'ROLE_CHECKER',             'Transaction Checker/Authorizer'),
+(6,  'ROLE_AUDITOR',             'Internal Auditor'),
+(7,  'ROLE_SUPER_ADMIN',         'Super Administrator'),
+(8,  'ROLE_TENANT_ADMIN',        'Tenant Administrator'),
+(9,  'ROLE_OPERATIONS',          'Operations Team'),
+(10, 'ROLE_SYSTEM',              'System Process Account'),
+(11, 'ROLE_CUSTOMER',            'Bank Customer'),
+(12, 'ROLE_BRANCH_MANAGER',      'Branch Manager — branch-level supervisory role'),
+(13, 'ROLE_RISK',                'Risk Officer — fraud alerts, velocity breaches, risk dashboards'),
+(14, 'ROLE_COMPLIANCE_OFFICER',  'Compliance Officer — AML/CFT oversight, KYC review'),
+(15, 'ROLE_ATM_SYSTEM',          'ATM System Channel — channel-level system identity');
 SET IDENTITY_INSERT roles OFF;
 
 -- ============================================================================
 -- USERS (per tenant: admin_hq, manager_br1, teller_br1, maker_br2,
 --         checker_br2, auditor) + SYSTEM_AUTO
--- Passwords are BCrypt-hashed value of 'Password@123'
+-- ⚠️  SECURITY WARNING: All users share the same BCrypt hash of 'Password@123'.
+--     This is SEED DATA ONLY for initial deployment and testing.
+--     ALL passwords MUST be changed before production use.
+--     Run: UPDATE users SET password = <unique_bcrypt_hash> WHERE id = <user_id>;
 -- ============================================================================
 SET IDENTITY_INSERT users ON;
 INSERT INTO users (id, tenant_id, tenant_scope, username, password, full_name, email, phone, branch_code, branch_id, is_active, is_locked, failed_login_attempts, created_at, updated_at)

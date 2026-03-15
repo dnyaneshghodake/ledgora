@@ -84,7 +84,9 @@ class DoubleEntryEnforcementTest {
 
         assertNotNull(debits, "Debits must not be null after deposit");
         assertNotNull(credits, "Credits must not be null after deposit");
-        assertTrue(debits.compareTo(BigDecimal.ZERO) > 0, "Debits must be positive (not vacuously zero)");
+        assertTrue(
+                debits.compareTo(BigDecimal.ZERO) > 0,
+                "Debits must be positive (not vacuously zero)");
         assertEquals(
                 0,
                 debits.compareTo(credits),
@@ -117,7 +119,9 @@ class DoubleEntryEnforcementTest {
 
         assertNotNull(debits);
         assertNotNull(credits);
-        assertTrue(debits.compareTo(BigDecimal.ZERO) > 0, "Debits must be positive (not vacuously zero)");
+        assertTrue(
+                debits.compareTo(BigDecimal.ZERO) > 0,
+                "Debits must be positive (not vacuously zero)");
         assertEquals(0, debits.compareTo(credits), "Double-entry invariant violated on withdrawal");
     }
 

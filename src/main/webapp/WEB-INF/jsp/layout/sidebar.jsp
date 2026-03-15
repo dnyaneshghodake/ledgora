@@ -3,7 +3,7 @@
   CBS Sidebar Navigation - Domain-Aligned Collapsible Menu Structure
   Role flags set by CustomAuthenticationSuccessHandler:
     sessionScope.isAdmin, sessionScope.isManager, sessionScope.isTeller, sessionScope.isCustomer,
-    sessionScope.isOperations, sessionScope.isMaker, sessionScope.isChecker,
+    sessionScope.isOperations, sessionScope.isMaker, sessionScope.isChecker, sessionScope.isRisk,
     sessionScope.isBranchManager, sessionScope.isTenantAdmin, sessionScope.isSuperAdmin, sessionScope.isAuditor
 
   CBS Role Mapping:
@@ -467,11 +467,35 @@
                             <span>Loan Portfolio</span>
                         </a>
                     </li>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/create" class="cbs-nav-link cbs-lockable" data-page="loan/create">
+                            <i class="bi bi-plus-circle"></i>
+                            <span>New Loan</span>
+                        </a>
+                    </li>
+                    </c:if>
                     <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk}">
                     <li class="cbs-nav-item">
                         <a href="${pageContext.request.contextPath}/loan/npa-monitor" class="cbs-nav-link" data-page="loan/npa-monitor">
                             <i class="bi bi-exclamation-triangle"></i>
                             <span>NPA Monitor</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor || sessionScope.isRisk}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/npa" class="cbs-nav-link" data-page="loan/npa">
+                            <i class="bi bi-shield-exclamation"></i>
+                            <span>NPA Operations</span>
+                        </a>
+                    </li>
+                    </c:if>
+                    <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isAuditor}">
+                    <li class="cbs-nav-item">
+                        <a href="${pageContext.request.contextPath}/loan/rates" class="cbs-nav-link" data-page="loan/rates">
+                            <i class="bi bi-percent"></i>
+                            <span>Rate Management</span>
                         </a>
                     </li>
                     </c:if>
@@ -548,7 +572,7 @@
             </c:if>
 
             <%-- ═══ Risk & Fraud Monitoring ═══ --%>
-            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isAuditor}">
+            <c:if test="${sessionScope.isAdmin || sessionScope.isManager || sessionScope.isOperations || sessionScope.isAuditor || sessionScope.isRisk}">
             <li class="cbs-nav-group">
                 <a href="#" class="cbs-nav-group-toggle" data-group="risk">
                     <i class="bi bi-shield-exclamation"></i>

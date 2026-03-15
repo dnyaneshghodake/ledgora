@@ -69,6 +69,7 @@ public class CustomAuthenticationSuccessHandler
         session.setAttribute("isSuperAdmin", roles.contains("ROLE_SUPER_ADMIN"));
         session.setAttribute("isAuditor", roles.contains("ROLE_AUDITOR"));
         session.setAttribute("isOperations", roles.contains("ROLE_OPERATIONS"));
+        session.setAttribute("isRisk", roles.contains("ROLE_RISK"));
         session.setAttribute("isAtmSystem", roles.contains("ROLE_ATM_SYSTEM"));
         session.setAttribute("isComplianceOfficer", roles.contains("ROLE_COMPLIANCE_OFFICER"));
 

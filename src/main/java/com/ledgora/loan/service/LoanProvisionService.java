@@ -2,10 +2,15 @@ package com.ledgora.loan.service;
 
 import com.ledgora.audit.service.AuditService;
 import com.ledgora.loan.entity.LoanAccount;
+import com.ledgora.loan.entity.LoanProvision;
 import com.ledgora.loan.enums.NpaClassification;
 import com.ledgora.loan.repository.LoanAccountRepository;
+import com.ledgora.loan.repository.LoanProvisionRepository;
+import com.ledgora.tenant.entity.Tenant;
+import com.ledgora.tenant.repository.TenantRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -42,12 +47,18 @@ public class LoanProvisionService {
     private static final BigDecimal HUNDRED = new BigDecimal("100");
 
     private final LoanAccountRepository loanAccountRepository;
+    private final LoanProvisionRepository loanProvisionRepository;
+    private final TenantRepository tenantRepository;
     private final AuditService auditService;
 
     public LoanProvisionService(
             LoanAccountRepository loanAccountRepository,
+            LoanProvisionRepository loanProvisionRepository,
+            TenantRepository tenantRepository,
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
+        this.loanProvisionRepository = loanProvisionRepository;
+        this.tenantRepository = tenantRepository;
         this.auditService = auditService;
     }
 
@@ -58,6 +69,12 @@ public class LoanProvisionService {
      */
     @Transactional
     public BigDecimal calculateProvisions(Long tenantId) {
+        Tenant tenant =
+                tenantRepository
+                        .findById(tenantId)
+                        .orElseThrow(() -> new RuntimeException("Tenant not found: " + tenantId));
+        LocalDate businessDate = tenant.getCurrentBusinessDate();
+
         var loans = loanAccountRepository.findActiveAndNpaByTenantId(tenantId);
         BigDecimal totalIncremental = BigDecimal.ZERO;
         int updated = 0;
@@ -76,17 +93,22 @@ public class LoanProvisionService {
             BigDecimal incremental = required.subtract(existing);
 
             if (incremental.compareTo(BigDecimal.ZERO) > 0) {
-                // Incremental provision needed
-                // NOTE: The GL posting (DR Provision Expense, CR Loan Provision GL)
-                // should be done via voucher engine in production:
-                //   LoanProduct product = loan.getLoanProduct();
-                //   VoucherService.createVoucherPair(
-                //       product.getGlProvision(),  // DR Expense
-                //       product.getGlProvision(),  // CR Liability (separate GL)
-                //       incremental, ...)
-
                 loan.setProvisionAmount(required);
                 loanAccountRepository.save(loan);
+
+                // ── CBS AUDIT: Record immutable LoanProvision snapshot ──
+                loanProvisionRepository.save(
+                        LoanProvision.builder()
+                                .tenant(tenant)
+                                .loanAccount(loan)
+                                .businessDate(businessDate)
+                                .npaClassification(classification)
+                                .provisionRate(rate)
+                                .outstandingPrincipal(loan.getOutstandingPrincipal())
+                                .requiredProvision(required)
+                                .previousProvision(existing)
+                                .incrementalProvision(incremental)
+                                .build());
 
                 totalIncremental = totalIncremental.add(incremental);
                 updated++;

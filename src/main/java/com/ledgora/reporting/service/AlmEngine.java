@@ -93,8 +93,7 @@ public class AlmEngine {
     private final LedgerEntryRepository ledgerEntryRepository;
 
     public AlmEngine(
-            GeneralLedgerRepository glRepository,
-            LedgerEntryRepository ledgerEntryRepository) {
+            GeneralLedgerRepository glRepository, LedgerEntryRepository ledgerEntryRepository) {
         this.glRepository = glRepository;
         this.ledgerEntryRepository = ledgerEntryRepository;
     }
@@ -106,7 +105,7 @@ public class AlmEngine {
      */
     @Transactional(readOnly = true)
     public AlmReport generate(Long tenantId, LocalDate asOfDate) {
-        List<GeneralLedger> allGl = glRepository.findAll();
+        List<GeneralLedger> allGl = glRepository.findByTenantIdOrShared(tenantId);
 
         BigDecimal[] assetBuckets = new BigDecimal[8];
         BigDecimal[] liabilityBuckets = new BigDecimal[8];
@@ -119,10 +118,6 @@ public class AlmEngine {
         BigDecimal totalLiabilities = BigDecimal.ZERO;
 
         for (GeneralLedger gl : allGl) {
-            if (gl.getTenant() != null && !gl.getTenant().getId().equals(tenantId)) {
-                continue;
-            }
-
             BigDecimal debits =
                     ledgerEntryRepository.sumDebitsByGlCodeAndDateRange(
                             gl.getGlCode(), tenantId, asOfDate);
@@ -177,9 +172,7 @@ public class AlmEngine {
 
             BigDecimal gapRatio = BigDecimal.ZERO;
             if (totalLiabilities.compareTo(BigDecimal.ZERO) > 0) {
-                gapRatio =
-                        gap.multiply(HUNDRED)
-                                .divide(totalLiabilities, 2, RoundingMode.HALF_UP);
+                gapRatio = gap.multiply(HUNDRED).divide(totalLiabilities, 2, RoundingMode.HALF_UP);
             }
 
             // Flag risk if cumulative gap ratio < -15% in short-term buckets (first 3)
