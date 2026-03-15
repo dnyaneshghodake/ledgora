@@ -71,11 +71,16 @@ public class LoanNpaService {
     @Transactional
     public int evaluateNpaAndUpdateDpd(Long tenantId) {
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
-        var activeLoans = loanAccountRepository.findActiveByTenantId(tenantId);
+
+        // RBI IRAC: process ALL active + NPA loans (not just ACTIVE).
+        // Already-NPA loans need DPD update and tier progression
+        // (SUBSTANDARD → DOUBTFUL → LOSS).
+        var allLoans = loanAccountRepository.findActiveAndNpaByTenantId(tenantId);
         int newNpaCount = 0;
 
-        for (LoanAccount loan : activeLoans) {
-            if (loan.getStatus() != LoanStatus.ACTIVE) {
+        for (LoanAccount loan : allLoans) {
+            if (loan.getStatus() != LoanStatus.ACTIVE
+                    && loan.getStatus() != LoanStatus.NPA) {
                 continue;
             }
 
@@ -125,7 +130,7 @@ public class LoanNpaService {
 
             if (NpaClassifier.isNpa(computedDpd, threshold)
                     && loan.getStatus() == LoanStatus.ACTIVE) {
-                // ── NPA CLASSIFICATION — status transition ──
+                // ── NEW NPA CLASSIFICATION — ACTIVE → NPA status transition ──
                 loan.setStatus(LoanStatus.NPA);
                 loan.setNpaDate(businessDate);
 
@@ -139,7 +144,9 @@ public class LoanNpaService {
                         loan.getId(),
                         "Loan "
                                 + loan.getLoanAccountNumber()
-                                + " classified as NPA. DPD="
+                                + " classified as NPA ("
+                                + classification
+                                + "). DPD="
                                 + loan.getDpd()
                                 + " threshold="
                                 + threshold
@@ -148,12 +155,24 @@ public class LoanNpaService {
                         null);
 
                 log.warn(
-                        "LOAN NPA: {} classified as NPA (DPD={}, threshold={})",
+                        "LOAN NPA: {} classified as {} (DPD={}, threshold={})",
                         loan.getLoanAccountNumber(),
+                        classification,
                         loan.getDpd(),
                         threshold);
+            } else if (loan.getStatus() == LoanStatus.NPA) {
+                // ── EXISTING NPA — update DPD + tier progression ──
+                // RBI IRAC: classification must progress daily
+                // (SUBSTANDARD → DOUBTFUL → LOSS based on DPD age)
+                loanAccountRepository.save(loan);
+
+                log.debug(
+                        "NPA tier updated: {} classification={} DPD={}",
+                        loan.getLoanAccountNumber(),
+                        classification,
+                        computedDpd);
             } else {
-                // Save DPD update even if NPA threshold not yet breached
+                // Save DPD update for ACTIVE loans not yet breaching threshold
                 loanAccountRepository.save(loan);
             }
         }

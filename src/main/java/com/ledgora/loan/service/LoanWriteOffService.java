@@ -6,6 +6,7 @@ import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.enums.NpaClassification;
 import com.ledgora.loan.repository.LoanAccountRepository;
+import com.ledgora.loan.validation.LoanBusinessValidator;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.service.TenantService;
 import java.math.BigDecimal;
@@ -77,13 +78,9 @@ public class LoanWriteOffService {
                                                 "LOAN_NOT_FOUND",
                                                 "Loan account not found: " + loanAccountId));
 
-        // Tenant isolation: verify loan belongs to current tenant
+        // Centralized validation via LoanBusinessValidator
         Long tenantId = TenantContextHolder.getTenantId();
-        if (tenantId != null
-                && (loan.getTenant() == null || !loan.getTenant().getId().equals(tenantId))) {
-            throw new BusinessException(
-                    "LOAN_NOT_FOUND", "Loan account not found: " + loanAccountId);
-        }
+        LoanBusinessValidator.validateTenantOwnership(loan, tenantId);
 
         // CBS Tier-1: validate business day is OPEN before financial operations
         Long effectiveTenantId = tenantId != null ? tenantId : loan.getTenant().getId();

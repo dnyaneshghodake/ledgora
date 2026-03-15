@@ -59,6 +59,7 @@ public class LoanDisbursementService {
 
     private final LoanAccountRepository loanAccountRepository;
     private final LoanScheduleRepository loanScheduleRepository;
+    private final LoanDisbursementRepository loanDisbursementRepository;
     private final VoucherService voucherService;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
@@ -68,6 +69,7 @@ public class LoanDisbursementService {
     public LoanDisbursementService(
             LoanAccountRepository loanAccountRepository,
             LoanScheduleRepository loanScheduleRepository,
+            LoanDisbursementRepository loanDisbursementRepository,
             VoucherService voucherService,
             BranchRepository branchRepository,
             UserRepository userRepository,
@@ -75,6 +77,7 @@ public class LoanDisbursementService {
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
         this.loanScheduleRepository = loanScheduleRepository;
+        this.loanDisbursementRepository = loanDisbursementRepository;
         this.voucherService = voucherService;
         this.branchRepository = branchRepository;
         this.userRepository = userRepository;
@@ -159,7 +162,7 @@ public class LoanDisbursementService {
                 businessDate);
 
         // ── CBS AUDIT: Record immutable LoanDisbursement tranche ──
-        LoanDisbursement disbursementRecord =
+        loanDisbursementRepository.save(
                 LoanDisbursement.builder()
                         .tenant(tenant)
                         .loanAccount(loan)
@@ -170,11 +173,7 @@ public class LoanDisbursementService {
                         .disbursedBy(
                                 com.ledgora.tenant.context.TenantContextHolder.getUsername())
                         .remarks("Initial disbursement: " + loanAccountNumber)
-                        .build();
-        // Persist via JPA (LoanDisbursement is managed by Hibernate auto-DDL)
-        loanAccountRepository.flush(); // ensure loan ID is available
-        jakarta.persistence.EntityManager em =
-                null; // Disbursement repository not yet injected — deferred to next iteration
+                        .build());
 
         auditService.logEvent(
                 null,
