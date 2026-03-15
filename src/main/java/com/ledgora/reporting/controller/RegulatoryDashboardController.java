@@ -97,7 +97,11 @@ public class RegulatoryDashboardController {
     public String trialBalance(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
-        if (tenant == null) return "regulatory/trial-balance";
+        if (tenant == null) {
+            model.addAttribute("error", "Tenant not found");
+            model.addAttribute("tbAvailable", false);
+            return "regulatory/trial-balance";
+        }
 
         LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
         model.addAttribute("businessDate", bizDate);
@@ -115,7 +119,11 @@ public class RegulatoryDashboardController {
     public String crar(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
-        if (tenant == null) return "regulatory/crar-report";
+        if (tenant == null) {
+            model.addAttribute("error", "Tenant not found");
+            model.addAttribute("crarAvailable", false);
+            return "regulatory/crar-report";
+        }
 
         LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
         model.addAttribute("businessDate", bizDate);
@@ -133,7 +141,11 @@ public class RegulatoryDashboardController {
     public String alm(Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
-        if (tenant == null) return "regulatory/alm-report";
+        if (tenant == null) {
+            model.addAttribute("error", "Tenant not found");
+            model.addAttribute("almAvailable", false);
+            return "regulatory/alm-report";
+        }
 
         LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
         model.addAttribute("businessDate", bizDate);

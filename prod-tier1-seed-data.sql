@@ -23,18 +23,21 @@ BEGIN TRANSACTION;
 
 -- ============================================================================
 -- ADDITIONAL ROLES (ROLE_RISK + ROLE_COMPLIANCE_OFFICER if missing)
+-- IDs must match prod-seed-data.sql: ROLE_RISK=13, ROLE_COMPLIANCE_OFFICER=14
 -- ============================================================================
 IF NOT EXISTS (SELECT 1 FROM roles WHERE name = 'ROLE_RISK')
 BEGIN
     SET IDENTITY_INSERT roles ON;
     INSERT INTO roles (id, name, description) VALUES
-    (11, 'ROLE_RISK', 'Risk Officer — view fraud alerts, velocity breaches. Cannot post vouchers.'),
-    (12, 'ROLE_COMPLIANCE_OFFICER', 'Compliance Officer — AML/CFT oversight, STR filing per RBI.');
+    (13, 'ROLE_RISK', 'Risk Officer — view fraud alerts, velocity breaches. Cannot post vouchers.'),
+    (14, 'ROLE_COMPLIANCE_OFFICER', 'Compliance Officer — AML/CFT oversight, STR filing per RBI.');
     SET IDENTITY_INSERT roles OFF;
 END;
 
 -- ============================================================================
 -- ADDITIONAL USERS: risk_officer, compliance_officer per tenant
+-- ⚠️  SECURITY WARNING: Same shared BCrypt hash as prod-seed-data.sql.
+--     ALL passwords MUST be changed before production use.
 -- ============================================================================
 SET IDENTITY_INSERT users ON;
 -- Tenant 1: Risk Officer and Compliance Officer
@@ -50,13 +53,14 @@ VALUES
 SET IDENTITY_INSERT users OFF;
 
 -- User-Role assignments for new users
+-- ROLE_RISK=13, ROLE_COMPLIANCE_OFFICER=14 (matches prod-seed-data.sql)
 INSERT INTO user_roles (user_id, role_id) VALUES
-(14, 11),  -- risk_officer_t1 -> ROLE_RISK
-(15, 12),  -- compliance_t1 -> ROLE_COMPLIANCE_OFFICER
+(14, 13),  -- risk_officer_t1 -> ROLE_RISK
+(15, 14),  -- compliance_t1 -> ROLE_COMPLIANCE_OFFICER
 (16, 3),   -- teller_br2_t1 -> ROLE_TELLER
 (16, 4),   -- teller_br2_t1 -> ROLE_MAKER
-(17, 11),  -- risk_officer_t2 -> ROLE_RISK
-(18, 12);  -- compliance_t2 -> ROLE_COMPLIANCE_OFFICER
+(17, 13),  -- risk_officer_t2 -> ROLE_RISK
+(18, 14);  -- compliance_t2 -> ROLE_COMPLIANCE_OFFICER
 
 -- ============================================================================
 -- ADDITIONAL GL ACCOUNTS (Loans, Operational Expense per tenant)
