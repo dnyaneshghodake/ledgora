@@ -148,24 +148,23 @@ public class LoanAccrualService {
                 // RBI IRAC: Interest on NPA loans accrued to suspense, NOT income.
                 // GL: DR Interest Receivable (memorandum), CR Interest Suspense
                 // This is a contra entry — interest is tracked but NOT recognized as income.
-                loan.setInterestReversed(loan.getInterestReversed().add(dailyInterest));
-                loan.setLastAccrualDate(businessDate);
-                loanAccountRepository.save(loan);
-
-                // Post NPA suspense vouchers to maintain GL trail
-                // DR Interest Receivable (suspense asset), CR Interest Receivable (suspense contra)
-                // NOTE: In a full Finacle implementation, separate Interest Suspense GL accounts
-                // would be used. For now, the entity-level interestReversed tracks the suspense
-                // amount, and the voucher creates the GL trail for audit purposes.
+                //
+                // CBS/RBI/Finacle Tier-1 principle:
+                //   STEP 1: Post voucher FIRST (source of truth)
+                //   STEP 2: Sync entity cache AFTER successful posting
                 try {
                     postNpaSuspenseVouchers(tenant, loan, product, dailyInterest, businessDate);
                 } catch (Exception e) {
-                    // NPA suspense voucher failure should not block accrual — log and continue
                     log.warn(
                             "NPA suspense voucher posting failed for loan {} (accrual recorded): {}",
                             loan.getLoanAccountNumber(),
                             e.getMessage());
                 }
+
+                // CACHE SYNC: Update entity fields as derived state
+                loan.setInterestReversed(loan.getInterestReversed().add(dailyInterest));
+                loan.setLastAccrualDate(businessDate);
+                loanAccountRepository.save(loan);
 
                 npaSuspenseAccrued++;
 
@@ -176,13 +175,15 @@ public class LoanAccrualService {
                         loan.getInterestReversed());
             } else {
                 // ── STANDARD ACCRUAL (ACTIVE loans) ──
-                // GL: DR Interest Receivable, CR Interest Income
+                // CBS/RBI/Finacle Tier-1 principle:
+                //   STEP 1: Post voucher FIRST (source of truth — creates immutable LedgerEntry)
+                //   STEP 2: Sync entity cache AFTER successful posting
+                postAccrualVouchers(tenant, loan, product, dailyInterest, businessDate);
+
+                // CACHE SYNC: Update entity fields as derived state
                 loan.setAccruedInterest(loan.getAccruedInterest().add(dailyInterest));
                 loan.setLastAccrualDate(businessDate);
                 loanAccountRepository.save(loan);
-
-                // ── VOUCHER ENGINE: Post accrual ──
-                postAccrualVouchers(tenant, loan, product, dailyInterest, businessDate);
 
                 accrued++;
                 log.debug(

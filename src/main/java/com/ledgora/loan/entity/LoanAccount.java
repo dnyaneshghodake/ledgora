@@ -23,8 +23,31 @@ import lombok.*;
  *   <li>Provisioning computed based on NPA classification tier
  * </ul>
  *
- * <p>STRICT CONSTRAINT: No direct mutation of outstandingPrincipal or accruedInterest. All changes
- * must flow through the voucher engine (disbursement, accrual, EMI, write-off).
+ * <p><b>CBS/RBI/FINACLE TIER-1 ACCOUNTING PRINCIPLE:</b>
+ *
+ * <p>The balance fields on this entity ({@code outstandingPrincipal}, {@code accruedInterest},
+ * {@code penalInterest}, {@code provisionAmount}, {@code interestReversed}) are <b>DERIVED
+ * CACHES</b>, NOT the source of financial truth. The source of truth is:
+ *
+ * <pre>
+ *   Voucher → LedgerEntry (immutable) → Trial Balance → Financial Statements
+ * </pre>
+ *
+ * <p>These cached fields are updated AFTER successful voucher posting as a performance
+ * optimization for read queries (dashboard, inquiry, schedule matching). The true balance is
+ * always reconstructable from: {@code SUM(ledger entries) per GL code}.
+ *
+ * <p>EOD reconciliation validates: cached balance == ledger-derived balance. If mismatch →
+ * reconciliation error flagged.
+ *
+ * <p><b>STRICT CONSTRAINT:</b> Entity fields must NEVER be mutated without a corresponding
+ * voucher posting. The correct flow is:
+ *
+ * <ol>
+ *   <li>Post voucher (creates immutable LedgerEntry — source of truth)
+ *   <li>Sync entity cache fields (derived state)
+ *   <li>Save entity
+ * </ol>
  */
 @Entity
 @Table(
@@ -64,9 +87,17 @@ public class LoanAccount {
     @Column(name = "principal_amount", precision = 19, scale = 4, nullable = false)
     private BigDecimal principalAmount;
 
+    /**
+     * DERIVED CACHE — true value = SUM(DEBIT on Loan Asset GL) - SUM(CREDIT on Loan Asset GL).
+     * Updated AFTER voucher posting as performance cache. Validated against ledger at EOD.
+     */
     @Column(name = "outstanding_principal", precision = 19, scale = 4, nullable = false)
     private BigDecimal outstandingPrincipal;
 
+    /**
+     * DERIVED CACHE — true value = SUM(DEBIT on Interest Receivable GL) - SUM(CREDIT on Interest
+     * Receivable GL). Updated AFTER voucher posting. Validated against ledger at EOD.
+     */
     @Column(name = "accrued_interest", precision = 19, scale = 4, nullable = false)
     @Builder.Default
     private BigDecimal accruedInterest = BigDecimal.ZERO;
@@ -118,17 +149,20 @@ public class LoanAccount {
     @JoinColumn(name = "credit_limit_id")
     private CreditLimit creditLimit;
 
-    /** Current provision amount per RBI IRAC provisioning norms. */
+    /** DERIVED CACHE — provision amount per RBI IRAC norms. Validated against ledger at EOD. */
     @Column(name = "provision_amount", precision = 19, scale = 4, nullable = false)
     @Builder.Default
     private BigDecimal provisionAmount = BigDecimal.ZERO;
 
-    /** Penal interest accrued but not yet collected. */
+    /** DERIVED CACHE — penal interest accrued but not yet collected. Entity-level tracking. */
     @Column(name = "penal_interest", precision = 19, scale = 4, nullable = false)
     @Builder.Default
     private BigDecimal penalInterest = BigDecimal.ZERO;
 
-    /** Interest reversed on NPA classification (DR Interest Income, CR Interest Suspense). */
+    /**
+     * DERIVED CACHE — interest reversed on NPA classification. Tracks suspense accumulator for NPA
+     * loans where interest is accrued but NOT recognized as income per RBI IRAC.
+     */
     @Column(name = "interest_reversed", precision = 19, scale = 4, nullable = false)
     @Builder.Default
     private BigDecimal interestReversed = BigDecimal.ZERO;

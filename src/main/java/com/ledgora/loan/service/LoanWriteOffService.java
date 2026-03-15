@@ -147,10 +147,18 @@ public class LoanWriteOffService {
 
         BigDecimal writtenOffAmount = loan.getOutstandingPrincipal();
 
-        // ── VOUCHER ENGINE: Post write-off (DR Provision GL, CR Loan Asset GL) ──
+        // ══════════════════════════════════════════════════════════════════════
+        // STEP 1: POST VOUCHERS FIRST — SOURCE OF TRUTH per CBS/RBI/Finacle.
+        // Voucher → LedgerEntry (immutable) = primary accounting record.
+        // If voucher posting fails, NO entity mutation occurs (@Transactional rollback).
+        // ══════════════════════════════════════════════════════════════════════
         postWriteOffVouchers(loan, writtenOffAmount);
 
-        // Zero out the loan
+        // ══════════════════════════════════════════════════════════════════════
+        // STEP 2: CACHE SYNC — Update entity fields as DERIVED STATE.
+        // These are performance caches, NOT the source of truth.
+        // The true balance is always: SUM(ledger entries) per GL code.
+        // ══════════════════════════════════════════════════════════════════════
         loan.setOutstandingPrincipal(BigDecimal.ZERO);
         loan.setAccruedInterest(BigDecimal.ZERO);
         loan.setProvisionAmount(BigDecimal.ZERO);

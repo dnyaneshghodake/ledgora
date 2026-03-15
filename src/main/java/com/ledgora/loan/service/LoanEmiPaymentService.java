@@ -153,30 +153,53 @@ public class LoanEmiPaymentService {
         // ── CBS REPAYMENT ALLOCATION ORDER: Penal → Interest → Principal ──
         // Per RBI Fair Practices Code, penal charges are recovered first,
         // then accrued interest, then principal reduction.
+        //
+        // IMPORTANT: This is a COMPUTATION step only — no entity mutation yet.
+        // Per CBS/RBI/Finacle Tier-1 principle:
+        //   Voucher → Ledger Entry = SOURCE OF TRUTH
+        //   Entity fields = DERIVED CACHE (updated AFTER successful voucher posting)
         BigDecimal remaining = totalPayment;
 
-        // Step 1: Apply to penal interest first
+        // Step 1: Compute penal allocation
         BigDecimal penalApplied = BigDecimal.ZERO;
         if (loan.getPenalInterest().compareTo(BigDecimal.ZERO) > 0
                 && remaining.compareTo(BigDecimal.ZERO) > 0) {
             penalApplied = remaining.min(loan.getPenalInterest());
-            loan.setPenalInterest(loan.getPenalInterest().subtract(penalApplied));
             remaining = remaining.subtract(penalApplied);
         }
 
-        // Step 2: Apply to accrued interest
+        // Step 2: Compute interest allocation
         BigDecimal interestApplied = remaining.min(loan.getAccruedInterest());
-        BigDecimal newAccrued = loan.getAccruedInterest().subtract(interestApplied);
-        loan.setAccruedInterest(newAccrued);
         remaining = remaining.subtract(interestApplied);
 
-        // Step 3: Apply remainder to principal
+        // Step 3: Compute principal allocation
         BigDecimal principalApplied = remaining.min(loan.getOutstandingPrincipal());
+
+        // Derived values (for cache sync AFTER voucher posting)
+        BigDecimal newPenal = loan.getPenalInterest().subtract(penalApplied);
+        BigDecimal newAccrued = loan.getAccruedInterest().subtract(interestApplied);
         BigDecimal newOutstanding = loan.getOutstandingPrincipal().subtract(principalApplied);
+
+        LocalDate paymentDate = tenantService.getCurrentBusinessDate(effectiveTenantId);
+
+        // ══════════════════════════════════════════════════════════════════════
+        // STEP 1: POST VOUCHERS FIRST — This is the SOURCE OF TRUTH per CBS/RBI.
+        // Voucher → LedgerEntry (immutable) = primary accounting record.
+        // If voucher posting fails, NO entity mutation occurs (atomic).
+        // ══════════════════════════════════════════════════════════════════════
+        postRepaymentVouchers(loan, principalApplied, interestApplied, paymentDate);
+
+        // ══════════════════════════════════════════════════════════════════════
+        // STEP 2: CACHE SYNC — Update entity fields as DERIVED STATE.
+        // These are performance caches, NOT the source of truth.
+        // The true balance is always: SUM(ledger entries) per GL code.
+        // EOD reconciliation validates: cached balance == ledger-derived balance.
+        // ══════════════════════════════════════════════════════════════════════
+        loan.setPenalInterest(newPenal);
+        loan.setAccruedInterest(newAccrued);
         loan.setOutstandingPrincipal(newOutstanding);
 
         // Finacle LACHST: match payment to oldest pending/overdue installment (FIFO)
-        LocalDate paymentDate = tenantService.getCurrentBusinessDate(effectiveTenantId);
         BigDecimal remainingPayment = totalPayment;
         List<LoanSchedule> pendingInstallments =
                 loanScheduleRepository.findPendingByLoanAccountIdOrderByInstallmentAsc(
@@ -216,16 +239,10 @@ public class LoanEmiPaymentService {
             loan.setDpd(dpdDays > 0 ? (int) dpdDays : 0);
         }
 
-        // ── VOUCHER ENGINE: Post repayment vouchers with CBS-allocated amounts ──
-        // CRITICAL: Use the actual allocated amounts (principalApplied, interestApplied)
-        // after Penal→Interest→Principal reallocation, NOT the original caller parameters.
-        // This ensures GL postings match the actual balance mutations.
-        postRepaymentVouchers(loan, principalApplied, interestApplied, paymentDate);
-
         // Auto-close if fully repaid (principal + interest + penal all zero)
         if (newOutstanding.compareTo(BigDecimal.ZERO) == 0
                 && newAccrued.compareTo(BigDecimal.ZERO) == 0
-                && loan.getPenalInterest().compareTo(BigDecimal.ZERO) == 0) {
+                && newPenal.compareTo(BigDecimal.ZERO) == 0) {
             loan.setStatus(LoanStatus.CLOSED);
             log.info("Loan {} fully repaid — status set to CLOSED", loan.getLoanAccountNumber());
         } else if (newOutstanding.compareTo(BigDecimal.ZERO) == 0) {
@@ -234,7 +251,7 @@ public class LoanEmiPaymentService {
                     "Loan {} principal cleared but interest={} penal={} remains",
                     loan.getLoanAccountNumber(),
                     newAccrued,
-                    loan.getPenalInterest());
+                    newPenal);
         }
 
         loan = loanAccountRepository.save(loan);

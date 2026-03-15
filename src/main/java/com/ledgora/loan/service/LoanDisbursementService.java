@@ -170,7 +170,20 @@ public class LoanDisbursementService {
         List<LoanSchedule> schedule = generateAmortizationSchedule(loan, product, businessDate);
         loanScheduleRepository.saveAll(schedule);
 
-        // ── VOUCHER ENGINE: Post disbursement (DR Loan Asset GL, CR Customer Account) ──
+        // ══════════════════════════════════════════════════════════════════════
+        // CBS/RBI/FINACLE TIER-1 ACCOUNTING PRINCIPLE:
+        //   Voucher → LedgerEntry (immutable) = SOURCE OF TRUTH
+        //   LoanAccount.outstandingPrincipal = DERIVED CACHE
+        //
+        // For disbursement, the LoanAccount entity is created with initial state
+        // (outstandingPrincipal = principalAmount) as a cache. The voucher posting
+        // below creates the immutable LedgerEntry which is the primary accounting
+        // record. If voucher posting fails, @Transactional rolls back both the
+        // entity creation and the voucher — maintaining consistency.
+        //
+        // The true loan outstanding is always derivable from:
+        //   SUM(DEBIT on Loan Asset GL) - SUM(CREDIT on Loan Asset GL)
+        // ══════════════════════════════════════════════════════════════════════
         postDisbursementVouchers(
                 tenant, product, customerAccount, loan, principalAmount, businessDate);
 
