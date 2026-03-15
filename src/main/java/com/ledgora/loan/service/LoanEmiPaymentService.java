@@ -11,9 +11,11 @@ import com.ledgora.common.exception.BusinessException;
 import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.entity.LoanProduct;
 import com.ledgora.loan.entity.LoanSchedule;
+import com.ledgora.loan.entity.RepaymentTransaction;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.repository.LoanAccountRepository;
 import com.ledgora.loan.repository.LoanScheduleRepository;
+import com.ledgora.loan.repository.RepaymentTransactionRepository;
 import com.ledgora.loan.validation.LoanBusinessValidator;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
@@ -63,6 +65,7 @@ public class LoanEmiPaymentService {
 
     private final LoanAccountRepository loanAccountRepository;
     private final LoanScheduleRepository loanScheduleRepository;
+    private final RepaymentTransactionRepository repaymentTransactionRepository;
     private final VoucherService voucherService;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
@@ -72,6 +75,7 @@ public class LoanEmiPaymentService {
     public LoanEmiPaymentService(
             LoanAccountRepository loanAccountRepository,
             LoanScheduleRepository loanScheduleRepository,
+            RepaymentTransactionRepository repaymentTransactionRepository,
             VoucherService voucherService,
             BranchRepository branchRepository,
             UserRepository userRepository,
@@ -79,6 +83,7 @@ public class LoanEmiPaymentService {
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
         this.loanScheduleRepository = loanScheduleRepository;
+        this.repaymentTransactionRepository = repaymentTransactionRepository;
         this.voucherService = voucherService;
         this.branchRepository = branchRepository;
         this.userRepository = userRepository;
@@ -207,6 +212,22 @@ public class LoanEmiPaymentService {
         }
 
         loan = loanAccountRepository.save(loan);
+
+        // ── CBS AUDIT: Record immutable RepaymentTransaction ──
+        repaymentTransactionRepository.save(
+                RepaymentTransaction.builder()
+                        .tenant(loan.getTenant())
+                        .loanAccount(loan)
+                        .totalAmount(totalPayment)
+                        .principalComponent(principalComponent)
+                        .interestComponent(interestComponent)
+                        .outstandingAfter(newOutstanding)
+                        .accruedInterestAfter(newAccrued)
+                        .paymentDate(paymentDate)
+                        .paymentType("EMI")
+                        .initiatedBy(TenantContextHolder.getUsername())
+                        .remarks("EMI payment: P=" + principalComponent + " I=" + interestComponent)
+                        .build());
 
         auditService.logEvent(
                 null,
