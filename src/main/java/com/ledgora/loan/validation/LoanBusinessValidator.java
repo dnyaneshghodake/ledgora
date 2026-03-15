@@ -52,7 +52,13 @@ public final class LoanBusinessValidator {
     }
 
     /**
-     * Validate EMI payment components (null, negative, zero-total, exceeds outstanding).
+     * Validate EMI payment components (null, negative, zero-total, exceeds total payable).
+     *
+     * <p>CBS/RBI Fair Practices Code: The actual allocation follows Penal → Interest → Principal
+     * order (handled by LoanEmiPaymentService). The caller's principalComponent and
+     * interestComponent are treated as a TOTAL PAYMENT hint — the CBS engine reallocates
+     * internally. Therefore, validation checks the TOTAL against the TOTAL PAYABLE, not individual
+     * components against individual balances.
      *
      * @throws BusinessException on any validation failure
      */
@@ -68,26 +74,33 @@ public final class LoanBusinessValidator {
             throw new BusinessException(
                     "INVALID_EMI_PARAMS", "Principal and interest components must not be negative");
         }
-        if (principalComponent.compareTo(BigDecimal.ZERO) == 0
-                && interestComponent.compareTo(BigDecimal.ZERO) == 0) {
+        BigDecimal totalPayment = principalComponent.add(interestComponent);
+        if (totalPayment.compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException(
                     "INVALID_EMI_PARAMS", "Total payment must be greater than zero");
         }
-        if (interestComponent.compareTo(loan.getAccruedInterest()) > 0) {
+        // CBS: Validate total payment against total payable (principal + interest + penal).
+        // Individual component checks are NOT done because the CBS allocation engine
+        // reallocates the total payment in Penal → Interest → Principal order,
+        // which may differ from the caller's requested split.
+        BigDecimal totalPayable =
+                loan.getOutstandingPrincipal()
+                        .add(loan.getAccruedInterest())
+                        .add(loan.getPenalInterest());
+        if (totalPayment.compareTo(totalPayable) > 0) {
             throw new BusinessException(
-                    "INTEREST_EXCEEDS_ACCRUED",
-                    "Interest component "
-                            + interestComponent
-                            + " exceeds accrued interest "
-                            + loan.getAccruedInterest());
-        }
-        if (principalComponent.compareTo(loan.getOutstandingPrincipal()) > 0) {
-            throw new BusinessException(
-                    "PRINCIPAL_EXCEEDS_OUTSTANDING",
-                    "Principal component "
-                            + principalComponent
-                            + " exceeds outstanding principal "
-                            + loan.getOutstandingPrincipal());
+                    "EMI_EXCEEDS_OUTSTANDING",
+                    "Total payment "
+                            + totalPayment
+                            + " exceeds total payable "
+                            + totalPayable
+                            + " (principal="
+                            + loan.getOutstandingPrincipal()
+                            + " interest="
+                            + loan.getAccruedInterest()
+                            + " penal="
+                            + loan.getPenalInterest()
+                            + ")");
         }
     }
 

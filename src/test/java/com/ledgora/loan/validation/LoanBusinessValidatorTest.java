@@ -28,6 +28,7 @@ class LoanBusinessValidatorTest {
                 .tenant(tenant)
                 .outstandingPrincipal(outstanding)
                 .accruedInterest(accrued)
+                .penalInterest(BigDecimal.ZERO)
                 .status(status)
                 .build();
     }
@@ -150,27 +151,41 @@ class LoanBusinessValidatorTest {
         }
 
         @Test
-        void interestExceedsAccrued_throws() {
+        @DisplayName("Total payment exceeding total payable (principal + interest + penal) is rejected")
+        void totalPaymentExceedsTotalPayable_throws() {
+            // Loan: outstanding=100000, accrued=5000, penal=0 → total payable=105000
             BusinessException ex =
                     assertThrows(
                             BusinessException.class,
                             () ->
                                     LoanBusinessValidator.validateEmiPayment(
-                                            new BigDecimal("1000"), new BigDecimal("6000"), loan));
-            assertEquals("INTEREST_EXCEEDS_ACCRUED", ex.getErrorCode());
+                                            new BigDecimal("100000"),
+                                            new BigDecimal("6000"),
+                                            loan));
+            assertEquals("EMI_EXCEEDS_OUTSTANDING", ex.getErrorCode());
         }
 
         @Test
-        void principalExceedsOutstanding_throws() {
-            BusinessException ex =
-                    assertThrows(
-                            BusinessException.class,
-                            () ->
-                                    LoanBusinessValidator.validateEmiPayment(
-                                            new BigDecimal("200000"),
-                                            new BigDecimal("1000"),
-                                            loan));
-            assertEquals("PRINCIPAL_EXCEEDS_OUTSTANDING", ex.getErrorCode());
+        @DisplayName("CBS allocation: interest component > accrued is valid if total <= total payable")
+        void interestHintExceedsAccrued_butTotalWithinPayable_passes() {
+            // CBS Penal→Interest→Principal allocation ignores caller's split.
+            // interestComponent=6000 > accruedInterest=5000 is valid as long as
+            // totalPayment (1000+6000=7000) <= totalPayable (100000+5000=105000)
+            assertDoesNotThrow(
+                    () ->
+                            LoanBusinessValidator.validateEmiPayment(
+                                    new BigDecimal("1000"), new BigDecimal("6000"), loan));
+        }
+
+        @Test
+        @DisplayName("CBS allocation: principal hint > outstanding is valid if total <= total payable")
+        void principalHintExceedsOutstanding_butTotalWithinPayable_passes() {
+            // principalComponent=104000 > outstanding=100000 but
+            // totalPayment (104000+1000=105000) == totalPayable (100000+5000=105000) — valid
+            assertDoesNotThrow(
+                    () ->
+                            LoanBusinessValidator.validateEmiPayment(
+                                    new BigDecimal("104000"), new BigDecimal("1000"), loan));
         }
 
         @Test
@@ -187,6 +202,41 @@ class LoanBusinessValidatorTest {
                     () ->
                             LoanBusinessValidator.validateEmiPayment(
                                     new BigDecimal("100000"), new BigDecimal("5000"), loan));
+        }
+
+        @Test
+        @DisplayName("Payment with penal interest: total must include penal in payable calculation")
+        void paymentWithPenalInterest_validated() {
+            // Loan with penal interest
+            LoanAccount loanWithPenal =
+                    LoanAccount.builder()
+                            .id(2L)
+                            .tenant(loan.getTenant())
+                            .outstandingPrincipal(new BigDecimal("100000"))
+                            .accruedInterest(new BigDecimal("5000"))
+                            .penalInterest(new BigDecimal("2000"))
+                            .status(LoanStatus.ACTIVE)
+                            .build();
+
+            // Total payable = 100000 + 5000 + 2000 = 107000
+            // Payment of 107000 should pass
+            assertDoesNotThrow(
+                    () ->
+                            LoanBusinessValidator.validateEmiPayment(
+                                    new BigDecimal("102000"),
+                                    new BigDecimal("5000"),
+                                    loanWithPenal));
+
+            // Payment of 107001 should fail
+            BusinessException ex =
+                    assertThrows(
+                            BusinessException.class,
+                            () ->
+                                    LoanBusinessValidator.validateEmiPayment(
+                                            new BigDecimal("102001"),
+                                            new BigDecimal("5000"),
+                                            loanWithPenal));
+            assertEquals("EMI_EXCEEDS_OUTSTANDING", ex.getErrorCode());
         }
     }
 

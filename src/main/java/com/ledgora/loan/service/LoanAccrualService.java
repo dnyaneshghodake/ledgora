@@ -139,11 +139,27 @@ public class LoanAccrualService {
             if (loan.getStatus() == LoanStatus.NPA) {
                 // ── NPA SUSPENSE ACCRUAL ──
                 // RBI IRAC: Interest on NPA loans accrued to suspense, NOT income.
-                // GL: DR Accrued Interest, CR Interest Suspense
-                // Track in interestReversed (suspense accumulator)
+                // GL: DR Interest Receivable (memorandum), CR Interest Suspense
+                // This is a contra entry — interest is tracked but NOT recognized as income.
                 loan.setInterestReversed(loan.getInterestReversed().add(dailyInterest));
                 loan.setLastAccrualDate(businessDate);
                 loanAccountRepository.save(loan);
+
+                // Post NPA suspense vouchers to maintain GL trail
+                // DR Interest Receivable (suspense asset), CR Interest Receivable (suspense contra)
+                // NOTE: In a full Finacle implementation, separate Interest Suspense GL accounts
+                // would be used. For now, the entity-level interestReversed tracks the suspense
+                // amount, and the voucher creates the GL trail for audit purposes.
+                try {
+                    postNpaSuspenseVouchers(tenant, loan, product, dailyInterest, businessDate);
+                } catch (Exception e) {
+                    // NPA suspense voucher failure should not block accrual — log and continue
+                    log.warn(
+                            "NPA suspense voucher posting failed for loan {} (accrual recorded): {}",
+                            loan.getLoanAccountNumber(),
+                            e.getMessage());
+                }
+
                 npaSuspenseAccrued++;
 
                 log.debug(
@@ -203,6 +219,83 @@ public class LoanAccrualService {
         }
 
         return accrued + npaSuspenseAccrued;
+    }
+
+    /**
+     * Post NPA suspense accrual voucher pair.
+     *
+     * <p>RBI IRAC: NPA interest is NOT recognized as income. The entry uses the Interest Receivable
+     * GL as both DR and CR (memorandum entry) to create a GL trail without income recognition. In a
+     * full implementation, a dedicated Interest Suspense GL would be the CR leg.
+     *
+     * <pre>
+     *   DR Interest Receivable GL (suspense — memorandum asset)
+     *   CR Interest Receivable GL (suspense — contra, NOT income)
+     * </pre>
+     */
+    private void postNpaSuspenseVouchers(
+            Tenant tenant,
+            LoanAccount loan,
+            LoanProduct product,
+            BigDecimal dailyInterest,
+            LocalDate businessDate) {
+        Account customerAccount = loan.getLinkedAccount();
+        Branch branch =
+                customerAccount.getBranch() != null
+                        ? customerAccount.getBranch()
+                        : branchRepository.findByTenantId(tenant.getId()).stream()
+                                .findFirst()
+                                .orElseThrow(
+                                        () ->
+                                                new BusinessException(
+                                                        "NO_BRANCH",
+                                                        "No branch configured for tenant "
+                                                                + tenant.getTenantCode()));
+
+        User systemUser =
+                userRepository
+                        .findByUsername("SYSTEM_AUTO")
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                "SYSTEM_USER_MISSING",
+                                                "SYSTEM_AUTO user not configured."));
+
+        String batchCode =
+                "LOAN-NPA-SUSP-"
+                        + loan.getLoanAccountNumber()
+                        + "-"
+                        + businessDate.toString().replace("-", "");
+
+        // NPA suspense: DR Interest Receivable, CR Interest Receivable (memorandum)
+        // In production with dedicated suspense GL, CR would use glInterestSuspense
+        Voucher[] pair =
+                voucherService.createVoucherPair(
+                        tenant,
+                        branch,
+                        customerAccount,
+                        product.getGlInterestReceivable(), // DR — suspense receivable
+                        branch,
+                        customerAccount,
+                        product.getGlInterestReceivable(), // CR — suspense contra
+                        dailyInterest,
+                        loan.getCurrency(),
+                        businessDate,
+                        batchCode,
+                        systemUser,
+                        "NPA suspense accrual DR: "
+                                + loan.getLoanAccountNumber()
+                                + " interest="
+                                + dailyInterest,
+                        "NPA suspense accrual CR: "
+                                + loan.getLoanAccountNumber()
+                                + " suspense="
+                                + dailyInterest);
+
+        voucherService.systemAuthorizeVoucher(pair[0].getId(), systemUser);
+        voucherService.systemAuthorizeVoucher(pair[1].getId(), systemUser);
+        voucherService.postVoucher(pair[0].getId());
+        voucherService.postVoucher(pair[1].getId());
     }
 
     /**

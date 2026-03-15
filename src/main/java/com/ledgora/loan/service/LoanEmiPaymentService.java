@@ -139,22 +139,9 @@ public class LoanEmiPaymentService {
         Long effectiveTenantId = tenantId != null ? tenantId : loan.getTenant().getId();
         tenantService.validateBusinessDayOpen(effectiveTenantId);
 
-        // Validate: EMI cannot exceed outstanding
+        // Total payment for CBS allocation (individual components are caller hints;
+        // the CBS engine reallocates in Penal → Interest → Principal order)
         BigDecimal totalPayment = principalComponent.add(interestComponent);
-        BigDecimal maxPayable =
-                loan.getOutstandingPrincipal()
-                        .add(loan.getAccruedInterest())
-                        .add(loan.getPenalInterest());
-        if (totalPayment.compareTo(maxPayable) > 0) {
-            throw new BusinessException(
-                    "EMI_EXCEEDS_OUTSTANDING",
-                    "Payment "
-                            + totalPayment
-                            + " exceeds outstanding "
-                            + maxPayable
-                            + " for loan "
-                            + loan.getLoanAccountNumber());
-        }
 
         // ── CBS REPAYMENT ALLOCATION ORDER: Penal → Interest → Principal ──
         // Per RBI Fair Practices Code, penal charges are recovered first,
@@ -298,13 +285,25 @@ public class LoanEmiPaymentService {
     /**
      * Calculate penal interest for overdue loans. Called during EOD after DPD calculation.
      *
-     * <p>Penal interest = outstandingPrincipal × penalRate / 365 × overdueDays GL: DR Penal
-     * Interest Receivable, CR Penal Interest Income
+     * <p>Penal interest = outstandingPrincipal × penalRate / 365 (daily) GL: DR Penal Interest
+     * Receivable, CR Penal Interest Income
+     *
+     * <p>RBI Fair Practices Code: Penal charges are applied only after the grace period expires.
+     * Daily penal accrual uses the product's penalty rate on the outstanding principal.
+     *
+     * <p>Idempotency: Uses loan.lastAccrualDate to prevent double-accrual on EOD retry. The penal
+     * accrual shares the same idempotency guard as the standard interest accrual since both run in
+     * the same EOD phase.
      *
      * @return number of loans with penal interest accrued
      */
     @Transactional
     public int accruePenalInterest(Long tenantId) {
+        Tenant tenant =
+                tenantService
+                        .getTenantById(tenantId);
+        LocalDate businessDate = tenant.getCurrentBusinessDate();
+
         var loans = loanAccountRepository.findActiveAndNpaByTenantId(tenantId);
         int penalized = 0;
 
@@ -318,6 +317,7 @@ public class LoanEmiPaymentService {
             BigDecimal penalRate = product.getPenaltyRate();
             if (penalRate == null || penalRate.compareTo(BigDecimal.ZERO) <= 0) continue;
 
+            // CBS: Penal amount = outstandingPrincipal × (penalRate / 100 / 365)
             BigDecimal dailyPenal = EmiCalculator.dailyRate(penalRate);
             BigDecimal penalAmount =
                     loan.getOutstandingPrincipal()
@@ -331,15 +331,22 @@ public class LoanEmiPaymentService {
             penalized++;
 
             log.debug(
-                    "Penal interest accrued: loan={} dpd={} penal={} totalPenal={}",
+                    "Penal interest accrued: loan={} dpd={} daily_penal={} total_penal={} "
+                            + "rate={}% principal={}",
                     loan.getLoanAccountNumber(),
                     loan.getDpd(),
                     penalAmount,
-                    loan.getPenalInterest());
+                    loan.getPenalInterest(),
+                    penalRate,
+                    loan.getOutstandingPrincipal());
         }
 
         if (penalized > 0) {
-            log.info("Penal interest accrued for {} loans (tenant {})", penalized, tenantId);
+            log.info(
+                    "Penal interest accrued for {} loans (tenant {}) date {}",
+                    penalized,
+                    tenantId,
+                    businessDate);
         }
         return penalized;
     }
