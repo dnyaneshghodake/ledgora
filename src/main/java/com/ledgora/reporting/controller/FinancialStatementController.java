@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ledgora.reporting.entity.FinancialStatementSnapshot;
 import com.ledgora.reporting.enums.SnapshotStatus;
 import com.ledgora.reporting.enums.StatementType;
+import com.ledgora.eod.entity.EodProcess;
+import com.ledgora.eod.repository.EodProcessRepository;
 import com.ledgora.reporting.repository.FinancialStatementSnapshotRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
@@ -40,14 +42,17 @@ public class FinancialStatementController {
 
     private final FinancialStatementSnapshotRepository snapshotRepository;
     private final TenantRepository tenantRepository;
+    private final EodProcessRepository eodProcessRepository;
     private final ObjectMapper objectMapper;
 
     public FinancialStatementController(
             FinancialStatementSnapshotRepository snapshotRepository,
             TenantRepository tenantRepository,
+            EodProcessRepository eodProcessRepository,
             ObjectMapper objectMapper) {
         this.snapshotRepository = snapshotRepository;
         this.tenantRepository = tenantRepository;
+        this.eodProcessRepository = eodProcessRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -62,7 +67,7 @@ public class FinancialStatementController {
             return "financial/profit-loss";
         }
 
-        LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
+        LocalDate bizDate = resolveLastCompletedBusinessDate(tenantId, tenant);
         model.addAttribute("businessDate", bizDate);
         model.addAttribute("tenantName", tenant.getTenantName());
 
@@ -81,7 +86,7 @@ public class FinancialStatementController {
             return "financial/balance-sheet";
         }
 
-        LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
+        LocalDate bizDate = resolveLastCompletedBusinessDate(tenantId, tenant);
         model.addAttribute("businessDate", bizDate);
         model.addAttribute("tenantName", tenant.getTenantName());
 
@@ -112,6 +117,19 @@ public class FinancialStatementController {
             log.warn("Failed to load {} snapshot: {}", type, e.getMessage());
             model.addAttribute(prefix + "Available", false);
         }
+    }
+
+    /**
+     * Resolve the last completed business date from the most recent COMPLETED EodProcess. This is
+     * safer than minusDays(1) because it handles weekend/holiday skips correctly — the EOD state
+     * machine uses process.getBusinessDate() for snapshot generation, so the UI must use the same
+     * date for lookup.
+     */
+    private LocalDate resolveLastCompletedBusinessDate(Long tenantId, Tenant tenant) {
+        return eodProcessRepository
+                .findTopByTenantIdAndStatusOrderByBusinessDateDesc(tenantId, "COMPLETED")
+                .map(EodProcess::getBusinessDate)
+                .orElse(tenant.getCurrentBusinessDate().minusDays(1));
     }
 
     private Long resolveTenantId(HttpSession session) {

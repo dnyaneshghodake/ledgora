@@ -53,14 +53,23 @@ public class DepositInterestAccrualService {
 
     private final DepositAccountRepository depositAccountRepository;
     private final TenantRepository tenantRepository;
+    private final VoucherService voucherService;
+    private final BranchRepository branchRepository;
+    private final UserRepository userRepository;
     private final AuditService auditService;
 
     public DepositInterestAccrualService(
             DepositAccountRepository depositAccountRepository,
             TenantRepository tenantRepository,
+            VoucherService voucherService,
+            BranchRepository branchRepository,
+            UserRepository userRepository,
             AuditService auditService) {
         this.depositAccountRepository = depositAccountRepository;
         this.tenantRepository = tenantRepository;
+        this.voucherService = voucherService;
+        this.branchRepository = branchRepository;
+        this.userRepository = userRepository;
         this.auditService = auditService;
     }
 
@@ -106,12 +115,19 @@ public class DepositInterestAccrualService {
 
             if (dailyInterest.compareTo(BigDecimal.ZERO) <= 0) continue;
 
-            // NOTE: The actual GL posting (DR Interest Expense, CR Deposit Liability)
-            // should be done via the voucher engine in production:
-            //   VoucherService.createVoucherPair(
-            //       product.getGlInterestExpense(),    // DR
-            //       product.getGlDepositLiability(),   // CR
-            //       dailyInterest, ...)
+            // ── VOUCHER ENGINE: Post accrual (DR Interest Expense, CR Deposit Liability) ──
+            // CBS invariant: all financial mutations flow through the voucher engine
+            // to create immutable LedgerEntry records visible to BalanceSheetEngine/PnlEngine.
+            if (product.getGlInterestExpense() != null
+                    && product.getGlDepositLiability() != null) {
+                postDepositAccrualVouchers(
+                        tenant, product, deposit, dailyInterest, businessDate);
+            } else {
+                log.warn(
+                        "Deposit product {} missing GL mappings — accrual recorded without voucher",
+                        product.getProductCode());
+            }
+
             deposit.setInterestAccrued(deposit.getInterestAccrued().add(dailyInterest));
             deposit.setLastAccrualDate(businessDate);
             depositAccountRepository.save(deposit);
@@ -134,5 +150,93 @@ public class DepositInterestAccrualService {
         }
 
         return accrued;
+    }
+
+    /**
+     * Post deposit accrual voucher pair via the voucher engine.
+     *
+     * <p>CBS-grade double-entry per RBI deposit interest rules:
+     *
+     * <pre>
+     *   DR Interest Expense GL (Expense — P&L impact)
+     *   CR Deposit Liability GL (Liability — Balance Sheet)
+     * </pre>
+     */
+    private void postDepositAccrualVouchers(
+            Tenant tenant,
+            DepositProduct product,
+            DepositAccount deposit,
+            BigDecimal dailyInterest,
+            LocalDate businessDate) {
+        try {
+            Branch branch =
+                    branchRepository.findByTenantId(tenant.getId()).stream()
+                            .findFirst()
+                            .orElseThrow(
+                                    () ->
+                                            new BusinessException(
+                                                    "NO_BRANCH",
+                                                    "No branch configured for tenant "
+                                                            + tenant.getTenantCode()));
+
+            User systemUser =
+                    userRepository
+                            .findByUsername("SYSTEM_AUTO")
+                            .orElseThrow(
+                                    () ->
+                                            new BusinessException(
+                                                    "SYSTEM_USER_MISSING",
+                                                    "SYSTEM_AUTO user not configured."));
+
+            String batchCode =
+                    "DEP-ACCR-"
+                            + deposit.getDepositAccountNumber()
+                            + "-"
+                            + businessDate.toString().replace("-", "");
+
+            // DR Interest Expense GL, CR Deposit Liability GL
+            Voucher[] pair =
+                    voucherService.createVoucherPair(
+                            tenant,
+                            branch,
+                            deposit.getLinkedAccount(),
+                            product.getGlInterestExpense(), // DR — Interest Expense
+                            branch,
+                            deposit.getLinkedAccount(),
+                            product.getGlDepositLiability(), // CR — Deposit Liability
+                            dailyInterest,
+                            "INR",
+                            businessDate,
+                            batchCode,
+                            systemUser,
+                            "Deposit accrual DR: "
+                                    + deposit.getDepositAccountNumber()
+                                    + " interest="
+                                    + dailyInterest,
+                            "Deposit accrual CR: "
+                                    + deposit.getDepositAccountNumber()
+                                    + " liability="
+                                    + dailyInterest);
+
+            voucherService.systemAuthorizeVoucher(pair[0].getId(), systemUser);
+            voucherService.systemAuthorizeVoucher(pair[1].getId(), systemUser);
+            voucherService.postVoucher(pair[0].getId());
+            voucherService.postVoucher(pair[1].getId());
+
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error(
+                    "Deposit accrual voucher posting failed for {}: {}",
+                    deposit.getDepositAccountNumber(),
+                    e.getMessage(),
+                    e);
+            throw new BusinessException(
+                    "VOUCHER_POSTING_FAILED",
+                    "Deposit accrual voucher posting failed for "
+                            + deposit.getDepositAccountNumber()
+                            + ": "
+                            + e.getMessage());
+        }
     }
 }

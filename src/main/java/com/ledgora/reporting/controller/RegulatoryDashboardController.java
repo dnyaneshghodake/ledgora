@@ -1,6 +1,8 @@
 package com.ledgora.reporting.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ledgora.eod.entity.EodProcess;
+import com.ledgora.eod.repository.EodProcessRepository;
 import com.ledgora.reporting.entity.RegulatorySnapshot;
 import com.ledgora.reporting.enums.SnapshotStatus;
 import com.ledgora.reporting.repository.RegulatorySnapshotRepository;
@@ -47,16 +49,19 @@ public class RegulatoryDashboardController {
     private final RegulatorySnapshotRepository snapshotRepository;
     private final RegulatorySnapshotService snapshotService;
     private final TenantRepository tenantRepository;
+    private final EodProcessRepository eodProcessRepository;
     private final ObjectMapper objectMapper;
 
     public RegulatoryDashboardController(
             RegulatorySnapshotRepository snapshotRepository,
             RegulatorySnapshotService snapshotService,
             TenantRepository tenantRepository,
+            EodProcessRepository eodProcessRepository,
             ObjectMapper objectMapper) {
         this.snapshotRepository = snapshotRepository;
         this.snapshotService = snapshotService;
         this.tenantRepository = tenantRepository;
+        this.eodProcessRepository = eodProcessRepository;
         this.objectMapper = objectMapper;
     }
 

@@ -27,4 +27,12 @@ public interface EodProcessRepository extends JpaRepository<EodProcess, Long> {
 
     /** Find the most recent EOD process for a tenant. */
     Optional<EodProcess> findTopByTenantIdOrderByBusinessDateDesc(Long tenantId);
+
+    /**
+     * Find the most recent COMPLETED EOD process for a tenant — used by reporting controllers to
+     * determine the correct snapshot date. This avoids the unsafe minusDays(1) pattern which fails
+     * on weekends/holidays when the business date advances by more than 1 day.
+     */
+    Optional<EodProcess> findTopByTenantIdAndStatusOrderByBusinessDateDesc(
+            Long tenantId, String status);
 }
