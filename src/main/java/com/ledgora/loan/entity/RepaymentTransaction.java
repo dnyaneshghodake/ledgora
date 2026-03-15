@@ -61,6 +61,15 @@ public class RepaymentTransaction {
     @Column(name = "interest_component", precision = 19, scale = 4, nullable = false)
     private BigDecimal interestComponent;
 
+    /**
+     * Penal interest component of the payment. Per RBI Fair Practices Code, penal charges are
+     * recovered first in the CBS Penal → Interest → Principal allocation order. This field records
+     * the actual penal amount absorbed from the total payment.
+     */
+    @Column(name = "penal_component", precision = 19, scale = 4, nullable = false)
+    @Builder.Default
+    private BigDecimal penalComponent = BigDecimal.ZERO;
+
     /** Outstanding principal after this payment. */
     @Column(name = "outstanding_after", precision = 19, scale = 4, nullable = false)
     private BigDecimal outstandingAfter;

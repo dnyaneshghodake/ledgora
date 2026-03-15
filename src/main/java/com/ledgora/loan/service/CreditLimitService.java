@@ -5,6 +5,7 @@ import com.ledgora.common.exception.BusinessException;
 import com.ledgora.loan.entity.CreditLimit;
 import com.ledgora.loan.repository.CreditLimitRepository;
 import com.ledgora.tenant.repository.TenantRepository;
+import com.ledgora.tenant.service.TenantService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -36,23 +37,30 @@ public class CreditLimitService {
 
     private final CreditLimitRepository creditLimitRepository;
     private final TenantRepository tenantRepository;
+    private final TenantService tenantService;
     private final AuditService auditService;
 
     public CreditLimitService(
             CreditLimitRepository creditLimitRepository,
             TenantRepository tenantRepository,
+            TenantService tenantService,
             AuditService auditService) {
         this.creditLimitRepository = creditLimitRepository;
         this.tenantRepository = tenantRepository;
+        this.tenantService = tenantService;
         this.auditService = auditService;
     }
 
     /**
      * Validate that a disbursement amount does not exceed the available credit limit.
      *
+     * @param creditLimitId the credit limit to validate against
+     * @param amount the disbursement amount
+     * @param tenantId the tenant ID for business date resolution
      * @throws BusinessException if limit is exceeded, expired, or not found
      */
-    public void validateDisbursementAgainstLimit(Long creditLimitId, BigDecimal amount) {
+    public void validateDisbursementAgainstLimit(
+            Long creditLimitId, BigDecimal amount, Long tenantId) {
         if (creditLimitId == null) {
             return; // No limit attached — skip validation (for backward compatibility)
         }
@@ -70,7 +78,9 @@ public class CreditLimitService {
                     "LIMIT_NOT_ACTIVE",
                     "Credit limit " + limit.getLimitReference() + " is " + limit.getStatus());
         }
-        if (limit.getExpiryDate() != null && limit.getExpiryDate().isBefore(LocalDate.now())) {
+        // CBS: Use tenant business date for expiry check, not system clock
+        LocalDate businessDate = tenantService.getCurrentBusinessDate(tenantId);
+        if (limit.getExpiryDate() != null && limit.getExpiryDate().isBefore(businessDate)) {
             throw new BusinessException(
                     "LIMIT_EXPIRED",
                     "Credit limit "
