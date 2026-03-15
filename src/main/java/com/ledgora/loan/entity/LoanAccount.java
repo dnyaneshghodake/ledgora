@@ -3,6 +3,7 @@ package com.ledgora.loan.entity;
 import com.ledgora.account.entity.Account;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.enums.NpaClassification;
+import com.ledgora.loan.enums.SmaCategory;
 import com.ledgora.tenant.entity.Tenant;
 import jakarta.persistence.*;
 import java.math.BigDecimal;

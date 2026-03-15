@@ -1,14 +1,19 @@
 package com.ledgora.loan.validation;
 
 import com.ledgora.loan.enums.NpaClassification;
+import com.ledgora.loan.enums.SmaCategory;
 
 /**
  * NPA Classifier — RBI IRAC (Income Recognition and Asset Classification) logic.
  *
- * <p>RBI Master Circular on Prudential Norms:
+ * <p>RBI Master Circular on Prudential Norms + SMA Framework:
  *
  * <ul>
- *   <li>STANDARD: DPD ≤ 90 days (performing)
+ *   <li>NONE: DPD = 0 (performing, no overdue)
+ *   <li>SMA-0: DPD 1–30 days
+ *   <li>SMA-1: DPD 31–60 days
+ *   <li>SMA-2: DPD 61–90 days
+ *   <li>STANDARD: DPD ≤ 90 days (performing — includes SMA categories)
  *   <li>SUBSTANDARD: DPD 91–365 days (NPA < 12 months)
  *   <li>DOUBTFUL: DPD 366–1095 days (NPA 1–3 years)
  *   <li>LOSS: DPD > 1095 days or identified as unrecoverable
@@ -38,6 +43,27 @@ public final class NpaClassifier {
             return NpaClassification.DOUBTFUL;
         } else {
             return NpaClassification.LOSS;
+        }
+    }
+
+    /**
+     * Classify SMA category based on DPD per RBI Early Warning Framework.
+     *
+     * <p>SMA categories apply ONLY to performing (STANDARD) loans.
+     * Once a loan is NPA (DPD > threshold), SMA category is no longer relevant.
+     *
+     * @param dpd days past due
+     * @return the SMA category
+     */
+    public static SmaCategory classifySma(int dpd) {
+        if (dpd <= 0) {
+            return SmaCategory.NONE;
+        } else if (dpd <= 30) {
+            return SmaCategory.SMA_0;
+        } else if (dpd <= 60) {
+            return SmaCategory.SMA_1;
+        } else {
+            return SmaCategory.SMA_2;
         }
     }
 
