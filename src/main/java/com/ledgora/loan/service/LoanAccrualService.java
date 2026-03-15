@@ -5,9 +5,12 @@ import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.entity.LoanProduct;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.repository.LoanAccountRepository;
+import com.ledgora.tenant.entity.Tenant;
+import com.ledgora.tenant.repository.TenantRepository;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -40,12 +43,15 @@ public class LoanAccrualService {
     private static final BigDecimal DAYS_IN_YEAR = new BigDecimal("365");
 
     private final LoanAccountRepository loanAccountRepository;
+    private final TenantRepository tenantRepository;
     private final AuditService auditService;
 
     public LoanAccrualService(
             LoanAccountRepository loanAccountRepository,
+            TenantRepository tenantRepository,
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
+        this.tenantRepository = tenantRepository;
         this.auditService = auditService;
     }
 
@@ -58,8 +64,16 @@ public class LoanAccrualService {
      */
     @Transactional
     public int accrueDailyInterest(Long tenantId) {
+        Tenant tenant =
+                tenantRepository
+                        .findById(tenantId)
+                        .orElseThrow(
+                                () -> new RuntimeException("Tenant not found: " + tenantId));
+        LocalDate businessDate = tenant.getCurrentBusinessDate();
+
         var activeLoans = loanAccountRepository.findActiveByTenantId(tenantId);
         int accrued = 0;
+        int skippedAlreadyAccrued = 0;
 
         for (LoanAccount loan : activeLoans) {
             if (loan.getStatus() != LoanStatus.ACTIVE) {
@@ -67,6 +81,12 @@ public class LoanAccrualService {
             }
             if (loan.getOutstandingPrincipal().compareTo(BigDecimal.ZERO) <= 0) {
                 continue; // fully repaid
+            }
+
+            // Idempotency: skip if already accrued for this business date
+            if (businessDate.equals(loan.getLastAccrualDate())) {
+                skippedAlreadyAccrued++;
+                continue;
             }
 
             LoanProduct product = loan.getLoanProduct();
@@ -93,6 +113,7 @@ public class LoanAccrualService {
             //       product.getGlInterestIncome(),     // CR
             //       dailyInterest, ...)
             loan.setAccruedInterest(loan.getAccruedInterest().add(dailyInterest));
+            loan.setLastAccrualDate(businessDate);
             loanAccountRepository.save(loan);
 
             accrued++;
@@ -105,13 +126,22 @@ public class LoanAccrualService {
                     loan.getAccruedInterest());
         }
 
+        if (skippedAlreadyAccrued > 0) {
+            log.info(
+                    "Loan accrual idempotency: skipped {} loans already accrued for date {} (tenant {})",
+                    skippedAlreadyAccrued,
+                    businessDate,
+                    tenantId);
+        }
+
         if (accrued > 0) {
             auditService.logEvent(
                     null,
                     "LOAN_INTEREST_ACCRUAL",
                     "LOAN_BATCH",
                     null,
-                    "Daily interest accrued for " + accrued + " loans (tenant " + tenantId + ")",
+                    "Daily interest accrued for " + accrued + " loans (tenant " + tenantId
+                            + ") date " + businessDate,
                     null);
             log.info("Loan interest accrued: {} loans for tenant {}", accrued, tenantId);
         }

@@ -6,9 +6,12 @@ import com.ledgora.deposit.entity.DepositProduct;
 import com.ledgora.deposit.enums.DepositAccountStatus;
 import com.ledgora.deposit.enums.DepositType;
 import com.ledgora.deposit.repository.DepositAccountRepository;
+import com.ledgora.tenant.entity.Tenant;
+import com.ledgora.tenant.repository.TenantRepository;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -43,12 +46,15 @@ public class DepositInterestAccrualService {
     private static final BigDecimal DAYS_IN_YEAR = new BigDecimal("365");
 
     private final DepositAccountRepository depositAccountRepository;
+    private final TenantRepository tenantRepository;
     private final AuditService auditService;
 
     public DepositInterestAccrualService(
             DepositAccountRepository depositAccountRepository,
+            TenantRepository tenantRepository,
             AuditService auditService) {
         this.depositAccountRepository = depositAccountRepository;
+        this.tenantRepository = tenantRepository;
         this.auditService = auditService;
     }
 
@@ -59,11 +65,21 @@ public class DepositInterestAccrualService {
      */
     @Transactional
     public int accrueDailyInterest(Long tenantId) {
+        Tenant tenant =
+                tenantRepository
+                        .findById(tenantId)
+                        .orElseThrow(
+                                () -> new RuntimeException("Tenant not found: " + tenantId));
+        LocalDate businessDate = tenant.getCurrentBusinessDate();
+
         var activeDeposits = depositAccountRepository.findActiveByTenantId(tenantId);
         int accrued = 0;
 
         for (DepositAccount deposit : activeDeposits) {
             if (deposit.getStatus() != DepositAccountStatus.ACTIVE) continue;
+
+            // Idempotency: skip if already accrued for this business date
+            if (businessDate.equals(deposit.getLastAccrualDate())) continue;
 
             DepositProduct product = deposit.getDepositProduct();
 
@@ -92,6 +108,7 @@ public class DepositInterestAccrualService {
             //       product.getGlDepositLiability(),   // CR
             //       dailyInterest, ...)
             deposit.setInterestAccrued(deposit.getInterestAccrued().add(dailyInterest));
+            deposit.setLastAccrualDate(businessDate);
             depositAccountRepository.save(deposit);
             accrued++;
         }
