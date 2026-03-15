@@ -1,15 +1,27 @@
 package com.ledgora.loan.service;
 
+import com.ledgora.account.entity.Account;
 import com.ledgora.audit.service.AuditService;
+import com.ledgora.auth.entity.User;
+import com.ledgora.auth.repository.UserRepository;
+import com.ledgora.branch.entity.Branch;
+import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.common.exception.BusinessException;
+import com.ledgora.gl.entity.GeneralLedger;
+import com.ledgora.gl.repository.GeneralLedgerRepository;
 import com.ledgora.loan.entity.LoanAccount;
+import com.ledgora.loan.entity.LoanProduct;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.enums.NpaClassification;
 import com.ledgora.loan.repository.LoanAccountRepository;
 import com.ledgora.loan.validation.LoanBusinessValidator;
 import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
+import com.ledgora.voucher.entity.Voucher;
+import com.ledgora.voucher.service.VoucherService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -42,14 +54,26 @@ public class LoanWriteOffService {
     private static final Logger log = LoggerFactory.getLogger(LoanWriteOffService.class);
 
     private final LoanAccountRepository loanAccountRepository;
+    private final VoucherService voucherService;
+    private final BranchRepository branchRepository;
+    private final UserRepository userRepository;
+    private final GeneralLedgerRepository glRepository;
     private final TenantService tenantService;
     private final AuditService auditService;
 
     public LoanWriteOffService(
             LoanAccountRepository loanAccountRepository,
+            VoucherService voucherService,
+            BranchRepository branchRepository,
+            UserRepository userRepository,
+            GeneralLedgerRepository glRepository,
             TenantService tenantService,
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
+        this.voucherService = voucherService;
+        this.branchRepository = branchRepository;
+        this.userRepository = userRepository;
+        this.glRepository = glRepository;
         this.tenantService = tenantService;
         this.auditService = auditService;
     }
@@ -64,8 +88,7 @@ public class LoanWriteOffService {
      *   <li>Provision must cover 100% of outstanding
      * </ul>
      *
-     * <p>NOTE: The actual GL posting (DR Provision GL, CR Loan Asset GL) should be done via the
-     * voucher engine by the caller.
+     * <p>GL posting via voucher engine: DR Provision GL, CR NPA Loan Asset GL.
      */
     @Transactional
     public LoanAccount writeOff(Long loanAccountId) {
@@ -116,6 +139,9 @@ public class LoanWriteOffService {
         }
 
         BigDecimal writtenOffAmount = loan.getOutstandingPrincipal();
+
+        // ── VOUCHER ENGINE: Post write-off (DR Provision GL, CR Loan Asset GL) ──
+        postWriteOffVouchers(loan, writtenOffAmount);
 
         // Zero out the loan
         loan.setOutstandingPrincipal(BigDecimal.ZERO);
@@ -183,7 +209,8 @@ public class LoanWriteOffService {
         }
 
         // Recovery is posted as income — loan status remains WRITTEN_OFF
-        // GL: DR Cash, CR Recovery Income (handled by voucher engine at controller level)
+        // GL: DR Customer Account GL, CR Interest Income GL (recovery income)
+        postRecoveryVouchers(loan, recoveryAmount);
 
         auditService.logEvent(
                 null,
@@ -203,5 +230,180 @@ public class LoanWriteOffService {
                 recoveryAmount);
 
         return loan;
+    }
+
+    /**
+     * Post write-off voucher pair: DR Provision GL, CR Loan Asset GL.
+     *
+     * <p>Uses up the provision to remove the loan from the asset book.
+     */
+    private void postWriteOffVouchers(LoanAccount loan, BigDecimal amount) {
+        try {
+            Tenant tenant = loan.getTenant();
+            LoanProduct product = loan.getLoanProduct();
+            Account customerAccount = loan.getLinkedAccount();
+
+            Branch branch =
+                    customerAccount.getBranch() != null
+                            ? customerAccount.getBranch()
+                            : branchRepository.findByTenantId(tenant.getId()).stream()
+                                    .findFirst()
+                                    .orElseThrow(
+                                            () ->
+                                                    new BusinessException(
+                                                            "NO_BRANCH",
+                                                            "No branch configured"));
+
+            User systemUser =
+                    userRepository
+                            .findByUsername("SYSTEM_AUTO")
+                            .orElseThrow(
+                                    () ->
+                                            new BusinessException(
+                                                    "SYSTEM_USER_MISSING",
+                                                    "SYSTEM_AUTO user not configured."));
+
+            LocalDate businessDate =
+                    tenantService.getCurrentBusinessDate(
+                            tenant.getId());
+            String batchCode = "LOAN-WOFF-" + loan.getLoanAccountNumber();
+
+            // DR Provision GL (use up provision), CR Loan Asset GL (remove from asset book)
+            Voucher[] pair =
+                    voucherService.createVoucherPair(
+                            tenant,
+                            branch,
+                            customerAccount,
+                            product.getGlProvision(), // DR — Provision GL
+                            branch,
+                            customerAccount,
+                            product.getGlNpaLoanAsset(), // CR — NPA Loan Asset GL
+                            amount,
+                            loan.getCurrency(),
+                            businessDate,
+                            batchCode,
+                            systemUser,
+                            "Write-off DR: " + loan.getLoanAccountNumber() + " provision=" + amount,
+                            "Write-off CR: "
+                                    + loan.getLoanAccountNumber()
+                                    + " asset removed="
+                                    + amount);
+
+            voucherService.systemAuthorizeVoucher(pair[0].getId(), systemUser);
+            voucherService.systemAuthorizeVoucher(pair[1].getId(), systemUser);
+            voucherService.postVoucher(pair[0].getId());
+            voucherService.postVoucher(pair[1].getId());
+
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error(
+                    "Write-off voucher posting failed for loan {}: {}",
+                    loan.getLoanAccountNumber(),
+                    e.getMessage(),
+                    e);
+            throw new BusinessException(
+                    "VOUCHER_POSTING_FAILED",
+                    "Write-off voucher posting failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Post recovery voucher pair: DR Customer Account GL, CR Interest Income GL.
+     *
+     * <p>Recovery after write-off is posted as income — the loan remains WRITTEN_OFF.
+     */
+    private void postRecoveryVouchers(LoanAccount loan, BigDecimal amount) {
+        try {
+            Tenant tenant = loan.getTenant();
+            LoanProduct product = loan.getLoanProduct();
+            Account customerAccount = loan.getLinkedAccount();
+
+            Branch branch =
+                    customerAccount.getBranch() != null
+                            ? customerAccount.getBranch()
+                            : branchRepository.findByTenantId(tenant.getId()).stream()
+                                    .findFirst()
+                                    .orElseThrow(
+                                            () ->
+                                                    new BusinessException(
+                                                            "NO_BRANCH",
+                                                            "No branch configured"));
+
+            User systemUser =
+                    userRepository
+                            .findByUsername("SYSTEM_AUTO")
+                            .orElseThrow(
+                                    () ->
+                                            new BusinessException(
+                                                    "SYSTEM_USER_MISSING",
+                                                    "SYSTEM_AUTO user not configured."));
+
+            LocalDate businessDate =
+                    tenantService.getCurrentBusinessDate(
+                            tenant.getId());
+            String batchCode = "LOAN-RECV-" + loan.getLoanAccountNumber();
+
+            // DR Customer Account GL (cash received), CR Interest Income GL (recovery income)
+            GeneralLedger customerGl = resolveCustomerAccountGl(customerAccount);
+
+            Voucher[] pair =
+                    voucherService.createVoucherPair(
+                            tenant,
+                            branch,
+                            customerAccount,
+                            customerGl, // DR — Customer Account GL
+                            branch,
+                            customerAccount,
+                            product.getGlInterestIncome(), // CR — Recovery Income GL
+                            amount,
+                            loan.getCurrency(),
+                            businessDate,
+                            batchCode,
+                            systemUser,
+                            "Recovery DR: " + loan.getLoanAccountNumber() + " cash=" + amount,
+                            "Recovery CR: "
+                                    + loan.getLoanAccountNumber()
+                                    + " income="
+                                    + amount);
+
+            voucherService.systemAuthorizeVoucher(pair[0].getId(), systemUser);
+            voucherService.systemAuthorizeVoucher(pair[1].getId(), systemUser);
+            voucherService.postVoucher(pair[0].getId());
+            voucherService.postVoucher(pair[1].getId());
+
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error(
+                    "Recovery voucher posting failed for loan {}: {}",
+                    loan.getLoanAccountNumber(),
+                    e.getMessage(),
+                    e);
+            throw new BusinessException(
+                    "VOUCHER_POSTING_FAILED",
+                    "Recovery voucher posting failed: " + e.getMessage());
+        }
+    }
+
+    private GeneralLedger resolveCustomerAccountGl(Account account) {
+        String glCode = account.getGlAccountCode();
+        if (glCode == null || glCode.isBlank()) {
+            throw new BusinessException(
+                    "GL_MAPPING_MISSING",
+                    "Customer account "
+                            + account.getAccountNumber()
+                            + " has no GL account code.");
+        }
+        return glRepository
+                .findByGlCode(glCode)
+                .orElseThrow(
+                        () ->
+                                new BusinessException(
+                                        "GL_ACCOUNT_NOT_FOUND",
+                                        "GL account "
+                                                + glCode
+                                                + " not found for account "
+                                                + account.getAccountNumber()));
     }
 }

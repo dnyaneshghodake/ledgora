@@ -75,7 +75,7 @@ public class RegulatoryDashboardController {
             return "regulatory/dashboard";
         }
 
-        LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
+        LocalDate bizDate = resolveLastCompletedBusinessDate(tenantId, tenant);
         model.addAttribute("businessDate", bizDate);
         model.addAttribute("tenantName", tenant.getTenantName());
 
@@ -102,7 +102,7 @@ public class RegulatoryDashboardController {
             return "regulatory/trial-balance";
         }
 
-        LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
+        LocalDate bizDate = resolveLastCompletedBusinessDate(tenantId, tenant);
         model.addAttribute("businessDate", bizDate);
         model.addAttribute("tenantName", tenant.getTenantName());
 
@@ -122,7 +122,7 @@ public class RegulatoryDashboardController {
             return "regulatory/crar-report";
         }
 
-        LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
+        LocalDate bizDate = resolveLastCompletedBusinessDate(tenantId, tenant);
         model.addAttribute("businessDate", bizDate);
         model.addAttribute("tenantName", tenant.getTenantName());
 
@@ -142,7 +142,7 @@ public class RegulatoryDashboardController {
             return "regulatory/alm-report";
         }
 
-        LocalDate bizDate = tenant.getCurrentBusinessDate().minusDays(1);
+        LocalDate bizDate = resolveLastCompletedBusinessDate(tenantId, tenant);
         model.addAttribute("businessDate", bizDate);
         model.addAttribute("tenantName", tenant.getTenantName());
 
@@ -161,8 +161,8 @@ public class RegulatoryDashboardController {
                     tenantRepository
                             .findById(tenantId)
                             .orElseThrow(() -> new RuntimeException("Tenant not found"));
-            // Use previous business date (current date is the next open day)
-            LocalDate snapshotDate = tenant.getCurrentBusinessDate().minusDays(1);
+            // Use last completed EOD business date for regeneration
+            LocalDate snapshotDate = resolveLastCompletedBusinessDate(tenantId, tenant);
             snapshotService.generateAllSnapshots(tenantId, snapshotDate);
             redirectAttributes.addFlashAttribute(
                     "message", "Regulatory snapshots regenerated successfully");
@@ -200,6 +200,19 @@ public class RegulatoryDashboardController {
                     e.getMessage());
             model.addAttribute(prefix + "Available", false);
         }
+    }
+
+    /**
+     * Resolve the last completed business date from the most recent COMPLETED EodProcess. This
+     * avoids the unsafe minusDays(1) pattern which fails on weekends/holidays when the business
+     * date advances by more than 1 day. Matches the date used by EodStateMachineService for
+     * snapshot generation.
+     */
+    private LocalDate resolveLastCompletedBusinessDate(Long tenantId, Tenant tenant) {
+        return eodProcessRepository
+                .findTopByTenantIdAndStatusOrderByBusinessDateDesc(tenantId, "COMPLETED")
+                .map(EodProcess::getBusinessDate)
+                .orElse(tenant.getCurrentBusinessDate().minusDays(1));
     }
 
     private Long resolveTenantId(HttpSession session) {
