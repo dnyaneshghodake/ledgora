@@ -70,6 +70,56 @@
     </div>
 </div>
 
+<%-- Repayment Schedule (Finacle LACHST — Loan Account History) --%>
+<c:if test="${not empty schedule}">
+<div class="card shadow mb-4 reg-card">
+    <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-calendar-check"></i> Repayment Schedule</h5></div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Due Date</th>
+                        <th class="text-end">EMI</th>
+                        <th class="text-end">Principal</th>
+                        <th class="text-end">Interest</th>
+                        <th class="text-end">Outstanding After</th>
+                        <th>Status</th>
+                        <th class="text-end">Paid</th>
+                        <th>Paid Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <c:forEach var="inst" items="${schedule}">
+                    <tr class="${inst.status == 'OVERDUE' ? 'table-danger' : inst.status == 'PAID' ? 'table-success' : inst.status == 'PARTIALLY_PAID' ? 'table-warning' : ''}">
+                        <td><c:out value="${inst.installmentNumber}"/></td>
+                        <td><c:out value="${inst.dueDate}"/></td>
+                        <td class="text-end"><fmt:formatNumber value="${inst.emiAmount}" maxFractionDigits="2"/></td>
+                        <td class="text-end"><fmt:formatNumber value="${inst.principalComponent}" maxFractionDigits="2"/></td>
+                        <td class="text-end"><fmt:formatNumber value="${inst.interestComponent}" maxFractionDigits="2"/></td>
+                        <td class="text-end"><fmt:formatNumber value="${inst.outstandingPrincipal}" maxFractionDigits="2"/></td>
+                        <td>
+                            <c:choose>
+                                <c:when test="${inst.status == 'PAID'}"><span class="badge bg-success">Paid</span></c:when>
+                                <c:when test="${inst.status == 'OVERDUE'}"><span class="badge bg-danger">Overdue</span></c:when>
+                                <c:when test="${inst.status == 'DUE'}"><span class="badge bg-warning text-dark">Due</span></c:when>
+                                <c:when test="${inst.status == 'PARTIALLY_PAID'}"><span class="badge bg-info">Partial</span></c:when>
+                                <c:when test="${inst.status == 'WRITTEN_OFF'}"><span class="badge bg-dark">Written Off</span></c:when>
+                                <c:otherwise><span class="badge bg-secondary">Scheduled</span></c:otherwise>
+                            </c:choose>
+                        </td>
+                        <td class="text-end"><c:if test="${inst.paidAmount != null && inst.paidAmount > 0}"><fmt:formatNumber value="${inst.paidAmount}" maxFractionDigits="2"/></c:if></td>
+                        <td><c:out value="${inst.paidDate != null ? inst.paidDate : ''}"/></td>
+                    </tr>
+                    </c:forEach>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</c:if>
+
 <%-- Repayment Form (Admin/Manager only) --%>
 <c:if test="${sessionScope.isAdmin || sessionScope.isManager}">
 <c:if test="${loan.status == 'ACTIVE' || loan.status == 'NPA'}">
