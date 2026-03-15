@@ -6,7 +6,11 @@ import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
+import com.ledgora.account.repository.AccountRepository;
+import com.ledgora.common.enums.AccountStatus;
+import com.ledgora.common.enums.AccountType;
 import com.ledgora.common.enums.InstallmentStatus;
+import com.ledgora.common.enums.MakerCheckerStatus;
 import com.ledgora.common.exception.BusinessException;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
@@ -71,6 +75,7 @@ public class LoanEmiPaymentService {
     private final LoanAccountRepository loanAccountRepository;
     private final LoanScheduleRepository loanScheduleRepository;
     private final RepaymentTransactionRepository repaymentTransactionRepository;
+    private final AccountRepository accountRepository;
     private final VoucherService voucherService;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
@@ -82,6 +87,7 @@ public class LoanEmiPaymentService {
             LoanAccountRepository loanAccountRepository,
             LoanScheduleRepository loanScheduleRepository,
             RepaymentTransactionRepository repaymentTransactionRepository,
+            AccountRepository accountRepository,
             VoucherService voucherService,
             BranchRepository branchRepository,
             UserRepository userRepository,
@@ -91,6 +97,7 @@ public class LoanEmiPaymentService {
         this.loanAccountRepository = loanAccountRepository;
         this.loanScheduleRepository = loanScheduleRepository;
         this.repaymentTransactionRepository = repaymentTransactionRepository;
+        this.accountRepository = accountRepository;
         this.voucherService = voucherService;
         this.branchRepository = branchRepository;
         this.userRepository = userRepository;
@@ -437,11 +444,19 @@ public class LoanEmiPaymentService {
                                                     "SYSTEM_USER_MISSING",
                                                     "SYSTEM_AUTO user not configured. Repayment voucher posting blocked."));
 
-            // Resolve customer account's deposit GL for the DR leg
+            // CBS/Finacle: Each voucher leg must target a DIFFERENT account so the
+            // VoucherService updates the correct account balance per leg.
+            // DR leg → customer account (balance decreases — customer pays)
+            // CR leg → internal loan/interest account (balance decreases — asset reduces)
             GeneralLedger customerGl = resolveCustomerAccountGl(customerAccount);
 
-            // Principal component voucher pair: DR Customer GL, CR Loan Asset GL
+            // Principal component voucher pair: DR Customer Account, CR Loan Asset Account
             if (principalComponent.compareTo(BigDecimal.ZERO) > 0) {
+                Account loanAssetAccount =
+                        resolveInternalAccount(
+                                tenant, product.getGlLoanAsset().getGlCode(), branch,
+                                "INT-LOAN-" + tenant.getTenantCode(),
+                                "Loan Asset Internal Account");
                 String batchCode = "LOAN-REPAY-P-" + loan.getLoanAccountNumber();
                 Voucher[] pair =
                         voucherService.createVoucherPair(
@@ -450,7 +465,7 @@ public class LoanEmiPaymentService {
                                 customerAccount,
                                 customerGl, // DR leg — Customer's deposit GL
                                 branch,
-                                customerAccount,
+                                loanAssetAccount,
                                 product.getGlLoanAsset(), // CR leg — Loan Asset GL
                                 principalComponent,
                                 loan.getCurrency(),
@@ -465,8 +480,13 @@ public class LoanEmiPaymentService {
                 voucherService.postVoucher(pair[1].getId());
             }
 
-            // Interest component voucher pair: DR Customer GL, CR Interest Receivable GL
+            // Interest component voucher pair: DR Customer Account, CR Interest Receivable Account
             if (interestComponent.compareTo(BigDecimal.ZERO) > 0) {
+                Account intReceivableAccount =
+                        resolveInternalAccount(
+                                tenant, product.getGlInterestReceivable().getGlCode(), branch,
+                                "INT-INTRECV-" + tenant.getTenantCode(),
+                                "Interest Receivable Internal Account");
                 String batchCode = "LOAN-REPAY-I-" + loan.getLoanAccountNumber();
                 Voucher[] pair =
                         voucherService.createVoucherPair(
@@ -475,7 +495,7 @@ public class LoanEmiPaymentService {
                                 customerAccount,
                                 customerGl, // DR leg — Customer's deposit GL
                                 branch,
-                                customerAccount,
+                                intReceivableAccount,
                                 product.getGlInterestReceivable(), // CR leg — Interest Receivable
                                 interestComponent,
                                 loan.getCurrency(),

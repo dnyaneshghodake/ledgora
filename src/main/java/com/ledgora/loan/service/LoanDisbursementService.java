@@ -6,6 +6,10 @@ import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.branch.entity.Branch;
 import com.ledgora.branch.repository.BranchRepository;
+import com.ledgora.account.repository.AccountRepository;
+import com.ledgora.common.enums.AccountStatus;
+import com.ledgora.common.enums.AccountType;
+import com.ledgora.common.enums.MakerCheckerStatus;
 import com.ledgora.common.exception.BusinessException;
 import com.ledgora.gl.entity.GeneralLedger;
 import com.ledgora.gl.repository.GeneralLedgerRepository;
@@ -62,6 +66,7 @@ public class LoanDisbursementService {
     private final LoanAccountRepository loanAccountRepository;
     private final LoanScheduleRepository loanScheduleRepository;
     private final LoanDisbursementRepository loanDisbursementRepository;
+    private final AccountRepository accountRepository;
     private final VoucherService voucherService;
     private final BranchRepository branchRepository;
     private final UserRepository userRepository;
@@ -73,6 +78,7 @@ public class LoanDisbursementService {
             LoanAccountRepository loanAccountRepository,
             LoanScheduleRepository loanScheduleRepository,
             LoanDisbursementRepository loanDisbursementRepository,
+            AccountRepository accountRepository,
             VoucherService voucherService,
             BranchRepository branchRepository,
             UserRepository userRepository,
@@ -82,6 +88,7 @@ public class LoanDisbursementService {
         this.loanAccountRepository = loanAccountRepository;
         this.loanScheduleRepository = loanScheduleRepository;
         this.loanDisbursementRepository = loanDisbursementRepository;
+        this.accountRepository = accountRepository;
         this.voucherService = voucherService;
         this.branchRepository = branchRepository;
         this.userRepository = userRepository;
@@ -243,19 +250,25 @@ public class LoanDisbursementService {
                                                     "SYSTEM_USER_MISSING",
                                                     "SYSTEM_AUTO user not configured. Loan voucher posting blocked."));
 
-            // Resolve customer account's GL for the CR leg (deposit liability GL)
+            // CBS/Finacle: DR leg targets the internal loan asset account (not customer account).
+            // CR leg targets the customer account. This ensures:
+            // - Loan asset account balance INCREASES (debit on asset = increase)
+            // - Customer account balance INCREASES (credit on liability = increase)
+            // Using the same account for both legs would net to zero balance change.
+            Account loanAssetAccount =
+                    resolveLoanAssetAccount(tenant, product.getGlLoanAsset(), branch);
             GeneralLedger customerGl = resolveCustomerAccountGl(customerAccount);
 
             String batchCode = "LOAN-DISB-" + loan.getLoanAccountNumber();
 
             // Create DR/CR voucher pair atomically
-            // DR leg: Loan Asset GL (asset increases)
-            // CR leg: Customer Account GL (liability — funds credited to borrower)
+            // DR leg: Internal Loan Asset Account (with Loan Asset GL)
+            // CR leg: Customer Account (with Customer's deposit GL)
             Voucher[] pair =
                     voucherService.createVoucherPair(
                             tenant,
                             branch,
-                            customerAccount,
+                            loanAssetAccount,
                             product.getGlLoanAsset(), // DR leg — Loan Asset GL
                             branch,
                             customerAccount,
@@ -317,6 +330,50 @@ public class LoanDisbursementService {
                     "NO_BRANCH", "No branch configured for tenant " + tenant.getTenantCode());
         }
         return branches.get(0);
+    }
+
+    /**
+     * Resolve or create an internal loan asset account for the DR leg of loan vouchers.
+     *
+     * <p>CBS/Finacle pattern: Each GL-level operation needs a dedicated internal account (like the
+     * Cash GL account used by TransactionService). The loan asset account is an INTERNAL_ACCOUNT
+     * mapped to the loan product's glLoanAsset GL code. If it doesn't exist, it's auto-created.
+     *
+     * <p>This ensures the VoucherService updates the correct account balance for each leg:
+     *
+     * <ul>
+     *   <li>DR leg → internal loan asset account balance increases (asset grows)
+     *   <li>CR leg → customer account balance increases (receives funds)
+     * </ul>
+     */
+    private Account resolveLoanAssetAccount(Tenant tenant, GeneralLedger loanAssetGl, Branch branch) {
+        String glCode = loanAssetGl.getGlCode();
+        return accountRepository
+                .findFirstByTenantIdAndGlAccountCode(tenant.getId(), glCode)
+                .orElseGet(
+                        () -> {
+                            // Auto-create internal loan asset account for this tenant
+                            Account internalAccount =
+                                    Account.builder()
+                                            .tenant(tenant)
+                                            .accountNumber("INT-LOAN-" + tenant.getTenantCode())
+                                            .accountName("Loan Asset Internal Account")
+                                            .accountType(AccountType.INTERNAL_ACCOUNT)
+                                            .status(AccountStatus.ACTIVE)
+                                            .approvalStatus(MakerCheckerStatus.APPROVED)
+                                            .balance(java.math.BigDecimal.ZERO)
+                                            .currency("INR")
+                                            .glAccountCode(glCode)
+                                            .branch(branch)
+                                            .homeBranch(branch)
+                                            .build();
+                            internalAccount = accountRepository.save(internalAccount);
+                            log.info(
+                                    "Auto-created internal loan asset account: {} GL={}",
+                                    internalAccount.getAccountNumber(),
+                                    glCode);
+                            return internalAccount;
+                        });
     }
 
     /**
