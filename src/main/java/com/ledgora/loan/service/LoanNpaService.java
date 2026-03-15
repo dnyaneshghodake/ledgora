@@ -7,6 +7,7 @@ import com.ledgora.loan.entity.LoanProduct;
 import com.ledgora.loan.entity.LoanSchedule;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.enums.NpaClassification;
+import com.ledgora.loan.enums.SmaCategory;
 import com.ledgora.loan.repository.LoanAccountRepository;
 import com.ledgora.loan.repository.LoanScheduleRepository;
 import com.ledgora.loan.validation.NpaClassifier;
@@ -128,11 +129,21 @@ public class LoanNpaService {
             NpaClassification classification = NpaClassifier.classify(computedDpd, threshold);
             loan.setNpaClassification(classification);
 
+            // RBI SMA Framework: classify SMA category for performing loans
+            if (loan.getStatus() == LoanStatus.ACTIVE) {
+                SmaCategory sma = NpaClassifier.classifySma(computedDpd);
+                loan.setSmaCategory(sma);
+            } else {
+                // NPA loans: SMA category is not applicable
+                loan.setSmaCategory(SmaCategory.NONE);
+            }
+
             if (NpaClassifier.isNpa(computedDpd, threshold)
                     && loan.getStatus() == LoanStatus.ACTIVE) {
                 // ── NEW NPA CLASSIFICATION — ACTIVE → NPA status transition ──
                 loan.setStatus(LoanStatus.NPA);
                 loan.setNpaDate(businessDate);
+                loan.setSmaCategory(SmaCategory.NONE); // SMA no longer applicable
 
                 loanAccountRepository.save(loan);
                 newNpaCount++;

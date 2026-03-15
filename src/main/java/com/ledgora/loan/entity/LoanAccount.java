@@ -103,9 +103,20 @@ public class LoanAccount {
     @Builder.Default
     private NpaClassification npaClassification = NpaClassification.STANDARD;
 
+    /** SMA category per RBI Early Warning Framework (SMA-0/1/2). Null for NPA loans. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sma_category", length = 10)
+    @Builder.Default
+    private SmaCategory smaCategory = SmaCategory.NONE;
+
     /** Date when loan was classified as NPA. Null if still performing. */
     @Column(name = "npa_date")
     private LocalDate npaDate;
+
+    /** Credit limit under which this loan was sanctioned (Phase 1 — Limit Engine). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "credit_limit_id")
+    private CreditLimit creditLimit;
 
     /** Current provision amount per RBI IRAC provisioning norms. */
     @Column(name = "provision_amount", precision = 19, scale = 4, nullable = false)
