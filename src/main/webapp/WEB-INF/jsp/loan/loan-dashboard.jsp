@@ -106,8 +106,9 @@
 
 <div class="audit-disclaimer mt-3">
     <i class="bi bi-shield-lock"></i>
-    Loan portfolio data derived from LoanAccount entities linked to immutable ledger entries.
-    NPA classification follows RBI IRAC norms (90-day DPD threshold). Provisioning per RBI Master Circular.
+    Loan portfolio data are <strong>derived caches</strong> — the source of truth is the immutable ledger entries created by the voucher engine.
+    NPA classification follows RBI IRAC norms (90-day DPD threshold). Provisioning per RBI Master Circular (bidirectional — increases and decreases).
+    EMI payments follow CBS Penal→Interest→Principal allocation. Trial balance validated at EOD.
 </div>
 
 <%@ include file="../layout/footer.jsp" %>

@@ -58,14 +58,26 @@
     </div>
 </div>
 
-<%-- Interest Accrual Summary --%>
+<%-- Interest, Penal & Provision Summary --%>
 <div class="card shadow mb-4 reg-card">
-    <div class="card-header bg-white"><h5 class="mb-0">Interest & Provision</h5></div>
+    <div class="card-header bg-white"><h5 class="mb-0">Interest, Penal & Provision</h5></div>
     <div class="card-body">
         <div class="row">
-            <div class="col-md-4"><small class="text-muted d-block">Accrued Interest</small><h5><fmt:formatNumber value="${loan.accruedInterest}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></h5></div>
-            <div class="col-md-4"><small class="text-muted d-block">Provision Amount</small><h5><fmt:formatNumber value="${loan.provisionAmount}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></h5></div>
-            <div class="col-md-4"><small class="text-muted d-block">NPA Date</small><h5><c:out value="${loan.npaDate != null ? loan.npaDate : 'N/A'}"/></h5></div>
+            <div class="col-md-3"><small class="text-muted d-block">Accrued Interest</small><h5><fmt:formatNumber value="${loan.accruedInterest}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></h5></div>
+            <div class="col-md-3"><small class="text-muted d-block">Penal Interest</small><h5 class="${loan.penalInterest > 0 ? 'text-danger' : ''}"><fmt:formatNumber value="${loan.penalInterest}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></h5></div>
+            <div class="col-md-3"><small class="text-muted d-block">Provision Amount</small><h5><fmt:formatNumber value="${loan.provisionAmount}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></h5></div>
+            <div class="col-md-3"><small class="text-muted d-block">NPA Date</small><h5><c:out value="${loan.npaDate != null ? loan.npaDate : 'N/A'}"/></h5></div>
+        </div>
+        <c:if test="${loan.interestReversed > 0}">
+        <div class="row mt-2">
+            <div class="col-md-3"><small class="text-muted d-block">Interest Reversed (Suspense)</small><h5 class="text-warning"><fmt:formatNumber value="${loan.interestReversed}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></h5></div>
+            <div class="col-md-9"><small class="text-muted">RBI IRAC: Accrued interest reversed on NPA classification. Tracked in suspense — not recognized as income until realization.</small></div>
+        </div>
+        </c:if>
+        <div class="row mt-2">
+            <div class="col-12">
+                <small class="text-muted"><i class="bi bi-info-circle"></i> Total Payable = Outstanding Principal + Accrued Interest + Penal Interest = <strong><fmt:formatNumber value="${loan.outstandingPrincipal + loan.accruedInterest + loan.penalInterest}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></strong></small>
+            </div>
         </div>
     </div>
 </div>
@@ -126,19 +138,32 @@
 <div class="card shadow mb-4 border-primary">
     <div class="card-header bg-primary bg-opacity-10"><h5 class="mb-0"><i class="bi bi-credit-card"></i> Process EMI Payment</h5></div>
     <div class="card-body">
-        <form method="post" action="${pageContext.request.contextPath}/loan/${loan.id}/repay" onsubmit="return confirm('Confirm EMI payment of ₹' + (parseFloat(this.principalAmount.value) + parseFloat(this.interestAmount.value)).toFixed(2) + '? This will be posted to the voucher engine.');">
+        <div class="alert alert-info py-2 mb-3">
+            <i class="bi bi-info-circle"></i> <strong>CBS Allocation:</strong> The total payment is automatically allocated in <strong>Penal → Interest → Principal</strong> order per RBI Fair Practices Code. The principal/interest split below is a hint — the CBS engine determines the actual allocation.
+            <c:if test="${loan.penalInterest > 0}">
+            <br/><i class="bi bi-exclamation-triangle text-warning"></i> <strong>Penal outstanding: <fmt:formatNumber value="${loan.penalInterest}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/></strong> — will be recovered first from the total payment.
+            </c:if>
+        </div>
+        <form method="post" action="${pageContext.request.contextPath}/loan/${loan.id}/repay" onsubmit="return confirm('Confirm payment of ₹' + (parseFloat(this.principalAmount.value) + parseFloat(this.interestAmount.value)).toFixed(2) + '?\n\nCBS will allocate: Penal (₹${loan.penalInterest}) → Interest → Principal.\nThis will be posted to the voucher engine as immutable ledger entries.');">
             <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">Principal Component</label>
-                    <input type="number" name="principalAmount" step="0.01" min="0" max="${loan.outstandingPrincipal}" class="form-control" required/>
-                    <small class="text-muted">Max: <fmt:formatNumber value="${loan.outstandingPrincipal}" maxFractionDigits="2"/></small>
+                <div class="col-md-3">
+                    <label class="form-label">Principal Component (hint)</label>
+                    <input type="number" name="principalAmount" step="0.01" min="0" class="form-control" required/>
+                    <small class="text-muted">Outstanding: <fmt:formatNumber value="${loan.outstandingPrincipal}" maxFractionDigits="2"/></small>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Interest Component</label>
-                    <input type="number" name="interestAmount" step="0.01" min="0" max="${loan.accruedInterest}" class="form-control" required/>
-                    <small class="text-muted">Max: <fmt:formatNumber value="${loan.accruedInterest}" maxFractionDigits="2"/></small>
+                <div class="col-md-3">
+                    <label class="form-label">Interest Component (hint)</label>
+                    <input type="number" name="interestAmount" step="0.01" min="0" class="form-control" required/>
+                    <small class="text-muted">Accrued: <fmt:formatNumber value="${loan.accruedInterest}" maxFractionDigits="2"/></small>
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Total Payable</label>
+                    <div class="form-control bg-light" style="font-weight:bold;">
+                        <fmt:formatNumber value="${loan.outstandingPrincipal + loan.accruedInterest + loan.penalInterest}" type="currency" currencySymbol="&#8377;" maxFractionDigits="2"/>
+                    </div>
+                    <small class="text-muted">P + I + Penal</small>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
                     <input type="hidden" name="${_csrf.parameterName}" value="${_csrf.token}"/>
                     <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Post Payment</button>
                 </div>
@@ -150,7 +175,7 @@
 </c:if>
 
 <div class="audit-disclaimer mt-3">
-    <i class="bi bi-shield-lock"></i> All loan data linked to immutable ledger entries. EMI payments posted via voucher engine. NPA per RBI IRAC (90-day DPD).
+    <i class="bi bi-shield-lock"></i> All loan data are <strong>derived caches</strong> — the source of truth is the immutable ledger entries created by the voucher engine. EMI payments follow CBS Penal→Interest→Principal allocation. NPA per RBI IRAC (90-day DPD). Trial balance validated at EOD.
 </div>
 </c:if>
 

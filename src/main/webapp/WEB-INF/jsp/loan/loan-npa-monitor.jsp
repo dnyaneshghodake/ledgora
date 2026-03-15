@@ -18,13 +18,15 @@
                 <div class="table-responsive">
                     <table class="table table-sm table-hover reg-table">
                         <thead class="table-light">
-                            <tr><th>Loan #</th><th class="text-end">Outstanding</th><th>DPD</th><th>Category</th><th>Provision %</th><th class="text-end">Provision Amt</th><th>NPA Date</th></tr>
+                            <tr><th>Loan #</th><th class="text-end">Outstanding</th><th class="text-end">Penal</th><th class="text-end">Int. Reversed</th><th>DPD</th><th>Category</th><th>Provision %</th><th class="text-end">Provision Amt</th><th>NPA Date</th></tr>
                         </thead>
                         <tbody>
                             <c:forEach var="loan" items="${npaLoans}">
                             <tr>
                                 <td><code><a href="${pageContext.request.contextPath}/loan/${loan.id}"><c:out value="${loan.loanAccountNumber}"/></a></code></td>
                                 <td class="text-end"><fmt:formatNumber value="${loan.outstandingPrincipal}" maxFractionDigits="0"/></td>
+                                <td class="text-end ${loan.penalInterest > 0 ? 'text-danger' : ''}"><fmt:formatNumber value="${loan.penalInterest}" maxFractionDigits="0"/></td>
+                                <td class="text-end ${loan.interestReversed > 0 ? 'text-warning' : ''}"><fmt:formatNumber value="${loan.interestReversed}" maxFractionDigits="0"/></td>
                                 <td class="text-danger fw-bold"><c:out value="${loan.dpd}"/></td>
                                 <td><c:choose>
                                     <c:when test="${loan.npaClassification == 'SUBSTANDARD'}"><span class="badge bg-warning text-dark">Substandard</span></c:when>
@@ -56,15 +58,23 @@
                 <div class="table-responsive">
                     <table class="table table-sm table-hover">
                         <thead class="table-light">
-                            <tr><th>Loan #</th><th class="text-end">Outstanding</th><th>DPD</th><th>Days to NPA</th></tr>
+                            <tr><th>Loan #</th><th>Borrower</th><th class="text-end">Outstanding</th><th class="text-end">Penal</th><th>DPD</th><th>SMA Category</th><th>Days to NPA</th></tr>
                         </thead>
                         <tbody>
                             <c:forEach var="loan" items="${atRiskLoans}">
                             <tr>
                                 <td><code><a href="${pageContext.request.contextPath}/loan/${loan.id}"><c:out value="${loan.loanAccountNumber}"/></a></code></td>
+                                <td><c:out value="${loan.borrowerName}"/></td>
                                 <td class="text-end"><fmt:formatNumber value="${loan.outstandingPrincipal}" maxFractionDigits="0"/></td>
+                                <td class="text-end ${loan.penalInterest > 0 ? 'text-danger' : ''}"><fmt:formatNumber value="${loan.penalInterest}" maxFractionDigits="0"/></td>
                                 <td class="text-warning fw-bold"><c:out value="${loan.dpd}"/></td>
-                                <td>${90 - loan.dpd} days</td>
+                                <td><c:choose>
+                                    <c:when test="${loan.smaCategory == 'SMA_0'}"><span class="badge bg-info">SMA-0</span></c:when>
+                                    <c:when test="${loan.smaCategory == 'SMA_1'}"><span class="badge bg-warning text-dark">SMA-1</span></c:when>
+                                    <c:when test="${loan.smaCategory == 'SMA_2'}"><span class="badge bg-danger">SMA-2</span></c:when>
+                                    <c:otherwise><span class="badge bg-secondary">None</span></c:otherwise>
+                                </c:choose></td>
+                                <td class="${(90 - loan.dpd) <= 15 ? 'text-danger fw-bold' : ''}">${90 - loan.dpd} days</td>
                             </tr>
                             </c:forEach>
                         </tbody>
@@ -149,7 +159,9 @@
 </c:if>
 
 <div class="audit-disclaimer mt-3">
-    <i class="bi bi-shield-lock"></i> NPA classification per RBI Prudential Norms (90-day DPD). Provisioning: Standard 0.4%, Substandard 15%, Doubtful 25%, Loss 100%.
+    <i class="bi bi-shield-lock"></i> NPA classification per RBI Prudential Norms (90-day DPD). SMA categories per RBI Early Warning Framework.
+    Provisioning: Standard 0.4%, Substandard 15%, Doubtful 25%, Loss 100% — <strong>bidirectional</strong> (increases and decreases on NPA tier changes).
+    Interest reversal and NPA upgrade posted via voucher engine. All data are derived caches — source of truth is immutable ledger entries.
 </div>
 
 <%@ include file="../layout/footer.jsp" %>

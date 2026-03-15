@@ -43,7 +43,7 @@
         <div class="table-responsive">
             <table class="table table-sm table-hover reg-table">
                 <thead class="table-light">
-                    <tr><th>Loan #</th><th>Borrower</th><th class="text-end">Principal</th><th class="text-end">Outstanding</th><th class="text-end">EMI</th><th>DPD</th><th>Status</th><th>NPA Category</th><th></th></tr>
+                    <tr><th>Loan #</th><th>Borrower</th><th class="text-end">Principal</th><th class="text-end">Outstanding</th><th class="text-end">Accrued</th><th class="text-end">Penal</th><th class="text-end">EMI</th><th>DPD</th><th>Status</th><th>NPA Category</th><th></th></tr>
                 </thead>
                 <tbody>
                     <c:forEach var="loan" items="${loans}">
@@ -52,6 +52,8 @@
                         <td><c:out value="${loan.borrowerName}"/></td>
                         <td class="text-end"><fmt:formatNumber value="${loan.principalAmount}" maxFractionDigits="0"/></td>
                         <td class="text-end"><fmt:formatNumber value="${loan.outstandingPrincipal}" maxFractionDigits="0"/></td>
+                        <td class="text-end"><fmt:formatNumber value="${loan.accruedInterest}" maxFractionDigits="0"/></td>
+                        <td class="text-end ${loan.penalInterest > 0 ? 'text-danger' : ''}"><fmt:formatNumber value="${loan.penalInterest}" maxFractionDigits="0"/></td>
                         <td class="text-end"><c:if test="${loan.emiAmount != null}"><fmt:formatNumber value="${loan.emiAmount}" maxFractionDigits="0"/></c:if></td>
                         <td class="${loan.dpd > 90 ? 'text-danger fw-bold' : loan.dpd > 0 ? 'text-warning' : ''}"><c:out value="${loan.dpd}"/></td>
                         <td><c:choose>
