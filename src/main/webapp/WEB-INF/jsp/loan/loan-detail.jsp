@@ -132,6 +132,43 @@
 </div>
 </c:if>
 
+<%-- Ledger Entry Audit Trail (CBS Source of Truth) --%>
+<c:if test="${not empty ledgerEntries}">
+<div class="card shadow mb-4 reg-card">
+    <div class="card-header bg-white"><h5 class="mb-0"><i class="bi bi-journal-text"></i> Ledger Entry Audit Trail (Source of Truth)</h5></div>
+    <div class="card-body">
+        <div class="alert alert-light py-1 mb-2">
+            <small><i class="bi bi-shield-lock"></i> <strong>CBS Tier-1:</strong> These immutable ledger entries are the source of financial truth. Loan balances displayed above are derived caches validated against these entries at EOD.</small>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover" style="font-size:0.85rem;">
+                <thead class="table-light">
+                    <tr><th>ID</th><th>Date</th><th>DR/CR</th><th class="text-end">Amount</th><th>GL Code</th><th class="text-end">Balance After</th><th>Narration</th><th>Voucher</th></tr>
+                </thead>
+                <tbody>
+                    <c:forEach var="entry" items="${ledgerEntries}">
+                    <tr class="${entry.entryType == 'DEBIT' ? 'table-warning' : 'table-info'}">
+                        <td><c:out value="${entry.id}"/></td>
+                        <td><c:out value="${entry.businessDate}"/></td>
+                        <td><c:choose>
+                            <c:when test="${entry.entryType == 'DEBIT'}"><span class="badge bg-warning text-dark">DR</span></c:when>
+                            <c:when test="${entry.entryType == 'CREDIT'}"><span class="badge bg-info">CR</span></c:when>
+                        </c:choose></td>
+                        <td class="text-end"><fmt:formatNumber value="${entry.amount}" maxFractionDigits="2"/></td>
+                        <td><code><c:out value="${entry.glAccountCode}"/></code></td>
+                        <td class="text-end"><fmt:formatNumber value="${entry.balanceAfter}" maxFractionDigits="2"/></td>
+                        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<c:out value='${entry.narration}'/>"><c:out value="${entry.narration}"/></td>
+                        <td><c:if test="${entry.voucherId != null}"><code>V-<c:out value="${entry.voucherId}"/></code></c:if></td>
+                    </tr>
+                    </c:forEach>
+                </tbody>
+            </table>
+        </div>
+        <small class="text-muted">Showing <c:out value="${ledgerEntries.size()}"/> ledger entries. SUM(DR) must equal SUM(CR) — validated at EOD.</small>
+    </div>
+</div>
+</c:if>
+
 <%-- Repayment Form (Admin/Manager only) --%>
 <c:if test="${sessionScope.isAdmin || sessionScope.isManager}">
 <c:if test="${loan.status == 'ACTIVE' || loan.status == 'NPA'}">

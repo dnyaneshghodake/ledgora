@@ -63,8 +63,10 @@
 
 <div class="audit-disclaimer mt-3">
     <i class="bi bi-shield-lock"></i>
-    Deposit portfolio data derived from DepositAccount entities. Interest accrual runs daily at EOD via voucher engine.
+    Deposit portfolio data are <strong>derived caches</strong> — the source of truth is the immutable ledger entries created by the voucher engine.
+    Interest accrual runs daily at EOD (DR Interest Expense GL, CR Deposit Liability GL). Premature closure posted via voucher engine.
     CASA quarterly posting per RBI. FD/RD interest at maturity. DICGC coverage: up to &#8377;5,00,000 per depositor.
+    <br/><i class="bi bi-journal-text"></i> View individual deposit detail pages for the complete ledger entry audit trail.
 </div>
 
 <%@ include file="../layout/footer.jsp" %>

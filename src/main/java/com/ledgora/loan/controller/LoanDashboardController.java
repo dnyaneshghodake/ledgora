@@ -1,5 +1,7 @@
 package com.ledgora.loan.controller;
 
+import com.ledgora.ledger.entity.LedgerEntry;
+import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.entity.LoanSchedule;
 import com.ledgora.loan.enums.LoanStatus;
@@ -45,14 +47,17 @@ public class LoanDashboardController {
 
     private final LoanAccountRepository loanAccountRepository;
     private final LoanScheduleRepository loanScheduleRepository;
+    private final LedgerEntryRepository ledgerEntryRepository;
     private final TenantRepository tenantRepository;
 
     public LoanDashboardController(
             LoanAccountRepository loanAccountRepository,
             LoanScheduleRepository loanScheduleRepository,
+            LedgerEntryRepository ledgerEntryRepository,
             TenantRepository tenantRepository) {
         this.loanAccountRepository = loanAccountRepository;
         this.loanScheduleRepository = loanScheduleRepository;
+        this.ledgerEntryRepository = ledgerEntryRepository;
         this.tenantRepository = tenantRepository;
     }
 
@@ -182,6 +187,15 @@ public class LoanDashboardController {
         List<LoanSchedule> schedule =
                 loanScheduleRepository.findByLoanAccountIdOrderByInstallmentNumberAsc(loan.getId());
         model.addAttribute("schedule", schedule);
+
+        // ── CBS AUDIT TRAIL: Load immutable ledger entries for this loan's linked account ──
+        // Per CBS/RBI/Finacle Tier-1: the auditor must be able to trace any loan balance
+        // back to the immutable ledger entries (vouchers → ledger entries → trial balance).
+        if (loan.getLinkedAccount() != null) {
+            List<LedgerEntry> ledgerEntries =
+                    ledgerEntryRepository.findByAccountId(loan.getLinkedAccount().getId());
+            model.addAttribute("ledgerEntries", ledgerEntries);
+        }
 
         return "loan/loan-detail";
     }

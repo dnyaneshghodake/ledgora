@@ -4,6 +4,8 @@ import com.ledgora.deposit.entity.DepositAccount;
 import com.ledgora.deposit.enums.DepositAccountStatus;
 import com.ledgora.deposit.repository.DepositAccountRepository;
 import com.ledgora.deposit.service.DepositPrematureClosureService;
+import com.ledgora.ledger.entity.LedgerEntry;
+import com.ledgora.ledger.repository.LedgerEntryRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
@@ -29,14 +31,17 @@ public class DepositDashboardController {
 
     private final DepositAccountRepository depositAccountRepository;
     private final DepositPrematureClosureService prematureClosureService;
+    private final LedgerEntryRepository ledgerEntryRepository;
     private final TenantRepository tenantRepository;
 
     public DepositDashboardController(
             DepositAccountRepository depositAccountRepository,
             DepositPrematureClosureService prematureClosureService,
+            LedgerEntryRepository ledgerEntryRepository,
             TenantRepository tenantRepository) {
         this.depositAccountRepository = depositAccountRepository;
         this.prematureClosureService = prematureClosureService;
+        this.ledgerEntryRepository = ledgerEntryRepository;
         this.tenantRepository = tenantRepository;
     }
 
@@ -110,6 +115,18 @@ public class DepositDashboardController {
             return "deposit/deposit-account-detail";
         }
         model.addAttribute("deposit", deposit);
+
+        // ── CBS AUDIT TRAIL: Load immutable ledger entries for this deposit's linked account ──
+        // Per CBS/RBI/Finacle Tier-1: the auditor must be able to trace any deposit balance
+        // back to the immutable ledger entries (vouchers → ledger entries → trial balance).
+        // Load entries by the linked account ID to show all deposit-related postings
+        // (accrual, premature closure, interest posting).
+        if (deposit.getLinkedAccount() != null) {
+            List<LedgerEntry> ledgerEntries =
+                    ledgerEntryRepository.findByAccountId(deposit.getLinkedAccount().getId());
+            model.addAttribute("ledgerEntries", ledgerEntries);
+        }
+
         return "deposit/deposit-account-detail";
     }
 
