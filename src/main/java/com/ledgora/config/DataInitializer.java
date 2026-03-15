@@ -2,6 +2,7 @@ package com.ledgora.config;
 
 import com.ledgora.auth.entity.User;
 import com.ledgora.branch.entity.Branch;
+import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.config.seeder.*;
 import com.ledgora.tenant.entity.Tenant;
 import org.slf4j.Logger;
@@ -46,6 +47,7 @@ public class DataInitializer implements CommandLineRunner {
     private final IdempotencyKeySeeder idempotencyKeySeeder;
     private final CbsCustomerSeeder cbsCustomerSeeder;
     private final TellerDataSeeder tellerDataSeeder;
+    private final BranchRepository branchRepository;
 
     public DataInitializer(
             TenantDataSeeder tenantSeeder,
@@ -59,7 +61,8 @@ public class DataInitializer implements CommandLineRunner {
             ExchangeRateSeeder exchangeRateSeeder,
             IdempotencyKeySeeder idempotencyKeySeeder,
             CbsCustomerSeeder cbsCustomerSeeder,
-            TellerDataSeeder tellerDataSeeder) {
+            TellerDataSeeder tellerDataSeeder,
+            BranchRepository branchRepository) {
         this.tenantSeeder = tenantSeeder;
         this.roleSeeder = roleSeeder;
         this.branchSeeder = branchSeeder;
@@ -72,6 +75,7 @@ public class DataInitializer implements CommandLineRunner {
         this.idempotencyKeySeeder = idempotencyKeySeeder;
         this.cbsCustomerSeeder = cbsCustomerSeeder;
         this.tellerDataSeeder = tellerDataSeeder;
+        this.branchRepository = branchRepository;
     }
 
     @Override
@@ -109,10 +113,14 @@ public class DataInitializer implements CommandLineRunner {
         branchSeeder.seedForTenant4(rrbTenant);
         branchSeeder.seedForTenant5(nbfcTenant);
 
-        // 3. Users
+        // 3. Users (Tenant 1 + global users)
         User[] users = userSeeder.seed(defaultTenant, secondTenant, hq, br1, br2);
         User adminUser = users[0];
         User teller1User = users[2];
+
+        // 3b. Users for additional tenants (T2–T5)
+        userSeeder.seedForAdditionalTenants(
+                secondTenant, ucbTenant, rrbTenant, nbfcTenant, branchRepository);
 
         // 4. GL Chart of Accounts
         glSeeder.seed();
