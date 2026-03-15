@@ -181,7 +181,18 @@ public class LoanDashboardController {
             @PathVariable Long id,
             @RequestParam BigDecimal principalAmount,
             @RequestParam BigDecimal interestAmount,
+            HttpSession session,
             RedirectAttributes redirectAttributes) {
+        Long tenantId = resolveTenantId(session);
+        // Tenant isolation: verify loan belongs to current tenant before payment
+        LoanAccount loan = loanAccountRepository.findById(id).orElse(null);
+        if (loan == null
+                || loan.getTenant() == null
+                || !loan.getTenant().getId().equals(tenantId)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Loan not found or access denied");
+            return "redirect:/loan/list";
+        }
         try {
             emiPaymentService.processEmiPayment(id, principalAmount, interestAmount);
             redirectAttributes.addFlashAttribute("message",

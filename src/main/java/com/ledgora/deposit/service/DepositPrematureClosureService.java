@@ -7,6 +7,7 @@ import com.ledgora.deposit.entity.DepositProduct;
 import com.ledgora.deposit.enums.DepositAccountStatus;
 import com.ledgora.deposit.enums.DepositType;
 import com.ledgora.deposit.repository.DepositAccountRepository;
+import com.ledgora.tenant.context.TenantContextHolder;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -66,6 +67,16 @@ public class DepositPrematureClosureService {
                                         new BusinessException(
                                                 "DEPOSIT_NOT_FOUND",
                                                 "Deposit account not found: " + depositAccountId));
+
+        // Tenant isolation: verify deposit belongs to current tenant
+        Long tenantId = TenantContextHolder.getTenantId();
+        if (tenantId != null
+                && (deposit.getTenant() == null
+                        || !deposit.getTenant().getId().equals(tenantId))) {
+            throw new BusinessException(
+                    "DEPOSIT_NOT_FOUND",
+                    "Deposit account not found: " + depositAccountId);
+        }
 
         if (deposit.getStatus() != DepositAccountStatus.ACTIVE) {
             throw new BusinessException(

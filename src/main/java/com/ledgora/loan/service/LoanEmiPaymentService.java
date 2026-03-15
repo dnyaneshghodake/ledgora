@@ -71,6 +71,21 @@ public class LoanEmiPaymentService {
             BigDecimal principalComponent,
             BigDecimal interestComponent) {
 
+        // Null validation
+        if (principalComponent == null || interestComponent == null) {
+            throw new BusinessException(
+                    "INVALID_EMI_PARAMS",
+                    "Principal and interest components must not be null");
+        }
+
+        // Negative amount validation
+        if (principalComponent.compareTo(BigDecimal.ZERO) < 0
+                || interestComponent.compareTo(BigDecimal.ZERO) < 0) {
+            throw new BusinessException(
+                    "INVALID_EMI_PARAMS",
+                    "Principal and interest components must not be negative");
+        }
+
         LoanAccount loan =
                 loanAccountRepository
                         .findById(loanAccountId)
@@ -86,6 +101,30 @@ public class LoanEmiPaymentService {
         if (loan.getStatus() == LoanStatus.WRITTEN_OFF) {
             throw new BusinessException(
                     "LOAN_WRITTEN_OFF", "Cannot process payment on written-off loan");
+        }
+
+        // Validate: interest component cannot exceed accrued interest
+        if (interestComponent.compareTo(loan.getAccruedInterest()) > 0) {
+            throw new BusinessException(
+                    "INTEREST_EXCEEDS_ACCRUED",
+                    "Interest component "
+                            + interestComponent
+                            + " exceeds accrued interest "
+                            + loan.getAccruedInterest()
+                            + " for loan "
+                            + loan.getLoanAccountNumber());
+        }
+
+        // Validate: principal component cannot exceed outstanding principal
+        if (principalComponent.compareTo(loan.getOutstandingPrincipal()) > 0) {
+            throw new BusinessException(
+                    "PRINCIPAL_EXCEEDS_OUTSTANDING",
+                    "Principal component "
+                            + principalComponent
+                            + " exceeds outstanding principal "
+                            + loan.getOutstandingPrincipal()
+                            + " for loan "
+                            + loan.getLoanAccountNumber());
         }
 
         // Validate: EMI cannot exceed outstanding
@@ -105,17 +144,11 @@ public class LoanEmiPaymentService {
 
         // Apply interest component
         BigDecimal newAccrued = loan.getAccruedInterest().subtract(interestComponent);
-        if (newAccrued.compareTo(BigDecimal.ZERO) < 0) {
-            newAccrued = BigDecimal.ZERO;
-        }
         loan.setAccruedInterest(newAccrued);
 
         // Apply principal component
         BigDecimal newOutstanding =
                 loan.getOutstandingPrincipal().subtract(principalComponent);
-        if (newOutstanding.compareTo(BigDecimal.ZERO) < 0) {
-            newOutstanding = BigDecimal.ZERO;
-        }
         loan.setOutstandingPrincipal(newOutstanding);
 
         // Reset DPD on payment (simplified — full implementation would check schedule)
