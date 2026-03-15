@@ -81,6 +81,9 @@ public class LoanDisbursementService {
                     "INVALID_LOAN_AMOUNT", "Loan principal must be positive");
         }
 
+        // CBS Tier-1: validate business day is OPEN before financial operations
+        tenantService.validateBusinessDayOpen(tenant.getId());
+
         LocalDate businessDate = tenantService.getCurrentBusinessDate(tenant.getId());
         LocalDate maturityDate = businessDate.plusMonths(product.getTenureMonths());
 
