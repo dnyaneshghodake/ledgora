@@ -33,8 +33,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
  *   <li>POST /loan/create — loan disbursement (creates LoanAccount + schedule + voucher posting)
  * </ul>
  *
- * <p>Two-step onboarding flow per Finacle LACSMNT:
- * Input → Preview (simulation) → Edit → Re-preview (optional) → Confirm → Create + Voucher.
+ * <p>Two-step onboarding flow per Finacle LACSMNT: Input → Preview (simulation) → Edit → Re-preview
+ * (optional) → Confirm → Create + Voucher.
  *
  * <p>All disbursements flow through the voucher engine via {@link LoanDisbursementService}.
  * Tenant-scoped, RBAC-enforced.

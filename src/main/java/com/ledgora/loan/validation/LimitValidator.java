@@ -41,7 +41,9 @@ public final class LimitValidator {
         if (limit.getExpiryDate() != null && limit.getExpiryDate().isBefore(businessDate)) {
             throw new BusinessException(
                     "LIMIT_EXPIRED",
-                    "Credit limit " + limit.getLimitReference() + " expired: "
+                    "Credit limit "
+                            + limit.getLimitReference()
+                            + " expired: "
                             + limit.getExpiryDate());
         }
     }
@@ -55,9 +57,12 @@ public final class LimitValidator {
         if (amount.compareTo(limit.getAvailableAmount()) > 0) {
             throw new BusinessException(
                     "LIMIT_EXCEEDED",
-                    "Amount " + amount + " exceeds available limit "
+                    "Amount "
+                            + amount
+                            + " exceeds available limit "
                             + limit.getAvailableAmount()
-                            + " on " + limit.getLimitReference());
+                            + " on "
+                            + limit.getLimitReference());
         }
     }
 
@@ -75,8 +80,7 @@ public final class LimitValidator {
         if (cap != null && projectedExposure.compareTo(cap) > 0) {
             throw new BusinessException(
                     "BORROWER_CAP_EXCEEDED",
-                    "Projected exposure " + projectedExposure
-                            + " exceeds borrower cap " + cap);
+                    "Projected exposure " + projectedExposure + " exceeds borrower cap " + cap);
         }
     }
 }

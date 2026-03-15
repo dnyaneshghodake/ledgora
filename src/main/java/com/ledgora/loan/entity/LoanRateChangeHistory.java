@@ -20,8 +20,8 @@ import lombok.*;
  *   <li>Borrower notification requirement per RBI FPC
  * </ul>
  *
- * <p>This entity is append-only (immutable). No updates or deletes.
- * Used for RBI audit compliance and borrower dispute resolution.
+ * <p>This entity is append-only (immutable). No updates or deletes. Used for RBI audit compliance
+ * and borrower dispute resolution.
  */
 @Entity
 @Table(
@@ -90,8 +90,8 @@ public class LoanRateChangeHistory {
     private LocalDate effectiveDate;
 
     /**
-     * Reason for rate change:
-     * BENCHMARK_RESET, MANUAL_OVERRIDE, RBI_DIRECTIVE, PRODUCT_REVISION, RATE_NEGOTIATION.
+     * Reason for rate change: BENCHMARK_RESET, MANUAL_OVERRIDE, RBI_DIRECTIVE, PRODUCT_REVISION,
+     * RATE_NEGOTIATION.
      */
     @Column(name = "change_reason", length = 50, nullable = false)
     private String changeReason;

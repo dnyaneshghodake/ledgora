@@ -34,8 +34,8 @@ import org.springframework.web.bind.annotation.*;
  *   <li>GET /loan/npa-monitor — NPA classification monitor
  * </ul>
  *
- * <p>Disbursement and repayment endpoints are in dedicated controllers:
- * {@link LoanDisbursementController}, {@link LoanRepaymentController}.
+ * <p>Disbursement and repayment endpoints are in dedicated controllers: {@link
+ * LoanDisbursementController}, {@link LoanRepaymentController}.
  */
 @Controller
 @RequestMapping("/loan")
@@ -205,7 +205,8 @@ public class LoanDashboardController {
         return "loan/loan-npa-monitor";
     }
 
-    // ── Disbursement (GET/POST /loan/create, POST /loan/preview) moved to LoanDisbursementController
+    // ── Disbursement (GET/POST /loan/create, POST /loan/preview) moved to
+    // LoanDisbursementController
     // ── Repayment (POST /loan/{id}/repay) moved to LoanRepaymentController
 
     private Long resolveTenantId(HttpSession session) {

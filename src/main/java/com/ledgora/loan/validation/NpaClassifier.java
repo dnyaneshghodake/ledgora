@@ -49,8 +49,8 @@ public final class NpaClassifier {
     /**
      * Classify SMA category based on DPD per RBI Early Warning Framework.
      *
-     * <p>SMA categories apply ONLY to performing (STANDARD) loans.
-     * Once a loan is NPA (DPD > threshold), SMA category is no longer relevant.
+     * <p>SMA categories apply ONLY to performing (STANDARD) loans. Once a loan is NPA (DPD >
+     * threshold), SMA category is no longer relevant.
      *
      * @param dpd days past due
      * @return the SMA category

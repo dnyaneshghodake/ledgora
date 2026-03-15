@@ -20,8 +20,8 @@ import lombok.*;
  *   <li>LOSS: 100%
  * </ul>
  *
- * <p>Immutable — one record per loan per business date. Used for:
- * regulatory reporting, P&L impact analysis, RBI audit.
+ * <p>Immutable — one record per loan per business date. Used for: regulatory reporting, P&L impact
+ * analysis, RBI audit.
  */
 @Entity
 @Table(

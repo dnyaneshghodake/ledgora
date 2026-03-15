@@ -81,8 +81,7 @@ public class LoanNpaService {
         int newNpaCount = 0;
 
         for (LoanAccount loan : allLoans) {
-            if (loan.getStatus() != LoanStatus.ACTIVE
-                    && loan.getStatus() != LoanStatus.NPA) {
+            if (loan.getStatus() != LoanStatus.ACTIVE && loan.getStatus() != LoanStatus.NPA) {
                 continue;
             }
 
@@ -98,13 +97,11 @@ public class LoanNpaService {
                         && inst.getStatus() != InstallmentStatus.OVERDUE) {
                     // Transition SCHEDULED/DUE → OVERDUE
                     inst.setStatus(InstallmentStatus.OVERDUE);
-                    inst.setDpdDays(
-                            (int) ChronoUnit.DAYS.between(inst.getDueDate(), businessDate));
+                    inst.setDpdDays((int) ChronoUnit.DAYS.between(inst.getDueDate(), businessDate));
                     loanScheduleRepository.save(inst);
                 } else if (inst.getStatus() == InstallmentStatus.OVERDUE) {
                     // Update DPD on already-overdue installments
-                    inst.setDpdDays(
-                            (int) ChronoUnit.DAYS.between(inst.getDueDate(), businessDate));
+                    inst.setDpdDays((int) ChronoUnit.DAYS.between(inst.getDueDate(), businessDate));
                     loanScheduleRepository.save(inst);
                 }
                 // Track oldest overdue date
@@ -199,8 +196,7 @@ public class LoanNpaService {
                 BigDecimal suspenseToReverse = loan.getInterestReversed();
                 if (suspenseToReverse.compareTo(BigDecimal.ZERO) > 0) {
                     // GL: DR Interest Suspense, CR Interest Income
-                    loan.setAccruedInterest(
-                            loan.getAccruedInterest().add(suspenseToReverse));
+                    loan.setAccruedInterest(loan.getAccruedInterest().add(suspenseToReverse));
                     loan.setInterestReversed(BigDecimal.ZERO);
                     log.info(
                             "NPA upgrade — suspense reversed to income: loan={} reversed={}",

@@ -22,8 +22,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
  *   <li>POST /loan/{id}/repay — process EMI payment (principal + interest split)
  * </ul>
  *
- * <p>All payments flow through the voucher engine via {@link LoanEmiPaymentService}.
- * Tenant-scoped, RBAC-enforced.
+ * <p>All payments flow through the voucher engine via {@link LoanEmiPaymentService}. Tenant-scoped,
+ * RBAC-enforced.
  */
 @Controller
 @RequestMapping("/loan")
@@ -35,8 +35,7 @@ public class LoanRepaymentController {
     private final LoanEmiPaymentService emiPaymentService;
 
     public LoanRepaymentController(
-            LoanAccountRepository loanAccountRepository,
-            LoanEmiPaymentService emiPaymentService) {
+            LoanAccountRepository loanAccountRepository, LoanEmiPaymentService emiPaymentService) {
         this.loanAccountRepository = loanAccountRepository;
         this.emiPaymentService = emiPaymentService;
     }
@@ -44,8 +43,8 @@ public class LoanRepaymentController {
     /**
      * Process EMI payment — CBS Tier-1 maker-initiated.
      *
-     * <p>Voucher posting: DR Customer Account, CR Loan Asset GL (principal) +
-     * CR Interest Receivable GL (interest).
+     * <p>Voucher posting: DR Customer Account, CR Loan Asset GL (principal) + CR Interest
+     * Receivable GL (interest).
      */
     @PostMapping("/{id}/repay")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")

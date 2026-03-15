@@ -20,8 +20,8 @@ import lombok.*;
  *   <li>Immutable — no updates after creation
  * </ul>
  *
- * <p>Used for: statement generation, interest certificate, tax computation,
- * borrower dispute resolution, RBI audit.
+ * <p>Used for: statement generation, interest certificate, tax computation, borrower dispute
+ * resolution, RBI audit.
  */
 @Entity
 @Table(
@@ -73,9 +73,7 @@ public class RepaymentTransaction {
     @Column(name = "payment_date", nullable = false)
     private LocalDate paymentDate;
 
-    /**
-     * Payment type: EMI, PREPAYMENT, FORECLOSURE, PENALTY.
-     */
+    /** Payment type: EMI, PREPAYMENT, FORECLOSURE, PENALTY. */
     @Column(name = "payment_type", length = 20, nullable = false)
     @Builder.Default
     private String paymentType = "EMI";

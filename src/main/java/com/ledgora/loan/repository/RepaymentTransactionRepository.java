@@ -14,8 +14,7 @@ import org.springframework.stereotype.Repository;
  * <p>Append-only. Used for statement generation, interest certificates, and RBI audit.
  */
 @Repository
-public interface RepaymentTransactionRepository
-        extends JpaRepository<RepaymentTransaction, Long> {
+public interface RepaymentTransactionRepository extends JpaRepository<RepaymentTransaction, Long> {
 
     /** All payments for a loan (newest first). */
     List<RepaymentTransaction> findByLoanAccountIdOrderByPaymentDateDesc(Long loanAccountId);

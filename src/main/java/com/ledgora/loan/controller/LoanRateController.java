@@ -94,9 +94,13 @@ public class LoanRateController {
             LoanRate rate = loanRateService.createRate(tenantId, dto);
             redirectAttributes.addFlashAttribute(
                     "message",
-                    "Rate created: " + rate.getEffectiveRate() + "% effective " + rate.getEffectiveDate());
+                    "Rate created: "
+                            + rate.getEffectiveRate()
+                            + "% effective "
+                            + rate.getEffectiveDate());
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Rate creation failed: " + e.getMessage());
+            redirectAttributes.addFlashAttribute(
+                    "error", "Rate creation failed: " + e.getMessage());
         }
         return "redirect:/loan/rates";
     }
@@ -123,8 +127,7 @@ public class LoanRateController {
     /** Rate change history for a specific product. */
     @GetMapping("/history/{productId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'AUDITOR')")
-    public String rateHistory(
-            @PathVariable Long productId, Model model, HttpSession session) {
+    public String rateHistory(@PathVariable Long productId, Model model, HttpSession session) {
         List<LoanRateChangeHistory> history =
                 historyRepository.findByLoanProductIdOrderByCreatedAtDesc(productId);
         List<LoanRate> rates =

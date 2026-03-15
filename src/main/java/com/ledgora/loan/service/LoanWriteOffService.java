@@ -148,8 +148,8 @@ public class LoanWriteOffService {
     /**
      * Record recovery on a written-off loan.
      *
-     * <p>RBI: Recovery after write-off is posted as income (not principal reduction).
-     * The loan remains WRITTEN_OFF — recovery is a separate income event.
+     * <p>RBI: Recovery after write-off is posted as income (not principal reduction). The loan
+     * remains WRITTEN_OFF — recovery is a separate income event.
      *
      * <p>GL: DR Cash/Customer Account, CR Recovery Income
      *
@@ -160,8 +160,7 @@ public class LoanWriteOffService {
     @Transactional
     public LoanAccount recordRecovery(Long loanAccountId, BigDecimal recoveryAmount) {
         if (recoveryAmount == null || recoveryAmount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new BusinessException(
-                    "INVALID_RECOVERY", "Recovery amount must be positive");
+            throw new BusinessException("INVALID_RECOVERY", "Recovery amount must be positive");
         }
 
         LoanAccount loan =

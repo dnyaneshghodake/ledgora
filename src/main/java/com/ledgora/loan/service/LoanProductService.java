@@ -63,8 +63,7 @@ public class LoanProductService {
     public LoanProduct deactivateProduct(Long productId, Long tenantId) {
         LoanProduct product = getProduct(productId, tenantId);
         if (!product.getIsActive()) {
-            throw new BusinessException(
-                    "PRODUCT_ALREADY_INACTIVE", "Product is already inactive");
+            throw new BusinessException("PRODUCT_ALREADY_INACTIVE", "Product is already inactive");
         }
         product.setIsActive(false);
         product = loanProductRepository.save(product);

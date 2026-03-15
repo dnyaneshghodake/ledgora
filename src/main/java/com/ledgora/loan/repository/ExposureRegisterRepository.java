@@ -7,9 +7,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-/**
- * Exposure Register Repository — aggregate exposure snapshot queries.
- */
+/** Exposure Register Repository — aggregate exposure snapshot queries. */
 @Repository
 public interface ExposureRegisterRepository extends JpaRepository<ExposureRegister, Long> {
 

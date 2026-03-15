@@ -14,8 +14,8 @@ import lombok.NoArgsConstructor;
  *
  * <ul>
  *   <li>For FIXED products: only effectiveRate and effectiveDate are required
- *   <li>For FLOATING products: benchmarkName, benchmarkRate, spread are required;
- *       effectiveRate = benchmarkRate + spread (computed by service)
+ *   <li>For FLOATING products: benchmarkName, benchmarkRate, spread are required; effectiveRate =
+ *       benchmarkRate + spread (computed by service)
  * </ul>
  */
 @Data

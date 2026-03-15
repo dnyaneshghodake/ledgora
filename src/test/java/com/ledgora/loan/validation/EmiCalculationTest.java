@@ -26,8 +26,7 @@ class EmiCalculationTest {
     @DisplayName("Standard EMI: 10L @ 12% for 12 months = ~88,849")
     void standardEmi_12Percent_12Months() {
         BigDecimal emi =
-                EmiCalculator.computeEmi(
-                        new BigDecimal("1000000"), new BigDecimal("12.0000"), 12);
+                EmiCalculator.computeEmi(new BigDecimal("1000000"), new BigDecimal("12.0000"), 12);
         // Known EMI for 10L @ 12% p.a. for 12 months ≈ 88,849
         assertTrue(
                 emi.compareTo(new BigDecimal("88840")) > 0
@@ -39,8 +38,7 @@ class EmiCalculationTest {
     @DisplayName("Standard EMI: 5L @ 10% for 60 months = ~10,624")
     void standardEmi_10Percent_60Months() {
         BigDecimal emi =
-                EmiCalculator.computeEmi(
-                        new BigDecimal("500000"), new BigDecimal("10.0000"), 60);
+                EmiCalculator.computeEmi(new BigDecimal("500000"), new BigDecimal("10.0000"), 60);
         // Known EMI for 5L @ 10% p.a. for 60 months ≈ 10,624
         assertTrue(
                 emi.compareTo(new BigDecimal("10620")) > 0
@@ -51,9 +49,7 @@ class EmiCalculationTest {
     @Test
     @DisplayName("Zero interest rate: EMI = principal / tenure")
     void zeroInterestRate_flatEmi() {
-        BigDecimal emi =
-                EmiCalculator.computeEmi(
-                        new BigDecimal("120000"), BigDecimal.ZERO, 12);
+        BigDecimal emi = EmiCalculator.computeEmi(new BigDecimal("120000"), BigDecimal.ZERO, 12);
         assertEquals(
                 0,
                 emi.compareTo(new BigDecimal("10000.0000")),
@@ -64,8 +60,7 @@ class EmiCalculationTest {
     @DisplayName("Single month tenure: EMI = principal + one month interest")
     void singleMonthTenure() {
         BigDecimal emi =
-                EmiCalculator.computeEmi(
-                        new BigDecimal("100000"), new BigDecimal("12.0000"), 1);
+                EmiCalculator.computeEmi(new BigDecimal("100000"), new BigDecimal("12.0000"), 1);
         // EMI for 1 month = 100000 + (100000 × 12/100/12) = 100000 + 1000 = 101000
         assertEquals(
                 0,
@@ -77,19 +72,19 @@ class EmiCalculationTest {
     @DisplayName("High interest rate: 24% p.a.")
     void highInterestRate() {
         BigDecimal emi =
-                EmiCalculator.computeEmi(
-                        new BigDecimal("100000"), new BigDecimal("24.0000"), 12);
+                EmiCalculator.computeEmi(new BigDecimal("100000"), new BigDecimal("24.0000"), 12);
         // Should be a valid positive number, higher than zero-rate EMI
-        assertTrue(emi.compareTo(new BigDecimal("8333")) > 0, "High-rate EMI should exceed flat EMI");
-        assertTrue(emi.compareTo(new BigDecimal("10000")) < 0, "High-rate EMI should be reasonable");
+        assertTrue(
+                emi.compareTo(new BigDecimal("8333")) > 0, "High-rate EMI should exceed flat EMI");
+        assertTrue(
+                emi.compareTo(new BigDecimal("10000")) < 0, "High-rate EMI should be reasonable");
     }
 
     @Test
     @DisplayName("EMI is always positive for positive inputs")
     void emiAlwaysPositive() {
         BigDecimal emi =
-                EmiCalculator.computeEmi(
-                        new BigDecimal("1"), new BigDecimal("0.0001"), 360);
+                EmiCalculator.computeEmi(new BigDecimal("1"), new BigDecimal("0.0001"), 360);
         assertTrue(emi.compareTo(BigDecimal.ZERO) > 0, "EMI must always be positive");
     }
 
@@ -143,9 +138,7 @@ class EmiCalculationTest {
 
         for (int i = 1; i <= tenure; i++) {
             BigDecimal interest =
-                    remaining
-                            .multiply(monthlyRate)
-                            .setScale(4, java.math.RoundingMode.HALF_UP);
+                    remaining.multiply(monthlyRate).setScale(4, java.math.RoundingMode.HALF_UP);
             BigDecimal principalComponent = emi.subtract(interest);
             if (i == tenure) {
                 principalComponent = remaining; // last installment adjustment

@@ -8,9 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-/**
- * Credit Limit Repository — credit facility queries per RBI exposure norms.
- */
+/** Credit Limit Repository — credit facility queries per RBI exposure norms. */
 @Repository
 public interface CreditLimitRepository extends JpaRepository<CreditLimit, Long> {
 

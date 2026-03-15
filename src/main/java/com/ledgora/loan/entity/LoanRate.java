@@ -21,8 +21,8 @@ import lombok.*;
  *   <li>Effective date determines when the new rate applies
  * </ul>
  *
- * <p>Rate hierarchy: Product base rate + spread = effective rate.
- * For FLOATING products, benchmark changes trigger rate recalculation.
+ * <p>Rate hierarchy: Product base rate + spread = effective rate. For FLOATING products, benchmark
+ * changes trigger rate recalculation.
  */
 @Entity
 @Table(

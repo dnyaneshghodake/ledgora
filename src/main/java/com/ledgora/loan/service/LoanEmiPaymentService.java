@@ -16,6 +16,7 @@ import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.repository.LoanAccountRepository;
 import com.ledgora.loan.repository.LoanScheduleRepository;
 import com.ledgora.loan.repository.RepaymentTransactionRepository;
+import com.ledgora.loan.validation.EmiCalculator;
 import com.ledgora.loan.validation.LoanBusinessValidator;
 import com.ledgora.tenant.context.TenantContextHolder;
 import com.ledgora.tenant.entity.Tenant;
@@ -23,6 +24,8 @@ import com.ledgora.tenant.service.TenantService;
 import com.ledgora.voucher.entity.Voucher;
 import com.ledgora.voucher.service.VoucherService;
 import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import org.slf4j.Logger;
@@ -95,8 +98,8 @@ public class LoanEmiPaymentService {
      * Process an EMI payment against a loan account.
      *
      * <p>Splits the payment into principal and interest components. Updates the loan account's
-     * outstanding principal and accrued interest. Posts voucher pairs via the voucher engine.
-     * If outstanding reaches zero, closes the loan.
+     * outstanding principal and accrued interest. Posts voucher pairs via the voucher engine. If
+     * outstanding reaches zero, closes the loan.
      *
      * <p>Accounting entries (CBS-grade, voucher-driven):
      *
@@ -133,9 +136,10 @@ public class LoanEmiPaymentService {
 
         // Validate: EMI cannot exceed outstanding
         BigDecimal totalPayment = principalComponent.add(interestComponent);
-        BigDecimal maxPayable = loan.getOutstandingPrincipal()
-                .add(loan.getAccruedInterest())
-                .add(loan.getPenalInterest());
+        BigDecimal maxPayable =
+                loan.getOutstandingPrincipal()
+                        .add(loan.getAccruedInterest())
+                        .add(loan.getPenalInterest());
         if (totalPayment.compareTo(maxPayable) > 0) {
             throw new BusinessException(
                     "EMI_EXCEEDS_OUTSTANDING",
@@ -272,8 +276,8 @@ public class LoanEmiPaymentService {
     /**
      * Calculate penal interest for overdue loans. Called during EOD after DPD calculation.
      *
-     * <p>Penal interest = outstandingPrincipal × penalRate / 365 × overdueDays
-     * GL: DR Penal Interest Receivable, CR Penal Interest Income
+     * <p>Penal interest = outstandingPrincipal × penalRate / 365 × overdueDays GL: DR Penal
+     * Interest Receivable, CR Penal Interest Income
      *
      * @return number of loans with penal interest accrued
      */
@@ -321,8 +325,8 @@ public class LoanEmiPaymentService {
     /**
      * Calculate foreclosure amount for a loan.
      *
-     * <p>Foreclosure = Outstanding Principal + Accrued Interest + Penal Interest
-     * Prepayment charges may be added per product policy.
+     * <p>Foreclosure = Outstanding Principal + Accrued Interest + Penal Interest Prepayment charges
+     * may be added per product policy.
      *
      * @return foreclosure amount breakdown
      */
@@ -369,39 +373,55 @@ public class LoanEmiPaymentService {
      * </pre>
      */
     private void postRepaymentVouchers(
-            LoanAccount loan, BigDecimal principalComponent,
-            BigDecimal interestComponent, LocalDate businessDate) {
+            LoanAccount loan,
+            BigDecimal principalComponent,
+            BigDecimal interestComponent,
+            LocalDate businessDate) {
         try {
             Account customerAccount = loan.getLinkedAccount();
             LoanProduct product = loan.getLoanProduct();
             Tenant tenant = loan.getTenant();
 
-            Branch branch = customerAccount.getBranch() != null
-                    ? customerAccount.getBranch()
-                    : branchRepository.findByTenantId(tenant.getId()).stream()
-                            .findFirst()
-                            .orElseThrow(() -> new BusinessException("NO_BRANCH",
-                                    "No branch configured for tenant " + tenant.getTenantCode()));
+            Branch branch =
+                    customerAccount.getBranch() != null
+                            ? customerAccount.getBranch()
+                            : branchRepository.findByTenantId(tenant.getId()).stream()
+                                    .findFirst()
+                                    .orElseThrow(
+                                            () ->
+                                                    new BusinessException(
+                                                            "NO_BRANCH",
+                                                            "No branch configured for tenant "
+                                                                    + tenant.getTenantCode()));
 
-            User systemUser = userRepository.findByUsername("SYSTEM_AUTO")
-                    .orElseThrow(() -> new BusinessException(
-                            "SYSTEM_USER_MISSING",
-                            "SYSTEM_AUTO user not configured. Repayment voucher posting blocked."));
+            User systemUser =
+                    userRepository
+                            .findByUsername("SYSTEM_AUTO")
+                            .orElseThrow(
+                                    () ->
+                                            new BusinessException(
+                                                    "SYSTEM_USER_MISSING",
+                                                    "SYSTEM_AUTO user not configured. Repayment voucher posting blocked."));
 
             // Principal component voucher pair: DR Customer, CR Loan Asset GL
             if (principalComponent.compareTo(BigDecimal.ZERO) > 0) {
                 String batchCode = "LOAN-REPAY-P-" + loan.getLoanAccountNumber();
-                Voucher[] pair = voucherService.createVoucherPair(
-                        tenant,
-                        branch, customerAccount, product.getGlLoanAsset(),
-                        branch, customerAccount, product.getGlLoanAsset(),
-                        principalComponent,
-                        loan.getCurrency(),
-                        businessDate,
-                        batchCode,
-                        systemUser,
-                        "Loan repayment principal DR: " + loan.getLoanAccountNumber(),
-                        "Loan repayment principal CR: " + loan.getLoanAccountNumber());
+                Voucher[] pair =
+                        voucherService.createVoucherPair(
+                                tenant,
+                                branch,
+                                customerAccount,
+                                product.getGlLoanAsset(),
+                                branch,
+                                customerAccount,
+                                product.getGlLoanAsset(),
+                                principalComponent,
+                                loan.getCurrency(),
+                                businessDate,
+                                batchCode,
+                                systemUser,
+                                "Loan repayment principal DR: " + loan.getLoanAccountNumber(),
+                                "Loan repayment principal CR: " + loan.getLoanAccountNumber());
                 voucherService.systemAuthorizeVoucher(pair[0].getId(), systemUser);
                 voucherService.systemAuthorizeVoucher(pair[1].getId(), systemUser);
                 voucherService.postVoucher(pair[0].getId());
@@ -411,35 +431,48 @@ public class LoanEmiPaymentService {
             // Interest component voucher pair: DR Customer, CR Interest Receivable GL
             if (interestComponent.compareTo(BigDecimal.ZERO) > 0) {
                 String batchCode = "LOAN-REPAY-I-" + loan.getLoanAccountNumber();
-                Voucher[] pair = voucherService.createVoucherPair(
-                        tenant,
-                        branch, customerAccount, product.getGlInterestReceivable(),
-                        branch, customerAccount, product.getGlInterestReceivable(),
-                        interestComponent,
-                        loan.getCurrency(),
-                        businessDate,
-                        batchCode,
-                        systemUser,
-                        "Loan repayment interest DR: " + loan.getLoanAccountNumber(),
-                        "Loan repayment interest CR: " + loan.getLoanAccountNumber());
+                Voucher[] pair =
+                        voucherService.createVoucherPair(
+                                tenant,
+                                branch,
+                                customerAccount,
+                                product.getGlInterestReceivable(),
+                                branch,
+                                customerAccount,
+                                product.getGlInterestReceivable(),
+                                interestComponent,
+                                loan.getCurrency(),
+                                businessDate,
+                                batchCode,
+                                systemUser,
+                                "Loan repayment interest DR: " + loan.getLoanAccountNumber(),
+                                "Loan repayment interest CR: " + loan.getLoanAccountNumber());
                 voucherService.systemAuthorizeVoucher(pair[0].getId(), systemUser);
                 voucherService.systemAuthorizeVoucher(pair[1].getId(), systemUser);
                 voucherService.postVoucher(pair[0].getId());
                 voucherService.postVoucher(pair[1].getId());
             }
 
-            log.info("Repayment vouchers posted for loan {}: principal={} interest={}",
-                    loan.getLoanAccountNumber(), principalComponent, interestComponent);
+            log.info(
+                    "Repayment vouchers posted for loan {}: principal={} interest={}",
+                    loan.getLoanAccountNumber(),
+                    principalComponent,
+                    interestComponent);
 
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Repayment voucher posting failed for loan {}: {}",
-                    loan.getLoanAccountNumber(), e.getMessage(), e);
+            log.error(
+                    "Repayment voucher posting failed for loan {}: {}",
+                    loan.getLoanAccountNumber(),
+                    e.getMessage(),
+                    e);
             throw new BusinessException(
                     "VOUCHER_POSTING_FAILED",
                     "Repayment voucher posting failed for loan "
-                            + loan.getLoanAccountNumber() + ": " + e.getMessage());
+                            + loan.getLoanAccountNumber()
+                            + ": "
+                            + e.getMessage());
         }
     }
 }

@@ -4,7 +4,6 @@ import com.ledgora.audit.service.AuditService;
 import com.ledgora.common.exception.BusinessException;
 import com.ledgora.loan.entity.CreditLimit;
 import com.ledgora.loan.repository.CreditLimitRepository;
-import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.repository.TenantRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -27,8 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>Check borrower/sector exposure caps
  * </ul>
  *
- * <p>RBI Master Circular on Exposure Norms:
- * Single borrower 15%, Group 40%, Sector per internal policy.
+ * <p>RBI Master Circular on Exposure Norms: Single borrower 15%, Group 40%, Sector per internal
+ * policy.
  */
 @Service
 public class CreditLimitService {
@@ -71,11 +70,12 @@ public class CreditLimitService {
                     "LIMIT_NOT_ACTIVE",
                     "Credit limit " + limit.getLimitReference() + " is " + limit.getStatus());
         }
-        if (limit.getExpiryDate() != null
-                && limit.getExpiryDate().isBefore(LocalDate.now())) {
+        if (limit.getExpiryDate() != null && limit.getExpiryDate().isBefore(LocalDate.now())) {
             throw new BusinessException(
                     "LIMIT_EXPIRED",
-                    "Credit limit " + limit.getLimitReference() + " expired on "
+                    "Credit limit "
+                            + limit.getLimitReference()
+                            + " expired on "
                             + limit.getExpiryDate());
         }
         if (amount.compareTo(limit.getAvailableAmount()) > 0) {
@@ -94,8 +94,8 @@ public class CreditLimitService {
     }
 
     /**
-     * Utilize limit on successful disbursement.
-     * Reduces available amount, increases utilized amount.
+     * Utilize limit on successful disbursement. Reduces available amount, increases utilized
+     * amount.
      */
     @Transactional
     public void utilizeLimit(Long creditLimitId, BigDecimal amount) {
@@ -122,8 +122,8 @@ public class CreditLimitService {
     }
 
     /**
-     * Release limit on repayment or loan closure.
-     * Increases available amount, decreases utilized amount.
+     * Release limit on repayment or loan closure. Increases available amount, decreases utilized
+     * amount.
      */
     @Transactional
     public void releaseLimit(Long creditLimitId, BigDecimal amount) {

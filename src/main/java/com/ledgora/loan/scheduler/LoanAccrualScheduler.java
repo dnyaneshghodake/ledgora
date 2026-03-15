@@ -20,9 +20,8 @@ import org.springframework.stereotype.Component;
  *   <li>Trial Balance / CRAR (reporting engine)
  * </ol>
  *
- * <p>Accrual runs for all active tenants. Each tenant's performing loans
- * are accrued using the tenant's current business date. Idempotent —
- * loans already accrued for the date are skipped.
+ * <p>Accrual runs for all active tenants. Each tenant's performing loans are accrued using the
+ * tenant's current business date. Idempotent — loans already accrued for the date are skipped.
  *
  * <p>Accounting entry per loan (via voucher engine):
  *
@@ -57,10 +56,14 @@ public class LoanAccrualScheduler {
         log.info("Loan accrual scheduler started for tenant {}", tenantId);
         try {
             int accrued = loanAccrualService.accrueDailyInterest(tenantId);
-            log.info("Loan accrual scheduler completed: tenant={} loansAccrued={}", tenantId, accrued);
+            log.info(
+                    "Loan accrual scheduler completed: tenant={} loansAccrued={}",
+                    tenantId,
+                    accrued);
             return accrued;
         } catch (Exception e) {
-            log.error("Loan accrual scheduler failed for tenant {}: {}", tenantId, e.getMessage(), e);
+            log.error(
+                    "Loan accrual scheduler failed for tenant {}: {}", tenantId, e.getMessage(), e);
             throw e;
         }
     }

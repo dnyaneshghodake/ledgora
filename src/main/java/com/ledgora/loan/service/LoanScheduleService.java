@@ -31,8 +31,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>Update DPD counters during EOD
  * </ul>
  *
- * <p>EMI Formula (reducing balance): EMI = P × r × (1+r)^n / ((1+r)^n - 1)
- * via centralized {@link EmiCalculator}.
+ * <p>EMI Formula (reducing balance): EMI = P × r × (1+r)^n / ((1+r)^n - 1) via centralized {@link
+ * EmiCalculator}.
  */
 @Service
 public class LoanScheduleService {
@@ -170,17 +170,15 @@ public class LoanScheduleService {
     private BigDecimal calculateEmi(BigDecimal principal, BigDecimal monthlyRate, int months) {
         // Convert monthlyRate back to annual % for EmiCalculator
         BigDecimal annualRate =
-                monthlyRate
-                        .multiply(new BigDecimal("12"))
-                        .multiply(new BigDecimal("100"));
+                monthlyRate.multiply(new BigDecimal("12")).multiply(new BigDecimal("100"));
         return EmiCalculator.computeEmi(principal, annualRate, months);
     }
 
     /**
      * Regenerate remaining schedule after a rate change or prepayment.
      *
-     * <p>Only unpaid installments (SCHEDULED, DUE, OVERDUE, PARTIALLY_PAID) are replaced.
-     * PAID installments are immutable — they represent historical fact.
+     * <p>Only unpaid installments (SCHEDULED, DUE, OVERDUE, PARTIALLY_PAID) are replaced. PAID
+     * installments are immutable — they represent historical fact.
      *
      * @param loanAccountId the loan to restructure
      * @param newRate new annual interest rate (null = use current loan rate)
@@ -259,10 +257,7 @@ public class LoanScheduleService {
 
         log.info(
                 "Schedule regenerated: loan={} installments={} newEmi={} rate={}%",
-                loan.getLoanAccountNumber(),
-                remainingTenure,
-                loan.getEmiAmount(),
-                effectiveRate);
+                loan.getLoanAccountNumber(), remainingTenure, loan.getEmiAmount(), effectiveRate);
 
         return remainingTenure;
     }

@@ -119,8 +119,9 @@ public class LoanDisbursementService {
         LocalDate maturityDate = businessDate.plusMonths(product.getTenureMonths());
 
         // Compute EMI via centralized calculator (eliminates 3x duplication)
-        BigDecimal emiAmount = EmiCalculator.computeEmi(
-                principalAmount, product.getInterestRate(), product.getTenureMonths());
+        BigDecimal emiAmount =
+                EmiCalculator.computeEmi(
+                        principalAmount, product.getInterestRate(), product.getTenureMonths());
 
         // Denormalize borrower name from linked account for quick search/display
         String borrowerName =
@@ -158,8 +159,8 @@ public class LoanDisbursementService {
         loanScheduleRepository.saveAll(schedule);
 
         // ── VOUCHER ENGINE: Post disbursement (DR Loan Asset GL, CR Customer Account) ──
-        postDisbursementVouchers(tenant, product, customerAccount, loan, principalAmount,
-                businessDate);
+        postDisbursementVouchers(
+                tenant, product, customerAccount, loan, principalAmount, businessDate);
 
         // ── CBS AUDIT: Record immutable LoanDisbursement tranche ──
         loanDisbursementRepository.save(
@@ -170,8 +171,7 @@ public class LoanDisbursementService {
                         .disbursementAmount(principalAmount)
                         .disbursementDate(businessDate)
                         .status("DISBURSED")
-                        .disbursedBy(
-                                com.ledgora.tenant.context.TenantContextHolder.getUsername())
+                        .disbursedBy(com.ledgora.tenant.context.TenantContextHolder.getUsername())
                         .remarks("Initial disbursement: " + loanAccountNumber)
                         .build());
 
@@ -207,38 +207,55 @@ public class LoanDisbursementService {
     /**
      * Post disbursement voucher pair via the voucher engine.
      *
-     * <p>CBS-grade double-entry: DR Loan Asset GL, CR Customer Account.
-     * Vouchers are system-auto-authorized and posted atomically.
+     * <p>CBS-grade double-entry: DR Loan Asset GL, CR Customer Account. Vouchers are
+     * system-auto-authorized and posted atomically.
      */
     private void postDisbursementVouchers(
-            Tenant tenant, LoanProduct product, Account customerAccount,
-            LoanAccount loan, BigDecimal amount, LocalDate businessDate) {
+            Tenant tenant,
+            LoanProduct product,
+            Account customerAccount,
+            LoanAccount loan,
+            BigDecimal amount,
+            LocalDate businessDate) {
         try {
             // Resolve branch from customer account (or default to first tenant branch)
             Branch branch = resolveBranch(customerAccount, tenant);
 
             // Resolve system maker user for automated voucher creation
-            User systemUser = userRepository.findByUsername("SYSTEM_AUTO")
-                    .orElseThrow(() -> new BusinessException(
-                            "SYSTEM_USER_MISSING",
-                            "SYSTEM_AUTO user not configured. Loan voucher posting blocked."));
+            User systemUser =
+                    userRepository
+                            .findByUsername("SYSTEM_AUTO")
+                            .orElseThrow(
+                                    () ->
+                                            new BusinessException(
+                                                    "SYSTEM_USER_MISSING",
+                                                    "SYSTEM_AUTO user not configured. Loan voucher posting blocked."));
 
             String batchCode = "LOAN-DISB-" + loan.getLoanAccountNumber();
 
             // Create DR/CR voucher pair atomically
-            Voucher[] pair = voucherService.createVoucherPair(
-                    tenant,
-                    branch, customerAccount, product.getGlLoanAsset(),   // DR leg
-                    branch, customerAccount, product.getGlLoanAsset(),   // CR leg (GL for credit)
-                    amount,
-                    loan.getCurrency(),
-                    businessDate,
-                    batchCode,
-                    systemUser,
-                    "Loan disbursement DR: " + loan.getLoanAccountNumber()
-                            + " principal=" + amount,
-                    "Loan disbursement CR: " + loan.getLoanAccountNumber()
-                            + " credit to " + customerAccount.getAccountNumber());
+            Voucher[] pair =
+                    voucherService.createVoucherPair(
+                            tenant,
+                            branch,
+                            customerAccount,
+                            product.getGlLoanAsset(), // DR leg
+                            branch,
+                            customerAccount,
+                            product.getGlLoanAsset(), // CR leg (GL for credit)
+                            amount,
+                            loan.getCurrency(),
+                            businessDate,
+                            batchCode,
+                            systemUser,
+                            "Loan disbursement DR: "
+                                    + loan.getLoanAccountNumber()
+                                    + " principal="
+                                    + amount,
+                            "Loan disbursement CR: "
+                                    + loan.getLoanAccountNumber()
+                                    + " credit to "
+                                    + customerAccount.getAccountNumber());
 
             // System-authorize both vouchers
             voucherService.systemAuthorizeVoucher(pair[0].getId(), systemUser);
@@ -248,20 +265,27 @@ public class LoanDisbursementService {
             voucherService.postVoucher(pair[0].getId());
             voucherService.postVoucher(pair[1].getId());
 
-            log.info("Disbursement vouchers posted: DR={} CR={} for loan {}",
-                    pair[0].getVoucherNumber(), pair[1].getVoucherNumber(),
+            log.info(
+                    "Disbursement vouchers posted: DR={} CR={} for loan {}",
+                    pair[0].getVoucherNumber(),
+                    pair[1].getVoucherNumber(),
                     loan.getLoanAccountNumber());
 
         } catch (BusinessException e) {
             throw e; // re-throw business exceptions
         } catch (Exception e) {
-            log.error("Disbursement voucher posting failed for loan {}: {}",
-                    loan.getLoanAccountNumber(), e.getMessage(), e);
+            log.error(
+                    "Disbursement voucher posting failed for loan {}: {}",
+                    loan.getLoanAccountNumber(),
+                    e.getMessage(),
+                    e);
             // Voucher posting failure should not silently succeed — fail the disbursement
             throw new BusinessException(
                     "VOUCHER_POSTING_FAILED",
                     "Disbursement voucher posting failed for loan "
-                            + loan.getLoanAccountNumber() + ": " + e.getMessage());
+                            + loan.getLoanAccountNumber()
+                            + ": "
+                            + e.getMessage());
         }
     }
 
@@ -272,8 +296,8 @@ public class LoanDisbursementService {
         }
         List<Branch> branches = branchRepository.findByTenantId(tenant.getId());
         if (branches.isEmpty()) {
-            throw new BusinessException("NO_BRANCH",
-                    "No branch configured for tenant " + tenant.getTenantCode());
+            throw new BusinessException(
+                    "NO_BRANCH", "No branch configured for tenant " + tenant.getTenantCode());
         }
         return branches.get(0);
     }

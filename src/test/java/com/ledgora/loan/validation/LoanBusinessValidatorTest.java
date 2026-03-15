@@ -14,8 +14,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Loan Business Validator Test — validates CBS-grade pre-condition checks.
  *
- * <p>Tests null checks, negative amounts, zero-total payments, boundary conditions,
- * status gates, and tenant isolation.
+ * <p>Tests null checks, negative amounts, zero-total payments, boundary conditions, status gates,
+ * and tenant isolation.
  */
 class LoanBusinessValidatorTest {
 
@@ -69,8 +69,7 @@ class LoanBusinessValidatorTest {
 
         @Test
         void closedLoan_throws() {
-            LoanAccount loan =
-                    buildLoan(BigDecimal.ZERO, BigDecimal.ZERO, LoanStatus.CLOSED, 1L);
+            LoanAccount loan = buildLoan(BigDecimal.ZERO, BigDecimal.ZERO, LoanStatus.CLOSED, 1L);
             BusinessException ex =
                     assertThrows(
                             BusinessException.class,
@@ -93,21 +92,14 @@ class LoanBusinessValidatorTest {
         void activeLoan_passes() {
             LoanAccount loan =
                     buildLoan(
-                            new BigDecimal("100000"),
-                            new BigDecimal("500"),
-                            LoanStatus.ACTIVE,
-                            1L);
+                            new BigDecimal("100000"), new BigDecimal("500"), LoanStatus.ACTIVE, 1L);
             assertDoesNotThrow(() -> LoanBusinessValidator.validateLoanOperational(loan));
         }
 
         @Test
         void npaLoan_passes() {
             LoanAccount loan =
-                    buildLoan(
-                            new BigDecimal("100000"),
-                            new BigDecimal("500"),
-                            LoanStatus.NPA,
-                            1L);
+                    buildLoan(new BigDecimal("100000"), new BigDecimal("500"), LoanStatus.NPA, 1L);
             assertDoesNotThrow(() -> LoanBusinessValidator.validateLoanOperational(loan));
         }
     }
@@ -117,11 +109,7 @@ class LoanBusinessValidatorTest {
     class ValidateEmiPayment {
 
         private final LoanAccount loan =
-                buildLoan(
-                        new BigDecimal("100000"),
-                        new BigDecimal("5000"),
-                        LoanStatus.ACTIVE,
-                        1L);
+                buildLoan(new BigDecimal("100000"), new BigDecimal("5000"), LoanStatus.ACTIVE, 1L);
 
         @Test
         void nullPrincipal_throws() {
@@ -168,9 +156,7 @@ class LoanBusinessValidatorTest {
                             BusinessException.class,
                             () ->
                                     LoanBusinessValidator.validateEmiPayment(
-                                            new BigDecimal("1000"),
-                                            new BigDecimal("6000"),
-                                            loan));
+                                            new BigDecimal("1000"), new BigDecimal("6000"), loan));
             assertEquals("INTEREST_EXCEEDS_ACCRUED", ex.getErrorCode());
         }
 
@@ -192,9 +178,7 @@ class LoanBusinessValidatorTest {
             assertDoesNotThrow(
                     () ->
                             LoanBusinessValidator.validateEmiPayment(
-                                    new BigDecimal("10000"),
-                                    new BigDecimal("2000"),
-                                    loan));
+                                    new BigDecimal("10000"), new BigDecimal("2000"), loan));
         }
 
         @Test
@@ -202,9 +186,7 @@ class LoanBusinessValidatorTest {
             assertDoesNotThrow(
                     () ->
                             LoanBusinessValidator.validateEmiPayment(
-                                    new BigDecimal("100000"),
-                                    new BigDecimal("5000"),
-                                    loan));
+                                    new BigDecimal("100000"), new BigDecimal("5000"), loan));
         }
     }
 
@@ -216,8 +198,7 @@ class LoanBusinessValidatorTest {
         void matchingTenant_passes() {
             LoanAccount loan =
                     buildLoan(new BigDecimal("100000"), BigDecimal.ZERO, LoanStatus.ACTIVE, 1L);
-            assertDoesNotThrow(
-                    () -> LoanBusinessValidator.validateTenantOwnership(loan, 1L));
+            assertDoesNotThrow(() -> LoanBusinessValidator.validateTenantOwnership(loan, 1L));
         }
 
         @Test
@@ -233,8 +214,7 @@ class LoanBusinessValidatorTest {
         void nullTenantId_passes() {
             LoanAccount loan =
                     buildLoan(new BigDecimal("100000"), BigDecimal.ZERO, LoanStatus.ACTIVE, 1L);
-            assertDoesNotThrow(
-                    () -> LoanBusinessValidator.validateTenantOwnership(loan, null));
+            assertDoesNotThrow(() -> LoanBusinessValidator.validateTenantOwnership(loan, null));
         }
     }
 }

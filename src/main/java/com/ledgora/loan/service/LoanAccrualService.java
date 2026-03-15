@@ -100,8 +100,7 @@ public class LoanAccrualService {
         int skippedAlreadyAccrued = 0;
 
         for (LoanAccount loan : allLoans) {
-            if (loan.getStatus() != LoanStatus.ACTIVE
-                    && loan.getStatus() != LoanStatus.NPA) {
+            if (loan.getStatus() != LoanStatus.ACTIVE && loan.getStatus() != LoanStatus.NPA) {
                 continue;
             }
             if (loan.getOutstandingPrincipal().compareTo(BigDecimal.ZERO) <= 0) {
@@ -122,8 +121,10 @@ public class LoanAccrualService {
 
             // Use loan-level rate (overridable per RBI FPC), fallback to product rate
             LoanProduct product = loan.getLoanProduct();
-            BigDecimal effectiveRate = loan.getInterestRate() != null
-                    ? loan.getInterestRate() : product.getInterestRate();
+            BigDecimal effectiveRate =
+                    loan.getInterestRate() != null
+                            ? loan.getInterestRate()
+                            : product.getInterestRate();
             BigDecimal dailyRate = EmiCalculator.dailyRate(effectiveRate);
 
             BigDecimal dailyInterest =
@@ -215,38 +216,62 @@ public class LoanAccrualService {
      * </pre>
      */
     private void postAccrualVouchers(
-            Tenant tenant, LoanAccount loan, LoanProduct product,
-            BigDecimal dailyInterest, LocalDate businessDate) {
+            Tenant tenant,
+            LoanAccount loan,
+            LoanProduct product,
+            BigDecimal dailyInterest,
+            LocalDate businessDate) {
         try {
             Account customerAccount = loan.getLinkedAccount();
-            Branch branch = customerAccount.getBranch() != null
-                    ? customerAccount.getBranch()
-                    : branchRepository.findByTenantId(tenant.getId()).stream()
-                            .findFirst()
-                            .orElseThrow(() -> new BusinessException("NO_BRANCH",
-                                    "No branch configured for tenant " + tenant.getTenantCode()));
+            Branch branch =
+                    customerAccount.getBranch() != null
+                            ? customerAccount.getBranch()
+                            : branchRepository.findByTenantId(tenant.getId()).stream()
+                                    .findFirst()
+                                    .orElseThrow(
+                                            () ->
+                                                    new BusinessException(
+                                                            "NO_BRANCH",
+                                                            "No branch configured for tenant "
+                                                                    + tenant.getTenantCode()));
 
-            User systemUser = userRepository.findByUsername("SYSTEM_AUTO")
-                    .orElseThrow(() -> new BusinessException(
-                            "SYSTEM_USER_MISSING",
-                            "SYSTEM_AUTO user not configured. Accrual voucher posting blocked."));
+            User systemUser =
+                    userRepository
+                            .findByUsername("SYSTEM_AUTO")
+                            .orElseThrow(
+                                    () ->
+                                            new BusinessException(
+                                                    "SYSTEM_USER_MISSING",
+                                                    "SYSTEM_AUTO user not configured. Accrual voucher posting blocked."));
 
-            String batchCode = "LOAN-ACCR-" + loan.getLoanAccountNumber()
-                    + "-" + businessDate.toString().replace("-", "");
+            String batchCode =
+                    "LOAN-ACCR-"
+                            + loan.getLoanAccountNumber()
+                            + "-"
+                            + businessDate.toString().replace("-", "");
 
-            Voucher[] pair = voucherService.createVoucherPair(
-                    tenant,
-                    branch, customerAccount, product.getGlInterestReceivable(),
-                    branch, customerAccount, product.getGlInterestIncome(),
-                    dailyInterest,
-                    loan.getCurrency(),
-                    businessDate,
-                    batchCode,
-                    systemUser,
-                    "Loan accrual DR: " + loan.getLoanAccountNumber()
-                            + " interest=" + dailyInterest,
-                    "Loan accrual CR: " + loan.getLoanAccountNumber()
-                            + " interest income=" + dailyInterest);
+            Voucher[] pair =
+                    voucherService.createVoucherPair(
+                            tenant,
+                            branch,
+                            customerAccount,
+                            product.getGlInterestReceivable(),
+                            branch,
+                            customerAccount,
+                            product.getGlInterestIncome(),
+                            dailyInterest,
+                            loan.getCurrency(),
+                            businessDate,
+                            batchCode,
+                            systemUser,
+                            "Loan accrual DR: "
+                                    + loan.getLoanAccountNumber()
+                                    + " interest="
+                                    + dailyInterest,
+                            "Loan accrual CR: "
+                                    + loan.getLoanAccountNumber()
+                                    + " interest income="
+                                    + dailyInterest);
 
             voucherService.systemAuthorizeVoucher(pair[0].getId(), systemUser);
             voucherService.systemAuthorizeVoucher(pair[1].getId(), systemUser);
@@ -256,12 +281,17 @@ public class LoanAccrualService {
         } catch (BusinessException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Accrual voucher posting failed for loan {}: {}",
-                    loan.getLoanAccountNumber(), e.getMessage(), e);
+            log.error(
+                    "Accrual voucher posting failed for loan {}: {}",
+                    loan.getLoanAccountNumber(),
+                    e.getMessage(),
+                    e);
             throw new BusinessException(
                     "VOUCHER_POSTING_FAILED",
                     "Accrual voucher posting failed for loan "
-                            + loan.getLoanAccountNumber() + ": " + e.getMessage());
+                            + loan.getLoanAccountNumber()
+                            + ": "
+                            + e.getMessage());
         }
     }
 }

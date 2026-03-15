@@ -74,15 +74,11 @@ public class LoanNpaScheduler {
 
             // Step 3: Provision recalculation (must run AFTER NPA classification)
             BigDecimal incremental = loanProvisionService.calculateProvisions(tenantId);
-            log.info(
-                    "Provision update: tenant={} incrementalProvision={}",
-                    tenantId,
-                    incremental);
+            log.info("Provision update: tenant={} incrementalProvision={}", tenantId, incremental);
 
             log.info("Loan NPA scheduler completed for tenant {}", tenantId);
         } catch (Exception e) {
-            log.error(
-                    "Loan NPA scheduler failed for tenant {}: {}", tenantId, e.getMessage(), e);
+            log.error("Loan NPA scheduler failed for tenant {}: {}", tenantId, e.getMessage(), e);
             throw e;
         }
     }

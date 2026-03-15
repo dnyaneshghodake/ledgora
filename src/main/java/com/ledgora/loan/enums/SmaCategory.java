@@ -13,8 +13,8 @@ package com.ledgora.loan.enums;
  *   <li>NONE: No overdue — performing asset
  * </ul>
  *
- * <p>SMA reporting is mandatory for all loans ≥ ₹5 crore to CRILC (Central Repository
- * of Information on Large Credits). Used for consortium lending early warning.
+ * <p>SMA reporting is mandatory for all loans ≥ ₹5 crore to CRILC (Central Repository of
+ * Information on Large Credits). Used for consortium lending early warning.
  */
 public enum SmaCategory {
     /** No overdue — performing asset. */

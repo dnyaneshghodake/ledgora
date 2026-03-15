@@ -57,9 +57,7 @@ public final class LoanBusinessValidator {
      * @throws BusinessException on any validation failure
      */
     public static void validateEmiPayment(
-            BigDecimal principalComponent,
-            BigDecimal interestComponent,
-            LoanAccount loan) {
+            BigDecimal principalComponent, BigDecimal interestComponent, LoanAccount loan) {
 
         if (principalComponent == null || interestComponent == null) {
             throw new BusinessException(
@@ -68,8 +66,7 @@ public final class LoanBusinessValidator {
         if (principalComponent.compareTo(BigDecimal.ZERO) < 0
                 || interestComponent.compareTo(BigDecimal.ZERO) < 0) {
             throw new BusinessException(
-                    "INVALID_EMI_PARAMS",
-                    "Principal and interest components must not be negative");
+                    "INVALID_EMI_PARAMS", "Principal and interest components must not be negative");
         }
         if (principalComponent.compareTo(BigDecimal.ZERO) == 0
                 && interestComponent.compareTo(BigDecimal.ZERO) == 0) {
@@ -101,8 +98,7 @@ public final class LoanBusinessValidator {
      */
     public static void validateTenantOwnership(LoanAccount loan, Long tenantId) {
         if (tenantId != null
-                && (loan.getTenant() == null
-                        || !loan.getTenant().getId().equals(tenantId))) {
+                && (loan.getTenant() == null || !loan.getTenant().getId().equals(tenantId))) {
             throw new BusinessException(
                     "LOAN_NOT_FOUND", "Loan account not found: " + loan.getId());
         }

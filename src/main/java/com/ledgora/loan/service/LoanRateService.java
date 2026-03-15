@@ -33,8 +33,8 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>Create new rate for a product with effective date
  *   <li>Maintain active/inactive rate window per product
  *   <li>Write immutable rate-change history entries for audit
- *   <li>Propagate floating rate changes to active loan accounts (EMI recalculation) — limited
- *       to updating loan.interestRate + loan.emiAmount (schedule restructuring is a separate step)
+ *   <li>Propagate floating rate changes to active loan accounts (EMI recalculation) — limited to
+ *       updating loan.interestRate + loan.emiAmount (schedule restructuring is a separate step)
  * </ul>
  */
 @Service
@@ -92,7 +92,10 @@ public class LoanRateService {
         Tenant tenant =
                 tenantRepository
                         .findById(tenantId)
-                        .orElseThrow(() -> new BusinessException("TENANT_NOT_FOUND", "Tenant not found"));
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                "TENANT_NOT_FOUND", "Tenant not found"));
 
         LoanProduct product =
                 loanProductRepository
@@ -185,7 +188,10 @@ public class LoanRateService {
                         .oldEmi(null)
                         .newEmi(null)
                         .effectiveDate(dto.getEffectiveDate())
-                        .changeReason(dto.getChangeReason() != null ? dto.getChangeReason() : "PRODUCT_REVISION")
+                        .changeReason(
+                                dto.getChangeReason() != null
+                                        ? dto.getChangeReason()
+                                        : "PRODUCT_REVISION")
                         .remarks(dto.getRemarks())
                         .changedBy(changedBy)
                         .build();
@@ -220,16 +226,19 @@ public class LoanRateService {
     /**
      * Propagate a floating rate change to active loans of a product.
      *
-     * <p>Finacle supports various rescheduling methods; this is the minimal CBS-grade step:
-     * update loan-level interestRate + recompute stored emiAmount. Full schedule regeneration
-     * is handled by LoanRestructureService (future).
+     * <p>Finacle supports various rescheduling methods; this is the minimal CBS-grade step: update
+     * loan-level interestRate + recompute stored emiAmount. Full schedule regeneration is handled
+     * by LoanRestructureService (future).
      */
     @Transactional
     public int propagateRateToActiveLoans(Long tenantId, Long productId, LocalDate asOfDate) {
         Tenant tenant =
                 tenantRepository
                         .findById(tenantId)
-                        .orElseThrow(() -> new BusinessException("TENANT_NOT_FOUND", "Tenant not found"));
+                        .orElseThrow(
+                                () ->
+                                        new BusinessException(
+                                                "TENANT_NOT_FOUND", "Tenant not found"));
 
         LoanProduct product =
                 loanProductRepository
@@ -243,8 +252,7 @@ public class LoanRateService {
 
         if (product.getInterestType() != InterestType.FLOATING) {
             throw new BusinessException(
-                    "NOT_FLOATING",
-                    "Rate propagation only applies to FLOATING products");
+                    "NOT_FLOATING", "Rate propagation only applies to FLOATING products");
         }
 
         LocalDate effectiveDate = asOfDate != null ? asOfDate : tenant.getCurrentBusinessDate();
@@ -253,11 +261,16 @@ public class LoanRateService {
         if (rates.isEmpty()) {
             throw new BusinessException(
                     "RATE_NOT_FOUND",
-                    "No rate found for product " + product.getProductCode() + " as of " + effectiveDate);
+                    "No rate found for product "
+                            + product.getProductCode()
+                            + " as of "
+                            + effectiveDate);
         }
         LoanRate rate = rates.get(0);
 
-        List<LoanAccount> loans = loanAccountRepository.findByTenantIdAndStatus(tenantId, com.ledgora.loan.enums.LoanStatus.ACTIVE);
+        List<LoanAccount> loans =
+                loanAccountRepository.findByTenantIdAndStatus(
+                        tenantId, com.ledgora.loan.enums.LoanStatus.ACTIVE);
         int updated = 0;
         for (LoanAccount loan : loans) {
             if (loan.getLoanProduct() == null || !loan.getLoanProduct().getId().equals(productId)) {
@@ -269,7 +282,8 @@ public class LoanRateService {
             loan.setInterestRate(rate.getEffectiveRate());
             loan.setEmiAmount(
                     EmiCalculator.computeEmi(
-                            loan.getOutstandingPrincipal(), rate.getEffectiveRate(),
+                            loan.getOutstandingPrincipal(),
+                            rate.getEffectiveRate(),
                             loan.getLoanProduct().getTenureMonths()));
             loanAccountRepository.save(loan);
 

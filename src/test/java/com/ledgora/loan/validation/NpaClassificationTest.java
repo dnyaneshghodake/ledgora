@@ -41,16 +41,14 @@ class NpaClassificationTest {
     @Test
     @DisplayName("DPD = 91 → SUBSTANDARD (first day of NPA)")
     void justOverThreshold_substandard() {
-        assertEquals(
-                NpaClassification.SUBSTANDARD, NpaClassifier.classify(91, DEFAULT_THRESHOLD));
+        assertEquals(NpaClassification.SUBSTANDARD, NpaClassifier.classify(91, DEFAULT_THRESHOLD));
         assertTrue(NpaClassifier.isNpa(91, DEFAULT_THRESHOLD));
     }
 
     @Test
     @DisplayName("DPD = 365 → SUBSTANDARD (last day before DOUBTFUL)")
     void endOfSubstandard() {
-        assertEquals(
-                NpaClassification.SUBSTANDARD, NpaClassifier.classify(365, DEFAULT_THRESHOLD));
+        assertEquals(NpaClassification.SUBSTANDARD, NpaClassifier.classify(365, DEFAULT_THRESHOLD));
     }
 
     @Test

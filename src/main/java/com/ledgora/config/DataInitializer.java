@@ -142,8 +142,7 @@ public class DataInitializer implements CommandLineRunner {
 
         // 10. CBS CustomerMaster + Tax Profiles (all tenants)
         cbsCustomerSeeder.seed(defaultTenant);
-        cbsCustomerSeeder.seedForAdditionalTenants(
-                secondTenant, ucbTenant, rrbTenant, nbfcTenant);
+        cbsCustomerSeeder.seedForAdditionalTenants(secondTenant, ucbTenant, rrbTenant, nbfcTenant);
 
         // 11. Teller Operations Master Data (denominations, vaults, teller masters)
         tellerDataSeeder.seed(defaultTenant, hq, br1, br2);

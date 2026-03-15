@@ -1,10 +1,10 @@
 package com.ledgora.auth.controller;
 
+import com.ledgora.audit.service.AuditService;
 import com.ledgora.auth.entity.Role;
 import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.RoleRepository;
 import com.ledgora.auth.repository.UserRepository;
-import com.ledgora.audit.service.AuditService;
 import com.ledgora.tenant.context.TenantContextHolder;
 import jakarta.servlet.http.HttpSession;
 import java.util.HashSet;
@@ -35,8 +35,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
  *   <li>GET /admin/users?tab=roles — role registry view
  * </ul>
  *
- * <p>Access: ADMIN, TENANT_ADMIN, SUPER_ADMIN only.
- * All mutations are audit-logged.
+ * <p>Access: ADMIN, TENANT_ADMIN, SUPER_ADMIN only. All mutations are audit-logged.
  */
 @Controller
 @RequestMapping("/admin/users")
@@ -64,9 +63,7 @@ public class UserManagementController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'TENANT_ADMIN', 'SUPER_ADMIN')")
     public String userList(
-            @RequestParam(required = false) String tab,
-            Model model,
-            HttpSession session) {
+            @RequestParam(required = false) String tab, Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
 
         List<User> users = userRepository.findByTenantId(tenantId);
@@ -107,16 +104,17 @@ public class UserManagementController {
             return "redirect:/admin/users/create";
         }
 
-        User user = User.builder()
-                .username(username)
-                .password(passwordEncoder.encode(password))
-                .fullName(fullName)
-                .email(email)
-                .phone(phone)
-                .branchCode(branchCode)
-                .isActive(true)
-                .isLocked(false)
-                .build();
+        User user =
+                User.builder()
+                        .username(username)
+                        .password(passwordEncoder.encode(password))
+                        .fullName(fullName)
+                        .email(email)
+                        .phone(phone)
+                        .branchCode(branchCode)
+                        .isActive(true)
+                        .isLocked(false)
+                        .build();
 
         // Set tenant from session
         com.ledgora.tenant.entity.Tenant tenant = new com.ledgora.tenant.entity.Tenant();
@@ -139,7 +137,8 @@ public class UserManagementController {
                 "User " + username + " created with roles: " + user.getRoles(),
                 null);
 
-        redirectAttributes.addFlashAttribute("message", "User " + username + " created successfully");
+        redirectAttributes.addFlashAttribute(
+                "message", "User " + username + " created successfully");
         return "redirect:/admin/users";
     }
 
@@ -149,7 +148,9 @@ public class UserManagementController {
     public String editForm(@PathVariable Long id, Model model, HttpSession session) {
         Long tenantId = resolveTenantId(session);
         User user = userRepository.findById(id).orElse(null);
-        if (user == null || user.getTenant() == null || !user.getTenant().getId().equals(tenantId)) {
+        if (user == null
+                || user.getTenant() == null
+                || !user.getTenant().getId().equals(tenantId)) {
             model.addAttribute("error", "User not found");
             return "admin/users";
         }
@@ -173,7 +174,9 @@ public class UserManagementController {
             RedirectAttributes redirectAttributes) {
         Long tenantId = resolveTenantId(session);
         User user = userRepository.findById(id).orElse(null);
-        if (user == null || user.getTenant() == null || !user.getTenant().getId().equals(tenantId)) {
+        if (user == null
+                || user.getTenant() == null
+                || !user.getTenant().getId().equals(tenantId)) {
             redirectAttributes.addFlashAttribute("error", "User not found or access denied");
             return "redirect:/admin/users";
         }
@@ -210,12 +213,12 @@ public class UserManagementController {
     @PostMapping("/{id}/toggle")
     @PreAuthorize("hasAnyRole('ADMIN', 'TENANT_ADMIN', 'SUPER_ADMIN')")
     public String toggleUser(
-            @PathVariable Long id,
-            HttpSession session,
-            RedirectAttributes redirectAttributes) {
+            @PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
         Long tenantId = resolveTenantId(session);
         User user = userRepository.findById(id).orElse(null);
-        if (user == null || user.getTenant() == null || !user.getTenant().getId().equals(tenantId)) {
+        if (user == null
+                || user.getTenant() == null
+                || !user.getTenant().getId().equals(tenantId)) {
             redirectAttributes.addFlashAttribute("error", "User not found");
             return "redirect:/admin/users";
         }
@@ -223,11 +226,16 @@ public class UserManagementController {
         userRepository.save(user);
 
         String action = user.getIsActive() ? "ACTIVATED" : "DEACTIVATED";
-        auditService.logEvent(null, "USER_" + action, "USER", user.getId(),
-                "User " + user.getUsername() + " " + action.toLowerCase(), null);
+        auditService.logEvent(
+                null,
+                "USER_" + action,
+                "USER",
+                user.getId(),
+                "User " + user.getUsername() + " " + action.toLowerCase(),
+                null);
 
-        redirectAttributes.addFlashAttribute("message",
-                "User " + user.getUsername() + " " + action.toLowerCase());
+        redirectAttributes.addFlashAttribute(
+                "message", "User " + user.getUsername() + " " + action.toLowerCase());
         return "redirect:/admin/users";
     }
 
@@ -235,12 +243,12 @@ public class UserManagementController {
     @PostMapping("/{id}/unlock")
     @PreAuthorize("hasAnyRole('ADMIN', 'TENANT_ADMIN', 'SUPER_ADMIN')")
     public String unlockUser(
-            @PathVariable Long id,
-            HttpSession session,
-            RedirectAttributes redirectAttributes) {
+            @PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
         Long tenantId = resolveTenantId(session);
         User user = userRepository.findById(id).orElse(null);
-        if (user == null || user.getTenant() == null || !user.getTenant().getId().equals(tenantId)) {
+        if (user == null
+                || user.getTenant() == null
+                || !user.getTenant().getId().equals(tenantId)) {
             redirectAttributes.addFlashAttribute("error", "User not found");
             return "redirect:/admin/users";
         }
@@ -248,8 +256,13 @@ public class UserManagementController {
         user.setFailedLoginAttempts(0);
         userRepository.save(user);
 
-        auditService.logEvent(null, "USER_UNLOCKED", "USER", user.getId(),
-                "User " + user.getUsername() + " unlocked by admin", null);
+        auditService.logEvent(
+                null,
+                "USER_UNLOCKED",
+                "USER",
+                user.getId(),
+                "User " + user.getUsername() + " unlocked by admin",
+                null);
 
         redirectAttributes.addFlashAttribute("message", "User " + user.getUsername() + " unlocked");
         return "redirect:/admin/users";

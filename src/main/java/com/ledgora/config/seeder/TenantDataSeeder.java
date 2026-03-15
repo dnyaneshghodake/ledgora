@@ -91,8 +91,7 @@ public class TenantDataSeeder {
                                             .multiBranchEnabled(false)
                                             .eodStatus("NOT_STARTED")
                                             .effectiveFrom(java.time.LocalDate.of(2023, 4, 1))
-                                            .remarks(
-                                                    "Urban cooperative bank — RBI Tier-II UCB")
+                                            .remarks("Urban cooperative bank — RBI Tier-II UCB")
                                             .build();
                             return tenantRepository.save(t);
                         });

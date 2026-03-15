@@ -14,8 +14,8 @@ import org.springframework.stereotype.Service;
 /**
  * Loan Account Service — CBS-grade loan account inquiry and lifecycle.
  *
- * <p>Read-only account operations (no financial mutations — those go through
- * dedicated services like LoanDisbursementService, LoanEmiPaymentService):
+ * <p>Read-only account operations (no financial mutations — those go through dedicated services
+ * like LoanDisbursementService, LoanEmiPaymentService):
  *
  * <ul>
  *   <li>Account lookup with tenant isolation

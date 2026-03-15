@@ -31,8 +31,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
  *   <li>POST /loan/npa/{id}/writeoff — write off a LOSS-classified loan (admin-only)
  * </ul>
  *
- * <p>Separated from LoanDashboardController per Finacle module structure.
- * Tenant-scoped, RBAC-enforced.
+ * <p>Separated from LoanDashboardController per Finacle module structure. Tenant-scoped,
+ * RBAC-enforced.
  */
 @Controller
 @RequestMapping("/loan/npa")
@@ -63,8 +63,7 @@ public class LoanNpaController {
         Long tenantId = resolveTenantId(session);
         List<LoanAccount> npaLoans =
                 loanAccountRepository.findByTenantIdAndStatus(tenantId, LoanStatus.NPA);
-        List<LoanAccount> allLoans =
-                loanAccountRepository.findActiveAndNpaByTenantId(tenantId);
+        List<LoanAccount> allLoans = loanAccountRepository.findActiveAndNpaByTenantId(tenantId);
 
         // At-risk: active loans with DPD > 0 (approaching NPA threshold)
         List<LoanAccount> atRisk =
@@ -73,19 +72,27 @@ public class LoanNpaController {
                         .toList();
 
         // Classification distribution
-        long substandardCount = npaLoans.stream()
-                .filter(l -> l.getNpaClassification() == NpaClassification.SUBSTANDARD).count();
-        long doubtfulCount = npaLoans.stream()
-                .filter(l -> l.getNpaClassification() == NpaClassification.DOUBTFUL).count();
-        long lossCount = npaLoans.stream()
-                .filter(l -> l.getNpaClassification() == NpaClassification.LOSS).count();
+        long substandardCount =
+                npaLoans.stream()
+                        .filter(l -> l.getNpaClassification() == NpaClassification.SUBSTANDARD)
+                        .count();
+        long doubtfulCount =
+                npaLoans.stream()
+                        .filter(l -> l.getNpaClassification() == NpaClassification.DOUBTFUL)
+                        .count();
+        long lossCount =
+                npaLoans.stream()
+                        .filter(l -> l.getNpaClassification() == NpaClassification.LOSS)
+                        .count();
 
-        BigDecimal totalNpaOutstanding = npaLoans.stream()
-                .map(LoanAccount::getOutstandingPrincipal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal totalProvision = npaLoans.stream()
-                .map(LoanAccount::getProvisionAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalNpaOutstanding =
+                npaLoans.stream()
+                        .map(LoanAccount::getOutstandingPrincipal)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalProvision =
+                npaLoans.stream()
+                        .map(LoanAccount::getProvisionAmount)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         model.addAttribute("npaLoans", npaLoans);
         model.addAttribute("atRiskLoans", atRisk);
@@ -105,8 +112,7 @@ public class LoanNpaController {
         try {
             int newNpaCount = loanNpaService.evaluateNpaAndUpdateDpd(tenantId);
             redirectAttributes.addFlashAttribute(
-                    "message",
-                    "NPA evaluation complete. New NPA classifications: " + newNpaCount);
+                    "message", "NPA evaluation complete. New NPA classifications: " + newNpaCount);
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute(
                     "error", "NPA evaluation failed: " + e.getMessage());
@@ -136,9 +142,7 @@ public class LoanNpaController {
     @PostMapping("/{id}/writeoff")
     @PreAuthorize("hasRole('ADMIN')")
     public String writeOff(
-            @PathVariable Long id,
-            HttpSession session,
-            RedirectAttributes redirectAttributes) {
+            @PathVariable Long id, HttpSession session, RedirectAttributes redirectAttributes) {
         Long tenantId = resolveTenantId(session);
         // Tenant isolation
         LoanAccount loan = loanAccountRepository.findById(id).orElse(null);
@@ -151,11 +155,9 @@ public class LoanNpaController {
         try {
             loanWriteOffService.writeOff(id);
             redirectAttributes.addFlashAttribute(
-                    "message",
-                    "Loan " + loan.getLoanAccountNumber() + " written off successfully");
+                    "message", "Loan " + loan.getLoanAccountNumber() + " written off successfully");
         } catch (Exception e) {
-            redirectAttributes.addFlashAttribute(
-                    "error", "Write-off failed: " + e.getMessage());
+            redirectAttributes.addFlashAttribute("error", "Write-off failed: " + e.getMessage());
         }
         return "redirect:/loan/npa";
     }
