@@ -336,8 +336,10 @@ public class LoanDashboardController {
                                                     "Linked account not found for this tenant"));
 
             // CBS-grade loan number: LN-<tenantCode>-<YYYYMMDD>-<sequence>
+            // Uses total loan count (all statuses) to avoid duplicate numbers when
+            // loans are CLOSED or WRITTEN_OFF.
             String datePart = tenant.getCurrentBusinessDate().toString().replace("-", "");
-            long seq = loanAccountRepository.findActiveAndNpaByTenantId(tenantId).size() + 1;
+            long seq = loanAccountRepository.countByTenantId(tenantId) + 1;
             String loanNumber =
                     "LN-"
                             + tenant.getTenantCode()

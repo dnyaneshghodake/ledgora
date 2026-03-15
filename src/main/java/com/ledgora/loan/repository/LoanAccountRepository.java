@@ -28,6 +28,10 @@ public interface LoanAccountRepository extends JpaRepository<LoanAccount, Long> 
                     + "WHERE la.tenant.id = :tenantId AND la.status IN ('ACTIVE', 'NPA')")
     List<LoanAccount> findActiveAndNpaByTenantId(@Param("tenantId") Long tenantId);
 
+    /** Total loan count for a tenant — used for unique loan number generation. */
+    @Query("SELECT COUNT(la) FROM LoanAccount la WHERE la.tenant.id = :tenantId")
+    long countByTenantId(@Param("tenantId") Long tenantId);
+
     List<LoanAccount> findByLinkedAccountId(Long linkedAccountId);
 
     /**
