@@ -34,8 +34,10 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
  * <ul>
  *   <li>GET /loan/dashboard — portfolio summary with NPA distribution
  *   <li>GET /loan/list — paginated loan list with filters
- *   <li>GET /loan/{id} — detailed loan view with schedule + ledger
+ *   <li>GET /loan/{id} — detailed loan view with product, schedule + ledger
  *   <li>GET /loan/npa-monitor — NPA classification monitor
+ *   <li>GET /loan/create — loan onboarding form (product + account selection)
+ *   <li>POST /loan/create — loan disbursement (creates LoanAccount + schedule)
  *   <li>POST /loan/{id}/repay — EMI payment (maker-checker)
  * </ul>
  */
