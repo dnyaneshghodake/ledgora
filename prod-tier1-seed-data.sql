@@ -49,7 +49,15 @@ VALUES
 (16, 1, 'SINGLE', 'teller_br2_t1',        '$2a$10$N9qo8uLOickgx2ZMRZoMye.IjqdkNmGp5GjSHjkYqpMfZ3GqKG5lK', 'Neha Kulkarni',         'neha@ledgora.in',            '+91-9876543232', 'BR002', 2, 1, 0, 0, SYSUTCDATETIME(), SYSUTCDATETIME()),
 -- Tenant 2: Risk Officer and Compliance Officer
 (17, 2, 'SINGLE', 'risk_officer_t2',      '$2a$10$N9qo8uLOickgx2ZMRZoMye.IjqdkNmGp5GjSHjkYqpMfZ3GqKG5lK', 'Sanjay Risk',           'sanjay.risk@ledgora-coop.in','+91-9876543233', 'BR003', 3, 1, 0, 0, SYSUTCDATETIME(), SYSUTCDATETIME()),
-(18, 2, 'SINGLE', 'compliance_t2',        '$2a$10$N9qo8uLOickgx2ZMRZoMye.IjqdkNmGp5GjSHjkYqpMfZ3GqKG5lK', 'Priti Compliance',      'priti.compliance@ledgora-coop.in','+91-9876543234', 'BR003', 3, 1, 0, 0, SYSUTCDATETIME(), SYSUTCDATETIME());
+(18, 2, 'SINGLE', 'compliance_t2',        '$2a$10$N9qo8uLOickgx2ZMRZoMye.IjqdkNmGp5GjSHjkYqpMfZ3GqKG5lK', 'Priti Compliance',      'priti.compliance@ledgora-coop.in','+91-9876543234', 'BR003', 3, 1, 0, 0, SYSUTCDATETIME(), SYSUTCDATETIME()),
+-- Operations users (CBS Tier-1: operations team for batch processing, settlement, EOD monitoring)
+(19, 1, 'SINGLE', 'ops_t1',               '$2a$10$N9qo8uLOickgx2ZMRZoMye.IjqdkNmGp5GjSHjkYqpMfZ3GqKG5lK', 'Sunil Operations',      'sunil.ops@ledgora.in',           '+91-9876543235', 'BR001', 1, 1, 0, 0, SYSUTCDATETIME(), SYSUTCDATETIME()),
+(20, 2, 'SINGLE', 'ops_t2',               '$2a$10$N9qo8uLOickgx2ZMRZoMye.IjqdkNmGp5GjSHjkYqpMfZ3GqKG5lK', 'Rekha Operations',      'rekha.ops@ledgora-coop.in',      '+91-9876543236', 'BR003', 3, 1, 0, 0, SYSUTCDATETIME(), SYSUTCDATETIME()),
+-- Branch Manager users (CBS Tier-1: branch-level supervisory role per Finacle BRMGR)
+(21, 1, 'SINGLE', 'branch_mgr_br2_t1',    '$2a$10$N9qo8uLOickgx2ZMRZoMye.IjqdkNmGp5GjSHjkYqpMfZ3GqKG5lK', 'Arvind Branch Mgr',     'arvind.bm@ledgora.in',           '+91-9876543237', 'BR002', 2, 1, 0, 0, SYSUTCDATETIME(), SYSUTCDATETIME()),
+(22, 2, 'SINGLE', 'branch_mgr_br4_t2',    '$2a$10$N9qo8uLOickgx2ZMRZoMye.IjqdkNmGp5GjSHjkYqpMfZ3GqKG5lK', 'Geeta Branch Mgr',      'geeta.bm@ledgora-coop.in',       '+91-9876543238', 'BR004', 4, 1, 0, 0, SYSUTCDATETIME(), SYSUTCDATETIME()),
+-- Super Admin (CBS Tier-1: cross-tenant operations, global system oversight)
+(23, NULL, 'MULTI', 'super_admin',         '$2a$10$N9qo8uLOickgx2ZMRZoMye.IjqdkNmGp5GjSHjkYqpMfZ3GqKG5lK', 'Vijay Super Admin',     'vijay.sa@ledgora.in',            '+91-9876543239', NULL, NULL, 1, 0, 0, SYSUTCDATETIME(), SYSUTCDATETIME());
 SET IDENTITY_INSERT users OFF;
 
 -- User-Role assignments for new users
@@ -60,7 +68,18 @@ INSERT INTO user_roles (user_id, role_id) VALUES
 (16, 3),   -- teller_br2_t1 -> ROLE_TELLER
 (16, 4),   -- teller_br2_t1 -> ROLE_MAKER
 (17, 13),  -- risk_officer_t2 -> ROLE_RISK
-(18, 14);  -- compliance_t2 -> ROLE_COMPLIANCE_OFFICER
+(18, 14),  -- compliance_t2 -> ROLE_COMPLIANCE_OFFICER
+-- Operations users: ROLE_OPERATIONS=9
+(19, 9),   -- ops_t1 -> ROLE_OPERATIONS
+(20, 9),   -- ops_t2 -> ROLE_OPERATIONS
+-- Branch Manager users: ROLE_BRANCH_MANAGER=12, also ROLE_CHECKER=5 (supervisory)
+(21, 12),  -- branch_mgr_br2_t1 -> ROLE_BRANCH_MANAGER
+(21, 5),   -- branch_mgr_br2_t1 -> ROLE_CHECKER (branch-level authorization)
+(22, 12),  -- branch_mgr_br4_t2 -> ROLE_BRANCH_MANAGER
+(22, 5),   -- branch_mgr_br4_t2 -> ROLE_CHECKER (branch-level authorization)
+-- Super Admin: ROLE_SUPER_ADMIN=7, ROLE_ADMIN=1
+(23, 7),   -- super_admin -> ROLE_SUPER_ADMIN
+(23, 1);   -- super_admin -> ROLE_ADMIN
 
 -- ============================================================================
 -- ADDITIONAL GL ACCOUNTS (Loans, Operational Expense per tenant)
