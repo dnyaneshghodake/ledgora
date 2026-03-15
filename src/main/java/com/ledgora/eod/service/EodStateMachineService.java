@@ -317,27 +317,27 @@ public class EodStateMachineService {
     public void runPhaseDateAdvanced(EodProcess process, Long tenantId) {
         log.info("EOD Phase DATE_ADVANCED: tenant={}", tenantId);
 
-        tenantService.closeDayAndAdvance(tenantId);
-
-        // Mark completed
+        // Use the EodProcess business date (the completed day) for snapshot generation.
+        // This is safer than tenant.getCurrentBusinessDate().minusDays(1) because
+        // it decouples from the date advancement logic (e.g., weekend/holiday skips).
+        // CRITICAL: Capture snapshot date BEFORE date advancement.
         Long processId = process.getId();
         process =
                 eodProcessRepository
                         .findById(processId)
                         .orElseThrow(
                                 () -> new RuntimeException("EodProcess not found: " + processId));
-        process.setPhase(EodPhase.DATE_ADVANCED);
-        process.setStatus("COMPLETED");
-        process.setCompletedAt(LocalDateTime.now());
-        eodProcessRepository.save(process);
-
-        // Use the EodProcess business date (the completed day) for snapshot generation.
-        // This is safer than tenant.getCurrentBusinessDate().minusDays(1) because
-        // it decouples from the date advancement logic (e.g., weekend/holiday skips).
         LocalDate snapshotDate = process.getBusinessDate();
 
-        // ── FINANCIAL STATEMENT ENGINE: Generate snapshots AFTER date advance ──
-        // RBI Master Directions: Daily Balance Sheet + P&L snapshots with SHA-256 checksum
+        tenantService.closeDayAndAdvance(tenantId);
+
+        // ── FINANCIAL STATEMENT ENGINE: Generate snapshots BEFORE marking COMPLETED ──
+        // RBI Master Directions: Daily Balance Sheet + P&L snapshots with SHA-256 checksum.
+        // CRASH SAFETY: Snapshots must be generated BEFORE the process is marked COMPLETED.
+        // If the app crashes after COMPLETED but before snapshots, the EOD would NOT retry
+        // (because it's already COMPLETED), leaving snapshots permanently missing.
+        // By generating snapshots first, a crash leaves the process in RUNNING state,
+        // which triggers a retry on restart that will regenerate snapshots.
         try {
             com.ledgora.reporting.service.FinancialStatementService statementService =
                     applicationContext.getBean(
@@ -354,7 +354,7 @@ public class EodStateMachineService {
         }
 
         // ── REGULATORY REPORTING: Trial Balance → CRAR → ALM snapshots ──
-        // RBI Supervisory Reporting: Generated after financial statements, before EOD completion
+        // RBI Supervisory Reporting: Generated after financial statements
         try {
             com.ledgora.reporting.service.RegulatorySnapshotService regulatoryService =
                     applicationContext.getBean(
@@ -369,6 +369,13 @@ public class EodStateMachineService {
                     tenantId,
                     e.getMessage());
         }
+
+        // ── MARK COMPLETED: Only after all snapshots are generated ──
+        // This ensures crash recovery will retry snapshot generation if it didn't complete.
+        process.setPhase(EodPhase.DATE_ADVANCED);
+        process.setStatus("COMPLETED");
+        process.setCompletedAt(LocalDateTime.now());
+        eodProcessRepository.save(process);
 
         auditService.logEvent(
                 null,

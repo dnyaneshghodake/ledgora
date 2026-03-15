@@ -62,9 +62,11 @@ public class DepositDashboardController {
         BigDecimal interestPayable =
                 depositAccountRepository.sumInterestPayableByTenantId(tenantId);
 
+        // CBS: Use tenant business date, not system clock, for all date-based queries.
+        // System clock may differ from tenant's business date (e.g., after weekend EOD).
         List<DepositAccount> maturingThisMonth =
                 depositAccountRepository.findMaturingByDate(
-                        tenantId, LocalDate.now().plusMonths(1));
+                        tenantId, tenant.getCurrentBusinessDate().plusMonths(1));
 
         model.addAttribute("tenantName", tenant.getTenantName());
         model.addAttribute("casaBalance", casaBalance);

@@ -1,6 +1,10 @@
 package com.ledgora.deposit.service;
 
 import com.ledgora.audit.service.AuditService;
+import com.ledgora.auth.entity.User;
+import com.ledgora.auth.repository.UserRepository;
+import com.ledgora.branch.entity.Branch;
+import com.ledgora.branch.repository.BranchRepository;
 import com.ledgora.common.exception.BusinessException;
 import com.ledgora.deposit.entity.DepositAccount;
 import com.ledgora.deposit.entity.DepositProduct;
@@ -8,7 +12,10 @@ import com.ledgora.deposit.enums.DepositAccountStatus;
 import com.ledgora.deposit.enums.DepositType;
 import com.ledgora.deposit.repository.DepositAccountRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
+import com.ledgora.voucher.entity.Voucher;
+import com.ledgora.voucher.service.VoucherService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -43,14 +50,23 @@ public class DepositPrematureClosureService {
     private static final Logger log = LoggerFactory.getLogger(DepositPrematureClosureService.class);
 
     private final DepositAccountRepository depositAccountRepository;
+    private final VoucherService voucherService;
+    private final BranchRepository branchRepository;
+    private final UserRepository userRepository;
     private final TenantService tenantService;
     private final AuditService auditService;
 
     public DepositPrematureClosureService(
             DepositAccountRepository depositAccountRepository,
+            VoucherService voucherService,
+            BranchRepository branchRepository,
+            UserRepository userRepository,
             TenantService tenantService,
             AuditService auditService) {
         this.depositAccountRepository = depositAccountRepository;
+        this.voucherService = voucherService;
+        this.branchRepository = branchRepository;
+        this.userRepository = userRepository;
         this.tenantService = tenantService;
         this.auditService = auditService;
     }
@@ -109,13 +125,19 @@ public class DepositPrematureClosureService {
         BigDecimal adjustedInterest = interestEarned.subtract(penalty);
         BigDecimal netPayout = deposit.getPrincipalAmount().add(adjustedInterest);
 
-        // NOTE: The actual GL postings should be done via voucher engine:
-        //   DR Deposit Liability GL (principal + original interest)
-        //   CR Customer Account (net payout)
-        //   DR Interest Adjustment GL (penalty)
-
         // CBS Tier-1: use tenant business date, never system clock
         LocalDate businessDate = tenantService.getCurrentBusinessDate(effectiveTenantId);
+
+        // ── VOUCHER ENGINE: Post premature closure (DR Deposit Liability, CR Customer Account) ──
+        // CBS invariant: all financial mutations flow through the voucher engine.
+        if (product.getGlDepositLiability() != null) {
+            postPrematureClosureVouchers(
+                    deposit, product, netPayout, businessDate);
+        } else {
+            log.warn(
+                    "Deposit product {} missing GL mappings — closure recorded without voucher",
+                    product.getProductCode());
+        }
 
         deposit.setStatus(DepositAccountStatus.PREMATURED);
         deposit.setClosureDate(businessDate);
@@ -146,5 +168,91 @@ public class DepositPrematureClosureService {
                 penalty);
 
         return deposit;
+    }
+
+    /**
+     * Post premature closure voucher pair via the voucher engine.
+     *
+     * <p>CBS-grade double-entry:
+     *
+     * <pre>
+     *   DR Deposit Liability GL (close the deposit — liability decreases)
+     *   CR Customer Account GL (net payout — funds returned to customer)
+     * </pre>
+     */
+    private void postPrematureClosureVouchers(
+            DepositAccount deposit,
+            DepositProduct product,
+            BigDecimal netPayout,
+            LocalDate businessDate) {
+        try {
+            Tenant tenant = deposit.getTenant();
+
+            Branch branch =
+                    branchRepository.findByTenantId(tenant.getId()).stream()
+                            .findFirst()
+                            .orElseThrow(
+                                    () ->
+                                            new BusinessException(
+                                                    "NO_BRANCH",
+                                                    "No branch configured for tenant "
+                                                            + tenant.getTenantCode()));
+
+            User systemUser =
+                    userRepository
+                            .findByUsername("SYSTEM_AUTO")
+                            .orElseThrow(
+                                    () ->
+                                            new BusinessException(
+                                                    "SYSTEM_USER_MISSING",
+                                                    "SYSTEM_AUTO user not configured."));
+
+            String batchCode = "DEP-CLOSE-" + deposit.getDepositAccountNumber();
+
+            // DR Deposit Liability GL, CR Customer Account (via linked account's GL)
+            // The Interest Expense GL is used as the CR leg since the customer receives the payout
+            Voucher[] pair =
+                    voucherService.createVoucherPair(
+                            tenant,
+                            branch,
+                            deposit.getLinkedAccount(),
+                            product.getGlDepositLiability(), // DR — Deposit Liability (decreases)
+                            branch,
+                            deposit.getLinkedAccount(),
+                            product.getGlInterestExpense(), // CR — Interest Expense (payout)
+                            netPayout,
+                            "INR",
+                            businessDate,
+                            batchCode,
+                            systemUser,
+                            "Premature closure DR: "
+                                    + deposit.getDepositAccountNumber()
+                                    + " liability="
+                                    + netPayout,
+                            "Premature closure CR: "
+                                    + deposit.getDepositAccountNumber()
+                                    + " payout="
+                                    + netPayout);
+
+            voucherService.systemAuthorizeVoucher(pair[0].getId(), systemUser);
+            voucherService.systemAuthorizeVoucher(pair[1].getId(), systemUser);
+            voucherService.postVoucher(pair[0].getId());
+            voucherService.postVoucher(pair[1].getId());
+
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error(
+                    "Premature closure voucher posting failed for {}: {}",
+                    deposit.getDepositAccountNumber(),
+                    e.getMessage(),
+                    e);
+            throw new BusinessException(
+                    "VOUCHER_POSTING_FAILED",
+                    "Premature closure voucher posting failed for "
+                            + deposit.getDepositAccountNumber()
+                            + ": "
+                            + e.getMessage());
+        }
     }
 }

@@ -6,6 +6,7 @@ import com.ledgora.auth.entity.User;
 import com.ledgora.auth.repository.RoleRepository;
 import com.ledgora.auth.repository.UserRepository;
 import com.ledgora.tenant.context.TenantContextHolder;
+import com.ledgora.tenant.repository.TenantRepository;
 import jakarta.servlet.http.HttpSession;
 import java.util.HashSet;
 import java.util.List;
@@ -45,16 +46,19 @@ public class UserManagementController {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
 
     public UserManagementController(
             UserRepository userRepository,
             RoleRepository roleRepository,
+            TenantRepository tenantRepository,
             PasswordEncoder passwordEncoder,
             AuditService auditService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.tenantRepository = tenantRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditService = auditService;
     }
@@ -116,10 +120,9 @@ public class UserManagementController {
                         .isLocked(false)
                         .build();
 
-        // Set tenant from session
-        com.ledgora.tenant.entity.Tenant tenant = new com.ledgora.tenant.entity.Tenant();
-        tenant.setId(tenantId);
-        user.setTenant(tenant);
+        // Set tenant using JPA reference proxy — avoids detached entity issues
+        // and prevents LazyInitializationException in downstream code
+        user.setTenant(tenantRepository.getReferenceById(tenantId));
 
         // Assign roles
         if (roleIds != null && !roleIds.isEmpty()) {
