@@ -10,6 +10,7 @@ import com.ledgora.loan.entity.LoanSchedule;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.enums.NpaClassification;
 import com.ledgora.loan.repository.LoanAccountRepository;
+import com.ledgora.loan.repository.LoanScheduleRepository;
 import com.ledgora.tenant.entity.Tenant;
 import com.ledgora.tenant.service.TenantService;
 import java.math.BigDecimal;
@@ -48,14 +49,17 @@ public class LoanDisbursementService {
     private static final Logger log = LoggerFactory.getLogger(LoanDisbursementService.class);
 
     private final LoanAccountRepository loanAccountRepository;
+    private final LoanScheduleRepository loanScheduleRepository;
     private final TenantService tenantService;
     private final AuditService auditService;
 
     public LoanDisbursementService(
             LoanAccountRepository loanAccountRepository,
+            LoanScheduleRepository loanScheduleRepository,
             TenantService tenantService,
             AuditService auditService) {
         this.loanAccountRepository = loanAccountRepository;
+        this.loanScheduleRepository = loanScheduleRepository;
         this.tenantService = tenantService;
         this.auditService = auditService;
     }
@@ -144,8 +148,9 @@ public class LoanDisbursementService {
                         .build();
         loan = loanAccountRepository.save(loan);
 
-        // Generate amortization schedule
+        // Generate and persist amortization schedule (Finacle LACSMNT — schedule at disbursement)
         List<LoanSchedule> schedule = generateAmortizationSchedule(loan, product, businessDate);
+        loanScheduleRepository.saveAll(schedule);
 
         auditService.logEvent(
                 null,
@@ -230,6 +235,7 @@ public class LoanDisbursementService {
 
             LoanSchedule installment =
                     LoanSchedule.builder()
+                            .loanAccount(loan)
                             .account(loan.getLinkedAccount())
                             .installmentNumber(i)
                             .dueDate(startDate.plusMonths(i))
@@ -243,10 +249,6 @@ public class LoanDisbursementService {
                             .build();
             schedule.add(installment);
         }
-
-        // NOTE: Schedule persistence would be via LoanScheduleRepository.saveAll(schedule)
-        // Omitted here as the existing LoanSchedule entity uses Account-based FK,
-        // not LoanAccount-based FK. The schedule is returned for the caller to persist.
 
         return schedule;
     }

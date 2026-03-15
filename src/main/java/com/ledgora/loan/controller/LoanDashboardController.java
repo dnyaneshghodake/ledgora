@@ -5,10 +5,12 @@ import com.ledgora.account.repository.AccountRepository;
 import com.ledgora.loan.dto.LoanSchedulePreviewDTO;
 import com.ledgora.loan.entity.LoanAccount;
 import com.ledgora.loan.entity.LoanProduct;
+import com.ledgora.loan.entity.LoanSchedule;
 import com.ledgora.loan.enums.LoanStatus;
 import com.ledgora.loan.enums.NpaClassification;
 import com.ledgora.loan.repository.LoanAccountRepository;
 import com.ledgora.loan.repository.LoanProductRepository;
+import com.ledgora.loan.repository.LoanScheduleRepository;
 import com.ledgora.loan.service.LoanDisbursementService;
 import com.ledgora.loan.service.LoanEmiPaymentService;
 import com.ledgora.tenant.context.TenantContextHolder;
@@ -51,6 +53,7 @@ public class LoanDashboardController {
 
     private final LoanAccountRepository loanAccountRepository;
     private final LoanProductRepository loanProductRepository;
+    private final LoanScheduleRepository loanScheduleRepository;
     private final AccountRepository accountRepository;
     private final LoanDisbursementService disbursementService;
     private final LoanEmiPaymentService emiPaymentService;
@@ -59,12 +62,14 @@ public class LoanDashboardController {
     public LoanDashboardController(
             LoanAccountRepository loanAccountRepository,
             LoanProductRepository loanProductRepository,
+            LoanScheduleRepository loanScheduleRepository,
             AccountRepository accountRepository,
             LoanDisbursementService disbursementService,
             LoanEmiPaymentService emiPaymentService,
             TenantRepository tenantRepository) {
         this.loanAccountRepository = loanAccountRepository;
         this.loanProductRepository = loanProductRepository;
+        this.loanScheduleRepository = loanScheduleRepository;
         this.accountRepository = accountRepository;
         this.disbursementService = disbursementService;
         this.emiPaymentService = emiPaymentService;
@@ -192,6 +197,12 @@ public class LoanDashboardController {
             return "loan/loan-detail";
         }
         model.addAttribute("loan", loan);
+
+        // Finacle LACHST — load repayment schedule for detail view
+        List<LoanSchedule> schedule =
+                loanScheduleRepository.findByLoanAccountIdOrderByInstallmentNumberAsc(loan.getId());
+        model.addAttribute("schedule", schedule);
+
         return "loan/loan-detail";
     }
 
